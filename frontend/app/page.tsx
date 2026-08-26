@@ -5,7 +5,7 @@ import { getTopMovies } from "@/lib/api";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  let movies = [];
+  let movies: any[] = [];
   let loadError: string | null = null;
 
   try {
