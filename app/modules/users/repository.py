@@ -50,3 +50,26 @@ class UserRepository:
     async def list_ratings(self, user_id: uuid.UUID) -> list[UserRating]:
         result = await self.db.execute(select(UserRating).where(UserRating.user_id == user_id))
         return list(result.scalars().all())
+
+    async def list_ratings_with_movies(self, user_id: uuid.UUID) -> list[dict]:
+        from app.modules.entities.models import Entity
+        stmt = (
+            select(UserRating, Entity)
+            .join(Entity, Entity.id == UserRating.entity_id)
+            .where(UserRating.user_id == user_id)
+            .order_by(UserRating.updated_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        return [
+            {
+                "id": rating.id,
+                "entity_id": rating.entity_id,
+                "score": rating.score,
+                "movie_slug": entity.slug,
+                "movie_title": entity.title,
+                "movie_poster_path": entity.attributes.get("poster_path"),
+            }
+            for rating, entity in rows
+        ]
+
