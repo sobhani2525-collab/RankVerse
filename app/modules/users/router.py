@@ -40,5 +40,5 @@ async def my_ratings(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    ratings = await UserRepository(db).list_ratings(current_user.id)
+    ratings = await UserRepository(db).list_ratings_with_movies(current_user.id)
     return envelope(data=[RatingPublic.model_validate(r).model_dump() for r in ratings])
