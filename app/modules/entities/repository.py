@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity, RelationshipEdge, EntityRanking
@@ -37,7 +38,7 @@ class EntityRepository:
         year_to: int | None = None,
         sort_by: str = "score",
     ) -> tuple[list[Entity], int]:
-        stmt = select(Entity).where(Entity.entity_type == "movie")
+        stmt = select(Entity).options(selectinload(Entity.ranking)).where(Entity.entity_type == "movie")
 
         if genre_slug:
             # Filter movies that have a has_genre edge pointing to the genre entity with this slug
@@ -49,9 +50,9 @@ class EntityRepository:
                     Entity.slug == genre_slug,
                 )
             )
-            stmt = select(Entity).where(
-                Entity.entity_type == "movie",
-                Entity.id.in_(genre_subq),
+            stmt = select(Entity).options(selectinload(Entity.ranking)).where(
+                    Entity.entity_type == "movie",
+                    Entity.id.in_(genre_subq),
             )
 
         if year_from:
