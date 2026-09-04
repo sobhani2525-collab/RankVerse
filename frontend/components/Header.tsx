@@ -16,7 +16,9 @@ export default function Header() {
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <>
-                <span className="text-sm text-muted">{user?.username}</span>
+                <Link href="/my-ratings" className="text-sm text-muted hover:text-gold">
+                  {user?.username}
+                </Link>
                 <button
                   onClick={logout}
                   className="rounded-lg border border-border px-3 py-1.5 text-sm text-ink transition hover:border-gold/50"
