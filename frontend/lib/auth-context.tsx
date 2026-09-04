@@ -1,9 +1,16 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { loginUser, registerUser } from "./api";
+import { loginUser, registerUser, getMe } from "./api";
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
+}
 
 interface AuthContextType {
   token: string | null;
+  user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -15,12 +22,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("rankverse_token");
-    if (stored) setToken(stored);
-    setLoading(false);
+    if (stored) {
+      setToken(stored);
+      getMe(stored)
+        .then(setUser)
+        .catch(() => {
+          localStorage.removeItem("rankverse_token");
+          localStorage.removeItem("rankverse_refresh_token");
+          setToken(null);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   async function login(email: string, password: string) {
@@ -28,6 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("rankverse_token", tokens.access_token);
     localStorage.setItem("rankverse_refresh_token", tokens.refresh_token);
     setToken(tokens.access_token);
+    const me = await getMe(tokens.access_token);
+    setUser(me);
   }
 
   async function register(email: string, username: string, password: string) {
@@ -39,11 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("rankverse_token");
     localStorage.removeItem("rankverse_refresh_token");
     setToken(null);
+    setUser(null);
   }
 
   return (
     <AuthContext.Provider
-      value={{ token, isAuthenticated: !!token, loading, login, register, logout }}
+      value={{ token, user, isAuthenticated: !!token, loading, login, register, logout }}
     >
       {children}
     </AuthContext.Provider>
