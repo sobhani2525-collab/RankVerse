@@ -62,7 +62,10 @@ class RankingService:
         external_score = entity.attributes.get("external_rating")
         final = self.blend_with_external(bayesian, external_score, C)
 
-        ranking = entity.ranking
+        stmt = select(EntityRanking).where(EntityRanking.entity_id == entity.id)
+result = await self.db.execute(stmt)
+ranking = result.scalar_one_or_none()
+
         if ranking is None:
             ranking = EntityRanking(entity_id=entity.id)
             self.db.add(ranking)
