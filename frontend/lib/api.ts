@@ -34,3 +34,34 @@ export async function getTopMovies(params: {
 export async function getMovieBySlug(slug: string): Promise<MovieDetail> {
   return fetchEnvelope<MovieDetail>(`/movies/${slug}`, 60);
 }
+
+async function postEnvelope<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json: Envelope<T> = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || `RankVerse API error (${res.status}) on ${path}`);
+  }
+  return json.data;
+}
+
+export async function registerUser(payload: {
+  email: string;
+  username: string;
+  password: string;
+}) {
+  return postEnvelope<{ id: string; email: string; username: string }>(
+    "/auth/register",
+    payload
+  );
+}
+
+export async function loginUser(payload: { email: string; password: string }) {
+  return postEnvelope<{ access_token: string; refresh_token: string }>(
+    "/auth/login",
+    payload
+  );
+}
