@@ -9,7 +9,7 @@ export default function RatingWidget({ slug }: { slug: string }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   async function submitRating(score: number) {
-    const token = typeof window !== "undefined" ? localStorage.getItem("rv_access_token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("rankverse_token") : null;
     if (!token) {
       setStatus("error");
       return;
