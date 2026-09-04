@@ -76,3 +76,23 @@ export async function getMe(token: string) {
   }
   return json.data;
 }
+
+export interface UserRating {
+  id: string;
+  entity_id: string;
+  score: number;
+  movie_slug: string;
+  movie_title: string;
+  movie_poster_path: string | null;
+}
+
+export async function getMyRatings(token: string): Promise<UserRating[]> {
+  const res = await fetch(`${API_BASE}/users/me/ratings`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json: Envelope<UserRating[]> = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || "Failed to fetch ratings");
+  }
+  return json.data;
+}
