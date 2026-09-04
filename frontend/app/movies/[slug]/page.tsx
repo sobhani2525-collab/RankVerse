@@ -8,10 +8,11 @@ import { getMovieBySlug } from "@/lib/api";
 
 export const revalidate = 60;
 
-export default async function MovieDetailPage({ params }: { params: { slug: string } }) {
+export default async function MovieDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   let movie;
   try {
-    movie = await getMovieBySlug(params.slug);
+    movie = await getMovieBySlug(slug);
   } catch {
     notFound();
   }
