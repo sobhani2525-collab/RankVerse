@@ -1,3 +1,4 @@
+import { AuthProvider } from "@/lib/auth-context";
 import type { Metadata } from "next";
 import { Vazirmatn, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -27,7 +28,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
