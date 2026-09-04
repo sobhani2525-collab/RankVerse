@@ -3,6 +3,8 @@ import RankingList from "@/components/RankingList";
 import { getTopMovies } from "@/lib/api";
 
 export const revalidate = 300;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
 
 export default async function HomePage() {
   let movies: any[] = [];
