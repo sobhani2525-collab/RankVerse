@@ -12,7 +12,7 @@ class EntityRepository:
         self.db = db
 
     async def get_by_slug(self, slug: str, entity_type: str | None = None) -> Entity | None:
-        stmt = select(Entity).where(Entity.slug == slug)
+        stmt = select(Entity).options(selectinload(Entity.ranking)).where(Entity.slug == slug)
         if entity_type:
             stmt = stmt.where(Entity.entity_type == entity_type)
         result = await self.db.execute(stmt)
