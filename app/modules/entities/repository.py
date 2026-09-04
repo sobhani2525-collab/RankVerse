@@ -75,13 +75,15 @@ class EntityRepository:
 
     async def get_relationships(
         self, entity_id: uuid.UUID, relation_type: str
-    ) -> list[RelationshipEdge]:
-        stmt = select(RelationshipEdge).where(
-            RelationshipEdge.from_entity_id == entity_id,
-            RelationshipEdge.relation_type == relation_type,
-        )
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+) -> list[RelationshipEdge]:
+    stmt = select(RelationshipEdge).options(
+        selectinload(RelationshipEdge.to_entity)
+    ).where(
+        RelationshipEdge.from_entity_id == entity_id,
+        RelationshipEdge.relation_type == relation_type,
+    )
+    result = await self.db.execute(stmt)
+    return list(result.scalars().all())
 
     async def create_entity(self, **kwargs) -> Entity:
         entity = Entity(**kwargs)
