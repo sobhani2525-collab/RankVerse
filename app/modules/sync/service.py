@@ -49,14 +49,24 @@ class SyncService:
             movie.title = normalized["title"]
             movie.attributes = normalized["attributes"]
         else:
-            movie = await self.repo.create_entity(
-                entity_type="movie",
-                external_id=normalized["external_id"],
-                external_source="tmdb",
-                title=normalized["title"],
-                slug=normalized["slug"],
-                attributes=normalized["attributes"],
-            )
+            # هم external_id و هم slug رو چک کن، چون ممکنه slug از یه منبع دیگه از قبل ساخته شده باشه
+            existing_by_slug = await self.repo.get_by_slug(normalized["slug"])
+            if existing_by_slug:
+                movie = existing_by_slug
+                movie.external_id = normalized["external_id"]
+                movie.external_source = "tmdb"
+                movie.title = normalized["title"]
+                movie.attributes = normalized["attributes"]
+            else:
+                movie = await self.repo.create_entity(
+                    entity_type="movie",
+                    external_id=normalized["external_id"],
+                    external_source="tmdb",
+                    title=normalized["title"],
+                    slug=normalized["slug"],
+                    attributes=normalized["attributes"],
+                )
+ 
 
         for d in normalized["directors"]:
             person = await self._get_or_create_person(d["external_id"], d["name"])
