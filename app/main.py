@@ -11,8 +11,8 @@ app = FastAPI(
 )
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # tighten before production
+    CORSMiddleware,    
+    allow_origins=["https://incredible-paletas-837a8c.netlify.app"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
