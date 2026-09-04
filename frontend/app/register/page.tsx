@@ -88,7 +88,7 @@ export default function RegisterPage() {
 
       <p className="mt-6 text-center text-sm text-muted">
         قبلاً حساب ساخته‌اید؟{" "}
-        <Link href="/ورود" className="text-teal hover:underline">
+        <Link href="/login" className="text-teal hover:underline">
           وارد شوید
         </Link>
       </p>
