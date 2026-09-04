@@ -2,6 +2,8 @@
   "name": "rankverse-frontend",
   "version": "0.1.0",
   "private": true,
+  "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+  "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
