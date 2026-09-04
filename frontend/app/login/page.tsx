@@ -74,7 +74,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-muted">
         حساب ندارید؟{" "}
-        <Link href="/ثبت-نام" className="text-teal hover:underline">
+        <Link href="/register" className="text-teal hover:underline">
           ثبت‌نام کنید
         </Link>
       </p>
