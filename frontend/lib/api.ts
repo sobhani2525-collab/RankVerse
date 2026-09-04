@@ -65,3 +65,14 @@ export async function loginUser(payload: { email: string; password: string }) {
     payload
   );
 }
+
+export async function getMe(token: string) {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json: Envelope<{ id: string; email: string; username: string }> = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || "Failed to fetch user");
+  }
+  return json.data;
+}
