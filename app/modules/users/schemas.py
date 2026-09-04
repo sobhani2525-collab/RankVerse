@@ -36,3 +36,6 @@ class RatingPublic(BaseModel):
     id: uuid.UUID
     entity_id: uuid.UUID
     score: int
+    movie_slug: str | None = None
+    movie_title: str | None = None
+    movie_poster_path: str | None = None
