@@ -71,7 +71,7 @@ class ListDetail(ListSummary):
     items: list[ListItemPublic] = []
     is_liked: bool = False
     is_following: bool = False
-
+    is_owner: bool = False
 
 class CommentCreate(BaseModel):
     body: str = Field(min_length=1, max_length=2000)

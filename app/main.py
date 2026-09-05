@@ -12,7 +12,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,    
-    allow_origins=["https://rankverse-frontend.sobhani2525.workers.dev"], 
+    allow_origins=["https://rankverse-frontend.sobhani2525.workers.dev","http://localhost:3000"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

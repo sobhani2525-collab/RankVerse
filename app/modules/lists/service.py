@@ -95,6 +95,7 @@ class ListService:
             items=items,
             is_liked=is_liked,
             is_following=is_following,
+            is_owner=(current_user_id == lst.user_id) if current_user_id else False,
         )
 
     async def update_list(self, user_id: uuid.UUID, slug: str, payload: ListUpdate) -> UserList:
