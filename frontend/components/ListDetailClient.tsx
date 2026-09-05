@@ -1,13 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { getListBySlug } from "@/lib/api";
 import { ListDetail, ListComment } from "@/lib/types";
 import ListActions from "./ListActions";
 import ListComments from "./ListComments";
 import AddListItem from "./AddListItem";
+import ListItemsManager from "./ListItemsManager";
 
 export default function ListDetailClient({
   slug,
@@ -18,7 +17,7 @@ export default function ListDetailClient({
   initialDetail: ListDetail;
   initialComments: ListComment[];
 }) {
-  const { token, user, loading: authLoading } = useAuth();
+  const { token, loading: authLoading } = useAuth();
   const [detail, setDetail] = useState(initialDetail);
 
   useEffect(() => {
@@ -31,7 +30,7 @@ export default function ListDetailClient({
     }
   }, [authLoading, token, slug]);
 
-    const isOwner = detail.is_owner;
+  const isOwner = detail.is_owner;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
@@ -70,69 +69,28 @@ export default function ListDetailClient({
         />
       </div>
 
-  {isOwner && (
-        <AddListItem
-          slug={slug}
-          entityType={detail.entity_type}
-          onAdded={() => {
-            getListBySlug(slug, token).then(setDetail);
-          }}
-        />
+      {isOwner && (
+        <div className="mt-8">
+          <AddListItem
+            slug={slug}
+            entityType={detail.entity_type}
+            onAdded={() => {
+              if (token) {
+                getListBySlug(slug, token).then(setDetail);
+              }
+            }}
+          />
+        </div>
       )}
-      <div className="mt-8 flex flex-col gap-3">
-        {detail.items.length === 0 ? (
-          <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-            این لیست هنوز آیتمی ندارد.
-          </div>
-        ) : (
-          detail.items.map((item, idx) => {
-            const posterUrl = item.entity.poster_path
-              ? `https://image.tmdb.org/t/p/w200${item.entity.poster_path}`
-              : null;
-            return (
-              <div
-                key={item.id}
-                className="flex items-center gap-4 rounded-xl border border-border bg-surface/60 px-4 py-3"
-              >
-                {detail.is_ranked && (
-                  <span className="num w-9 shrink-0 text-center text-lg text-muted">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                )}
-                <div className="h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface2">
-                  {posterUrl ? (
-                    <Image
-                      src={posterUrl}
-                      alt={item.entity.title}
-                      width={44}
-                      height={64}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-muted">
-                      —
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={
-                      item.entity.entity_type === "movie"
-                        ? `/movies/${item.entity.slug}`
-                        : "#"
-                    }
-                    className="truncate font-medium text-ink hover:text-gold"
-                  >
-                    {item.entity.title}
-                  </Link>
-                  {item.note && (
-                    <p className="mt-0.5 truncate text-sm text-muted">{item.note}</p>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
+
+      <div className="mt-8">
+        <ListItemsManager
+          key={detail.items.map((i) => i.id).join(",")}
+          slug={slug}
+          isRanked={detail.is_ranked}
+          isOwner={isOwner}
+          initialItems={detail.items}
+        />
       </div>
 
       <ListComments slug={slug} initialComments={initialComments} />
