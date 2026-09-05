@@ -30,3 +30,21 @@ async def get_current_user(
         raise UnauthorizedError("User not found or inactive")
 
     return user
+
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    if credentials is None:
+        return None
+
+    payload = decode_token(credentials.credentials)
+    if payload is None or payload.get("type") != "access":
+        return None
+
+    user_id = payload.get("sub")
+    user = await UserRepository(db).get_by_id(uuid.UUID(user_id))
+    if user is None or not user.is_active:
+        return None
+
+    return user

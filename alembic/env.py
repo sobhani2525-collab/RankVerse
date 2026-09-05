@@ -11,6 +11,7 @@ from app.core.database import Base
 # Import all models so they're registered on Base.metadata
 from app.modules.entities import models as entities_models  # noqa
 from app.modules.users import models as users_models  # noqa
+from app.modules.lists import models as lists_models  # noqa
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
