@@ -1,10 +1,9 @@
+import Link from "next/link";
 import Hero from "@/components/Hero";
 import RankingList from "@/components/RankingList";
-import { getTopMovies } from "@/lib/api";
+import { getTopMovies, discoverLists } from "@/lib/api";
 
 export const revalidate = 300;
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
 
 export default async function HomePage() {
   let movies: any[] = [];
@@ -14,6 +13,15 @@ export default async function HomePage() {
     movies = await getTopMovies({ page_size: 20 });
   } catch (err) {
     loadError = err instanceof Error ? err.message : "خطا در دریافت اطلاعات";
+  }
+
+  // آخرین لیست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
+  // این بخش بی‌سروصدا مخفی می‌شه و مانع لود بقیهٔ صفحه نمی‌شه.
+  let latestLists: any[] = [];
+  try {
+    latestLists = await discoverLists({ sort: "newest", page_size: 6 });
+  } catch {
+    latestLists = [];
   }
 
   return (
@@ -35,6 +43,33 @@ export default async function HomePage() {
           <RankingList movies={movies} />
         )}
       </section>
+
+      {latestLists.length > 0 && (
+        <section className="mx-auto max-w-3xl px-6 pb-14">
+          <div className="mb-6 flex items-baseline justify-between">
+            <h2 className="text-xl font-bold text-ink">آخرین لیست‌ها</h2>
+            <Link href="/lists" className="text-xs text-teal hover:underline">
+              همه لیست‌ها
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {latestLists.map((list) => (
+              <Link
+                key={list.id ?? list.slug}
+                href={`/lists/${list.slug}`}
+                className="rounded-lg border border-border bg-surface px-4 py-3 transition-colors hover:border-teal/30"
+              >
+                <p className="truncate text-sm text-ink">{list.title}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {list.owner_username ?? list.username ?? "کاربر RankVerse"}
+                  {typeof list.item_count === "number" && ` · ${list.item_count} مورد`}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

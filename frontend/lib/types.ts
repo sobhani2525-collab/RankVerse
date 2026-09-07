@@ -85,3 +85,43 @@ export interface ListComment {
   parent_comment_id: string | null;
   created_at: string;
 }
+
+/**
+ * Append this block to the end of lib/types.ts.
+ * (Kept as a separate file here just so it's easy to review/copy.)
+ */
+
+export type VoteOutcome = "left" | "right" | "skip";
+
+export interface BattleEntity {
+  id: string;
+  title: string;
+  /**
+   * NOTE: despite the name, the backend currently returns whatever raw
+   * value it finds in Entity.attributes (poster_path / poster_url /
+   * image_url — whichever key exists first). For movies this is
+   * typically a TMDB-style relative path like "/abc123.jpg", the same
+   * shape MovieListItem.poster_path uses elsewhere in this app — so we
+   * build the full image URL the same way MovieRow.tsx does.
+   */
+  poster_url: string | null;
+  elo_score: number;
+  matches_played: number;
+}
+
+export interface NextBattleResponse {
+  category: string;
+  left: BattleEntity;
+  right: BattleEntity;
+}
+
+export interface CastVoteResponse {
+  vote_id: string;
+  left_item: string;
+  right_item: string;
+  left_score_before: number;
+  right_score_before: number;
+  left_score_after: number;
+  right_score_after: number;
+  created_at: string;
+}

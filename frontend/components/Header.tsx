@@ -8,15 +8,20 @@ export default function Header() {
   return (
     <header className="border-b border-border bg-surface px-6 py-4">
       <div className="mx-auto flex max-w-3xl items-center justify-between">
-        <Link href="/" className="text-lg font-black text-ink">
-          RankVerse
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/" className="text-lg font-black text-ink">
+            RankVerse
+          </Link>
+          <Link href="/battles" className="text-sm text-muted transition hover:text-gold">
+            نبرد بهترین‌ها
+          </Link>
+        </div>
 
         {!loading && (
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <>
-                <Link href="/my-ratings" className="text-sm text-muted hover:text-gold">
+                <Link href="/profile" className="text-sm text-muted hover:text-gold">
                   {user?.username}
                 </Link>
                 <button

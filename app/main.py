@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.exceptions import RankVerseError, rankverse_exception_handler
+from app.modules.battles.router import router as battles_router 
 
 app = FastAPI(
     title="RankVerse Core Engine",
@@ -21,7 +22,7 @@ app.add_middleware(
 app.add_exception_handler(RankVerseError, rankverse_exception_handler)
 
 app.include_router(api_router)
-
+app.include_router(battles_router)
 
 @app.get("/health")
 async def health():

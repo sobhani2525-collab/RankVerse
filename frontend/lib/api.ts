@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, ListSummary, ListDetail, ListComment } from "./types";
+import { Envelope, MovieDetail, MovieListItem, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -246,3 +246,61 @@ export async function searchEntities(q: string, type: string = "movie"): Promise
   }
   return json.data;
 }
+
+/**
+ * Append this block to the end of lib/api.ts, and add
+ * `BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome`
+ * to the existing `import { ... } from "./types"` line at the top.
+ *
+ * IMPORTANT: unlike the rest of this file, the /battles endpoints do
+ * NOT wrap their responses in the {data, meta, error} Envelope shape —
+ * they return the raw JSON body directly. So these two functions talk
+ * to `fetch` directly instead of going through fetchEnvelope/authFetch.
+ * If the backend is ever updated to use the Envelope convention here
+ * too, these two functions are the only place that needs to change.
+ */
+
+export async function getNextBattle(
+  token: string,
+  category: string = "movie"
+): Promise<NextBattleResponse> {
+  const qs = new URLSearchParams({ category });
+  const res = await fetch(`${API_BASE}/battles/next?${qs.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(
+      body?.detail || `RankVerse API error (${res.status}) on /battles/next`
+    );
+  }
+  return res.json();
+}
+
+export async function castBattleVote(
+  token: string,
+  payload: {
+    category: string;
+    left_item: string;
+    right_item: string;
+    winner: VoteOutcome;
+  }
+): Promise<CastVoteResponse> {
+  const res = await fetch(`${API_BASE}/battles/vote`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(
+      body?.detail || `RankVerse API error (${res.status}) on /battles/vote`
+    );
+  }
+  return res.json();
+}
+
