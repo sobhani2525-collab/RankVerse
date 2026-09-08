@@ -85,6 +85,19 @@ class EntityRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_related(self, entity_id: uuid.UUID, relation_type: str | None = None, limit: int = 12):
+        stmt = (
+            select(RelationshipEdge)
+            .options(selectinload(RelationshipEdge.to_entity))
+            .where(RelationshipEdge.from_entity_id == entity_id)
+            .order_by(RelationshipEdge.weight.desc())
+            .limit(limit)
+        )
+        if relation_type:
+            stmt = stmt.where(RelationshipEdge.relation_type == relation_type)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+    
     async def create_entity(self, **kwargs) -> Entity:
         entity = Entity(**kwargs)
         self.db.add(entity)
@@ -97,13 +110,21 @@ class EntityRepository:
         to_entity_id: uuid.UUID,
         relation_type: str,
         edge_metadata: dict | None = None,
-    ) -> RelationshipEdge:
-        edge = RelationshipEdge(
+        weight: float = 1.0,
+        source: str = "sync",
+    ) -> None:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(RelationshipEdge).values(
             from_entity_id=from_entity_id,
             to_entity_id=to_entity_id,
             relation_type=relation_type,
             edge_metadata=edge_metadata or {},
+            weight=weight,
+            source=source,
         )
-        self.db.add(edge)
+        stmt = stmt.on_conflict_do_nothing(
+            index_elements=["from_entity_id", "to_entity_id", "relation_type"]
+        )
+        await self.db.execute(stmt)
         await self.db.flush()
-        return edge

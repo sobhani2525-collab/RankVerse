@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import Constellation from "@/components/Constellation";
 import ScoreBadge from "@/components/ScoreBadge";
 import RatingWidget from "@/components/RatingWidget";
-import { getMovieBySlug } from "@/lib/api";
+import RelatedEntities from "@/components/RelatedEntities";
+import { getMovieBySlug, getRelatedEntities, RelatedEntity } from "@/lib/api";
 
 export const revalidate = 60;
 
@@ -17,6 +18,13 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
     notFound();
   }
 
+  let related: RelatedEntity[] = [];
+  try {
+    related = await getRelatedEntities(movie.id);
+  } catch {
+    related = [];
+  }
+
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : null;
@@ -26,7 +34,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
       <Link href="/" className="text-sm text-muted hover:text-gold">
-        ← بازگشت به فهرست
+        بازگشت به فهرست
       </Link>
 
       <div className="mt-6 flex flex-col gap-8 sm:flex-row">
@@ -51,7 +59,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             <div>
               <h1 className="text-2xl font-bold text-ink">{movie.title}</h1>
               <p className="num mt-1 text-sm text-muted">
-                {movie.year ?? "—"} {movie.runtime ? `· ${movie.runtime} دقیقه` : ""}
+                {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} daghighe` : ""}
               </p>
             </div>
             <Constellation director={mainDirector} genre={mainGenre} year={movie.year} size={80} />
@@ -59,7 +67,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
           <div className="mt-4 flex items-center gap-3">
             <ScoreBadge score={movie.computed_score} />
-            <span className="num text-xs text-muted">{movie.total_votes} رای کاربران</span>
+            <span className="num text-xs text-muted">{movie.total_votes} raay</span>
           </div>
 
           {movie.overview && (
@@ -69,24 +77,24 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
             {movie.directors.length > 0 && (
               <div>
-                <dt className="text-xs text-muted">کارگردان</dt>
+                <dt className="text-xs text-muted">Kargardan</dt>
                 <dd className="mt-1 text-ink">
-                  {movie.directors.map((d) => d.title).join("، ")}
+                  {movie.directors.map((d) => d.title).join("- ")}
                 </dd>
               </div>
             )}
             {movie.genres.length > 0 && (
               <div>
-                <dt className="text-xs text-muted">ژانر</dt>
+                <dt className="text-xs text-muted">Zhanr</dt>
                 <dd className="mt-1 text-ink">
-                  {movie.genres.map((g) => g.title).join("، ")}
+                  {movie.genres.map((g) => g.title).join("- ")}
                 </dd>
               </div>
             )}
             {movie.cast.length > 0 && (
               <div className="col-span-2">
-                <dt className="text-xs text-muted">بازیگران</dt>
-                <dd className="mt-1 text-ink">{movie.cast.map((c) => c.title).join("، ")}</dd>
+                <dt className="text-xs text-muted">Bazigaran</dt>
+                <dd className="mt-1 text-ink">{movie.cast.map((c) => c.title).join("- ")}</dd>
               </div>
             )}
           </dl>
@@ -95,6 +103,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
       <div className="mt-10">
         <RatingWidget slug={movie.slug} />
+      </div>
+
+      <div className="mt-10">
+        <RelatedEntities items={related} />
       </div>
     </main>
   );

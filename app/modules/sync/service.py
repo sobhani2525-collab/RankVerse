@@ -90,11 +90,14 @@ class SyncService:
         return {"id": str(movie.id), "slug": movie.slug, "title": movie.title}
 
     async def bulk_sync_popular(self, pages: int = 5) -> int:
-        """Pulls several pages of popular movies from TMDb discover endpoint."""
         synced = 0
         for page in range(1, pages + 1):
             discover = await self.client.discover_movies(page=page)
             for movie in discover.get("results", []):
-                await self.sync_movie(movie["id"])
-                synced += 1
-        return synced
+                try:
+                    await self.sync_movie(movie["id"])
+                    synced += 1
+                except Exception as e:
+                    print(f"skipping movie {movie['id']} ({movie.get('title')}) due to error: {e}")
+                    await self.db.rollback()
+        return synced   

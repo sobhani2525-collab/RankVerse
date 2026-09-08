@@ -1,0 +1,12 @@
+from pydantic import BaseModel
+
+
+class RelatedEntityOut(BaseModel):
+    id: str
+    title: str
+    slug: str
+    weight: float
+    relation_type: str
+
+    class Config:
+        from_attributes = True

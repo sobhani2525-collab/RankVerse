@@ -304,3 +304,15 @@ export async function castBattleVote(
   return res.json();
 }
 
+export interface RelatedEntity {
+  id: string;
+  title: string;
+  slug: string;
+  weight: number;
+  relation_type: string;
+}
+
+export async function getRelatedEntities(entityId: string, limit: number = 6): Promise<RelatedEntity[]> {
+  return fetchEnvelope<RelatedEntity[]>(`/entities/${entityId}/related?limit=${limit}`, 300);
+}
+

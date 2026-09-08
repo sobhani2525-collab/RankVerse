@@ -28,6 +28,7 @@ export interface MovieListItem {
 }
 
 export interface MovieDetail extends MovieListItem {
+  id:string;
   overview: string | null;
   runtime: number | null;
   country: string | null;
