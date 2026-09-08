@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Adjust to your actual Entity model location/fields.
 from app.modules.entities.models import Entity
+from app.modules.entities.repository import EntityRepository
 
 from .models import EntityEloScore, PairVote, VoteOutcome
 
@@ -15,8 +15,6 @@ DEFAULT_ELO = 1200.0
 class BattleRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
-
-    # ---------- Elo score bootstrap / read ----------
 
     async def get_or_create_elo(self, entity_id: uuid.UUID, category: str) -> EntityEloScore:
         result = await self.db.execute(
@@ -41,8 +39,6 @@ class BattleRepository:
         )
         return {row.entity_id: row for row in result.scalars().all()}
 
-    # ---------- Matchmaking ----------
-
     async def get_random_entity(self, category: str) -> Entity | None:
         result = await self.db.execute(
             select(Entity)
@@ -61,12 +57,6 @@ class BattleRepository:
         user_id: uuid.UUID,
         recent_days: int = 3,
     ) -> Entity | None:
-        """
-        Pick an opponent whose Elo score is closest to the anchor's,
-        excluding entities this user has already been shown against the
-        anchor within `recent_days`. Falls back to the closest-by-Elo
-        entity overall if everything has been recently seen.
-        """
         recent_cutoff = datetime.now(timezone.utc) - timedelta(days=recent_days)
 
         recent_pairs_subq = (
@@ -86,9 +76,29 @@ class BattleRepository:
         }
         all_excluded = set(exclude_ids) | recently_paired_ids | {anchor_entity_id}
 
-        # Join entities with their elo score (default to DEFAULT_ELO via
-        # LEFT JOIN + coalesce for entities that haven't been rated yet).
         elo_expr = func.coalesce(EntityEloScore.elo_score, DEFAULT_ELO)
+
+        entity_repo = EntityRepository(self.db)
+        related_ids = await entity_repo.get_related_ids(anchor_entity_id, limit=30)
+        candidate_ids = [i for i in related_ids if i not in all_excluded]
+
+        if candidate_ids:
+            query = (
+                select(Entity, elo_expr.label("elo"))
+                .outerjoin(
+                    EntityEloScore,
+                    (EntityEloScore.entity_id == Entity.id)
+                    & (EntityEloScore.category == category),
+                )
+                .where(Entity.entity_type == category, Entity.id.in_(candidate_ids))
+                .order_by(func.abs(elo_expr - anchor_elo), func.random())
+                .limit(1)
+            )
+            result = await self.db.execute(query)
+            row = result.first()
+            if row:
+                return row[0]
+
         query = (
             select(Entity, elo_expr.label("elo"))
             .outerjoin(
@@ -97,14 +107,12 @@ class BattleRepository:
                 & (EntityEloScore.category == category),
             )
             .where(Entity.entity_type == category, Entity.id.notin_(all_excluded))
-            .order_by(func.abs(elo_expr - anchor_elo))
+            .order_by(func.abs(elo_expr - anchor_elo), func.random())
             .limit(1)
         )
         result = await self.db.execute(query)
         row = result.first()
         return row[0] if row else None
-
-    # ---------- Voting ----------
 
     async def create_vote(
         self,

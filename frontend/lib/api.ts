@@ -310,6 +310,8 @@ export interface RelatedEntity {
   slug: string;
   weight: number;
   relation_type: string;
+  poster_path: string | null;
+  reason: string | null;
 }
 
 export async function getRelatedEntities(entityId: string, limit: number = 6): Promise<RelatedEntity[]> {

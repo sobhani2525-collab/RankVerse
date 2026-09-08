@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+﻿from pydantic import BaseModel
 
 
 class RelatedEntityOut(BaseModel):
@@ -7,6 +7,8 @@ class RelatedEntityOut(BaseModel):
     slug: str
     weight: float
     relation_type: str
+    poster_path: str | None = None
+    reason: str | None = None
 
     class Config:
         from_attributes = True

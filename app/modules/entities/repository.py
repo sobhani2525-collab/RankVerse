@@ -97,6 +97,34 @@ class EntityRepository:
             stmt = stmt.where(RelationshipEdge.relation_type == relation_type)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_shared_connections(self, entity1_id: uuid.UUID, entity2_id: uuid.UUID):
+        from sqlalchemy import text
+        stmt = text("""
+            select r1.relation_type, e.title
+            from relationships r1
+            join relationships r2
+                on r1.to_entity_id = r2.to_entity_id
+                and r1.relation_type = r2.relation_type
+            join entities e on e.id = r1.to_entity_id
+            where r1.from_entity_id = :e1
+            and r2.from_entity_id = :e2
+            and r1.relation_type in ('directed_by', 'has_genre', 'acted_in')
+        """)
+        result = await self.db.execute(stmt, {"e1": str(entity1_id), "e2": str(entity2_id)})
+        return result.all()
+
+    async def get_related_ids(self, entity_id: uuid.UUID, limit: int = 30) -> list[uuid.UUID]:
+        stmt = (
+            select(RelationshipEdge.to_entity_id)
+            .where(
+                RelationshipEdge.from_entity_id == entity_id,
+                RelationshipEdge.relation_type.in_(["similar_to", "has_genre"]),
+            )
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return [row[0] for row in result.all()]
     
     async def create_entity(self, **kwargs) -> Entity:
         entity = Entity(**kwargs)
