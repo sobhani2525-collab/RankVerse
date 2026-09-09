@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     ranking_min_votes: int = 50
     ranking_user_weight: float = 0.7
     ranking_external_weight: float = 0.3
+    ranking_group_min_size: int = 5
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

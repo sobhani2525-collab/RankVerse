@@ -24,6 +24,17 @@ async def top_movies(
     )
 
 
+@router.get("/movies/{slug}/rankings")
+async def movie_ranking_highlights(slug: str, db: AsyncSession = Depends(get_db)):
+    """Where this movie ranks within each automatic ranking group it belongs to (genre, director, ...)."""
+    entity_service = EntityService(db)
+    entity = await entity_service.get_movie_entity(slug)
+
+    service = RankingService(db)
+    highlights = await service.get_entity_highlights(entity)
+    return envelope(data=[h.model_dump() for h in highlights])
+
+
 @router.post("/internal/rankings/recompute")
 async def recompute_rankings(entity_type: str = "movie", db: AsyncSession = Depends(get_db)):
     """Internal-only endpoint to trigger a full ranking recompute (normally run by a scheduled job)."""

@@ -41,10 +41,14 @@ class EntityService:
         ]
         return items, total
 
-    async def get_movie_detail(self, slug: str) -> MovieDetail:
+    async def get_movie_entity(self, slug: str):
         entity = await self.repo.get_by_slug(slug, entity_type="movie")
         if not entity:
             raise NotFoundError(f"Movie '{slug}' not found")
+        return entity
+
+    async def get_movie_detail(self, slug: str) -> MovieDetail:
+        entity = await self.get_movie_entity(slug)
 
         director_edges = await self.repo.get_relationships(entity.id, "directed_by")
         cast_edges = await self.repo.get_relationships(entity.id, "acted_in")
