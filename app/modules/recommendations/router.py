@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.modules.entities.repository import EntityRepository
 from app.modules.recommendations.schemas import RelatedEntityOut
 
-router = APIRouter(prefix="/api/v1/entities", tags=["recommendations"])
+router = APIRouter(prefix="/entities", tags=["recommendations"])
 
 
 def build_reason(shared: list) -> str:

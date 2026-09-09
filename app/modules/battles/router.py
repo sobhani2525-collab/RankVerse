@@ -11,7 +11,7 @@ from .repository import BattleRepository
 from .schemas import BattleEntity, CastVoteRequest, CastVoteResponse, NextBattleResponse
 from .service import BattleService
 
-router = APIRouter(prefix="/api/v1/battles", tags=["battles"])
+router = APIRouter(prefix="/battles", tags=["battles"])
 
 
 def _poster_url(entity) -> str | None:
