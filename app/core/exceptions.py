@@ -1,5 +1,9 @@
+import logging
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 
 class RankVerseError(Exception):
@@ -33,5 +37,17 @@ async def rankverse_exception_handler(request: Request, exc: RankVerseError) -> 
             "data": None,
             "meta": None,
             "error": {"code": exc.code, "message": exc.message},
+        },
+    )
+
+
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "data": None,
+            "meta": None,
+            "error": {"code": "internal_error", "message": "An unexpected error occurred"},
         },
     )

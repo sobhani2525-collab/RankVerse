@@ -2,7 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
-from app.core.exceptions import RankVerseError, rankverse_exception_handler
+from app.core.exceptions import (
+    RankVerseError,
+    rankverse_exception_handler,
+    unhandled_exception_handler,
+)
 from app.modules.battles.router import router as battles_router 
 from app.modules.recommendations.router import router as recommendations_router
 
@@ -22,6 +26,7 @@ app.add_middleware(
 )
 
 app.add_exception_handler(RankVerseError, rankverse_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(api_router)
 app.include_router(battles_router)
