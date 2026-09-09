@@ -14,6 +14,13 @@
       "service": "rankverse-frontend"
     }
   ],
+  // NOTE: this only sets a runtime binding (env.NEXT_PUBLIC_API_BASE_URL) inside the
+  // Worker. NEXT_PUBLIC_* values used via process.env.* in the app code are inlined at
+  // `next build` time from .env.production instead (see frontend/.env.production) —
+  // update both if this value ever changes.
+  "vars": {
+    "NEXT_PUBLIC_API_BASE_URL": "https://rankverse-production.up.railway.app/api/v1"
+  },
   "observability": {
     "enabled": true
   }
