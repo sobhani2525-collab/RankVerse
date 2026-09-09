@@ -1,9 +1,13 @@
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
 from app.modules.sync.normalizer import normalize_movie
 from app.modules.sync.tmdb_client import TMDbClient
+
+logger = logging.getLogger(__name__)
 
 
 class SyncService:
@@ -97,7 +101,10 @@ class SyncService:
                 try:
                     await self.sync_movie(movie["id"])
                     synced += 1
-                except Exception as e:
-                    print(f"skipping movie {movie['id']} ({movie.get('title')}) due to error: {e}")
+                except Exception:
+                    logger.exception(
+                        "skipping movie %s (%s) due to sync error",
+                        movie["id"], movie.get("title"),
+                    )
                     await self.db.rollback()
         return synced   
