@@ -2,9 +2,11 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
-from app.modules.sync.normalizer import normalize_movie
+from app.modules.sync.itunes_client import ITunesClient
+from app.modules.sync.normalizer import normalize_movie, normalize_track
 from app.modules.sync.tmdb_client import TMDbClient
 
 logger = logging.getLogger(__name__)
@@ -15,34 +17,104 @@ class SyncService:
         self.db = db
         self.repo = EntityRepository(db)
         self.client = TMDbClient()
+        self.itunes_client = ITunesClient()
 
-    async def _get_or_create_person(self, external_id: str, name: str):
-        person = await self.repo.get_by_external_id("tmdb_person", external_id)
+    async def _get_or_create_person(self, external_id: str, name: str, source: str = "tmdb_person"):
+        person = await self.repo.get_by_external_id(source, external_id)
         if not person:
             from slugify import slugify
             person = await self.repo.create_entity(
                 entity_type="person",
                 external_id=external_id,
-                external_source="tmdb_person",
+                external_source=source,
                 title=name,
                 slug=f"{slugify(name)}-{external_id}",
                 attributes={},
             )
         return person
 
-    async def _get_or_create_genre(self, external_id: str, name: str):
-        genre = await self.repo.get_by_external_id("tmdb_genre", external_id)
+    async def _get_or_create_genre(self, name: str, external_id: str | None = None, source: str = "tmdb_genre"):
+        """
+        Looked up by slug rather than (source, external_id): genres are a shared
+        vocabulary across sources (a movie and a song can both be "Drama"), and
+        some sources (iTunes) don't give a stable genre id at all. external_id/source
+        are recorded on creation for provenance but never gate the lookup.
+        """
+        from slugify import slugify
+        slug = slugify(name)
+        genre = await self.repo.get_by_slug(slug, entity_type="genre")
         if not genre:
-            from slugify import slugify
             genre = await self.repo.create_entity(
                 entity_type="genre",
                 external_id=external_id,
-                external_source="tmdb_genre",
+                external_source=source,
                 title=name,
-                slug=slugify(name),
+                slug=slug,
                 attributes={},
             )
         return genre
+
+    async def _get_or_create_album(self, external_id: str, name: str, source: str = "itunes_album"):
+        album = await self.repo.get_by_external_id(source, external_id)
+        if not album:
+            from slugify import slugify
+            album = await self.repo.create_entity(
+                entity_type="album",
+                external_id=external_id,
+                external_source=source,
+                title=name,
+                slug=f"{slugify(name)}-{external_id}",
+                attributes={},
+            )
+        return album
+
+    async def sync_track(self, itunes_id: int) -> dict:
+        raw = await self.itunes_client.lookup_track(itunes_id)
+        if raw is None:
+            raise NotFoundError(f"iTunes track '{itunes_id}' not found")
+        normalized = normalize_track(raw)
+
+        track = await self.repo.get_by_external_id("itunes_track", normalized["external_id"])
+        if track:
+            track.title = normalized["title"]
+            track.attributes = normalized["attributes"]
+        else:
+            existing_by_slug = await self.repo.get_by_slug(normalized["slug"])
+            if existing_by_slug:
+                track = existing_by_slug
+                track.external_id = normalized["external_id"]
+                track.external_source = "itunes_track"
+                track.title = normalized["title"]
+                track.attributes = normalized["attributes"]
+            else:
+                track = await self.repo.create_entity(
+                    entity_type="track",
+                    external_id=normalized["external_id"],
+                    external_source="itunes_track",
+                    title=normalized["title"],
+                    slug=normalized["slug"],
+                    attributes=normalized["attributes"],
+                )
+
+        artist = None
+        if normalized["artist"]:
+            artist = await self._get_or_create_person(
+                normalized["artist"]["external_id"], normalized["artist"]["name"], source="itunes_artist"
+            )
+            await self.repo.create_relationship(track.id, artist.id, "performed_by")
+
+        if normalized["album"]:
+            album = await self._get_or_create_album(normalized["album"]["external_id"], normalized["album"]["name"])
+            await self.repo.create_relationship(track.id, album.id, "part_of")
+            if artist:
+                await self.repo.create_relationship(album.id, artist.id, "performed_by")
+
+        if normalized["genre"]:
+            genre = await self._get_or_create_genre(normalized["genre"], source="itunes_genre")
+            await self.repo.create_relationship(track.id, genre.id, "has_genre")
+
+        await self.db.commit()
+        return {"id": str(track.id), "slug": track.slug, "title": track.title}
 
     async def sync_movie(self, tmdb_id: int) -> dict:
         raw = await self.client.get_movie(tmdb_id)
@@ -84,7 +156,7 @@ class SyncService:
             )
 
         for g in normalized["genres"]:
-            genre = await self._get_or_create_genre(g["external_id"], g["name"])
+            genre = await self._get_or_create_genre(g["name"], g["external_id"])
             await self.repo.create_relationship(movie.id, genre.id, "has_genre")
 
         ranking_service = RankingService(self.db)

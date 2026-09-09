@@ -11,9 +11,11 @@ export default function MovieRow({
   movie: MovieListItem;
   rank: number;
 }) {
-  const posterUrl = movie.poster_path
-    ? `https://image.tmdb.org/t/p/w200${movie.poster_path}`
-    : null;
+  // media.image_url is the standard source; poster_path is a fallback for
+  // movies synced before that field existed (see entities/service.py _extract_media).
+  const posterUrl =
+    movie.media.image_url ??
+    (movie.poster_path ? `https://image.tmdb.org/t/p/w200${movie.poster_path}` : null);
 
   return (
     <Link

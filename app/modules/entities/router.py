@@ -45,3 +45,10 @@ async def get_genre(slug: str, db: AsyncSession = Depends(get_db)):
     service = EntityService(db)
     genre = await service.get_genre_detail(slug)
     return envelope(data=genre.model_dump())
+
+
+@router.get("/tracks/{slug}")
+async def get_track(slug: str, db: AsyncSession = Depends(get_db)):
+    service = EntityService(db)
+    track = await service.get_track_detail(slug)
+    return envelope(data=track.model_dump())

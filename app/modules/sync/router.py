@@ -25,3 +25,10 @@ async def sync_bulk(pages: int = Query(default=5, ge=1, le=20), db: AsyncSession
     service = SyncService(db)
     count = await service.bulk_sync_popular(pages)
     return envelope(data={"synced": count})
+
+
+@router.post("/itunes/tracks/{itunes_id}")
+async def sync_one_track(itunes_id: int, db: AsyncSession = Depends(get_db)):
+    service = SyncService(db)
+    result = await service.sync_track(itunes_id)
+    return envelope(data=result)

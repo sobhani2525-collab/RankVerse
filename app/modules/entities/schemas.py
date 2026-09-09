@@ -67,3 +67,21 @@ class GenreDetail(GenreSummary):
     description: str | None = None
     media: MediaInfo = MediaInfo()
     movies: list[MovieListItem] = []
+
+
+class AlbumSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    slug: str
+    title: str
+
+
+class TrackDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    slug: str
+    title: str
+    media: MediaInfo = MediaInfo()
+    artist: PersonSummary | None = None
+    album: AlbumSummary | None = None
+    other_tracks: list[MovieListItem] = []

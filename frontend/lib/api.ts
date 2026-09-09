@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -96,6 +96,10 @@ export async function getPersonBySlug(slug: string): Promise<PersonDetail> {
 
 export async function getGenreBySlug(slug: string): Promise<GenreDetail> {
   return fetchEnvelope<GenreDetail>(`/genres/${slug}`, 300);
+}
+
+export async function getTrackBySlug(slug: string): Promise<TrackDetail> {
+  return fetchEnvelope<TrackDetail>(`/tracks/${slug}`, 300);
 }
 
 async function postEnvelope<T>(path: string, body: unknown): Promise<T> {

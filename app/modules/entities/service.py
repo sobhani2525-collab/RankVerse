@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.schemas import (
+    AlbumSummary,
     MediaInfo,
     MovieDetail,
     MovieListItem,
@@ -10,6 +11,7 @@ from app.modules.entities.schemas import (
     PersonSummary,
     GenreDetail,
     GenreSummary,
+    TrackDetail,
 )
 
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
@@ -155,4 +157,44 @@ class EntityService:
             description=entity.attributes.get("description"),
             media=_extract_media(entity.attributes),
             movies=movies,
+        )
+
+    async def get_track_detail(self, slug: str) -> TrackDetail:
+        entity = await self.repo.get_by_slug(slug, entity_type="track")
+        if not entity:
+            raise NotFoundError(f"Track '{slug}' not found")
+
+        artist_edges = await self.repo.get_relationships(entity.id, "performed_by")
+        album_edges = await self.repo.get_relationships(entity.id, "part_of")
+
+        artist = None
+        other_tracks: list[MovieListItem] = []
+        if artist_edges:
+            artist_entity = artist_edges[0].to_entity
+            artist = PersonSummary(
+                id=artist_entity.id, slug=artist_entity.slug, title=artist_entity.title, role="artist"
+            )
+            other_edges = await self.repo.get_incoming_relationships(artist_entity.id, "performed_by")
+            other_tracks = sorted(
+                (
+                    _movie_list_item(e.from_entity)
+                    for e in other_edges
+                    if e.from_entity.entity_type == "track" and e.from_entity.id != entity.id
+                ),
+                key=_by_score_desc,
+            )
+
+        album = None
+        if album_edges:
+            album_entity = album_edges[0].to_entity
+            album = AlbumSummary(id=album_entity.id, slug=album_entity.slug, title=album_entity.title)
+
+        return TrackDetail(
+            id=entity.id,
+            slug=entity.slug,
+            title=entity.title,
+            media=_extract_media(entity.attributes),
+            artist=artist,
+            album=album,
+            other_tracks=other_tracks,
         )

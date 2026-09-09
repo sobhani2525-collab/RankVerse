@@ -57,3 +57,55 @@ def normalize_movie(raw: dict) -> dict:
         "cast": top_cast,
         "genres": genres,
     }
+
+
+def normalize_track(raw: dict) -> dict:
+    """
+    Convert a raw iTunes Search/Lookup track result into the internal shape
+    expected by SyncService.sync_track: entity attributes + related artist/album/genre.
+    """
+    year = None
+    if raw.get("releaseDate"):
+        try:
+            year = int(raw["releaseDate"][:4])
+        except (ValueError, TypeError):
+            year = None
+
+    # iTunes' artworkUrl100 is a 100x100 thumbnail URL; the same CDN serves
+    # larger crops by swapping the size token in the path.
+    artwork = raw.get("artworkUrl100")
+    if artwork:
+        artwork = artwork.replace("100x100bb", "600x600bb")
+
+    entity_attrs = {
+        "year": year,
+        "duration_ms": raw.get("trackTimeMillis"),
+        "country": raw.get("country"),
+        "media": {
+            "image_url": artwork,
+            "audio_preview_url": raw.get("previewUrl"),
+            "video_url": None,
+        },
+    }
+
+    artist = (
+        {"external_id": str(raw["artistId"]), "name": raw["artistName"]}
+        if raw.get("artistId") and raw.get("artistName")
+        else None
+    )
+    album = (
+        {"external_id": str(raw["collectionId"]), "name": raw["collectionName"]}
+        if raw.get("collectionId") and raw.get("collectionName")
+        else None
+    )
+
+    return {
+        "external_id": str(raw["trackId"]),
+        "external_source": "itunes_track",
+        "title": raw.get("trackName"),
+        "slug": f"{slugify(raw.get('trackName', ''))}-{raw['trackId']}",
+        "attributes": entity_attrs,
+        "artist": artist,
+        "album": album,
+        "genre": raw.get("primaryGenreName"),
+    }

@@ -63,6 +63,22 @@ export interface GenreDetail {
   movies: MovieListItem[];
 }
 
+export interface AlbumSummary {
+  id: string;
+  slug: string;
+  title: string;
+}
+
+export interface TrackDetail {
+  id: string;
+  slug: string;
+  title: string;
+  media: MediaInfo;
+  artist: PersonSummary | null;
+  album: AlbumSummary | null;
+  other_tracks: MovieListItem[];
+}
+
 export interface EntityMini {
   id: string;
   slug: string;
