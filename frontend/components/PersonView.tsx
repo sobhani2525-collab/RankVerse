@@ -18,6 +18,8 @@ export default function PersonView({ data }: { data: PersonDetail }) {
 
       <RelatedList title="کارگردانی‌ها" items={data.directed} />
       <RelatedList title="بازیگری‌ها" items={data.acted_in} />
+      <RelatedList title="آهنگ‌ها" items={data.tracks} />
+      <RelatedList title="آلبوم‌ها" items={data.albums} />
     </main>
   );
 }

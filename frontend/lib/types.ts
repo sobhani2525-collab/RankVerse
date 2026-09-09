@@ -52,6 +52,8 @@ export interface PersonDetail {
   media: MediaInfo;
   directed: MovieListItem[];
   acted_in: MovieListItem[];
+  tracks: MovieListItem[];
+  albums: MovieListItem[];
 }
 
 export interface GenreDetail {

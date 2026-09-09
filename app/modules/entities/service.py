@@ -128,6 +128,7 @@ class EntityService:
 
         directed_edges = await self.repo.get_incoming_relationships(entity.id, "directed_by")
         acted_in_edges = await self.repo.get_incoming_relationships(entity.id, "acted_in")
+        performed_by_edges = await self.repo.get_incoming_relationships(entity.id, "performed_by")
 
         return PersonDetail(
             id=entity.id,
@@ -140,6 +141,22 @@ class EntityService:
             ),
             acted_in=sorted(
                 (_movie_list_item(e.from_entity) for e in acted_in_edges), key=_by_score_desc
+            ),
+            tracks=sorted(
+                (
+                    _movie_list_item(e.from_entity)
+                    for e in performed_by_edges
+                    if e.from_entity.entity_type == "track"
+                ),
+                key=_by_score_desc,
+            ),
+            albums=sorted(
+                (
+                    _movie_list_item(e.from_entity)
+                    for e in performed_by_edges
+                    if e.from_entity.entity_type == "album"
+                ),
+                key=_by_score_desc,
             ),
         )
 

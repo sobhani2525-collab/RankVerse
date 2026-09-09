@@ -61,6 +61,8 @@ class PersonDetail(BaseModel):
     media: MediaInfo = MediaInfo()
     directed: list[MovieListItem] = []
     acted_in: list[MovieListItem] = []
+    tracks: list[MovieListItem] = []
+    albums: list[MovieListItem] = []
 
 
 class GenreDetail(GenreSummary):
