@@ -23,6 +23,16 @@ def upgrade():
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
 
+    inspector = sa.inspect(op.get_bind())
+    if "entities" in inspector.get_table_names():
+        # The baseline migration (05a4548b3ab6) now creates `entities`,
+        # its foreign keys, and the relationships.weight/source columns
+        # for every fresh database, so there's nothing left to recover
+        # here. This branch only runs when replaying history against the
+        # one production database where `entities` was actually dropped
+        # after 806336d33ba8 and 05986df9sdo27 had already been applied.
+        return
+
     # 0) wipe orphaned rows FIRST — these reference entity ids from before
     #    the entities table was accidentally dropped, and would block the
     #    foreign keys we're about to reattach below
@@ -97,6 +107,13 @@ def upgrade():
 
 
 def downgrade():
+    inspector = sa.inspect(op.get_bind())
+    existing_fks = {fk["name"] for fk in inspector.get_foreign_keys("entity_rankings")}
+    if "fk_entity_rankings_entity_id" not in existing_fks:
+        # upgrade() was a no-op on this database (entities already existed
+        # via the baseline migration), so there's nothing here to reverse.
+        return
+
     op.drop_constraint("uq_relationship_pair_type", "relationships", type_="unique")
     op.drop_index("ix_relationships_type_weight", table_name="relationships")
     op.drop_column("relationships", "source")

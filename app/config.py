@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     tmdb_api_key: str = ""
     tmdb_base_url: str = "https://api.themoviedb.org/3"
 
+    internal_api_key: str = ""
+
     ranking_min_votes: int = 50
     ranking_user_weight: float = 0.7
     ranking_external_weight: float = 0.3
