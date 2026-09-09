@@ -64,5 +64,6 @@ class PersonDetail(BaseModel):
 
 
 class GenreDetail(GenreSummary):
+    description: str | None = None
     media: MediaInfo = MediaInfo()
     movies: list[MovieListItem] = []

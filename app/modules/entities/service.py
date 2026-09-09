@@ -152,6 +152,7 @@ class EntityService:
             id=entity.id,
             slug=entity.slug,
             title=entity.title,
+            description=entity.attributes.get("description"),
             media=_extract_media(entity.attributes),
             movies=movies,
         )

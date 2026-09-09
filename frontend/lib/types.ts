@@ -58,6 +58,7 @@ export interface GenreDetail {
   id: string;
   slug: string;
   title: string;
+  description: string | null;
   media: MediaInfo;
   movies: MovieListItem[];
 }
