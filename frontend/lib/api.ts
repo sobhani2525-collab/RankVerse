@@ -2,6 +2,61 @@ import { Envelope, MovieDetail, MovieListItem, ListSummary, ListDetail, ListComm
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
+export const ACCESS_TOKEN_STORAGE_KEY = "rankverse_token";
+export const REFRESH_TOKEN_STORAGE_KEY = "rankverse_refresh_token";
+
+// --- Silent token refresh ---
+//
+// authFetch and every authenticated helper below route through
+// fetchWithAuthRetry: on a 401, it uses the stored refresh token to get a
+// new access token and retries the request once. Callers that hold their
+// own copy of the access token (e.g. AuthProvider's React state) can stay
+// in sync by subscribing via onAccessTokenRefreshed.
+
+type TokenRefreshListener = (accessToken: string) => void;
+let tokenRefreshListeners: TokenRefreshListener[] = [];
+
+export function onAccessTokenRefreshed(listener: TokenRefreshListener): () => void {
+  tokenRefreshListeners.push(listener);
+  return () => {
+    tokenRefreshListeners = tokenRefreshListeners.filter((l) => l !== listener);
+  };
+}
+
+export async function refreshAccessToken(refreshToken: string): Promise<string> {
+  const qs = new URLSearchParams({ refresh_token: refreshToken });
+  const res = await fetch(`${API_BASE}/auth/refresh?${qs.toString()}`, { method: "POST" });
+  const json: Envelope<{ access_token: string; token_type: string }> = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || "Failed to refresh session");
+  }
+  return json.data.access_token;
+}
+
+async function fetchWithAuthRetry(path: string, init: RequestInit): Promise<Response> {
+  const res = await fetch(`${API_BASE}${path}`, init);
+  if (res.status !== 401 || typeof window === "undefined") {
+    return res;
+  }
+
+  const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  if (!storedRefreshToken) {
+    return res;
+  }
+
+  try {
+    const newAccessToken = await refreshAccessToken(storedRefreshToken);
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, newAccessToken);
+    tokenRefreshListeners.forEach((listener) => listener(newAccessToken));
+
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${newAccessToken}`);
+    return fetch(`${API_BASE}${path}`, { ...init, headers });
+  } catch {
+    return res;
+  }
+}
+
 async function fetchEnvelope<T>(path: string, revalidateSeconds = 300): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     next: { revalidate: revalidateSeconds },
@@ -67,14 +122,7 @@ export async function loginUser(payload: { email: string; password: string }) {
 }
 
 export async function getMe(token: string) {
-  const res = await fetch(`${API_BASE}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const json: Envelope<{ id: string; email: string; username: string }> = await res.json();
-  if (!res.ok || json.error) {
-    throw new Error(json.error?.message || "Failed to fetch user");
-  }
-  return json.data;
+  return authFetch<{ id: string; email: string; username: string }>("/auth/me", token);
 }
 
 export interface UserRating {
@@ -87,14 +135,19 @@ export interface UserRating {
 }
 
 export async function getMyRatings(token: string): Promise<UserRating[]> {
-  const res = await fetch(`${API_BASE}/users/me/ratings`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const json: Envelope<UserRating[]> = await res.json();
-  if (!res.ok || json.error) {
-    throw new Error(json.error?.message || "Failed to fetch ratings");
-  }
-  return json.data;
+  return authFetch<UserRating[]>("/users/me/ratings", token);
+}
+
+export async function rateMovie(token: string, slug: string, score: number) {
+  return authFetch<{ id: string; entity_id: string; score: number }>(
+    `/movies/${slug}/rate`,
+    token,
+    { method: "POST", body: { score } }
+  );
+}
+
+export async function unrateMovie(token: string, slug: string): Promise<{ deleted: boolean }> {
+  return authFetch(`/movies/${slug}/rate`, token, { method: "DELETE" });
 }
 
 // --- Authenticated helper ---
@@ -104,7 +157,7 @@ async function authFetch<T>(
   token: string,
   options: { method?: string; body?: unknown } = {}
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetchWithAuthRetry(path, {
     method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
@@ -248,14 +301,11 @@ export async function searchEntities(q: string, type: string = "movie"): Promise
 }
 
 /**
- * Append this block to the end of lib/api.ts, and add
- * `BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome`
- * to the existing `import { ... } from "./types"` line at the top.
- *
  * IMPORTANT: unlike the rest of this file, the /battles endpoints do
  * NOT wrap their responses in the {data, meta, error} Envelope shape —
- * they return the raw JSON body directly. So these two functions talk
- * to `fetch` directly instead of going through fetchEnvelope/authFetch.
+ * they return the raw JSON body directly. So these two functions parse
+ * the response directly instead of going through authFetch, though they
+ * still use fetchWithAuthRetry for the silent-refresh-on-401 behavior.
  * If the backend is ever updated to use the Envelope convention here
  * too, these two functions are the only place that needs to change.
  */
@@ -265,7 +315,7 @@ export async function getNextBattle(
   category: string = "movie"
 ): Promise<NextBattleResponse> {
   const qs = new URLSearchParams({ category });
-  const res = await fetch(`${API_BASE}/battles/next?${qs.toString()}`, {
+  const res = await fetchWithAuthRetry(`/battles/next?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
@@ -287,7 +337,7 @@ export async function castBattleVote(
     winner: VoteOutcome;
   }
 ): Promise<CastVoteResponse> {
-  const res = await fetch(`${API_BASE}/battles/vote`, {
+  const res = await fetchWithAuthRetry(`/battles/vote`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -1,15 +1,28 @@
 "use client";
 
-import { useState } from "react";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { rateMovie, unrateMovie, getMyRatings } from "@/lib/api";
 
 export default function RatingWidget({ slug }: { slug: string }) {
+  const { token } = useAuth();
   const [selected, setSelected] = useState<number | null>(null);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "removing" | "error">("idle");
+
+  useEffect(() => {
+    if (!token) return;
+    getMyRatings(token)
+      .then((ratings) => {
+        const existing = ratings.find((r) => r.movie_slug === slug);
+        if (existing) {
+          setSelected(existing.score);
+          setStatus("saved");
+        }
+      })
+      .catch(() => {});
+  }, [token, slug]);
 
   async function submitRating(score: number) {
-    const token = typeof window !== "undefined" ? localStorage.getItem("rankverse_token") : null;
     if (!token) {
       setStatus("error");
       return;
@@ -19,16 +32,21 @@ export default function RatingWidget({ slug }: { slug: string }) {
     setSelected(score);
 
     try {
-      const res = await fetch(`${API_BASE}/movies/${slug}/rate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ score }),
-      });
-      if (!res.ok) throw new Error("failed");
+      await rateMovie(token, slug, score);
       setStatus("saved");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  async function removeRating() {
+    if (!token) return;
+
+    setStatus("removing");
+    try {
+      await unrateMovie(token, slug);
+      setSelected(null);
+      setStatus("idle");
     } catch {
       setStatus("error");
     }
@@ -42,6 +60,7 @@ export default function RatingWidget({ slug }: { slug: string }) {
           <button
             key={n}
             onClick={() => submitRating(n)}
+            disabled={status === "saving" || status === "removing"}
             className={`num h-9 w-9 rounded-full border text-sm transition ${
               selected === n
                 ? "border-gold bg-gold/20 text-gold"
@@ -54,7 +73,15 @@ export default function RatingWidget({ slug }: { slug: string }) {
       </div>
 
       {status === "saving" && <p className="mt-2 text-xs text-muted">در حال ثبت...</p>}
-      {status === "saved" && <p className="mt-2 text-xs text-teal">رای شما ثبت شد.</p>}
+      {status === "removing" && <p className="mt-2 text-xs text-muted">در حال حذف...</p>}
+      {status === "saved" && selected !== null && (
+        <div className="mt-2 flex items-center gap-3">
+          <p className="text-xs text-teal">رای شما ثبت شد.</p>
+          <button onClick={removeRating} className="text-xs text-muted underline hover:text-gold">
+            حذف رای
+          </button>
+        </div>
+      )}
       {status === "error" && (
         <p className="mt-2 text-xs text-gold">
           برای ثبت رای، ابتدا وارد حساب کاربری‌تان شوید.

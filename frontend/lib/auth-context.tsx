@@ -1,6 +1,13 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { loginUser, registerUser, getMe } from "./api";
+import {
+  loginUser,
+  registerUser,
+  getMe,
+  onAccessTokenRefreshed,
+  ACCESS_TOKEN_STORAGE_KEY,
+  REFRESH_TOKEN_STORAGE_KEY,
+} from "./api";
 
 interface User {
   id: string;
@@ -26,14 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("rankverse_token");
+    const stored = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     if (stored) {
       setToken(stored);
       getMe(stored)
         .then(setUser)
         .catch(() => {
-          localStorage.removeItem("rankverse_token");
-          localStorage.removeItem("rankverse_refresh_token");
+          localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+          localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
           setToken(null);
         })
         .finally(() => setLoading(false));
@@ -42,10 +49,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    // Keeps this context's token in sync when lib/api.ts silently
+    // refreshes an expired access token behind the scenes (on a 401).
+    return onAccessTokenRefreshed((newToken) => {
+      setToken(newToken);
+    });
+  }, []);
+
   async function login(email: string, password: string) {
     const tokens = await loginUser({ email, password });
-    localStorage.setItem("rankverse_token", tokens.access_token);
-    localStorage.setItem("rankverse_refresh_token", tokens.refresh_token);
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokens.access_token);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token);
     setToken(tokens.access_token);
     const me = await getMe(tokens.access_token);
     setUser(me);
@@ -57,8 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    localStorage.removeItem("rankverse_token");
-    localStorage.removeItem("rankverse_refresh_token");
+    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     setToken(null);
     setUser(null);
   }
