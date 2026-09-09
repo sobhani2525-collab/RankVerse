@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, DateTime, func
+from sqlalchemy import ForeignKey, String, DateTime, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +36,9 @@ class Entity(Base):
 class RelationshipEdge(Base):
     """Edge of the knowledge graph: e.g. movie --directed_by--> person."""
     __tablename__ = "relationships"
+    __table_args__ = (
+        UniqueConstraint("from_entity_id", "to_entity_id", "relation_type", name="uq_relationship_pair_type"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     from_entity_id: Mapped[uuid.UUID] = mapped_column(
