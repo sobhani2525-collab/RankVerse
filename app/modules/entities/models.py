@@ -21,7 +21,7 @@ class Entity(Base):
     external_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     external_source: Mapped[str | None] = mapped_column(String(50), nullable=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
-    slug: Mapped[str] = mapped_column(String(500), unique=True, nullable=False, index=True)
+    slug: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     attributes: Mapped[dict] = mapped_column(JSONB, default=dict)
     
     embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
