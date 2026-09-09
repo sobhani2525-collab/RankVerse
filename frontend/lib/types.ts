@@ -37,6 +37,22 @@ export interface MovieDetail extends MovieListItem {
   genres: GenreSummary[];
 }
 
+export interface PersonDetail {
+  id: string;
+  slug: string;
+  title: string;
+  biography: string | null;
+  directed: MovieListItem[];
+  acted_in: MovieListItem[];
+}
+
+export interface GenreDetail {
+  id: string;
+  slug: string;
+  title: string;
+  movies: MovieListItem[];
+}
+
 export interface EntityMini {
   id: string;
   slug: string;

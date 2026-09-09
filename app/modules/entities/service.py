@@ -5,9 +5,23 @@ from app.modules.entities.repository import EntityRepository
 from app.modules.entities.schemas import (
     MovieDetail,
     MovieListItem,
+    PersonDetail,
     PersonSummary,
+    GenreDetail,
     GenreSummary,
 )
+
+
+def _movie_list_item(entity) -> MovieListItem:
+    return MovieListItem(
+        id=entity.id,
+        slug=entity.slug,
+        title=entity.title,
+        poster_path=entity.attributes.get("poster_path"),
+        year=entity.attributes.get("year"),
+        computed_score=entity.ranking.computed_score if entity.ranking else None,
+        total_votes=entity.ranking.total_votes if entity.ranking else 0,
+    )
 
 
 class EntityService:
@@ -27,19 +41,7 @@ class EntityService:
         entities, total = await self.repo.list_movies(
             page, page_size, genre_slug, year_from, year_to, sort_by
         )
-        items = [
-            MovieListItem(
-                id=e.id,
-                slug=e.slug,
-                title=e.title,
-                poster_path=e.attributes.get("poster_path"),
-                year=e.attributes.get("year"),
-                computed_score=e.ranking.computed_score if e.ranking else None,
-                total_votes=e.ranking.total_votes if e.ranking else 0,
-            )
-            for e in entities
-        ]
-        return items, total
+        return [_movie_list_item(e) for e in entities], total
 
     async def get_movie_entity(self, slug: str):
         entity = await self.repo.get_by_slug(slug, entity_type="movie")
@@ -87,3 +89,32 @@ class EntityService:
             cast=cast,
             genres=genres,
         )
+
+    async def get_person_detail(self, slug: str) -> PersonDetail:
+        entity = await self.repo.get_by_slug(slug, entity_type="person")
+        if not entity:
+            raise NotFoundError(f"Person '{slug}' not found")
+
+        directed_edges = await self.repo.get_incoming_relationships(entity.id, "directed_by")
+        acted_in_edges = await self.repo.get_incoming_relationships(entity.id, "acted_in")
+
+        return PersonDetail(
+            id=entity.id,
+            slug=entity.slug,
+            title=entity.title,
+            biography=entity.attributes.get("biography"),
+            directed=[_movie_list_item(e.from_entity) for e in directed_edges],
+            acted_in=[
+                _movie_list_item(e.from_entity)
+                for e in sorted(acted_in_edges, key=lambda e: e.edge_metadata.get("order", 99))
+            ],
+        )
+
+    async def get_genre_detail(self, slug: str) -> GenreDetail:
+        entity = await self.repo.get_by_slug(slug, entity_type="genre")
+        if not entity:
+            raise NotFoundError(f"Genre '{slug}' not found")
+
+        movies, _ = await self.list_movies(page=1, page_size=50, genre_slug=slug, sort_by="score")
+
+        return GenreDetail(id=entity.id, slug=entity.slug, title=entity.title, movies=movies)

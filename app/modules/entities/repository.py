@@ -85,6 +85,19 @@ class EntityRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_incoming_relationships(
+        self, entity_id: uuid.UUID, relation_type: str
+    ) -> list[RelationshipEdge]:
+        """Edges pointing at entity_id, e.g. a person's directed_by/acted_in credits."""
+        stmt = select(RelationshipEdge).options(
+            selectinload(RelationshipEdge.from_entity).selectinload(Entity.ranking)
+        ).where(
+            RelationshipEdge.to_entity_id == entity_id,
+            RelationshipEdge.relation_type == relation_type,
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_related(self, entity_id: uuid.UUID, relation_type: str | None = None, limit: int = 12):
         stmt = (
             select(RelationshipEdge)

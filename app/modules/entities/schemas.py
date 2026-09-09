@@ -48,3 +48,9 @@ class PersonDetail(BaseModel):
     slug: str
     title: str
     biography: str | None = None
+    directed: list[MovieListItem] = []
+    acted_in: list[MovieListItem] = []
+
+
+class GenreDetail(GenreSummary):
+    movies: list[MovieListItem] = []
