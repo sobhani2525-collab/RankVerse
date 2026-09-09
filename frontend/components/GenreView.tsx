@@ -1,5 +1,7 @@
 import Link from "next/link";
-import RankingList from "@/components/RankingList";
+import EntityHero from "@/components/EntityHero";
+import MediaPlayer from "@/components/MediaPlayer";
+import RelatedList from "@/components/RelatedList";
 import { GenreDetail } from "@/lib/types";
 
 export default function GenreView({ data }: { data: GenreDetail }) {
@@ -9,14 +11,13 @@ export default function GenreView({ data }: { data: GenreDetail }) {
         بازگشت به فهرست
       </Link>
 
-      <div className="mt-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold text-ink">بهترین‌های {data.title}</h1>
-        <span className="num text-xs text-muted">{data.movies.length} عنوان</span>
-      </div>
-
-      <div className="mt-6">
-        <RankingList movies={data.movies} />
-      </div>
+      <EntityHero
+        title={`بهترین‌های ${data.title}`}
+        subtitle={`${data.movies.length} عنوان`}
+        media={data.media}
+      />
+      <MediaPlayer media={data.media} />
+      <RelatedList items={data.movies} />
     </main>
   );
 }

@@ -3,6 +3,15 @@ import uuid
 from pydantic import BaseModel, ConfigDict
 
 
+class MediaInfo(BaseModel):
+    """Standard media shape every entity type maps its raw attributes into,
+    so display components can key off presence of these fields rather than
+    entity_type (a movie has image_url, a future song has audio_preview_url, etc.)."""
+    image_url: str | None = None
+    audio_preview_url: str | None = None
+    video_url: str | None = None
+
+
 class PersonSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -27,6 +36,7 @@ class MovieListItem(BaseModel):
     year: int | None = None
     computed_score: float | None = None
     total_votes: int = 0
+    media: MediaInfo = MediaInfo()
 
 
 class MovieDetail(MovieListItem):
@@ -48,9 +58,11 @@ class PersonDetail(BaseModel):
     slug: str
     title: str
     biography: str | None = None
+    media: MediaInfo = MediaInfo()
     directed: list[MovieListItem] = []
     acted_in: list[MovieListItem] = []
 
 
 class GenreDetail(GenreSummary):
+    media: MediaInfo = MediaInfo()
     movies: list[MovieListItem] = []

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.schemas import (
+    MediaInfo,
     MovieDetail,
     MovieListItem,
     PersonDetail,
@@ -10,6 +11,26 @@ from app.modules.entities.schemas import (
     GenreDetail,
     GenreSummary,
 )
+
+TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
+
+
+def _extract_media(attributes: dict) -> MediaInfo:
+    """
+    Maps whatever an entity's raw, source-specific attributes hold into the
+    standard media shape. New sync sources should write attributes["media"]
+    directly; the poster_path fallback exists only for movies ingested
+    before that became the standard (see sync/normalizer.py).
+    """
+    media = attributes.get("media") or {}
+    image_url = media.get("image_url")
+    if not image_url and attributes.get("poster_path"):
+        image_url = f"{TMDB_IMAGE_BASE}{attributes['poster_path']}"
+    return MediaInfo(
+        image_url=image_url,
+        audio_preview_url=media.get("audio_preview_url"),
+        video_url=media.get("video_url"),
+    )
 
 
 def _movie_list_item(entity) -> MovieListItem:
@@ -21,7 +42,14 @@ def _movie_list_item(entity) -> MovieListItem:
         year=entity.attributes.get("year"),
         computed_score=entity.ranking.computed_score if entity.ranking else None,
         total_votes=entity.ranking.total_votes if entity.ranking else 0,
+        media=_extract_media(entity.attributes),
     )
+
+
+def _by_score_desc(item: MovieListItem):
+    """Sort key matching computed_score DESC NULLS LAST, the same ordering
+    ranking/service.py's RANK() query and list_movies() use everywhere else."""
+    return (item.computed_score is None, -(item.computed_score or 0))
 
 
 class EntityService:
@@ -85,6 +113,7 @@ class EntityService:
             country=entity.attributes.get("country"),
             computed_score=entity.ranking.computed_score if entity.ranking else None,
             total_votes=entity.ranking.total_votes if entity.ranking else 0,
+            media=_extract_media(entity.attributes),
             directors=directors,
             cast=cast,
             genres=genres,
@@ -103,11 +132,13 @@ class EntityService:
             slug=entity.slug,
             title=entity.title,
             biography=entity.attributes.get("biography"),
-            directed=[_movie_list_item(e.from_entity) for e in directed_edges],
-            acted_in=[
-                _movie_list_item(e.from_entity)
-                for e in sorted(acted_in_edges, key=lambda e: e.edge_metadata.get("order", 99))
-            ],
+            media=_extract_media(entity.attributes),
+            directed=sorted(
+                (_movie_list_item(e.from_entity) for e in directed_edges), key=_by_score_desc
+            ),
+            acted_in=sorted(
+                (_movie_list_item(e.from_entity) for e in acted_in_edges), key=_by_score_desc
+            ),
         )
 
     async def get_genre_detail(self, slug: str) -> GenreDetail:
@@ -117,4 +148,10 @@ class EntityService:
 
         movies, _ = await self.list_movies(page=1, page_size=50, genre_slug=slug, sort_by="score")
 
-        return GenreDetail(id=entity.id, slug=entity.slug, title=entity.title, movies=movies)
+        return GenreDetail(
+            id=entity.id,
+            slug=entity.slug,
+            title=entity.title,
+            media=_extract_media(entity.attributes),
+            movies=movies,
+        )

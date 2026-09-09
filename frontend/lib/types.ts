@@ -17,6 +17,12 @@ export interface GenreSummary {
   title: string;
 }
 
+export interface MediaInfo {
+  image_url: string | null;
+  audio_preview_url: string | null;
+  video_url: string | null;
+}
+
 export interface MovieListItem {
   id: string;
   slug: string;
@@ -25,6 +31,7 @@ export interface MovieListItem {
   year: number | null;
   computed_score: number | null;
   total_votes: number;
+  media: MediaInfo;
 }
 
 export interface MovieDetail extends MovieListItem {
@@ -42,6 +49,7 @@ export interface PersonDetail {
   slug: string;
   title: string;
   biography: string | null;
+  media: MediaInfo;
   directed: MovieListItem[];
   acted_in: MovieListItem[];
 }
@@ -50,6 +58,7 @@ export interface GenreDetail {
   id: string;
   slug: string;
   title: string;
+  media: MediaInfo;
   movies: MovieListItem[];
 }
 

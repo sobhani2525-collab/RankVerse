@@ -13,8 +13,10 @@ def normalize_movie(raw: dict) -> dict:
         except (ValueError, TypeError):
             year = None
 
+    poster_path = raw.get("poster_path")
+
     entity_attrs = {
-        "poster_path": raw.get("poster_path"),
+        "poster_path": poster_path,
         "overview": raw.get("overview"),
         "runtime": raw.get("runtime"),
         "year": year,
@@ -22,6 +24,12 @@ def normalize_movie(raw: dict) -> dict:
         # TMDb vote_average is already 0-10, matches our internal scale
         "external_rating": raw.get("vote_average"),
         "external_vote_count": raw.get("vote_count"),
+        # Standard media shape shared across entity types (see entities/schemas.py MediaInfo).
+        "media": {
+            "image_url": f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else None,
+            "audio_preview_url": None,
+            "video_url": None,
+        },
     }
 
     credits = raw.get("credits", {})

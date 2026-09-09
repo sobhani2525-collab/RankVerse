@@ -1,5 +1,8 @@
 import Link from "next/link";
-import RankingList from "@/components/RankingList";
+import EntityHero from "@/components/EntityHero";
+import EntityDescription from "@/components/EntityDescription";
+import MediaPlayer from "@/components/MediaPlayer";
+import RelatedList from "@/components/RelatedList";
 import { PersonDetail } from "@/lib/types";
 
 export default function PersonView({ data }: { data: PersonDetail }) {
@@ -9,29 +12,12 @@ export default function PersonView({ data }: { data: PersonDetail }) {
         بازگشت به فهرست
       </Link>
 
-      <h1 className="mt-6 text-2xl font-bold text-ink">{data.title}</h1>
+      <EntityHero title={data.title} media={data.media} />
+      <MediaPlayer media={data.media} />
+      <EntityDescription text={data.biography} />
 
-      {data.biography && (
-        <p className="mt-4 text-sm leading-relaxed text-ink/90">{data.biography}</p>
-      )}
-
-      {data.directed.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-lg font-bold text-ink">کارگردانی‌ها</h2>
-          <div className="mt-4">
-            <RankingList movies={data.directed} />
-          </div>
-        </section>
-      )}
-
-      {data.acted_in.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-lg font-bold text-ink">بازیگری‌ها</h2>
-          <div className="mt-4">
-            <RankingList movies={data.acted_in} />
-          </div>
-        </section>
-      )}
+      <RelatedList title="کارگردانی‌ها" items={data.directed} />
+      <RelatedList title="بازیگری‌ها" items={data.acted_in} />
     </main>
   );
 }
