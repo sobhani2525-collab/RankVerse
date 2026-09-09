@@ -5,7 +5,8 @@ import Constellation from "@/components/Constellation";
 import ScoreBadge from "@/components/ScoreBadge";
 import RatingWidget from "@/components/RatingWidget";
 import RelatedEntities from "@/components/RelatedEntities";
-import { getMovieBySlug, getRelatedEntities, RelatedEntity } from "@/lib/api";
+import NotableRankings from "@/components/NotableRankings";
+import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 
 export const revalidate = 60;
 
@@ -23,6 +24,13 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
     related = await getRelatedEntities(movie.id);
   } catch {
     related = [];
+  }
+
+  let rankingHighlights: RankingHighlight[] = [];
+  try {
+    rankingHighlights = await getMovieRankings(movie.slug);
+  } catch {
+    rankingHighlights = [];
   }
 
   const posterUrl = movie.poster_path
@@ -107,6 +115,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
       <div className="mt-10">
         <RelatedEntities items={related} />
+      </div>
+
+      <div className="mt-10">
+        <NotableRankings items={rankingHighlights} />
       </div>
     </main>
   );

@@ -368,3 +368,14 @@ export async function getRelatedEntities(entityId: string, limit: number = 6): P
   return fetchEnvelope<RelatedEntity[]>(`/entities/${entityId}/related?limit=${limit}`, 300);
 }
 
+export interface RankingHighlight {
+  dimension: string;
+  group: { id: string; slug: string; title: string };
+  rank: number;
+  group_size: number;
+}
+
+export async function getMovieRankings(slug: string): Promise<RankingHighlight[]> {
+  return fetchEnvelope<RankingHighlight[]>(`/movies/${slug}/rankings`, 300);
+}
+
