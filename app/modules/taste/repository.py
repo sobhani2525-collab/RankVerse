@@ -130,6 +130,17 @@ class TasteRepository:
             self.db.add(UserTasteSnapshot(user_id=user_id, entity_scope=entity_scope, **row))
         await self.db.flush()
 
+    async def replace_insight(self, user_id: uuid.UUID, row: dict | None) -> None:
+        """
+        Single-row-per-user table, same contract as replace_snapshot:
+        deletes whatever insight is there for this user, then inserts the
+        fresh one if one was computed. row=None just clears it.
+        """
+        await self.db.execute(delete(UserTasteInsight).where(UserTasteInsight.user_id == user_id))
+        if row is not None:
+            self.db.add(UserTasteInsight(user_id=user_id, **row))
+        await self.db.flush()
+
     async def bulk_upsert_anchors(self, user_id: uuid.UUID, rows: list[dict]) -> None:
         """
         Full refresh of one user's taste anchors: upserts every row in

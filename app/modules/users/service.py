@@ -6,7 +6,12 @@ from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedE
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
-from app.modules.taste.compute import TasteAnchorComputer, TasteDimensionComputer, TasteSnapshotComputer
+from app.modules.taste.compute import (
+    TasteAnchorComputer,
+    TasteDimensionComputer,
+    TasteInsightComputer,
+    TasteSnapshotComputer,
+)
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserLogin, TokenPair
 
@@ -58,6 +63,7 @@ class UserService:
         # Snapshot reads the dimensions row(s) above, so it must run after them.
         await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
         await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
+        await TasteInsightComputer(self.db).compute_insight(user_id)
         await TasteAnchorComputer(self.db).compute_anchors(user_id)
 
         await self.db.commit()
@@ -75,6 +81,7 @@ class UserService:
             await ranking_service.recompute_entity(entity)
             await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
             await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
+            await TasteInsightComputer(self.db).compute_insight(user_id)
             await TasteAnchorComputer(self.db).compute_anchors(user_id)
             await self.db.commit()
         return deleted

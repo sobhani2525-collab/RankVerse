@@ -19,10 +19,14 @@ most define a user's taste) and reuses the same _rating_component
 normalization TasteDimensionComputer uses, just applied to a single
 movie's rating instead of a per-genre mean.
 
-TasteSnapshotComputer, last, rolls a user's already-persisted genre
-dimensions into the single-row user_taste_snapshots summary -- it reads
-what TasteDimensionComputer wrote, so it must run after it in any call
-chain.
+TasteSnapshotComputer rolls a user's already-persisted genre dimensions
+into the single-row user_taste_snapshots summary -- it reads what
+TasteDimensionComputer wrote, so it must run after it in any call chain.
+
+TasteInsightComputer, last, does the same read but produces a rule-based
+(not LLM) Persian insight_text from a fixed template bank
+(insight_templates.py), plus insight_tags. Also depends on
+TasteDimensionComputer having run first.
 """
 
 import math
@@ -34,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.modules.entities.models import Entity, RelationshipEdge
+from app.modules.taste.insight_templates import TEMPLATES
 from app.modules.taste.repository import TasteRepository
 from app.modules.users.models import UserRating
 
@@ -340,6 +345,17 @@ def _archetype_for(genre_slug: str) -> str:
     return f"{genre_slug.replace('-', ' ').title()} Fan"
 
 
+def _dimension_sort_key(dimension):
+    """
+    score DESC, confidence DESC, sample_size DESC, dimension_key ASC --
+    the deterministic tiebreak chain also applied at the DB level in
+    TasteRepository.list_dimensions. Shared here so every place that
+    picks a "top N dimensions" (snapshot label, insight text/tags) agrees
+    on the same order instead of each re-deriving it.
+    """
+    return (-dimension.score, -dimension.confidence, -dimension.sample_size, dimension.dimension_key)
+
+
 class TasteSnapshotComputer:
     """
     Rolls the top 1-2 genre dimensions (already confidence-filtered by
@@ -378,13 +394,9 @@ class TasteSnapshotComputer:
             return False
 
         # list_dimensions already returns this order from the DB; re-sorting
-        # here with the same tiebreak chain (score, confidence, sample_size
-        # DESC, dimension_key ASC) makes that guarantee explicit instead of
-        # silently relying on the caller not reordering the list.
-        top = sorted(
-            dimensions,
-            key=lambda d: (-d.score, -d.confidence, -d.sample_size, d.dimension_key),
-        )[: self.label_dimension_count]
+        # here with the shared tiebreak key makes that guarantee explicit
+        # instead of silently relying on the caller not reordering the list.
+        top = sorted(dimensions, key=_dimension_sort_key)[: self.label_dimension_count]
         label = " + ".join(_archetype_for(d.dimension_key) for d in top)
         dimension_confidence_avg = sum(d.confidence for d in top) / len(top)
 
@@ -404,4 +416,87 @@ class TasteSnapshotComputer:
                 "model_version": SNAPSHOT_MODEL_VERSION,
             },
         )
+        return True
+
+
+# --- taste insight (v1, rule-based) ---
+
+BREADTH_LOYALIST = "loyalist"
+BREADTH_BALANCED_EXPLORER = "balanced_explorer"
+BREADTH_ECLECTIC_EXPLORER = "eclectic_explorer"
+
+
+class TasteInsightComputer:
+    """
+    Turns a user's already-persisted genre dimensions into one Persian
+    insight_text, picked from a fixed template bank (insight_templates.py)
+    -- no LLM call. Reuses ARCHETYPE_MAP/_archetype_for from
+    TasteSnapshotComputer's section above instead of redefining it, and
+    the same _dimension_sort_key for "top N dimensions" ordering.
+
+    NOTE on insight_tags: the model column (user_taste_insights.insight_tags,
+    JSONB) and the read schema (TasteInsightPublic.insight_tags: list[str])
+    are both shaped as a plain list, so this stores the top-3 archetype
+    *labels* as a list of strings -- not a {label: score} dict. A dict
+    would round-trip through the DB fine (JSONB doesn't care), but would
+    fail Pydantic validation on read. If a scored dict is actually wanted,
+    that's a small follow-up touching models.py's type hint and
+    schemas.py's TasteInsightPublic, not just this method.
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repo = TasteRepository(db)
+
+    def _breadth_category(self, qualifying_count: int) -> str:
+        if qualifying_count == 1:
+            return BREADTH_LOYALIST
+        if qualifying_count <= 3:
+            return BREADTH_BALANCED_EXPLORER
+        return BREADTH_ECLECTIC_EXPLORER
+
+    def _pick_template(self, user_id: uuid.UUID, category: str) -> str:
+        """
+        Deterministic per user, not random and not Python's hash() --
+        hash() on a str is salted per-process (PYTHONHASHSEED) so
+        hash(str(user_id)) would pick a different template after every
+        app restart even with identical data. uuid.UUID.int is a plain
+        128-bit integer with no hashing involved, so this is stable
+        forever for a given user_id.
+        """
+        options = TEMPLATES[category]
+        return options[user_id.int % len(options)]
+
+    async def compute_insight(self, user_id: uuid.UUID) -> bool:
+        """
+        Recomputes the user's single current insight row from their
+        already-persisted dimension_type="genre" rows -- expects
+        compute_genre_dimensions to have run first in the same call
+        chain (same dependency TasteSnapshotComputer has). Flushes but
+        does NOT commit.
+
+        Returns whether an insight was written; False means the user has
+        no qualifying dimensions yet and any prior insight was cleared.
+        """
+        dimensions = await self.repo.list_dimensions(user_id, dimension_type="genre")
+        if not dimensions:
+            await self.repo.replace_insight(user_id, None)
+            return False
+
+        ranked = sorted(dimensions, key=_dimension_sort_key)
+        category = self._breadth_category(len(ranked))
+        template = self._pick_template(user_id, category)
+
+        if category == BREADTH_LOYALIST:
+            text = template.format(archetype=_archetype_for(ranked[0].dimension_key))
+        else:
+            top_two = ranked[:2]
+            text = template.format(
+                archetype1=_archetype_for(top_two[0].dimension_key),
+                archetype2=_archetype_for(top_two[1].dimension_key),
+            )
+
+        tags = [_archetype_for(d.dimension_key) for d in ranked[:3]]
+
+        await self.repo.replace_insight(user_id, {"insight_text": text, "insight_tags": tags})
         return True
