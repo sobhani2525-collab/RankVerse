@@ -67,6 +67,7 @@ async def test_entity_service_list_tv_series(db_session):
     assert total == 1
     assert items[0].slug == "bb-2008"
     assert items[0].title == "Breaking Bad"
+    assert items[0].entity_type == "tv_series"  # lets the frontend route mixed lists correctly
 
 
 # --- B3: RankingService.recompute_all already accepts entity_type ---
@@ -315,6 +316,9 @@ async def test_related_endpoint_recommends_across_entity_types(client, db_sessio
     related = res.json()["data"]
     assert len(related) == 1
     assert related[0]["slug"] == "breaking-bad-cross-type-test"
+    # entity_type on each related item is what lets the frontend route a
+    # cross-type recommendation correctly (/movies/x vs /tv-series/x)
+    assert related[0]["entity_type"] == "tv_series"
 
 
 async def test_similarity_graph_creates_cross_type_edge_from_shared_genre_and_cast(db_session):

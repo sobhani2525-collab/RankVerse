@@ -32,6 +32,7 @@ class MovieListItem(BaseModel):
     id: uuid.UUID
     slug: str
     title: str
+    entity_type: str = "movie"
     poster_path: str | None = None
     year: int | None = None
     computed_score: float | None = None

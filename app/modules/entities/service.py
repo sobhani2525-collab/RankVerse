@@ -40,6 +40,7 @@ def _movie_list_item(entity) -> MovieListItem:
         id=entity.id,
         slug=entity.slug,
         title=entity.title,
+        entity_type=entity.entity_type,
         poster_path=entity.attributes.get("poster_path"),
         year=entity.attributes.get("year"),
         computed_score=entity.ranking.computed_score if entity.ranking else None,

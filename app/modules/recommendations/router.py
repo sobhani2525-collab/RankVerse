@@ -51,6 +51,7 @@ async def get_related_entities(
                 id=str(edge.to_entity.id),
                 title=edge.to_entity.title,
                 slug=edge.to_entity.slug,
+                entity_type=edge.to_entity.entity_type,
                 weight=edge.weight,
                 relation_type=edge.relation_type,
                 poster_path=edge.to_entity.attributes.get("poster_path"),
