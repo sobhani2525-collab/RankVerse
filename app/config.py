@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     ranking_external_weight: float = 0.3
     ranking_group_min_size: int = 5
 
+    # Taste DNA dimension scoring (see app/modules/taste/compute.py). The
+    # confidence shrinkage is the same v/(v+k) family as ranking_min_votes
+    # above, just applied to one user's per-dimension sample size.
+    taste_dimension_confidence_k: int = 10
+    taste_dimension_rating_weight: float = 0.7
+    taste_dimension_engagement_weight: float = 0.3
+    taste_dimension_confidence_threshold: float = 0.35
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

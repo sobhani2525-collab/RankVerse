@@ -12,6 +12,7 @@ from app.core.database import Base
 from app.modules.entities import models as entities_models  # noqa
 from app.modules.users import models as users_models  # noqa
 from app.modules.lists import models as lists_models  # noqa
+from app.modules.taste import models as taste_models  # noqa
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
