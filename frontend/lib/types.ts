@@ -69,6 +69,7 @@ export interface PersonDetail {
   biography: string | null;
   media: MediaInfo;
   directed: MovieListItem[];
+  created: MovieListItem[];
   acted_in: MovieListItem[];
   tracks: MovieListItem[];
   albums: MovieListItem[];

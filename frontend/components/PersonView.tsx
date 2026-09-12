@@ -17,6 +17,7 @@ export default function PersonView({ data }: { data: PersonDetail }) {
       <EntityDescription text={data.biography} />
 
       <RelatedList title="کارگردانی‌ها" items={data.directed} />
+      <RelatedList title="ساخته‌ها" items={data.created} />
       <RelatedList title="بازیگری‌ها" items={data.acted_in} />
       <RelatedList title="آهنگ‌ها" items={data.tracks} />
       <RelatedList title="آلبوم‌ها" items={data.albums} />

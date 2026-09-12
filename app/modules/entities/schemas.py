@@ -77,6 +77,7 @@ class PersonDetail(BaseModel):
     biography: str | None = None
     media: MediaInfo = MediaInfo()
     directed: list[MovieListItem] = []
+    created: list[MovieListItem] = []
     acted_in: list[MovieListItem] = []
     tracks: list[MovieListItem] = []
     albums: list[MovieListItem] = []

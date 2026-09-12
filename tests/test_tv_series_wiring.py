@@ -13,6 +13,7 @@ from sqlalchemy import select, text
 
 from app.modules.entities.models import RelationshipEdge
 from app.modules.entities.repository import EntityRepository
+from app.modules.entities.service import EntityService
 from app.modules.ranking.service import RankingService
 from app.modules.sync.service import SyncService
 from app.modules.sync.tmdb_client import TMDbClient
@@ -388,3 +389,59 @@ async def test_similarity_graph_creates_cross_type_edge_from_shared_genre_and_ca
     edge = await _similar_to_edge(db_session, movie.id, show.id)
     assert edge is not None
     assert edge.weight == pytest.approx(0.31)  # 2 x has_genre (0.08) + 1 x acted_in (0.15)
+
+
+# --- Person page: filmography includes shows the person 'created' ---
+
+async def test_person_detail_includes_created_tv_series(db_session, monkeypatch):
+    """
+    Reproduces the exact reported gap: get_person_detail only read
+    directed_by/acted_in, so Vince Gilligan's page showed nothing even
+    though he correctly shows up in Breaking Bad/Better Call Saul's own
+    'creator' edges and in the NotableRankings "creator" highlight.
+    """
+    async def fake_get_tv_series(self, tmdb_id):
+        return {1396: BREAKING_BAD, 60059: BETTER_CALL_SAUL}[tmdb_id]
+
+    monkeypatch.setattr(TMDbClient, "get_tv_series", fake_get_tv_series)
+
+    service = SyncService(db_session)
+    bb = await service.sync_tv_series(1396)
+    bcs = await service.sync_tv_series(60059)
+
+    entity_service = EntityService(db_session)
+    vince = await entity_service.get_person_detail("vince-gilligan-66633")
+
+    created_slugs = {c.slug for c in vince.created}
+    assert created_slugs == {bb["slug"], bcs["slug"]}
+    # entity_type on each item is what lets the frontend route to /tv-series/{slug}
+    assert all(c.entity_type == "tv_series" for c in vince.created)
+    # directed_by is untouched -- still empty for a TV-only creator like Vince Gilligan
+    assert vince.directed == []
+
+
+async def test_person_detail_directed_and_created_stay_separate(db_session):
+    """A person with BOTH a directed movie and a created show keeps the two
+    lists distinct rather than merging different roles together."""
+    repo = EntityRepository(db_session)
+    person = await repo.create_entity(
+        entity_type="person", external_id=None, external_source=None,
+        title="Dual Role Person", slug="dual-role-person-test", attributes={},
+    )
+    movie = await repo.create_entity(
+        entity_type="movie", external_id=None, external_source=None,
+        title="A Directed Movie", slug="a-directed-movie-test", attributes={},
+    )
+    show = await repo.create_entity(
+        entity_type="tv_series", external_id=None, external_source=None,
+        title="A Created Show", slug="a-created-show-test", attributes={},
+    )
+    await repo.create_relationship(movie.id, person.id, "directed_by")
+    await repo.create_relationship(show.id, person.id, "creator")
+    await db_session.commit()
+
+    entity_service = EntityService(db_session)
+    detail = await entity_service.get_person_detail("dual-role-person-test")
+
+    assert [d.slug for d in detail.directed] == ["a-directed-movie-test"]
+    assert [c.slug for c in detail.created] == ["a-created-show-test"]

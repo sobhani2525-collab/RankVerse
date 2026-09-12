@@ -211,6 +211,11 @@ class EntityService:
             raise NotFoundError(f"Person '{slug}' not found")
 
         directed_edges = await self.repo.get_incoming_relationships(entity.id, "directed_by")
+        # 'creator' is tv_series' equivalent of directed_by (see sync/normalizer.py's
+        # created_by handling) -- kept as its own field rather than merged into
+        # `directed` since "directed" and "created" are different roles and a person
+        # could plausibly have both (a movie director who also created a show).
+        created_edges = await self.repo.get_incoming_relationships(entity.id, "creator")
         acted_in_edges = await self.repo.get_incoming_relationships(entity.id, "acted_in")
         performed_by_edges = await self.repo.get_incoming_relationships(entity.id, "performed_by")
 
@@ -222,6 +227,9 @@ class EntityService:
             media=_extract_media(entity.attributes),
             directed=sorted(
                 (_movie_list_item(e.from_entity) for e in directed_edges), key=_by_score_desc
+            ),
+            created=sorted(
+                (_movie_list_item(e.from_entity) for e in created_edges), key=_by_score_desc
             ),
             acted_in=sorted(
                 (_movie_list_item(e.from_entity) for e in acted_in_edges), key=_by_score_desc
