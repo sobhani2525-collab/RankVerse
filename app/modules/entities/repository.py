@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -169,3 +169,29 @@ class EntityRepository:
         )
         await self.db.execute(stmt)
         await self.db.flush()
+
+    async def replace_relationships(
+        self,
+        from_entity_id: uuid.UUID,
+        relation_type: str,
+        to_entity_ids: list[uuid.UUID],
+        source: str = "sync",
+    ) -> None:
+        """
+        Make from_entity_id's relation_type edges match to_entity_ids exactly:
+        creates any missing ones and deletes any existing edge of this
+        relation_type pointing somewhere no longer in the list. create_relationship
+        alone is additive-only (ON CONFLICT DO NOTHING), so an edge made by a
+        sync run whose source data has since changed (e.g. a genre remapping)
+        would otherwise never be retracted -- this reconciles it instead of
+        leaving it to accumulate stale edges across re-syncs.
+        """
+        stale_stmt = delete(RelationshipEdge).where(
+            RelationshipEdge.from_entity_id == from_entity_id,
+            RelationshipEdge.relation_type == relation_type,
+        )
+        if to_entity_ids:
+            stale_stmt = stale_stmt.where(RelationshipEdge.to_entity_id.notin_(to_entity_ids))
+        await self.db.execute(stale_stmt)
+        for to_entity_id in to_entity_ids:
+            await self.create_relationship(from_entity_id, to_entity_id, relation_type, source=source)

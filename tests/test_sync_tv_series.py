@@ -220,6 +220,40 @@ async def test_sync_tv_series_war_and_politics_maps_to_war_only(db_session, monk
     assert (await repo.get_by_slug("politics", entity_type="genre")) is None
 
 
+async def test_sync_tv_series_reconciles_stale_genre_edge_from_prior_mapping(db_session, monkeypatch):
+    """
+    Reproduces the exact bug reported from a live sync: a genre entity/edge
+    created by an OLDER sync run (before "Sci-Fi & Fantasy" was split into
+    Science Fiction + Fantasy) doesn't just sit there unused -- it was still
+    linked to Game of Thrones via has_genre, because create_relationship is
+    additive-only (ON CONFLICT DO NOTHING) and never retracts an edge whose
+    source mapping has since changed. Re-syncing must drop that stale edge,
+    not just add the two new correct ones alongside it.
+    """
+    _patch_tmdb(monkeypatch)
+    repo = EntityRepository(db_session)
+
+    got = await repo.create_entity(
+        entity_type="tv_series", external_id="1399", external_source="tmdb",
+        title="Game of Thrones", slug="game-of-thrones-2011", attributes={},
+    )
+    stale_genre = await repo.create_entity(
+        entity_type="genre", external_id="10765", external_source="tmdb_genre",
+        title="Sci-Fi & Fantasy", slug="sci-fi-fantasy", attributes={},
+    )
+    await repo.create_relationship(got.id, stale_genre.id, "has_genre")
+    await db_session.commit()
+
+    service = SyncService(db_session)
+    result = await service.sync_tv_series(1399)
+    assert result["id"] == str(got.id)
+
+    genre_edges = await repo.get_related(got.id, relation_type="has_genre")
+    genre_names = {e.to_entity.title for e in genre_edges}
+    assert genre_names == {"Science Fiction", "Fantasy", "Drama"}
+    assert stale_genre.id not in {e.to_entity_id for e in genre_edges}
+
+
 async def test_sync_tv_series_is_idempotent(db_session, monkeypatch):
     _patch_tmdb(monkeypatch)
     service = SyncService(db_session)

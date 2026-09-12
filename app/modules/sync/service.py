@@ -234,9 +234,16 @@ class SyncService:
             person = await self._get_or_create_person(cr["external_id"], cr["name"])
             await self.repo.create_relationship(series.id, person.id, "creator")
 
+        # replace_relationships (not create_relationship) here: TV_GENRE_NAME_OVERRIDES
+        # can change which genre entities a given TMDb genre maps to (e.g. a fused
+        # genre getting split up), and create_relationship alone never retracts an
+        # edge made by an earlier sync run under an old mapping -- it would just
+        # accumulate stale has_genre edges forever across re-syncs.
+        genre_ids = []
         for g in normalized["genres"]:
             genre = await self._get_or_create_genre(g["name"], g["external_id"])
-            await self.repo.create_relationship(series.id, genre.id, "has_genre")
+            genre_ids.append(genre.id)
+        await self.repo.replace_relationships(series.id, "has_genre", genre_ids)
 
         for n in normalized["networks"]:
             network = await self._get_or_create_network(n["external_id"], n["name"])
