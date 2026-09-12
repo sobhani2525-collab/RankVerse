@@ -6,7 +6,7 @@ from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
 from app.modules.sync.itunes_client import ITunesClient
-from app.modules.sync.normalizer import normalize_movie, normalize_track
+from app.modules.sync.normalizer import normalize_movie, normalize_track, normalize_tv_series
 from app.modules.sync.tmdb_client import TMDbClient
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,20 @@ class SyncService:
                 attributes={},
             )
         return album
+
+    async def _get_or_create_network(self, external_id: str, name: str, source: str = "tmdb_network"):
+        network = await self.repo.get_by_external_id(source, external_id)
+        if not network:
+            from slugify import slugify
+            network = await self.repo.create_entity(
+                entity_type="production_company",
+                external_id=external_id,
+                external_source=source,
+                title=name,
+                slug=f"{slugify(name)}-{external_id}",
+                attributes={},
+            )
+        return network
 
     async def sync_track(self, itunes_id: int) -> dict:
         raw = await self.itunes_client.lookup_track(itunes_id)
@@ -164,6 +178,72 @@ class SyncService:
 
         await self.db.commit()
         return {"id": str(movie.id), "slug": movie.slug, "title": movie.title}
+
+    async def sync_tv_series(self, tmdb_id: int) -> dict:
+        """
+        Mirrors sync_movie exactly, with two differences: creators (from
+        created_by) get their own "creator" edge alongside directed_by/
+        acted_in, and networks get an "aired_on" edge via
+        _get_or_create_network. _get_or_create_person/_get_or_create_genre
+        are reused unchanged -- a person or genre shared between a movie
+        and a TV series (same TMDb id, or same genre slug) resolves to the
+        same entity automatically, no TV-specific lookup needed.
+
+        No RankingService call here (unlike sync_movie) -- ranking/rating
+        integration for tv_series is a separate, later task; this is
+        ingestion only.
+        """
+        raw = await self.client.get_tv_series(tmdb_id)
+        normalized = normalize_tv_series(raw)
+
+        series = await self.repo.get_by_external_id("tmdb", normalized["external_id"])
+        if series:
+            series.title = normalized["title"]
+            series.attributes = normalized["attributes"]
+        else:
+            # هم external_id و هم slug رو چک کن، چون ممکنه slug از یه منبع دیگه از قبل ساخته شده باشه
+            existing_by_slug = await self.repo.get_by_slug(normalized["slug"])
+            if existing_by_slug:
+                series = existing_by_slug
+                series.external_id = normalized["external_id"]
+                series.external_source = "tmdb"
+                series.title = normalized["title"]
+                series.attributes = normalized["attributes"]
+            else:
+                series = await self.repo.create_entity(
+                    entity_type="tv_series",
+                    external_id=normalized["external_id"],
+                    external_source="tmdb",
+                    title=normalized["title"],
+                    slug=normalized["slug"],
+                    attributes=normalized["attributes"],
+                )
+
+        for d in normalized["directors"]:
+            person = await self._get_or_create_person(d["external_id"], d["name"])
+            await self.repo.create_relationship(series.id, person.id, "directed_by")
+
+        for c in normalized["cast"]:
+            person = await self._get_or_create_person(c["external_id"], c["name"])
+            await self.repo.create_relationship(
+                series.id, person.id, "acted_in",
+                edge_metadata={"character": c["character"], "order": c["order"]},
+            )
+
+        for cr in normalized["creators"]:
+            person = await self._get_or_create_person(cr["external_id"], cr["name"])
+            await self.repo.create_relationship(series.id, person.id, "creator")
+
+        for g in normalized["genres"]:
+            genre = await self._get_or_create_genre(g["name"], g["external_id"])
+            await self.repo.create_relationship(series.id, genre.id, "has_genre")
+
+        for n in normalized["networks"]:
+            network = await self._get_or_create_network(n["external_id"], n["name"])
+            await self.repo.create_relationship(series.id, network.id, "aired_on")
+
+        await self.db.commit()
+        return {"id": str(series.id), "slug": series.slug, "title": series.title}
 
     async def bulk_sync_popular(self, pages: int = 5) -> int:
         synced = 0

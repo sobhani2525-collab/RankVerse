@@ -37,3 +37,9 @@ class TMDbClient:
             f"{self.base_url}/discover/movie",
             params={"api_key": self.api_key, "sort_by": sort_by, "page": page},
         )
+
+    async def get_tv_series(self, tmdb_id: int) -> dict:
+        return await self._get_with_retry(
+            f"{self.base_url}/tv/{tmdb_id}",
+            params={"api_key": self.api_key, "append_to_response": "credits"},
+        )
