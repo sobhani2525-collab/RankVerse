@@ -8,6 +8,7 @@ import { getMyRatings, getMyLists, getMyTasteDna, UserRating } from "@/lib/api";
 import { TasteProfile } from "@/lib/types";
 import Loading from "@/components/Loading";
 import TasteDnaSection from "@/components/TasteDnaSection";
+import TasteDnaErrorState from "@/components/TasteDnaErrorState";
 
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
@@ -26,6 +27,9 @@ export default function ProfilePage() {
   const [listsError, setListsError] = useState<string | null>(null);
 
   const [taste, setTaste] = useState<TasteProfile | null>(null);
+  const [loadingTaste, setLoadingTaste] = useState(true);
+  const [tasteError, setTasteError] = useState<string | null>(null);
+  const [tasteReloadKey, setTasteReloadKey] = useState(0);
 
   // گارد احراز هویت
   useEffect(() => {
@@ -76,22 +80,31 @@ export default function ProfilePage() {
     };
   }, [token]);
 
-  // دریافت Taste DNA کاربر — یه section جدا و مستقل از رتبه‌بندی‌ها/لیست‌ها،
-  // پس خطای گرفتنش نباید مانع نمایش بقیه‌ی صفحه بشه (فقط بی‌صدا خالی می‌مونه).
+  // دریافت Taste DNA کاربر — section جدا و مستقل از رتبه‌بندی‌ها/لیست‌ها،
+  // با error state جدا از empty state (پروفایل واقعاً خالیه در مقابل
+  // fetch شکست خورده): tasteReloadKey با هر بار retry تغییر می‌کنه تا
+  // این effect دوباره اجرا بشه.
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
+    setLoadingTaste(true);
+    setTasteError(null);
 
     getMyTasteDna(token)
       .then((data) => {
         if (!cancelled) setTaste(data);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setTasteError("دریافت Taste DNA با مشکل مواجه شد.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTaste(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, tasteReloadKey]);
 
   const { totalCount, avgScore } = useMemo(() => {
     if (!ratings || ratings.length === 0) {
@@ -143,7 +156,14 @@ export default function ProfilePage() {
       </section>
 
       {/* --- Taste DNA --- */}
-      {taste && <TasteDnaSection profile={taste} />}
+      <section className="mx-auto mt-10 max-w-2xl px-6">
+        <h2 className="mb-4 text-sm text-muted">Taste DNA</h2>
+        {loadingTaste && <Loading />}
+        {!loadingTaste && tasteError && (
+          <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
+        )}
+        {!loadingTaste && !tasteError && taste && <TasteDnaSection profile={taste} />}
+      </section>
 
       {/* --- Lists --- */}
       <section className="mx-auto mt-10 max-w-2xl px-6">

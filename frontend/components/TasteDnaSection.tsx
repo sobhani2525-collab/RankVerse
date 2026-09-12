@@ -9,34 +9,36 @@ interface TasteDnaSectionProps {
   profile: TasteProfile;
 }
 
+/**
+ * Only decides empty-vs-full-grid for a successfully fetched profile --
+ * loading/error states are the page's job (same split as the Ratings/
+ * Lists sections in app/profile/page.tsx), since this component only
+ * ever sees a profile that was actually fetched.
+ */
 export default function TasteDnaSection({ profile }: TasteDnaSectionProps) {
   const hasSnapshot = profile.snapshot !== null;
 
-  return (
-    <section className="mx-auto mt-10 max-w-2xl px-6">
-      <h2 className="mb-4 text-sm text-muted">Taste DNA</h2>
-
-      {!hasSnapshot && (
-        <>
-          <TasteDnaEmptyState />
-          {profile.contribution_stats && (
-            <div className="mt-4">
-              <TasteContributionCard stats={profile.contribution_stats} />
-            </div>
-          )}
-        </>
-      )}
-
-      {hasSnapshot && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TasteDnaCard snapshot={profile.snapshot!} dimensions={profile.dimensions} />
-          {profile.insight && <TasteInsightCard insight={profile.insight} />}
-          {profile.anchors.length > 0 && <TasteAnchorsCard anchors={profile.anchors} />}
-          {profile.contribution_stats && (
+  if (!hasSnapshot) {
+    return (
+      <>
+        <TasteDnaEmptyState />
+        {profile.contribution_stats && (
+          <div className="mt-4">
             <TasteContributionCard stats={profile.contribution_stats} />
-          )}
-        </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <TasteDnaCard snapshot={profile.snapshot!} dimensions={profile.dimensions} />
+      {profile.insight && <TasteInsightCard insight={profile.insight} />}
+      {profile.anchors.length > 0 && <TasteAnchorsCard anchors={profile.anchors} />}
+      {profile.contribution_stats && (
+        <TasteContributionCard stats={profile.contribution_stats} />
       )}
-    </section>
+    </div>
   );
 }

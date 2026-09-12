@@ -10,6 +10,10 @@ const STRENGTH_LABELS: Record<string, string> = {
 
 export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
   const { entity } = anchor;
+  // Unlike MovieListItem, TasteAnchorEntity (app/modules/taste/schemas.py)
+  // has no `media` field at all -- TasteService builds it straight from
+  // Entity.attributes.get("poster_path") with nothing else -- so there's no
+  // media.image_url to fall back from here; poster_path is the only source.
   const posterUrl = entity.poster_path
     ? `https://image.tmdb.org/t/p/w200${entity.poster_path}`
     : null;

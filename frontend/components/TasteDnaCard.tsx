@@ -12,11 +12,26 @@ function formatDimensionLabel(key: string): string {
     .join(" ");
 }
 
-function topDimensionsSubtitle(dimensions: TasteDimension[]): string {
+/**
+ * Isolating "top[0]" and "top[1]" SEPARATELY (e.g. each in its own <bdi>)
+ * looked right in code but rendered wrong: verified with an actual
+ * screenshot, "Adventure و Animation" (correct source order, Adventure
+ * scored higher) came out visually as "Animation و Adventure" -- two
+ * separately-isolated LTR runs joined by a neutral ("و") still get
+ * reordered by the surrounding RTL paragraph, since isolation only
+ * protects each run's OWN internal order, not the relative order between
+ * sibling isolates. The fix is to make "X و Y" (or a single X) ONE ltr-dir
+ * span so the whole fragment resolves as a single embedded run -- same
+ * fix as snapshot.label below, just inline instead of a whole heading.
+ */
+function topDimensionsSubtitle(dimensions: TasteDimension[]) {
   const top = dimensions.slice(0, 2).map((d) => formatDimensionLabel(d.dimension_key));
-  if (top.length === 0) return "";
-  if (top.length === 1) return `بیشترین گرایش: ${top[0]}`;
-  return `بیشترین گرایش: ${top[0]} و ${top[1]}`;
+  if (top.length === 0) return null;
+  return (
+    <>
+      بیشترین گرایش: <span dir="ltr">{top.join(" و ")}</span>
+    </>
+  );
 }
 
 interface TasteDnaCardProps {
@@ -30,7 +45,14 @@ export default function TasteDnaCard({ snapshot, dimensions }: TasteDnaCardProps
       <div className="flex items-center gap-5">
         <TasteDnaRing confidencePercent={snapshot.model_confidence * 100} />
         <div className="min-w-0">
-          <h3 className="text-lg font-bold text-ink">{snapshot.label}</h3>
+          {/* snapshot.label is a " + "-joined archetype string like
+              "Sci-Fi Explorer + Story Seeker" (see compute.py's
+              ARCHETYPE_MAP) -- always English, and it's the sole content of
+              this heading (not embedded in a longer sentence), so dir="ltr"
+              here matches the existing standalone-Latin-block convention. */}
+          <h3 className="text-lg font-bold text-ink" dir="ltr">
+            {snapshot.label}
+          </h3>
           {dimensions.length > 0 && (
             <p className="mt-1 text-xs text-muted">{topDimensionsSubtitle(dimensions)}</p>
           )}
@@ -41,13 +63,18 @@ export default function TasteDnaCard({ snapshot, dimensions }: TasteDnaCardProps
         <div className="mt-6 flex flex-col gap-3">
           {dimensions.map((d) => (
             <div key={d.dimension_key} className="flex items-center gap-3">
-              <span className="w-28 shrink-0 truncate text-xs text-muted">
+              <bdi className="w-28 shrink-0 truncate text-xs text-muted">
                 {formatDimensionLabel(d.dimension_key)}
-              </span>
-              {/* d.score is already 0-100 (see compute.py's _score_and_confidence:
-                  raw_score = 100 * (...)) -- unlike model_confidence/dimension.confidence,
-                  which are 0-1 fractions. Verified against a live-seeded profile. */}
-              <ProgressBar value={d.score} fillClassName="bg-gradient-to-l from-gold to-teal" />
+              </bdi>
+              <div className="min-w-0 flex-1">
+                {/* d.score is already 0-100 (see compute.py's _score_and_confidence:
+                    raw_score = 100 * (...)) -- unlike model_confidence/dimension.confidence,
+                    which are 0-1 fractions. Verified against a live-seeded profile. */}
+                <ProgressBar value={d.score} fillClassName="bg-gradient-to-l from-gold to-teal" />
+                <p className="mt-1 text-[10px] text-muted">
+                  بر اساس <span className="num">{d.sample_size}</span> رأی
+                </p>
+              </div>
               <span className="num w-10 shrink-0 text-left text-xs text-ink">
                 {Math.round(d.score)}
               </span>
