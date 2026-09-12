@@ -180,6 +180,24 @@ export interface NextBattleResponse {
   right: BattleEntity;
 }
 
+// From GET /movies|tv-series/{slug}/suggested-battle -- null for a guest
+// or a user with no taste anchors yet (see the backend's
+// SuggestedBattleService docstring for why there's no fallback pairing).
+export interface SuggestedBattleEntity {
+  id: string;
+  slug: string;
+  title: string;
+  entity_type: string;
+  poster_path: string | null;
+  computed_score: number | null;
+}
+
+export interface SuggestedBattle {
+  category: string;
+  left: SuggestedBattleEntity;
+  right: SuggestedBattleEntity;
+}
+
 export interface CastVoteResponse {
   vote_id: string;
   left_item: string;

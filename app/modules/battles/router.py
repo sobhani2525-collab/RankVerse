@@ -32,13 +32,24 @@ def get_service(db: AsyncSession = Depends(get_db)) -> BattleService:
 @router.get("/next", response_model=NextBattleResponse)
 async def get_next_battle(
     category: str = Query(..., examples=["movie"]),
+    left_id: uuid.UUID | None = Query(None),
+    right_id: uuid.UUID | None = Query(None),
     current_user=Depends(get_current_user),
     service: BattleService = Depends(get_service),
 ):
-    """Return two entities of similar Elo rating for the user to vote on."""
-    anchor, anchor_elo, opponent, opponent_elo = await service.get_next_battle(
-        category=category, user_id=current_user.id
-    )
+    """
+    Return two entities of similar Elo rating for the user to vote on --
+    or, when left_id/right_id are both given (e.g. from a SuggestedBattleCard's
+    "شروع Battle" link), that exact pre-selected pair instead of a random one.
+    """
+    if left_id is not None and right_id is not None:
+        anchor, anchor_elo, opponent, opponent_elo = await service.get_battle_for_pair(
+            left_id, right_id, category
+        )
+    else:
+        anchor, anchor_elo, opponent, opponent_elo = await service.get_next_battle(
+            category=category, user_id=current_user.id
+        )
     return NextBattleResponse(
         category=category,
         left=BattleEntity(

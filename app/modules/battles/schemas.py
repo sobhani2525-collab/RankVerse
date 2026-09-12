@@ -65,6 +65,25 @@ class CastVoteResponse(BaseModel):
     created_at: datetime
 
 
+class SuggestedBattleEntity(BaseModel):
+    """Entity payload for a suggested (not-yet-cast) battle -- unlike
+    BattleEntity above, there's no vote yet, so no elo_score/matches_played;
+    computed_score is the ranking score instead ("امتیاز فعلی")."""
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    entity_type: str
+    poster_path: str | None = None
+    computed_score: float | None = None
+
+
+class SuggestedBattleResponse(BaseModel):
+    category: str
+    left: SuggestedBattleEntity
+    right: SuggestedBattleEntity
+
+
 class EntityEloScoreResponse(BaseModel):
     entity_id: uuid.UUID
     category: str

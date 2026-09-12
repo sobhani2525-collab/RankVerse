@@ -6,6 +6,7 @@ import ScoreBadge from "@/components/ScoreBadge";
 import RatingWidget from "@/components/RatingWidget";
 import RelatedEntities from "@/components/RelatedEntities";
 import NotableRankings from "@/components/NotableRankings";
+import SuggestedBattleSection from "@/components/SuggestedBattleSection";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 
@@ -174,6 +175,10 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
       <div className="mt-10">
         <RatingWidget slug={tv.slug} entityType="tv_series" />
+      </div>
+
+      <div className="mt-10">
+        <SuggestedBattleSection entityType="tv_series" slug={tv.slug} />
       </div>
 
       <div className="mt-10">

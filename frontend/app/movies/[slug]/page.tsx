@@ -6,6 +6,7 @@ import ScoreBadge from "@/components/ScoreBadge";
 import RatingWidget from "@/components/RatingWidget";
 import RelatedEntities from "@/components/RelatedEntities";
 import NotableRankings from "@/components/NotableRankings";
+import SuggestedBattleSection from "@/components/SuggestedBattleSection";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 
@@ -112,6 +113,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
       <div className="mt-10">
         <RatingWidget slug={movie.slug} />
+      </div>
+
+      <div className="mt-10">
+        <SuggestedBattleSection entityType="movie" slug={movie.slug} />
       </div>
 
       <div className="mt-10">

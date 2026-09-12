@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 
+from app.modules.entities.repository import EntityRepository
 from app.modules.taste.compute import ContributionStatsComputer
 
 from .elo import update_ratings
@@ -42,6 +43,25 @@ class BattleService:
         await self.repo.commit()
 
         return anchor, anchor_elo, opponent, opponent_elo
+
+    async def get_battle_for_pair(self, left_id: uuid.UUID, right_id: uuid.UUID, category: str):
+        """
+        Pre-selected pair (e.g. from a "شروع Battle" deep link on a
+        SuggestedBattleCard) instead of the random/closest-opponent pick
+        above -- same same-type validation, same Elo lookup, just skips
+        the selection step since the caller already chose both sides.
+        """
+        await self._validate_matchup(left_id, right_id, category)
+
+        entity_repo = EntityRepository(self.repo.db)
+        left = await entity_repo.get_by_id(left_id)
+        right = await entity_repo.get_by_id(right_id)
+
+        left_elo = await self.repo.get_or_create_elo(left.id, category)
+        right_elo = await self.repo.get_or_create_elo(right.id, category)
+        await self.repo.commit()
+
+        return left, left_elo, right, right_elo
 
     async def cast_vote(self, user_id: uuid.UUID, payload: CastVoteRequest) -> CastVoteResponse:
         await self._enforce_rate_limit(user_id)

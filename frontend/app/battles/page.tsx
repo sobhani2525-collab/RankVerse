@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getNextBattle, castBattleVote } from "@/lib/api";
 import { NextBattleResponse, VoteOutcome } from "@/lib/types";
@@ -21,9 +22,32 @@ type RevealState = {
 } | null;
 
 export default function BattlesPage() {
-  const { token, isAuthenticated, loading: authLoading } = useAuth();
+  // useSearchParams needs a Suspense boundary (this page is otherwise
+  // statically prerendered) -- only BattlesPageInner actually reads it.
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-3xl px-4 py-16 text-center text-muted">در حال بارگذاری…</div>}>
+      <BattlesPageInner />
+    </Suspense>
+  );
+}
 
-  const [category, setCategory] = useState("movie");
+function BattlesPageInner() {
+  const { token, isAuthenticated, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+
+  // A SuggestedBattleCard's "شروع Battle" link arrives as
+  // /battles?category=movie&left_id=...&right_id=... -- consumed once for
+  // the first load only; a later "رد کردن"/vote goes back to the normal
+  // random/closest-opponent flow rather than repeating the same pair.
+  const preselected = useRef<{ leftId: string; rightId: string } | null>(
+    (() => {
+      const leftId = searchParams.get("left_id");
+      const rightId = searchParams.get("right_id");
+      return leftId && rightId ? { leftId, rightId } : null;
+    })()
+  );
+
+  const [category, setCategory] = useState(searchParams.get("category") || "movie");
   const [battle, setBattle] = useState<NextBattleResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
@@ -38,7 +62,8 @@ export default function BattlesPage() {
     setReveal(null);
     setOutcomes({});
     try {
-      const next = await getNextBattle(token, category);
+      const next = await getNextBattle(token, category, preselected.current ?? undefined);
+      preselected.current = null;
       setBattle(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : "خطا در دریافت نبرد بعدی");

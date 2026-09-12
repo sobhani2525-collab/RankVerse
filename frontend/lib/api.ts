@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -173,6 +173,20 @@ export async function getMyTasteDna(token: string, entityScope: string = "movie"
 
 export async function getMyPredictedPicks(token: string): Promise<PredictedPick[]> {
   return authFetch<PredictedPick[]>("/users/me/predicted-picks", token);
+}
+
+function suggestedBattlePathFor(entityType: string, slug: string): string {
+  return entityType === "tv_series"
+    ? `/tv-series/${slug}/suggested-battle`
+    : `/movies/${slug}/suggested-battle`;
+}
+
+export async function getSuggestedBattle(
+  token: string,
+  entityType: string,
+  slug: string
+): Promise<SuggestedBattle | null> {
+  return authFetch<SuggestedBattle | null>(suggestedBattlePathFor(entityType, slug), token);
 }
 
 function ratePathFor(entityType: string, slug: string): string {
@@ -373,9 +387,14 @@ export async function searchEntities(q: string, type?: string): Promise<SearchRe
 
 export async function getNextBattle(
   token: string,
-  category: string = "movie"
+  category: string = "movie",
+  preselected?: { leftId: string; rightId: string }
 ): Promise<NextBattleResponse> {
   const qs = new URLSearchParams({ category });
+  if (preselected) {
+    qs.set("left_id", preselected.leftId);
+    qs.set("right_id", preselected.rightId);
+  }
   const res = await fetchWithAuthRetry(`/battles/next?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
