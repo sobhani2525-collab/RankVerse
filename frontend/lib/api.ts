@@ -330,7 +330,9 @@ export async function addListComment(
   return authFetch(`/lists/${slug}/comments`, token, { method: "POST", body: payload });
 }
 
-// --- Search (for adding items to a list) ---
+// --- Search: global site search (no type = every entity_type) and
+// list-scoped search (a type filters to one entity_type, e.g. adding an
+// item to a movie-only list) ---
 
 export interface SearchResult {
   id: string;
@@ -339,9 +341,10 @@ export interface SearchResult {
   type: string;
 }
 
-export async function searchEntities(q: string, type: string = "movie"): Promise<SearchResult[]> {
+export async function searchEntities(q: string, type?: string): Promise<SearchResult[]> {
   if (!q.trim()) return [];
-  const qs = new URLSearchParams({ q, type });
+  const qs = new URLSearchParams({ q });
+  if (type) qs.set("type", type);
   const res = await fetch(`${API_BASE}/search?${qs.toString()}`, { cache: "no-store" });
   const json: Envelope<SearchResult[]> = await res.json();
   if (!res.ok || json.error) {
