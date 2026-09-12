@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getMyRatings, getMyLists, UserRating } from "@/lib/api";
+import { getMyRatings, getMyLists, getMyTasteDna, UserRating } from "@/lib/api";
+import { TasteProfile } from "@/lib/types";
 import Loading from "@/components/Loading";
+import TasteDnaSection from "@/components/TasteDnaSection";
 
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
@@ -22,6 +24,8 @@ export default function ProfilePage() {
   const [lists, setLists] = useState<any[] | null>(null);
   const [loadingLists, setLoadingLists] = useState(true);
   const [listsError, setListsError] = useState<string | null>(null);
+
+  const [taste, setTaste] = useState<TasteProfile | null>(null);
 
   // گارد احراز هویت
   useEffect(() => {
@@ -66,6 +70,23 @@ export default function ProfilePage() {
       .finally(() => {
         if (!cancelled) setLoadingLists(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  // دریافت Taste DNA کاربر — یه section جدا و مستقل از رتبه‌بندی‌ها/لیست‌ها،
+  // پس خطای گرفتنش نباید مانع نمایش بقیه‌ی صفحه بشه (فقط بی‌صدا خالی می‌مونه).
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    getMyTasteDna(token)
+      .then((data) => {
+        if (!cancelled) setTaste(data);
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -120,6 +141,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* --- Taste DNA --- */}
+      {taste && <TasteDnaSection profile={taste} />}
 
       {/* --- Lists --- */}
       <section className="mx-auto mt-10 max-w-2xl px-6">

@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -165,6 +165,10 @@ export interface UserRating {
 
 export async function getMyRatings(token: string): Promise<UserRating[]> {
   return authFetch<UserRating[]>("/users/me/ratings", token);
+}
+
+export async function getMyTasteDna(token: string, entityScope: string = "movie"): Promise<TasteProfile> {
+  return authFetch<TasteProfile>(`/users/me/taste-dna?entity_scope=${entityScope}`, token);
 }
 
 function ratePathFor(entityType: string, slug: string): string {

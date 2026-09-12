@@ -3,14 +3,7 @@ import Image from "next/image";
 import Constellation from "./Constellation";
 import ScoreBadge from "./ScoreBadge";
 import { MovieListItem } from "@/lib/types";
-
-// entity_type -> route prefix. Every entity_type that can appear in a
-// MovieListItem-shaped list (movie, tv_series) needs an entry here so a
-// mixed list (a person's filmography, a genre page) links each row correctly.
-const DETAIL_PATH_BY_TYPE: Record<string, string> = {
-  movie: "/movies",
-  tv_series: "/tv-series",
-};
+import { detailPathFor } from "@/lib/entity-routes";
 
 export default function EntityRow({
   movie,
@@ -25,12 +18,11 @@ export default function EntityRow({
     movie.media.image_url ??
     (movie.poster_path ? `https://image.tmdb.org/t/p/w200${movie.poster_path}` : null);
 
-  const basePath = DETAIL_PATH_BY_TYPE[movie.entity_type] ?? "/movies";
   const isTvSeries = movie.entity_type === "tv_series";
 
   return (
     <Link
-      href={`${basePath}/${movie.slug}`}
+      href={detailPathFor(movie.entity_type, movie.slug) ?? `/movies/${movie.slug}`}
       className="group flex items-center gap-4 rounded-xl border border-border bg-surface/60 px-4 py-3 transition hover:border-gold/40 hover:bg-surface2"
     >
       <span className="num w-9 shrink-0 text-center text-lg text-muted group-hover:text-gold">

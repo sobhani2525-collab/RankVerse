@@ -190,3 +190,64 @@ export interface CastVoteResponse {
   right_score_after: number;
   created_at: string;
 }
+
+// --- Taste DNA (GET /users/me/taste-dna) ---
+
+export interface TasteSnapshot {
+  label: string;
+  model_confidence: number;
+  entity_scope: string;
+  computed_at: string;
+  model_version: string;
+}
+
+export interface TasteDimension {
+  dimension_type: string;
+  dimension_key: string;
+  score: number;
+  confidence: number;
+  sample_size: number;
+  updated_at: string;
+}
+
+export interface TasteAnchorEntity {
+  id: string;
+  slug: string;
+  title: string;
+  entity_type: string;
+  poster_path: string | null;
+}
+
+export interface TasteAnchor {
+  entity: TasteAnchorEntity;
+  anchor_strength: string; // "primary" | "strong_signal"
+  match_score: number;
+  rank: number;
+}
+
+// user_taste_insights is single-row-per-user (see the backend's
+// TasteRepository.replace_insight docstring) -- a single nullable object,
+// not a list, mirroring `snapshot` and `contribution_stats` below.
+export interface TasteInsight {
+  id: string;
+  insight_text: string;
+  insight_tags: string[];
+  generated_at: string;
+}
+
+export interface ContributionStats {
+  votes_count: number;
+  battles_count: number;
+  comments_count: number;
+  relationships_discovered: number;
+  contribution_score: number;
+  updated_at: string;
+}
+
+export interface TasteProfile {
+  snapshot: TasteSnapshot | null;
+  dimensions: TasteDimension[];
+  anchors: TasteAnchor[];
+  insight: TasteInsight | null;
+  contribution_stats: ContributionStats | null;
+}
