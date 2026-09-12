@@ -59,16 +59,27 @@ def normalize_movie(raw: dict) -> dict:
     }
 
 
-# TMDb's TV genre list has some labels that are really the same concept as
-# an existing movie genre under a different name (e.g. "Action & Adventure"
-# is TV's label for what movies call "Action"). Mapping happens by feeding
-# the movie-side name into _get_or_create_genre so its existing slug-first
-# lookup (see SyncService) finds the same genre entity instead of creating
-# a duplicate. Deliberately does NOT cover hybrid TV-only categories like
-# "Sci-Fi & Fantasy" or "War & Politics" -- those don't cleanly equal one
-# single movie genre, so they get their own entity via plain slugify().
-TV_GENRE_NAME_OVERRIDES: dict[str, str] = {
-    "Action & Adventure": "Action",
+# TMDb's TV genre list has some labels that are really a fusion of two
+# separate movie-side genres (e.g. "Action & Adventure" is TV's single
+# label for what movies split into "Action" and "Adventure"). Each TV
+# genre name maps to a LIST of movie-side names, one has_genre edge gets
+# created per name, and _get_or_create_genre's existing slug-first lookup
+# (see SyncService) finds each existing genre entity instead of creating
+# a duplicate -- so one TMDb TV genre can fan out to multiple genre
+# entities in our graph.
+#
+# Every TMDb TV genre (per /genre/tv/list) is covered below or, if absent,
+# is a TV-only concept (Kids, News, Reality, Soap, Talk) with no movie-side
+# equivalent, so it's deliberately left out and gets its own entity via
+# plain slugify() -- same as before.
+#   - "War & Politics" has no movie-side "Politics" genre in this project's
+#     taxonomy (TMDb's own movie genre list doesn't have one either), and
+#     nothing else in the graph would use a standalone "Politics" genre
+#     entity, so it maps to ["War"] only rather than inventing one.
+TV_GENRE_NAME_OVERRIDES: dict[str, list[str]] = {
+    "Action & Adventure": ["Action", "Adventure"],
+    "Sci-Fi & Fantasy": ["Science Fiction", "Fantasy"],
+    "War & Politics": ["War"],
 }
 
 
@@ -131,8 +142,9 @@ def normalize_tv_series(raw: dict) -> dict:
     # created_by is a top-level field on /tv/{id}, not part of credits.
     creators = [{"external_id": str(c["id"]), "name": c["name"]} for c in raw.get("created_by", [])]
     genres = [
-        {"external_id": str(g["id"]), "name": TV_GENRE_NAME_OVERRIDES.get(g["name"], g["name"])}
+        {"external_id": str(g["id"]), "name": name}
         for g in raw.get("genres", [])
+        for name in TV_GENRE_NAME_OVERRIDES.get(g["name"], [g["name"]])
     ]
     networks = [{"external_id": str(n["id"]), "name": n["name"]} for n in raw.get("networks", [])]
 

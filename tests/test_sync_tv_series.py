@@ -75,9 +75,11 @@ GAME_OF_THRONES = {
     "vote_average": 8.4,
     "vote_count": 22000,
     "origin_country": ["US"],
-    # "Action & Adventure" should map onto an existing "Action" genre via
-    # TV_GENRE_NAME_OVERRIDES rather than creating a duplicate genre entity.
-    "genres": [{"id": 10759, "name": "Action & Adventure"}, {"id": 18, "name": "Drama"}],
+    # "Sci-Fi & Fantasy" is TMDb TV's fused label for what the movie side
+    # splits into "Science Fiction" and "Fantasy" -- TV_GENRE_NAME_OVERRIDES
+    # should fan this out into a has_genre edge to EACH of those two existing
+    # genre entities, not create one combined "Sci-Fi & Fantasy" entity.
+    "genres": [{"id": 10765, "name": "Sci-Fi & Fantasy"}, {"id": 18, "name": "Drama"}],
     "created_by": [{"id": 9813, "name": "David Benioff"}],
     "networks": [{"id": 49, "name": "HBO"}],
     "credits": {"cast": [], "crew": []},
@@ -159,9 +161,52 @@ async def test_sync_tv_series_dedupes_person_shared_across_series(db_session, mo
 async def test_sync_tv_series_genre_override_reuses_existing_genre(db_session, monkeypatch):
     _patch_tmdb(monkeypatch)
     repo = EntityRepository(db_session)
-    existing_action = await repo.create_entity(
-        entity_type="genre", external_id="28", external_source="tmdb_genre",
-        title="Action", slug="action", attributes={},
+    existing_scifi = await repo.create_entity(
+        entity_type="genre", external_id="878", external_source="tmdb_genre",
+        title="Science Fiction", slug="science-fiction", attributes={},
+    )
+    existing_fantasy = await repo.create_entity(
+        entity_type="genre", external_id="14", external_source="tmdb_genre",
+        title="Fantasy", slug="fantasy", attributes={},
+    )
+    await db_session.commit()
+
+    service = SyncService(db_session)
+    result = await service.sync_tv_series(1399)
+    entity = await repo.get_by_slug(result["slug"])
+
+    # A single fused TMDb TV genre ("Sci-Fi & Fantasy") must fan out into TWO
+    # separate has_genre edges, one per existing movie-side genre entity --
+    # not a single "sci-fi-fantasy" entity, and not just one of the two.
+    genre_edges = await repo.get_related(entity.id, relation_type="has_genre")
+    genre_ids = {e.to_entity_id for e in genre_edges}
+    assert existing_scifi.id in genre_ids
+    assert existing_fantasy.id in genre_ids
+
+    assert (await repo.get_by_slug("sci-fi-fantasy", entity_type="genre")) is None
+    assert (await repo.get_by_slug("science-fiction", entity_type="genre")).id == existing_scifi.id
+    assert (await repo.get_by_slug("fantasy", entity_type="genre")).id == existing_fantasy.id
+
+
+async def test_sync_tv_series_war_and_politics_maps_to_war_only(db_session, monkeypatch):
+    """
+    "War & Politics" has no movie-side "Politics" genre in this project's
+    taxonomy, so it deliberately maps to ["War"] only (see the reasoning in
+    TV_GENRE_NAME_OVERRIDES) rather than inventing a standalone "Politics"
+    genre entity that nothing else in the graph would ever use.
+    """
+    async def fake_get_tv_series(self, tmdb_id: int) -> dict:
+        return {
+            **GAME_OF_THRONES,
+            "genres": [{"id": 10768, "name": "War & Politics"}],
+        }
+
+    monkeypatch.setattr(TMDbClient, "get_tv_series", fake_get_tv_series)
+
+    repo = EntityRepository(db_session)
+    existing_war = await repo.create_entity(
+        entity_type="genre", external_id="10752", external_source="tmdb_genre",
+        title="War", slug="war", attributes={},
     )
     await db_session.commit()
 
@@ -171,10 +216,8 @@ async def test_sync_tv_series_genre_override_reuses_existing_genre(db_session, m
 
     genre_edges = await repo.get_related(entity.id, relation_type="has_genre")
     genre_ids = {e.to_entity_id for e in genre_edges}
-    assert existing_action.id in genre_ids
-
-    all_action_genres = await repo.get_by_slug("action", entity_type="genre")
-    assert all_action_genres.id == existing_action.id
+    assert genre_ids == {existing_war.id}
+    assert (await repo.get_by_slug("politics", entity_type="genre")) is None
 
 
 async def test_sync_tv_series_is_idempotent(db_session, monkeypatch):
