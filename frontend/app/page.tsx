@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Hero from "@/components/Hero";
 import RankingList from "@/components/RankingList";
-import { getTopMovies, discoverLists } from "@/lib/api";
+import { getTopMovies, getTopTvSeries, discoverLists } from "@/lib/api";
 
 export const revalidate = 300;
 
@@ -13,6 +13,15 @@ export default async function HomePage() {
     movies = await getTopMovies({ page_size: 20 });
   } catch (err) {
     loadError = err instanceof Error ? err.message : "خطا در دریافت اطلاعات";
+  }
+
+  // Same tolerant pattern as movies above -- a failed fetch here shouldn't
+  // take down the rest of the home page, it just hides this section.
+  let tvSeries: any[] = [];
+  try {
+    tvSeries = await getTopTvSeries({ page_size: 20 });
+  } catch {
+    tvSeries = [];
   }
 
   // آخرین لیست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
@@ -43,6 +52,17 @@ export default async function HomePage() {
           <RankingList movies={movies} />
         )}
       </section>
+
+      {tvSeries.length > 0 && (
+        <section className="mx-auto max-w-3xl px-6 pb-14">
+          <div className="mb-6 flex items-baseline justify-between">
+            <h2 className="text-xl font-bold text-ink">برترین‌های سریال</h2>
+            <span className="num text-xs text-muted">دسته: سریال</span>
+          </div>
+
+          <RankingList movies={tvSeries} />
+        </section>
+      )}
 
       {latestLists.length > 0 && (
         <section className="mx-auto max-w-3xl px-6 pb-14">
