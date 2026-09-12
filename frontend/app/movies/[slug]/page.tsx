@@ -7,6 +7,7 @@ import RatingWidget from "@/components/RatingWidget";
 import RelatedEntities from "@/components/RelatedEntities";
 import NotableRankings from "@/components/NotableRankings";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
+import { genreLabel } from "@/lib/genre-labels";
 
 export const revalidate = 60;
 
@@ -37,7 +38,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : null;
   const mainDirector = movie.directors[0]?.title ?? null;
-  const mainGenre = movie.genres[0]?.title ?? null;
+  const mainGenre = movie.genres[0]?.title ? genreLabel(movie.genres[0].title) : null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
@@ -95,7 +96,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
               <div>
                 <dt className="text-xs text-muted">Zhanr</dt>
                 <dd className="mt-1 text-ink">
-                  {movie.genres.map((g) => g.title).join("- ")}
+                  {movie.genres.map((g) => genreLabel(g.title)).join("- ")}
                 </dd>
               </div>
             )}

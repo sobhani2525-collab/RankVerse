@@ -312,25 +312,31 @@ class TasteAnchorComputer:
 # genres get seeded; anything missing falls back to a title-cased
 # "<Genre> Fan" via _archetype_for().
 ARCHETYPE_MAP: dict[str, str] = {
-    "sci-fi": "Sci-Fi Explorer",
-    "science-fiction": "Sci-Fi Explorer",
-    "drama": "Story Seeker",
-    "action": "Thrill Chaser",
-    "comedy": "Feel-Good Seeker",
-    "horror": "Thrill Seeker",
-    "documentary": "Truth Seeker",
-    "animation": "Wonder Chaser",
-    "fantasy": "World Builder",
-    "thriller": "Suspense Hunter",
-    "romance": "Heart Follower",
-    "crime": "Justice Watcher",
-    "mystery": "Puzzle Solver",
-    "adventure": "Horizon Chaser",
-    "family": "Warmth Seeker",
-    "music": "Rhythm Follower",
-    "history": "Time Traveler",
-    "war": "Conflict Witness",
-    "western": "Frontier Wanderer",
+    "sci-fi": "کاوشگر علمی-تخیلی",
+    "science-fiction": "کاوشگر علمی-تخیلی",
+    "drama": "داستان‌جو",
+    "action": "شکارچی هیجان",
+    "comedy": "طالب شادی",
+    "horror": "طالب دلهره",
+    "documentary": "حقیقت‌جو",
+    "animation": "شکارچی شگفتی",
+    "fantasy": "جهان‌ساز",
+    "thriller": "شکارچی تعلیق",
+    "romance": "دنباله‌رو دل",
+    "crime": "ناظر عدالت",
+    "mystery": "حل‌کننده معما",
+    "adventure": "افق‌جو",
+    "family": "طالب گرمی",
+    "music": "دنباله‌رو ریتم",
+    "history": "مسافر زمان",
+    "war": "شاهد نبرد",
+    "western": "سرگردان مرزها",
+    "kids": "طالب سادگی",
+    "news": "پیگیر رخدادها",
+    "reality": "ناظر واقعیت",
+    "soap": "دنباله‌رو دل",
+    "talk": "شنونده گفت‌وگو",
+    "tv-movie": "داستان‌جو",
 }
 
 SNAPSHOT_MODEL_VERSION = "genre-v1"
@@ -342,7 +348,7 @@ SNAPSHOT_ENTITY_SCOPE = "movie"
 def _archetype_for(genre_slug: str) -> str:
     if genre_slug in ARCHETYPE_MAP:
         return ARCHETYPE_MAP[genre_slug]
-    return f"{genre_slug.replace('-', ' ').title()} Fan"
+    return f"طرفدار {genre_slug.replace('-', ' ').title()}"
 
 
 def _dimension_sort_key(dimension):

@@ -4,6 +4,7 @@ import EntityDescription from "@/components/EntityDescription";
 import MediaPlayer from "@/components/MediaPlayer";
 import RelatedList from "@/components/RelatedList";
 import { GenreDetail } from "@/lib/types";
+import { genreLabel } from "@/lib/genre-labels";
 
 // Movies and tv_series both belong under one genre ranking -- merged into a
 // single list (sorted by score, nulls last) rather than two separate
@@ -24,7 +25,7 @@ export default function GenreView({ data }: { data: GenreDetail }) {
       </Link>
 
       <EntityHero
-        title={`بهترین‌های ${data.title}`}
+        title={`بهترین‌های ${genreLabel(data.title)}`}
         subtitle={`${items.length} عنوان`}
         media={data.media}
       />

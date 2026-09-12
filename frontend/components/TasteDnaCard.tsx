@@ -1,37 +1,19 @@
 import TasteDnaRing from "./TasteDnaRing";
 import ProgressBar from "./ProgressBar";
 import { TasteSnapshot, TasteDimension } from "@/lib/types";
-
-/** "science-fiction" -> "Science Fiction" -- no Persian genre-name dictionary
- * exists on the frontend yet, so this is the "otherwise English" fallback
- * the design calls for, just made readable instead of a raw slug. */
-function formatDimensionLabel(key: string): string {
-  return key
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
+import { genreLabel } from "@/lib/genre-labels";
 
 /**
- * Isolating "top[0]" and "top[1]" SEPARATELY (e.g. each in its own <bdi>)
- * looked right in code but rendered wrong: verified with an actual
- * screenshot, "Adventure و Animation" (correct source order, Adventure
- * scored higher) came out visually as "Animation و Adventure" -- two
- * separately-isolated LTR runs joined by a neutral ("و") still get
- * reordered by the surrounding RTL paragraph, since isolation only
- * protects each run's OWN internal order, not the relative order between
- * sibling isolates. The fix is to make "X و Y" (or a single X) ONE ltr-dir
- * span so the whole fragment resolves as a single embedded run -- same
- * fix as snapshot.label below, just inline instead of a whole heading.
+ * Genre labels are now Persian (via genreLabel), so joining "top[0]" and
+ * "top[1]" is plain same-direction RTL text -- no bidi run-ordering risk
+ * the way the old English "Adventure و Animation" version had (that bug
+ * needed the whole "X و Y" fragment forced into one dir="ltr" span; here
+ * there's no foreign-direction run to isolate at all).
  */
 function topDimensionsSubtitle(dimensions: TasteDimension[]) {
-  const top = dimensions.slice(0, 2).map((d) => formatDimensionLabel(d.dimension_key));
+  const top = dimensions.slice(0, 2).map((d) => genreLabel(d.dimension_key));
   if (top.length === 0) return null;
-  return (
-    <>
-      بیشترین گرایش: <span dir="ltr">{top.join(" و ")}</span>
-    </>
-  );
+  return <>بیشترین گرایش: {top.join(" و ")}</>;
 }
 
 interface TasteDnaCardProps {
@@ -45,14 +27,11 @@ export default function TasteDnaCard({ snapshot, dimensions }: TasteDnaCardProps
       <div className="flex items-center gap-5">
         <TasteDnaRing confidencePercent={snapshot.model_confidence * 100} />
         <div className="min-w-0">
-          {/* snapshot.label is a " + "-joined archetype string like
-              "Sci-Fi Explorer + Story Seeker" (see compute.py's
-              ARCHETYPE_MAP) -- always English, and it's the sole content of
-              this heading (not embedded in a longer sentence), so dir="ltr"
-              here matches the existing standalone-Latin-block convention. */}
-          <h3 className="text-lg font-bold text-ink" dir="ltr">
-            {snapshot.label}
-          </h3>
+          {/* snapshot.label is a " + "-joined archetype string, e.g.
+              "کاوشگر علمی-تخیلی + داستان‌جو" (see compute.py's
+              ARCHETYPE_MAP, now Persian) -- plain RTL text, so no dir
+              override is needed here anymore. */}
+          <h3 className="text-lg font-bold text-ink">{snapshot.label}</h3>
           {dimensions.length > 0 && (
             <p className="mt-1 text-xs text-muted">{topDimensionsSubtitle(dimensions)}</p>
           )}
@@ -64,7 +43,7 @@ export default function TasteDnaCard({ snapshot, dimensions }: TasteDnaCardProps
           {dimensions.map((d) => (
             <div key={d.dimension_key} className="flex items-center gap-3">
               <bdi className="w-28 shrink-0 truncate text-xs text-muted">
-                {formatDimensionLabel(d.dimension_key)}
+                {genreLabel(d.dimension_key)}
               </bdi>
               <div className="min-w-0 flex-1">
                 {/* d.score is already 0-100 (see compute.py's _score_and_confidence:

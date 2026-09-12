@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { RankingHighlight } from "@/lib/api";
+import { genreLabel } from "@/lib/genre-labels";
 
 function highlightLabel(highlight: RankingHighlight): string {
   const title = highlight.group.title;
   switch (highlight.dimension) {
     case "genre":
-      return `بهترین‌های ${title}`;
+      return `بهترین‌های ${genreLabel(title)}`;
     case "director":
       return `بهترین فیلم‌های ${title}`;
     case "creator":

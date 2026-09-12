@@ -7,6 +7,7 @@ import RatingWidget from "@/components/RatingWidget";
 import RelatedEntities from "@/components/RelatedEntities";
 import NotableRankings from "@/components/NotableRankings";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
+import { genreLabel } from "@/lib/genre-labels";
 
 export const revalidate = 60;
 
@@ -99,7 +100,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
   const posterUrl = tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null;
   const mainCreator = tv.creators[0]?.title ?? null;
-  const mainGenre = tv.genres[0]?.title ?? null;
+  const mainGenre = tv.genres[0]?.title ? genreLabel(tv.genres[0].title) : null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
@@ -152,7 +153,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
             {tv.genres.length > 0 && (
               <div>
                 <dt className="text-xs text-muted">ژانر</dt>
-                <dd className="mt-1 text-ink">{tv.genres.map((g) => g.title).join("، ")}</dd>
+                <dd className="mt-1 text-ink">{tv.genres.map((g) => genreLabel(g.title)).join("، ")}</dd>
               </div>
             )}
             {tv.networks.length > 0 && (
