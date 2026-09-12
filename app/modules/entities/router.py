@@ -33,6 +33,13 @@ async def get_movie(slug: str, db: AsyncSession = Depends(get_db)):
     return envelope(data=movie.model_dump())
 
 
+@router.get("/tv-series/{slug}")
+async def get_tv_series(slug: str, db: AsyncSession = Depends(get_db)):
+    service = EntityService(db)
+    tv_series = await service.get_tv_series_detail(slug)
+    return envelope(data=tv_series.model_dump())
+
+
 @router.get("/people/{slug}")
 async def get_person(slug: str, db: AsyncSession = Depends(get_db)):
     service = EntityService(db)

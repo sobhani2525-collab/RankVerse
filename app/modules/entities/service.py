@@ -12,6 +12,7 @@ from app.modules.entities.schemas import (
     GenreDetail,
     GenreSummary,
     TrackDetail,
+    TVSeriesDetail,
 )
 
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
@@ -141,6 +142,67 @@ class EntityService:
             directors=directors,
             cast=cast,
             genres=genres,
+        )
+
+    async def get_tv_series_detail(self, slug: str) -> TVSeriesDetail:
+        """Mirrors get_movie_detail -- same edge types (has_genre/acted_in),
+        plus 'creator' (tv_series' equivalent of directed_by, see
+        sync/normalizer.py) and 'aired_on' (networks) which movies don't have."""
+        entity = await self.get_tv_series_entity(slug)
+
+        creator_edges = await self.repo.get_relationships(entity.id, "creator")
+        director_edges = await self.repo.get_relationships(entity.id, "directed_by")
+        cast_edges = await self.repo.get_relationships(entity.id, "acted_in")
+        genre_edges = await self.repo.get_relationships(entity.id, "has_genre")
+        network_edges = await self.repo.get_relationships(entity.id, "aired_on")
+
+        creators = [
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, role="creator")
+            for e in creator_edges
+        ]
+        directors = [
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, role="director")
+            for e in director_edges
+        ]
+        cast = [
+            PersonSummary(
+                id=e.to_entity.id,
+                slug=e.to_entity.slug,
+                title=e.to_entity.title,
+                role=e.edge_metadata.get("character"),
+            )
+            for e in sorted(cast_edges, key=lambda e: e.edge_metadata.get("order", 99))
+        ]
+        genres = [
+            GenreSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title)
+            for e in genre_edges
+        ]
+        networks = [
+            GenreSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title)
+            for e in network_edges
+        ]
+
+        return TVSeriesDetail(
+            id=entity.id,
+            slug=entity.slug,
+            title=entity.title,
+            poster_path=entity.attributes.get("poster_path"),
+            year=entity.attributes.get("year"),
+            overview=entity.attributes.get("overview"),
+            number_of_seasons=entity.attributes.get("number_of_seasons"),
+            number_of_episodes=entity.attributes.get("number_of_episodes"),
+            status=entity.attributes.get("status"),
+            first_air_date=entity.attributes.get("first_air_date"),
+            last_air_date=entity.attributes.get("last_air_date"),
+            country=entity.attributes.get("country"),
+            computed_score=entity.ranking.computed_score if entity.ranking else None,
+            total_votes=entity.ranking.total_votes if entity.ranking else 0,
+            media=_extract_media(entity.attributes),
+            creators=creators,
+            directors=directors,
+            cast=cast,
+            genres=genres,
+            networks=networks,
         )
 
     async def get_person_detail(self, slug: str) -> PersonDetail:

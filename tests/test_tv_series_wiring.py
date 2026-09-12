@@ -111,6 +111,34 @@ async def test_rate_tv_series_via_service(db_session, test_user):
     assert await UserRepository(db_session).get_rating(test_user.id, tv.id) is None
 
 
+async def test_get_tv_series_detail_route(client, db_session):
+    """GET /tv-series/{slug} -- the previously-missing detail endpoint the
+    frontend page needs (overview/creators/cast/genres/networks)."""
+    async def fake_get_tv_series(self, tmdb_id):
+        return BREAKING_BAD
+
+    TMDbClient.get_tv_series = fake_get_tv_series
+    service = SyncService(db_session)
+    result = await service.sync_tv_series(1396)
+
+    res = await client.get(f"/api/v1/tv-series/{result['slug']}")
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert data["title"] == "Breaking Bad"
+    assert data["entity_type"] == "tv_series"
+    assert data["number_of_seasons"] == 5
+    assert data["status"] == "Ended"
+    assert {c["title"] for c in data["creators"]} == {"Vince Gilligan"}
+    assert {c["title"] for c in data["cast"]} == {"Bryan Cranston", "Jonathan Banks"}
+    assert {g["title"] for g in data["genres"]} == {"Crime", "Drama"}
+    assert {n["title"] for n in data["networks"]} == {"AMC"}
+
+
+async def test_get_tv_series_detail_404_for_missing_slug(client):
+    res = await client.get("/api/v1/tv-series/does-not-exist")
+    assert res.status_code == 404
+
+
 async def test_rate_movie_lookup_rejects_tv_series_slug(db_session, test_user):
     """rate_movie must stay movie-only -- a tv_series slug should 404, not silently rate it."""
     from app.core.exceptions import NotFoundError

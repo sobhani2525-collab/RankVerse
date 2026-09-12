@@ -49,6 +49,22 @@ class MovieDetail(MovieListItem):
     genres: list[GenreSummary] = []
 
 
+class TVSeriesDetail(MovieListItem):
+    entity_type: str = "tv_series"
+    overview: str | None = None
+    number_of_seasons: int | None = None
+    number_of_episodes: int | None = None
+    status: str | None = None
+    first_air_date: str | None = None
+    last_air_date: str | None = None
+    country: str | None = None
+    creators: list[PersonSummary] = []
+    directors: list[PersonSummary] = []
+    cast: list[PersonSummary] = []
+    genres: list[GenreSummary] = []
+    networks: list[GenreSummary] = []
+
+
 class MovieListResponse(BaseModel):
     items: list[MovieListItem]
 
