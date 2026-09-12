@@ -13,6 +13,11 @@ on the same score/confidence machinery (_rating_component,
 _engagement_component, _score_and_confidence). Adding "mood"/"era"/
 "theme" later means adding another such method plus its own signal query
 -- the shared scoring and persistence path doesn't change.
+
+TasteAnchorComputer, below, fills user_taste_anchors (the movies that
+most define a user's taste) and reuses the same _rating_component
+normalization TasteDimensionComputer uses, just applied to a single
+movie's rating instead of a per-genre mean.
 """
 
 import math
@@ -36,6 +41,29 @@ RATING_SCALE_MAX = 10
 
 def _clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
+
+
+def _rating_component(value_mean: float, user_avg: float) -> float:
+    """
+    0-1, centered at 0.5 when a value (a per-genre mean, a single movie's
+    rating, ...) equals the user's own overall average rating --
+    deviation from *their* baseline, not the raw 1-10 scale, so a
+    generous rater doesn't end up with everything showing as "loved".
+    Shared by TasteDimensionComputer and TasteAnchorComputer.
+    """
+    deviation = value_mean - user_avg
+    span = RATING_SCALE_MAX - RATING_SCALE_MIN
+    return _clamp01(0.5 + deviation / span)
+
+
+async def _overall_avg_rating(db: AsyncSession, user_id: uuid.UUID) -> float | None:
+    """Mean of ALL of a user's ratings -- the normalization baseline
+    used by both computers below, so it has to include everything they've
+    rated, not just the subset relevant to one particular computation."""
+    stmt = select(func.avg(UserRating.score)).where(UserRating.user_id == user_id)
+    result = await db.execute(stmt)
+    avg = result.scalar_one_or_none()
+    return float(avg) if avg is not None else None
 
 
 @dataclass
@@ -64,17 +92,6 @@ class TasteDimensionComputer:
 
     # --- shared scoring machinery ---
 
-    def _rating_component(self, dimension_mean: float, user_avg: float) -> float:
-        """
-        0-1, centered at 0.5 when a dimension's mean rating equals the
-        user's own overall average rating -- deviation from *their*
-        baseline, not the raw 1-10 scale, so a generous rater doesn't end
-        up with every dimension showing as "loved".
-        """
-        deviation = dimension_mean - user_avg
-        span = RATING_SCALE_MAX - RATING_SCALE_MIN
-        return _clamp01(0.5 + deviation / span)
-
     def _engagement_component(self, sample_size: int, max_sample_size: int) -> float:
         return math.log(sample_size + 1) / math.log(max_sample_size + 1)
 
@@ -84,7 +101,7 @@ class TasteDimensionComputer:
         sample_size = len(ratings)
         dimension_mean = sum(ratings) / sample_size
 
-        rating_component = self._rating_component(dimension_mean, user_avg)
+        rating_component = _rating_component(dimension_mean, user_avg)
         engagement_component = self._engagement_component(sample_size, max_sample_size)
 
         raw_score = 100 * (self.rating_weight * rating_component + self.engagement_weight * engagement_component)
@@ -115,15 +132,6 @@ class TasteDimensionComputer:
         result = await self.db.execute(stmt)
         return [GenreVote(genre_slug=slug, score=score) for slug, score in result.all()]
 
-    async def _overall_avg_rating(self, user_id: uuid.UUID) -> float | None:
-        """Mean of ALL of a user's ratings, genre-tagged or not -- the
-        normalization baseline, so it has to include everything they've
-        rated, not just movies that happen to have genre edges."""
-        stmt = select(func.avg(UserRating.score)).where(UserRating.user_id == user_id)
-        result = await self.db.execute(stmt)
-        avg = result.scalar_one_or_none()
-        return float(avg) if avg is not None else None
-
     async def compute_genre_dimensions(self, user_id: uuid.UUID) -> int:
         """
         Recomputes dimension_type="genre" rows for one user from their
@@ -139,7 +147,7 @@ class TasteDimensionComputer:
             await self.repo.bulk_upsert_dimensions(user_id, "genre", [])
             return 0
 
-        user_avg = await self._overall_avg_rating(user_id)
+        user_avg = await _overall_avg_rating(self.db, user_id)
 
         by_genre: dict[str, list[int]] = {}
         for vote in votes:
@@ -182,3 +190,107 @@ class TasteDimensionComputer:
 
         await self.db.commit()
         return total
+
+
+# --- taste anchors (v1) ---
+
+# Outgoing edge types counted toward a movie's "meaningful relationships"
+# for anchor centrality -- the same trio RankingService.RANKING_DIMENSIONS
+# and EntityRepository.get_shared_connections() already treat as significant.
+ANCHOR_RELATION_TYPES = ("has_genre", "directed_by", "acted_in")
+
+# Fraction of a user's (already top-N) anchor list that gets labeled
+# "primary" rather than "strong_signal", by rank position.
+ANCHOR_PRIMARY_FRACTION = 0.25
+
+
+@dataclass
+class RatingCandidate:
+    entity_id: uuid.UUID
+    score: int
+
+
+class TasteAnchorComputer:
+    """
+    Picks the handful of movies that most define a user's taste: a blend
+    of how much they liked it relative to their own average (reusing
+    _rating_component above) and how central that movie is in the
+    knowledge graph (genre/director/cast edge count) -- a well-connected
+    favorite says more about someone's taste than an obscure one-off
+    high rating with no graph context.
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repo = TasteRepository(db)
+        self.min_rating = settings.taste_anchor_min_rating
+        self.rating_weight = settings.taste_anchor_rating_weight
+        self.centrality_weight = settings.taste_anchor_centrality_weight
+        self.max_count = settings.taste_anchor_max_count
+
+    async def _candidates(self, user_id: uuid.UUID) -> list[RatingCandidate]:
+        stmt = select(UserRating.entity_id, UserRating.score).where(
+            UserRating.user_id == user_id, UserRating.score >= self.min_rating
+        )
+        result = await self.db.execute(stmt)
+        return [RatingCandidate(entity_id=entity_id, score=score) for entity_id, score in result.all()]
+
+    async def _relationship_counts(self, entity_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
+        """Count of meaningful (genre/director/cast) outgoing edges per
+        candidate movie -- its graph centrality, before normalization."""
+        if not entity_ids:
+            return {}
+        stmt = (
+            select(RelationshipEdge.from_entity_id, func.count())
+            .where(
+                RelationshipEdge.from_entity_id.in_(entity_ids),
+                RelationshipEdge.relation_type.in_(ANCHOR_RELATION_TYPES),
+            )
+            .group_by(RelationshipEdge.from_entity_id)
+        )
+        result = await self.db.execute(stmt)
+        return dict(result.all())
+
+    async def compute_anchors(self, user_id: uuid.UUID) -> int:
+        """
+        Recomputes user_taste_anchors for one user from their high ratings
+        (>= taste_anchor_min_rating) blended with graph centrality. Flushes
+        but does NOT commit -- same convention as compute_genre_dimensions,
+        so this composes with it under one caller-owned transaction.
+
+        Returns the number of anchor rows persisted.
+        """
+        candidates = await self._candidates(user_id)
+        if not candidates:
+            await self.repo.bulk_upsert_anchors(user_id, [])
+            return 0
+
+        user_avg = await _overall_avg_rating(self.db, user_id)
+        centrality_by_entity = await self._relationship_counts([c.entity_id for c in candidates])
+        max_centrality = max(centrality_by_entity.values(), default=0)
+
+        scored = []
+        for candidate in candidates:
+            rating_normalized = _rating_component(candidate.score, user_avg)
+            centrality = centrality_by_entity.get(candidate.entity_id, 0)
+            centrality_normalized = (centrality / max_centrality) if max_centrality > 0 else 0.0
+            anchor_score = self.rating_weight * rating_normalized + self.centrality_weight * centrality_normalized
+            scored.append((candidate.entity_id, anchor_score))
+
+        scored.sort(key=lambda item: item[1], reverse=True)
+        top = scored[: self.max_count]
+        primary_count = math.ceil(ANCHOR_PRIMARY_FRACTION * len(top))
+
+        rows = []
+        for position, (entity_id, anchor_score) in enumerate(top, start=1):
+            rows.append(
+                {
+                    "entity_id": entity_id,
+                    "anchor_strength": "primary" if position <= primary_count else "strong_signal",
+                    "match_score": max(0.0, min(100.0, round(100 * anchor_score))),
+                    "rank": position,
+                }
+            )
+
+        await self.repo.bulk_upsert_anchors(user_id, rows)
+        return len(rows)

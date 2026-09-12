@@ -6,7 +6,7 @@ from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedE
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
-from app.modules.taste.compute import TasteDimensionComputer
+from app.modules.taste.compute import TasteAnchorComputer, TasteDimensionComputer
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserLogin, TokenPair
 
@@ -56,6 +56,7 @@ class UserService:
         # batch (TasteDimensionComputer.compute_genre_dimensions_batch) still
         # runs to catch anyone who rates outside the app (sync/import, etc).
         await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
+        await TasteAnchorComputer(self.db).compute_anchors(user_id)
 
         await self.db.commit()
         return rating
@@ -71,5 +72,6 @@ class UserService:
             ranking_service = RankingService(self.db)
             await ranking_service.recompute_entity(entity)
             await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
+            await TasteAnchorComputer(self.db).compute_anchors(user_id)
             await self.db.commit()
         return deleted

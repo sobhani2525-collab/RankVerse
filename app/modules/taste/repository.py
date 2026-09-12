@@ -97,3 +97,32 @@ class TasteRepository:
             await self.db.execute(stmt)
 
         await self.db.flush()
+
+    async def bulk_upsert_anchors(self, user_id: uuid.UUID, rows: list[dict]) -> None:
+        """
+        Full refresh of one user's taste anchors: upserts every row in
+        `rows` (each a dict with entity_id, anchor_strength, match_score,
+        rank) and deletes any existing anchor for this user whose
+        entity_id isn't in the new set. Same "replace with exactly this
+        set" contract as bulk_upsert_dimensions.
+        """
+        delete_stmt = delete(UserTasteAnchor).where(UserTasteAnchor.user_id == user_id)
+        entity_ids = [row["entity_id"] for row in rows]
+        if entity_ids:
+            delete_stmt = delete_stmt.where(UserTasteAnchor.entity_id.notin_(entity_ids))
+        await self.db.execute(delete_stmt)
+
+        if rows:
+            stmt = pg_insert(UserTasteAnchor).values([{"user_id": user_id, **row} for row in rows])
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["user_id", "entity_id"],
+                set_={
+                    "anchor_strength": stmt.excluded.anchor_strength,
+                    "match_score": stmt.excluded.match_score,
+                    "rank": stmt.excluded.rank,
+                    "computed_at": func.now(),
+                },
+            )
+            await self.db.execute(stmt)
+
+        await self.db.flush()

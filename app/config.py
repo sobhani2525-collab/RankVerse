@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     taste_dimension_engagement_weight: float = 0.3
     taste_dimension_confidence_threshold: float = 0.35
 
+    # Taste DNA anchor scoring (see TasteAnchorComputer in the same file).
+    taste_anchor_min_rating: int = 8
+    taste_anchor_rating_weight: float = 0.6
+    taste_anchor_centrality_weight: float = 0.4
+    taste_anchor_max_count: int = 6
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
