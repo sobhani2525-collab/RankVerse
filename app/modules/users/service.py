@@ -7,6 +7,7 @@ from app.core.security import hash_password, verify_password, create_access_toke
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
 from app.modules.taste.compute import (
+    ContributionStatsComputer,
     TasteAnchorComputer,
     TasteDimensionComputer,
     TasteInsightComputer,
@@ -65,6 +66,7 @@ class UserService:
         await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
         await TasteInsightComputer(self.db).compute_insight(user_id)
         await TasteAnchorComputer(self.db).compute_anchors(user_id)
+        await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
 
         await self.db.commit()
         return rating
@@ -83,6 +85,7 @@ class UserService:
             await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
             await TasteInsightComputer(self.db).compute_insight(user_id)
             await TasteAnchorComputer(self.db).compute_anchors(user_id)
+            await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
             await self.db.commit()
         return deleted
 

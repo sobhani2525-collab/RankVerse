@@ -75,6 +75,21 @@ class TasteRepository:
     async def get_contribution_stats(self, user_id: uuid.UUID) -> UserContributionStats | None:
         return await self.db.get(UserContributionStats, user_id)
 
+    async def replace_contribution_stats(self, user_id: uuid.UUID, row: dict) -> None:
+        """
+        Single-row-per-user table keyed directly on user_id (the PK), so
+        this is a plain upsert rather than the delete-then-insert pattern
+        replace_snapshot/replace_insight use for their surrogate-keyed
+        tables.
+        """
+        stmt = pg_insert(UserContributionStats).values(user_id=user_id, **row)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["user_id"],
+            set_={**row, "updated_at": func.now()},
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
+
     async def bulk_upsert_dimensions(
         self, user_id: uuid.UUID, dimension_type: str, rows: list[dict]
     ) -> None:

@@ -32,6 +32,7 @@ from app.modules.entities import models as _entities_models  # noqa: F401
 from app.modules.users import models as _users_models  # noqa: F401
 from app.modules.lists import models as _lists_models  # noqa: F401
 from app.modules.battles import models as _battles_models  # noqa: F401
+from app.modules.taste import models as _taste_models  # noqa: F401
 from app.modules.users.repository import UserRepository
 
 

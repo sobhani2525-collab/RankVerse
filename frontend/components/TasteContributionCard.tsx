@@ -15,22 +15,19 @@ function StatTile({ value, label }: { value: number; label: string }) {
 }
 
 export default function TasteContributionCard({ stats }: TasteContributionCardProps) {
-  // Every other *_score/*_confidence field this module actually computes
-  // (dimension.score, anchor.match_score) ends up 0-100 via a `round(100 * ...)`
-  // pattern -- contribution_score likely follows suit once its compute job
-  // exists (it doesn't yet; this always reads 0.0 today). Clamped defensively
-  // either way so the bar never overflows if that assumption turns out wrong.
+  // contribution_score is an open-ended weighted sum of the three counts
+  // (see ContributionStatsComputer in compute.py), not inherently 0-100 --
+  // clamped here only so the bar itself never overflows past full.
   const scorePercent = Math.max(0, Math.min(100, stats.contribution_score));
 
   return (
     <div className="rounded-xl border border-border bg-surface/60 p-5">
       <h3 className="text-sm font-bold text-ink">فعالیت و مشارکت</h3>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-3 gap-3">
         <StatTile value={stats.votes_count} label="رأی" />
         <StatTile value={stats.battles_count} label="Battle" />
         <StatTile value={stats.comments_count} label="نظر" />
-        <StatTile value={stats.relationships_discovered} label="رابطه‌ی کشف‌شده" />
       </div>
 
       <div className="mt-5">

@@ -51,7 +51,6 @@ class ContributionStatsPublic(BaseModel):
     votes_count: int
     battles_count: int
     comments_count: int
-    relationships_discovered: int
     contribution_score: float
     updated_at: datetime
 

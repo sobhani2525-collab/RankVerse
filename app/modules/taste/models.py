@@ -122,7 +122,6 @@ class UserContributionStats(Base):
     votes_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     battles_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     comments_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    relationships_discovered: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     contribution_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

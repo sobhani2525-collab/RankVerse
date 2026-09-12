@@ -11,6 +11,7 @@ from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
     ListItemPublic, EntityMini, CommentCreate, CommentPublic,
 )
+from app.modules.taste.compute import ContributionStatsComputer
 
 
 class ListService:
@@ -233,6 +234,7 @@ class ListService:
             raise NotFoundError(f"List '{slug}' not found")
 
         comment = await self.repo.add_comment(lst.id, user_id, payload.body, payload.parent_comment_id)
+        await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
         await self.db.commit()
         return CommentPublic.model_validate(comment)
 

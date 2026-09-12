@@ -239,7 +239,6 @@ export interface ContributionStats {
   votes_count: number;
   battles_count: number;
   comments_count: number;
-  relationships_discovered: number;
   contribution_score: number;
   updated_at: string;
 }

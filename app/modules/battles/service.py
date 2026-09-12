@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 
+from app.modules.taste.compute import ContributionStatsComputer
+
 from .elo import update_ratings
 from .models import VoteOutcome
 from .repository import BattleRepository
@@ -73,6 +75,7 @@ class BattleService:
             left_score_before=left_before,
             right_score_before=right_before,
         )
+        await ContributionStatsComputer(self.repo.db).compute_contribution_stats(user_id)
         await self.repo.commit()
 
         return CastVoteResponse(

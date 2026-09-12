@@ -37,7 +37,9 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.modules.battles.models import PairVote, VoteOutcome
 from app.modules.entities.models import Entity, RelationshipEdge
+from app.modules.lists.models import ListComment
 from app.modules.taste.insight_templates import TEMPLATES
 from app.modules.taste.repository import TasteRepository
 from app.modules.users.models import UserRating
@@ -506,3 +508,57 @@ class TasteInsightComputer:
 
         await self.repo.replace_insight(user_id, {"insight_text": text, "insight_tags": tags})
         return True
+
+
+class ContributionStatsComputer:
+    """
+    Fills user_contribution_stats, the one Taste DNA table that had a
+    model/schema/frontend card but no writer anywhere in the app --
+    user_contribution_stats always had 0 rows until this. Unlike the
+    other computers here, there's no "qualifying dimensions" empty state:
+    a fresh user just gets a row of zeros, which is still meaningful to
+    show (an honest "0" earns its place, unlike showing nothing).
+
+    relationships_discovered was dropped from the schema entirely rather
+    than computed: there's no feature anywhere in the product where a
+    user submits or discovers a graph relationship (edges only ever come
+    from TMDb sync), so it had no signal to read from.
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repo = TasteRepository(db)
+
+    async def compute_contribution_stats(self, user_id: uuid.UUID) -> None:
+        votes_count = await self._count(select(func.count()).select_from(UserRating).where(
+            UserRating.user_id == user_id
+        ))
+        # Skips are shown to the user but aren't a comparison they actually
+        # made a call on, so they don't count as a contribution.
+        battles_count = await self._count(select(func.count()).select_from(PairVote).where(
+            PairVote.user_id == user_id,
+            PairVote.winner != VoteOutcome.SKIP,
+        ))
+        comments_count = await self._count(select(func.count()).select_from(ListComment).where(
+            ListComment.user_id == user_id
+        ))
+
+        contribution_score = (
+            votes_count * settings.taste_contribution_vote_weight
+            + battles_count * settings.taste_contribution_battle_weight
+            + comments_count * settings.taste_contribution_comment_weight
+        )
+
+        await self.repo.replace_contribution_stats(
+            user_id,
+            {
+                "votes_count": votes_count,
+                "battles_count": battles_count,
+                "comments_count": comments_count,
+                "contribution_score": contribution_score,
+            },
+        )
+
+    async def _count(self, stmt) -> int:
+        result = await self.db.execute(stmt)
+        return result.scalar_one()

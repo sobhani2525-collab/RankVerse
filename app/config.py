@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     taste_snapshot_vote_weight: float = 0.5
     taste_snapshot_label_dimension_count: int = 2
 
+    # Taste DNA contribution scoring (see ContributionStatsComputer in the
+    # same file). A battle vote and a written comment take more deliberate
+    # effort than a single rating tap, hence the higher weights.
+    taste_contribution_vote_weight: float = 1.0
+    taste_contribution_battle_weight: float = 2.0
+    taste_contribution_comment_weight: float = 3.0
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
