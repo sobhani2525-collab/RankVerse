@@ -9,6 +9,14 @@ interface RelatedEntitiesProps {
   items: RelatedEntity[];
 }
 
+// entity_type -> route prefix, same mapping EntityRow.tsx uses -- a related
+// item can be a movie or a tv_series (recommendations are cross-type by
+// design, see build_similarity_graph.py), so this can't just assume /movies.
+const DETAIL_PATH_BY_TYPE: Record<string, string> = {
+  movie: "/movies",
+  tv_series: "/tv-series",
+};
+
 export default function RelatedEntities({ items }: RelatedEntitiesProps) {
   const [openReasonId, setOpenReasonId] = useState<string | null>(null);
 
@@ -26,10 +34,11 @@ export default function RelatedEntities({ items }: RelatedEntitiesProps) {
             ? `https://image.tmdb.org/t/p/w342${item.poster_path}`
             : null;
           const isOpen = openReasonId === item.id;
+          const basePath = DETAIL_PATH_BY_TYPE[item.entity_type] ?? "/movies";
 
           return (
             <div key={item.id} className="rounded-xl bg-surface2 p-3">
-              <Link href={`/movies/${item.slug}`} className="group block">
+              <Link href={`${basePath}/${item.slug}`} className="group block">
                 <div className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-lg bg-ink/5">
                   {posterUrl ? (
                     <Image

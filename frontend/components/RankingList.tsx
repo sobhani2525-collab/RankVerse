@@ -1,4 +1,4 @@
-import MovieRow from "./MovieRow";
+import EntityRow from "./EntityRow";
 import { MovieListItem } from "@/lib/types";
 
 export default function RankingList({ movies }: { movies: MovieListItem[] }) {
@@ -13,7 +13,7 @@ export default function RankingList({ movies }: { movies: MovieListItem[] }) {
   return (
     <div className="flex flex-col gap-2">
       {movies.map((movie, i) => (
-        <MovieRow key={movie.id} movie={movie} rank={i + 1} />
+        <EntityRow key={movie.id} movie={movie} rank={i + 1} />
       ))}
     </div>
   );

@@ -8,16 +8,20 @@ function highlightLabel(highlight: RankingHighlight): string {
       return `بهترین‌های ${title}`;
     case "director":
       return `بهترین فیلم‌های ${title}`;
+    case "creator":
+      return `بهترین سریال‌های ${title}`;
     default:
       return `برترین‌های ${title}`;
   }
 }
 
 // The ranking dimension name doesn't always match the entity_type used for
-// routing (e.g. "director" groups are "person" entities) — map it here.
+// routing (e.g. "director"/"creator" groups are both "person" entities) —
+// map it here.
 const DIMENSION_TO_ENTITY_TYPE: Record<string, string> = {
   genre: "genre",
   director: "person",
+  creator: "person",
 };
 
 function highlightHref(highlight: RankingHighlight): string {

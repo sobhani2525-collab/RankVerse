@@ -2,9 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { rateMovie, unrateMovie, getMyRatings } from "@/lib/api";
+import { rateEntity, unrateEntity, getMyRatings } from "@/lib/api";
 
-export default function RatingWidget({ slug }: { slug: string }) {
+export default function RatingWidget({
+  slug,
+  entityType = "movie",
+}: {
+  slug: string;
+  entityType?: string;
+}) {
   const { token } = useAuth();
   const [selected, setSelected] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "removing" | "error">("idle");
@@ -32,7 +38,7 @@ export default function RatingWidget({ slug }: { slug: string }) {
     setSelected(score);
 
     try {
-      await rateMovie(token, slug, score);
+      await rateEntity(token, slug, score, entityType);
       setStatus("saved");
     } catch {
       setStatus("error");
@@ -44,7 +50,7 @@ export default function RatingWidget({ slug }: { slug: string }) {
 
     setStatus("removing");
     try {
-      await unrateMovie(token, slug);
+      await unrateEntity(token, slug, entityType);
       setSelected(null);
       setStatus("idle");
     } catch {
@@ -52,9 +58,11 @@ export default function RatingWidget({ slug }: { slug: string }) {
     }
   }
 
+  const prompt = entityType === "tv_series" ? "این سریال را چند از ۱۰ می‌دهید؟" : "این فیلم را چند از ۱۰ می‌دهید؟";
+
   return (
     <div className="rounded-xl border border-border bg-surface/60 px-5 py-4">
-      <p className="mb-3 text-sm text-muted">این فیلم را چند از ۱۰ می‌دهید؟</p>
+      <p className="mb-3 text-sm text-muted">{prompt}</p>
       <div className="flex flex-wrap gap-2">
         {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
           <button

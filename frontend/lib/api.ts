@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -90,6 +90,23 @@ export async function getMovieBySlug(slug: string): Promise<MovieDetail> {
   return fetchEnvelope<MovieDetail>(`/movies/${slug}`, 60);
 }
 
+export async function getTopTvSeries(params: {
+  page?: number;
+  page_size?: number;
+  genre?: string;
+} = {}): Promise<MovieListItem[]> {
+  const qs = new URLSearchParams();
+  if (params.page) qs.set("page", String(params.page));
+  if (params.page_size) qs.set("page_size", String(params.page_size));
+  if (params.genre) qs.set("genre", params.genre);
+
+  return fetchEnvelope<MovieListItem[]>(`/rankings/tv-series?${qs.toString()}`);
+}
+
+export async function getTvSeriesBySlug(slug: string): Promise<TvSeriesDetail> {
+  return fetchEnvelope<TvSeriesDetail>(`/tv-series/${slug}`, 60);
+}
+
 export async function getPersonBySlug(slug: string): Promise<PersonDetail> {
   return fetchEnvelope<PersonDetail>(`/people/${slug}`, 300);
 }
@@ -150,16 +167,37 @@ export async function getMyRatings(token: string): Promise<UserRating[]> {
   return authFetch<UserRating[]>("/users/me/ratings", token);
 }
 
-export async function rateMovie(token: string, slug: string, score: number) {
+function ratePathFor(entityType: string, slug: string): string {
+  return entityType === "tv_series" ? `/tv-series/${slug}/rate` : `/movies/${slug}/rate`;
+}
+
+export async function rateEntity(
+  token: string,
+  slug: string,
+  score: number,
+  entityType: string = "movie"
+) {
   return authFetch<{ id: string; entity_id: string; score: number }>(
-    `/movies/${slug}/rate`,
+    ratePathFor(entityType, slug),
     token,
     { method: "POST", body: { score } }
   );
 }
 
+export async function unrateEntity(
+  token: string,
+  slug: string,
+  entityType: string = "movie"
+): Promise<{ deleted: boolean }> {
+  return authFetch(ratePathFor(entityType, slug), token, { method: "DELETE" });
+}
+
+export async function rateMovie(token: string, slug: string, score: number) {
+  return rateEntity(token, slug, score, "movie");
+}
+
 export async function unrateMovie(token: string, slug: string): Promise<{ deleted: boolean }> {
-  return authFetch(`/movies/${slug}/rate`, token, { method: "DELETE" });
+  return unrateEntity(token, slug, "movie");
 }
 
 // --- Authenticated helper ---
@@ -370,6 +408,7 @@ export interface RelatedEntity {
   id: string;
   title: string;
   slug: string;
+  entity_type: string;
   weight: number;
   relation_type: string;
   poster_path: string | null;
@@ -389,5 +428,9 @@ export interface RankingHighlight {
 
 export async function getMovieRankings(slug: string): Promise<RankingHighlight[]> {
   return fetchEnvelope<RankingHighlight[]>(`/movies/${slug}/rankings`, 300);
+}
+
+export async function getTvSeriesRankings(slug: string): Promise<RankingHighlight[]> {
+  return fetchEnvelope<RankingHighlight[]>(`/tv-series/${slug}/rankings`, 300);
 }
 

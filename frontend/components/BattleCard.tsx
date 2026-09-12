@@ -6,7 +6,7 @@ import { BattleEntity } from "@/lib/types";
 function posterSrc(poster: string | null): string | null {
   if (!poster) return null;
   if (poster.startsWith("http://") || poster.startsWith("https://")) return poster;
-  // Same convention MovieRow.tsx uses for MovieListItem.poster_path
+  // Same convention EntityRow.tsx uses for MovieListItem.poster_path
   return `https://image.tmdb.org/t/p/w342${poster}`;
 }
 

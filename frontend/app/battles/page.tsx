@@ -9,6 +9,7 @@ import BattleCard from "@/components/BattleCard";
 
 const CATEGORIES = [
   { value: "movie", label: "فیلم" },
+  { value: "tv_series", label: "سریال" },
   { value: "person", label: "افراد" },
   { value: "genre", label: "ژانر" },
   { value: "country", label: "کشور" },

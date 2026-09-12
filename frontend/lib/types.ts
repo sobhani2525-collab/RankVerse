@@ -27,6 +27,10 @@ export interface MovieListItem {
   id: string;
   slug: string;
   title: string;
+  // Defaults to "movie" server-side for entities synced before this field
+  // existed -- lets a mixed list (a person's filmography, a genre page)
+  // route each row to /movies/{slug} or /tv-series/{slug} correctly.
+  entity_type: string;
   poster_path: string | null;
   year: number | null;
   computed_score: number | null;
@@ -42,6 +46,20 @@ export interface MovieDetail extends MovieListItem {
   directors: PersonSummary[];
   cast: PersonSummary[];
   genres: GenreSummary[];
+}
+
+export interface TvSeriesDetail extends MovieListItem {
+  overview: string | null;
+  number_of_seasons: number | null;
+  number_of_episodes: number | null;
+  status: string | null;
+  first_air_date: string | null;
+  last_air_date: string | null;
+  country: string | null;
+  creators: PersonSummary[];
+  cast: PersonSummary[];
+  genres: GenreSummary[];
+  networks: GenreSummary[];
 }
 
 export interface PersonDetail {
@@ -63,6 +81,7 @@ export interface GenreDetail {
   description: string | null;
   media: MediaInfo;
   movies: MovieListItem[];
+  tv_series: MovieListItem[];
 }
 
 export interface AlbumSummary {
@@ -147,7 +166,7 @@ export interface BattleEntity {
    * image_url — whichever key exists first). For movies this is
    * typically a TMDB-style relative path like "/abc123.jpg", the same
    * shape MovieListItem.poster_path uses elsewhere in this app — so we
-   * build the full image URL the same way MovieRow.tsx does.
+   * build the full image URL the same way EntityRow.tsx does.
    */
   poster_url: string | null;
   elo_score: number;
