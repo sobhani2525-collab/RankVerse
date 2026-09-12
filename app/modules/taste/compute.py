@@ -18,6 +18,11 @@ TasteAnchorComputer, below, fills user_taste_anchors (the movies that
 most define a user's taste) and reuses the same _rating_component
 normalization TasteDimensionComputer uses, just applied to a single
 movie's rating instead of a per-genre mean.
+
+TasteSnapshotComputer, last, rolls a user's already-persisted genre
+dimensions into the single-row user_taste_snapshots summary -- it reads
+what TasteDimensionComputer wrote, so it must run after it in any call
+chain.
 """
 
 import math
@@ -294,3 +299,109 @@ class TasteAnchorComputer:
 
         await self.repo.bulk_upsert_anchors(user_id, rows)
         return len(rows)
+
+
+# --- taste snapshot (v1) ---
+
+# dimension_key (genre slug) -> archetype label. Extend as more TMDb
+# genres get seeded; anything missing falls back to a title-cased
+# "<Genre> Fan" via _archetype_for().
+ARCHETYPE_MAP: dict[str, str] = {
+    "sci-fi": "Sci-Fi Explorer",
+    "science-fiction": "Sci-Fi Explorer",
+    "drama": "Story Seeker",
+    "action": "Thrill Chaser",
+    "comedy": "Feel-Good Seeker",
+    "horror": "Thrill Seeker",
+    "documentary": "Truth Seeker",
+    "animation": "Wonder Chaser",
+    "fantasy": "World Builder",
+    "thriller": "Suspense Hunter",
+    "romance": "Heart Follower",
+    "crime": "Justice Watcher",
+    "mystery": "Puzzle Solver",
+    "adventure": "Horizon Chaser",
+    "family": "Warmth Seeker",
+    "music": "Rhythm Follower",
+    "history": "Time Traveler",
+    "war": "Conflict Witness",
+    "western": "Frontier Wanderer",
+}
+
+SNAPSHOT_MODEL_VERSION = "genre-v1"
+# Revisit once TV series (or other entity_scopes) get their own ratings
+# and dimensions -- for now every snapshot is movie-scoped.
+SNAPSHOT_ENTITY_SCOPE = "movie"
+
+
+def _archetype_for(genre_slug: str) -> str:
+    if genre_slug in ARCHETYPE_MAP:
+        return ARCHETYPE_MAP[genre_slug]
+    return f"{genre_slug.replace('-', ' ').title()} Fan"
+
+
+class TasteSnapshotComputer:
+    """
+    Rolls the top 1-2 genre dimensions (already confidence-filtered by
+    TasteDimensionComputer when they were persisted) into a
+    human-readable label + one overall model_confidence for the user's
+    Taste DNA profile.
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repo = TasteRepository(db)
+        self.confidence_k = settings.taste_snapshot_confidence_k
+        self.dimension_weight = settings.taste_snapshot_dimension_weight
+        self.vote_weight = settings.taste_snapshot_vote_weight
+        self.label_dimension_count = settings.taste_snapshot_label_dimension_count
+
+    async def _total_rated_movies(self, user_id: uuid.UUID) -> int:
+        stmt = select(func.count(UserRating.id)).where(UserRating.user_id == user_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def compute_snapshot(self, user_id: uuid.UUID, entity_scope: str = SNAPSHOT_ENTITY_SCOPE) -> bool:
+        """
+        Recomputes the user's single current snapshot row for
+        `entity_scope` from their already-persisted genre dimensions --
+        expects compute_genre_dimensions to have run first in the same
+        call chain. Flushes but does NOT commit, same convention as the
+        other compute_* methods.
+
+        Returns whether a snapshot was written; False means the user has
+        no qualifying dimensions yet and any prior snapshot was cleared.
+        """
+        dimensions = await self.repo.list_dimensions(user_id, dimension_type="genre")
+        if not dimensions:
+            await self.repo.replace_snapshot(user_id, entity_scope, None)
+            return False
+
+        # list_dimensions already returns this order from the DB; re-sorting
+        # here with the same tiebreak chain (score, confidence, sample_size
+        # DESC, dimension_key ASC) makes that guarantee explicit instead of
+        # silently relying on the caller not reordering the list.
+        top = sorted(
+            dimensions,
+            key=lambda d: (-d.score, -d.confidence, -d.sample_size, d.dimension_key),
+        )[: self.label_dimension_count]
+        label = " + ".join(_archetype_for(d.dimension_key) for d in top)
+        dimension_confidence_avg = sum(d.confidence for d in top) / len(top)
+
+        total_rated_movies = await self._total_rated_movies(user_id)
+        overall_vote_shrinkage = total_rated_movies / (total_rated_movies + self.confidence_k)
+
+        model_confidence = _clamp01(
+            self.dimension_weight * dimension_confidence_avg + self.vote_weight * overall_vote_shrinkage
+        )
+
+        await self.repo.replace_snapshot(
+            user_id,
+            entity_scope,
+            {
+                "label": label[:120],
+                "model_confidence": model_confidence,
+                "model_version": SNAPSHOT_MODEL_VERSION,
+            },
+        )
+        return True

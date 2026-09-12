@@ -6,7 +6,7 @@ from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedE
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
-from app.modules.taste.compute import TasteAnchorComputer, TasteDimensionComputer
+from app.modules.taste.compute import TasteAnchorComputer, TasteDimensionComputer, TasteSnapshotComputer
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserLogin, TokenPair
 
@@ -55,7 +55,9 @@ class UserService:
         # Same on-demand logic for the voting user's own Taste DNA. The nightly
         # batch (TasteDimensionComputer.compute_genre_dimensions_batch) still
         # runs to catch anyone who rates outside the app (sync/import, etc).
+        # Snapshot reads the dimensions row(s) above, so it must run after them.
         await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
+        await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
         await TasteAnchorComputer(self.db).compute_anchors(user_id)
 
         await self.db.commit()
@@ -72,6 +74,7 @@ class UserService:
             ranking_service = RankingService(self.db)
             await ranking_service.recompute_entity(entity)
             await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
+            await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
             await TasteAnchorComputer(self.db).compute_anchors(user_id)
             await self.db.commit()
         return deleted

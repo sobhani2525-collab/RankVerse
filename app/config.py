@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     taste_anchor_centrality_weight: float = 0.4
     taste_anchor_max_count: int = 6
 
+    # Taste DNA snapshot scoring (see TasteSnapshotComputer in the same file).
+    taste_snapshot_confidence_k: int = 15
+    taste_snapshot_dimension_weight: float = 0.5
+    taste_snapshot_vote_weight: float = 0.5
+    taste_snapshot_label_dimension_count: int = 2
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

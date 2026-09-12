@@ -27,11 +27,25 @@ class TasteRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_dimensions(self, user_id: uuid.UUID) -> list[UserTasteDimension]:
-        stmt = (
-            select(UserTasteDimension)
-            .where(UserTasteDimension.user_id == user_id)
-            .order_by(UserTasteDimension.score.desc())
+    async def list_dimensions(
+        self, user_id: uuid.UUID, dimension_type: str | None = None
+    ) -> list[UserTasteDimension]:
+        """
+        Ordered score DESC, with confidence DESC, sample_size DESC, then
+        dimension_key ASC as tiebreakers -- score ties are common (e.g.
+        several genres landing on the same rounded score), and without a
+        deterministic tiebreak chain, which rows end up "on top" (e.g. for
+        TasteSnapshotComputer's label) would depend on Postgres's
+        unspecified order for equal sort keys and could vary between runs.
+        """
+        stmt = select(UserTasteDimension).where(UserTasteDimension.user_id == user_id)
+        if dimension_type:
+            stmt = stmt.where(UserTasteDimension.dimension_type == dimension_type)
+        stmt = stmt.order_by(
+            UserTasteDimension.score.desc(),
+            UserTasteDimension.confidence.desc(),
+            UserTasteDimension.sample_size.desc(),
+            UserTasteDimension.dimension_key.asc(),
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
@@ -96,6 +110,24 @@ class TasteRepository:
             )
             await self.db.execute(stmt)
 
+        await self.db.flush()
+
+    async def replace_snapshot(self, user_id: uuid.UUID, entity_scope: str, row: dict | None) -> None:
+        """
+        Single-row-per-(user_id, entity_scope) table, unlike dimensions/
+        anchors: deletes whatever is there for this user+scope, then
+        inserts the fresh snapshot if one was computed. row=None just
+        clears it -- the empty-state case when a user has no qualifying
+        dimensions yet.
+        """
+        await self.db.execute(
+            delete(UserTasteSnapshot).where(
+                UserTasteSnapshot.user_id == user_id,
+                UserTasteSnapshot.entity_scope == entity_scope,
+            )
+        )
+        if row is not None:
+            self.db.add(UserTasteSnapshot(user_id=user_id, entity_scope=entity_scope, **row))
         await self.db.flush()
 
     async def bulk_upsert_anchors(self, user_id: uuid.UUID, rows: list[dict]) -> None:
