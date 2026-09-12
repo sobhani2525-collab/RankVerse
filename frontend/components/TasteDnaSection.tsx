@@ -1,12 +1,14 @@
 import TasteDnaCard from "./TasteDnaCard";
 import TasteInsightCard from "./TasteInsightCard";
 import TasteAnchorsCard from "./TasteAnchorsCard";
+import TastePredictedPicksCard from "./TastePredictedPicksCard";
 import TasteContributionCard from "./TasteContributionCard";
 import TasteDnaEmptyState from "./TasteDnaEmptyState";
-import { TasteProfile } from "@/lib/types";
+import { TasteProfile, PredictedPick } from "@/lib/types";
 
 interface TasteDnaSectionProps {
   profile: TasteProfile;
+  predictedPicks?: PredictedPick[];
 }
 
 /**
@@ -15,7 +17,7 @@ interface TasteDnaSectionProps {
  * Lists sections in app/profile/page.tsx), since this component only
  * ever sees a profile that was actually fetched.
  */
-export default function TasteDnaSection({ profile }: TasteDnaSectionProps) {
+export default function TasteDnaSection({ profile, predictedPicks = [] }: TasteDnaSectionProps) {
   const hasSnapshot = profile.snapshot !== null;
 
   if (!hasSnapshot) {
@@ -36,6 +38,7 @@ export default function TasteDnaSection({ profile }: TasteDnaSectionProps) {
       <TasteDnaCard snapshot={profile.snapshot!} dimensions={profile.dimensions} />
       {profile.insight && <TasteInsightCard insight={profile.insight} />}
       {profile.anchors.length > 0 && <TasteAnchorsCard anchors={profile.anchors} />}
+      {predictedPicks.length > 0 && <TastePredictedPicksCard picks={predictedPicks} />}
       {profile.contribution_stats && (
         <TasteContributionCard stats={profile.contribution_stats} />
       )}

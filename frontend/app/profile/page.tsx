@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getMyRatings, getMyLists, getMyTasteDna, UserRating } from "@/lib/api";
-import { TasteProfile } from "@/lib/types";
+import { getMyRatings, getMyLists, getMyTasteDna, getMyPredictedPicks, UserRating } from "@/lib/api";
+import { TasteProfile, PredictedPick } from "@/lib/types";
 import Loading from "@/components/Loading";
 import TasteDnaSection from "@/components/TasteDnaSection";
 import TasteDnaErrorState from "@/components/TasteDnaErrorState";
@@ -30,6 +30,8 @@ export default function ProfilePage() {
   const [loadingTaste, setLoadingTaste] = useState(true);
   const [tasteError, setTasteError] = useState<string | null>(null);
   const [tasteReloadKey, setTasteReloadKey] = useState(0);
+
+  const [predictedPicks, setPredictedPicks] = useState<PredictedPick[]>([]);
 
   // گارد احراز هویت
   useEffect(() => {
@@ -106,6 +108,27 @@ export default function ProfilePage() {
     };
   }, [token, tasteReloadKey]);
 
+  // پیش‌بینی انتخاب بعدی — endpoint جدا از taste-dna اصلی (query سنگین‌تره،
+  // یه محاسبه‌ی زنده‌ست نه خوندن داده‌ی از‌قبل‌محاسبه‌شده)، پس لود اولیه‌ی
+  // پروفایل رو کند نمی‌کنه. شکست خوردنش هم چیز مهمی نیست -- کارت پیشنهادی
+  // یه افزونه‌ست نه بخش اصلی پروفایل، پس فقط مثل حالت خالی نشونش نمی‌دیم.
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    getMyPredictedPicks(token)
+      .then((data) => {
+        if (!cancelled) setPredictedPicks(data);
+      })
+      .catch(() => {
+        if (!cancelled) setPredictedPicks([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const { totalCount, avgScore } = useMemo(() => {
     if (!ratings || ratings.length === 0) {
       return { totalCount: 0, avgScore: null as number | null };
@@ -162,7 +185,9 @@ export default function ProfilePage() {
         {!loadingTaste && tasteError && (
           <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
         )}
-        {!loadingTaste && !tasteError && taste && <TasteDnaSection profile={taste} />}
+        {!loadingTaste && !tasteError && taste && (
+          <TasteDnaSection profile={taste} predictedPicks={predictedPicks} />
+        )}
       </section>
 
       {/* --- Lists --- */}

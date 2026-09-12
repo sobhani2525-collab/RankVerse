@@ -225,6 +225,14 @@ export interface TasteAnchor {
   rank: number;
 }
 
+// From GET /users/me/predicted-picks -- a separate, lazily-fetched endpoint
+// from the rest of TasteProfile below (see the backend router's docstring:
+// it's a live multi-join query, not a read of precomputed derived data).
+export interface PredictedPick {
+  entity: TasteAnchorEntity;
+  match_score: number;
+}
+
 // user_taste_insights is single-row-per-user (see the backend's
 // TasteRepository.replace_insight docstring) -- a single nullable object,
 // not a list, mirroring `snapshot` and `contribution_stats` below.

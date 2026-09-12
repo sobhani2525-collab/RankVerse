@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     taste_contribution_battle_weight: float = 2.0
     taste_contribution_comment_weight: float = 3.0
 
+    # Predicted picks (see PredictedPicksService in
+    # app/modules/taste/predicted_picks.py): how much a candidate's match
+    # score favors "fits your taste dimensions" vs. "is just good".
+    # Should sum to 1.0.
+    taste_predicted_picks_dimension_weight: float = 0.6
+    taste_predicted_picks_ranking_weight: float = 0.4
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

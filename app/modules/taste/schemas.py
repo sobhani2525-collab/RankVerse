@@ -38,6 +38,13 @@ class TasteAnchorPublic(BaseModel):
     rank: int
 
 
+class PredictedPickPublic(BaseModel):
+    # Reuses TasteAnchorEntity's shape (id/slug/title/entity_type/poster_path)
+    # -- same fields TastePredictedPicksCard needs as TasteAnchorsCard's row.
+    entity: TasteAnchorEntity
+    match_score: float
+
+
 class TasteInsightPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
