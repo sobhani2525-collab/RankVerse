@@ -69,6 +69,7 @@ class GenreDetail(GenreSummary):
     description: str | None = None
     media: MediaInfo = MediaInfo()
     movies: list[MovieListItem] = []
+    tv_series: list[MovieListItem] = []
 
 
 class AlbumSummary(BaseModel):

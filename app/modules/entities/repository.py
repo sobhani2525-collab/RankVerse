@@ -37,11 +37,12 @@ class EntityRepository:
         year_from: int | None = None,
         year_to: int | None = None,
         sort_by: str = "score",
+        entity_type: str = "movie",
     ) -> tuple[list[Entity], int]:
-        stmt = select(Entity).options(selectinload(Entity.ranking)).where(Entity.entity_type == "movie")
+        stmt = select(Entity).options(selectinload(Entity.ranking)).where(Entity.entity_type == entity_type)
 
         if genre_slug:
-            # Filter movies that have a has_genre edge pointing to the genre entity with this slug
+            # Filter entities that have a has_genre edge pointing to the genre entity with this slug
             genre_subq = (
                 select(RelationshipEdge.from_entity_id)
                 .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
@@ -51,7 +52,7 @@ class EntityRepository:
                 )
             )
             stmt = select(Entity).options(selectinload(Entity.ranking)).where(
-                    Entity.entity_type == "movie",
+                    Entity.entity_type == entity_type,
                     Entity.id.in_(genre_subq),
             )
 

@@ -11,6 +11,10 @@ from app.modules.users.models import UserRating
 RANKING_DIMENSIONS: dict[str, str] = {
     "has_genre": "genre",
     "directed_by": "director",
+    # tv_series' equivalent of a movie's director -- TMDb TV credits rarely
+    # carry a series-level "Director" (see sync/normalizer.py), so without
+    # this a show would never get a "#N best <showrunner>" highlight at all.
+    "creator": "creator",
 }
 
 

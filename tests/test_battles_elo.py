@@ -57,10 +57,10 @@ def test_provisional_k_factor_produces_bigger_swings_than_established():
 
 # --- Integration: /battles/vote persists Elo changes ---
 
-async def _create_movie(db_session, title: str):
+async def _create_entity(db_session, entity_type: str, title: str):
     repo = EntityRepository(db_session)
     entity = await repo.create_entity(
-        entity_type="movie",
+        entity_type=entity_type,
         external_id=None,
         external_source=None,
         title=title,
@@ -69,6 +69,10 @@ async def _create_movie(db_session, title: str):
     )
     await db_session.commit()
     return entity
+
+
+async def _create_movie(db_session, title: str):
+    return await _create_entity(db_session, "movie", title)
 
 
 async def test_cast_vote_updates_and_persists_elo(client, db_session, auth_headers):
@@ -123,3 +127,87 @@ async def test_cast_vote_rejects_identical_items(client, db_session, auth_header
         },
     )
     assert res.status_code == 422
+
+
+# --- C2: cast_vote enforces category/entity_type consistency (same-type-only battles) ---
+
+async def test_cast_vote_tv_series_vs_tv_series_succeeds(client, db_session, auth_headers):
+    left = await _create_entity(db_session, "tv_series", "Left Show")
+    right = await _create_entity(db_session, "tv_series", "Right Show")
+
+    res = await client.post(
+        "/api/v1/battles/vote",
+        headers=auth_headers,
+        json={
+            "category": "tv_series",
+            "left_item": str(left.id),
+            "right_item": str(right.id),
+            "winner": "left",
+        },
+    )
+    assert res.status_code == 201
+
+
+async def test_cast_vote_rejects_cross_type_matchup(client, db_session, auth_headers):
+    movie = await _create_entity(db_session, "movie", "A Movie")
+    show = await _create_entity(db_session, "tv_series", "A Show")
+
+    res = await client.post(
+        "/api/v1/battles/vote",
+        headers=auth_headers,
+        json={
+            "category": "movie",
+            "left_item": str(movie.id),
+            "right_item": str(show.id),
+            "winner": "left",
+        },
+    )
+    assert res.status_code == 400
+
+
+async def test_cast_vote_rejects_category_not_matching_actual_entity_type(client, db_session, auth_headers):
+    left = await _create_movie(db_session, "Left Movie 2")
+    right = await _create_movie(db_session, "Right Movie 2")
+
+    # both items are movies, but the declared category says tv_series
+    res = await client.post(
+        "/api/v1/battles/vote",
+        headers=auth_headers,
+        json={
+            "category": "tv_series",
+            "left_item": str(left.id),
+            "right_item": str(right.id),
+            "winner": "left",
+        },
+    )
+    assert res.status_code == 400
+
+
+async def test_get_next_battle_matches_within_tv_series_only(client, db_session, auth_headers):
+    await _create_entity(db_session, "tv_series", "Show One")
+    await _create_entity(db_session, "tv_series", "Show Two")
+    await _create_entity(db_session, "movie", "Unrelated Movie")
+
+    res = await client.get("/api/v1/battles/next", params={"category": "tv_series"}, headers=auth_headers)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["category"] == "tv_series"
+    assert body["left"]["title"] in {"Show One", "Show Two"}
+    assert body["right"]["title"] in {"Show One", "Show Two"}
+    assert body["left"]["title"] != body["right"]["title"]
+
+
+async def test_cast_vote_rejects_nonexistent_entity(client, db_session, auth_headers):
+    movie = await _create_movie(db_session, "Real Movie")
+
+    res = await client.post(
+        "/api/v1/battles/vote",
+        headers=auth_headers,
+        json={
+            "category": "movie",
+            "left_item": str(movie.id),
+            "right_item": str(uuid.uuid4()),
+            "winner": "left",
+        },
+    )
+    assert res.status_code == 404

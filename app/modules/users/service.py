@@ -44,11 +44,11 @@ class UserService:
             refresh_token=create_refresh_token(str(user.id)),
         )
 
-    async def rate_movie(self, user_id: uuid.UUID, entity_slug: str, score: int):
+    async def rate_entity(self, user_id: uuid.UUID, entity_slug: str, score: int, entity_type: str = "movie"):
         entity_repo = EntityRepository(self.db)
-        entity = await entity_repo.get_by_slug(entity_slug, entity_type="movie")
+        entity = await entity_repo.get_by_slug(entity_slug, entity_type=entity_type)
         if not entity:
-            raise NotFoundError(f"Movie '{entity_slug}' not found")
+            raise NotFoundError(f"{entity_type} '{entity_slug}' not found")
 
         rating = await self.repo.upsert_rating(user_id, entity.id, score)
 
@@ -69,11 +69,11 @@ class UserService:
         await self.db.commit()
         return rating
 
-    async def unrate_movie(self, user_id: uuid.UUID, entity_slug: str):
+    async def unrate_entity(self, user_id: uuid.UUID, entity_slug: str, entity_type: str = "movie"):
         entity_repo = EntityRepository(self.db)
-        entity = await entity_repo.get_by_slug(entity_slug, entity_type="movie")
+        entity = await entity_repo.get_by_slug(entity_slug, entity_type=entity_type)
         if not entity:
-            raise NotFoundError(f"Movie '{entity_slug}' not found")
+            raise NotFoundError(f"{entity_type} '{entity_slug}' not found")
 
         deleted = await self.repo.delete_rating(user_id, entity.id)
         if deleted:
@@ -85,3 +85,15 @@ class UserService:
             await TasteAnchorComputer(self.db).compute_anchors(user_id)
             await self.db.commit()
         return deleted
+
+    async def rate_movie(self, user_id: uuid.UUID, entity_slug: str, score: int):
+        return await self.rate_entity(user_id, entity_slug, score, entity_type="movie")
+
+    async def unrate_movie(self, user_id: uuid.UUID, entity_slug: str):
+        return await self.unrate_entity(user_id, entity_slug, entity_type="movie")
+
+    async def rate_tv_series(self, user_id: uuid.UUID, entity_slug: str, score: int):
+        return await self.rate_entity(user_id, entity_slug, score, entity_type="tv_series")
+
+    async def unrate_tv_series(self, user_id: uuid.UUID, entity_slug: str):
+        return await self.unrate_entity(user_id, entity_slug, entity_type="tv_series")

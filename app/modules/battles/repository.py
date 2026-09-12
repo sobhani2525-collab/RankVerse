@@ -39,6 +39,12 @@ class BattleRepository:
         )
         return {row.entity_id: row for row in result.scalars().all()}
 
+    async def get_entity_types(self, entity_ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
+        result = await self.db.execute(
+            select(Entity.id, Entity.entity_type).where(Entity.id.in_(entity_ids))
+        )
+        return {row[0]: row[1] for row in result.all()}
+
     async def get_random_entity(self, category: str) -> Entity | None:
         result = await self.db.execute(
             select(Entity)

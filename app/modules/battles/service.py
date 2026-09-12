@@ -43,6 +43,7 @@ class BattleService:
 
     async def cast_vote(self, user_id: uuid.UUID, payload: CastVoteRequest) -> CastVoteResponse:
         await self._enforce_rate_limit(user_id)
+        await self._validate_matchup(payload.left_item, payload.right_item, payload.category)
 
         left_elo = await self.repo.get_or_create_elo(payload.left_item, payload.category)
         right_elo = await self.repo.get_or_create_elo(payload.right_item, payload.category)
@@ -84,6 +85,32 @@ class BattleService:
             right_score_after=new_right,
             created_at=vote.created_at,
         )
+
+    async def _validate_matchup(self, left_item: uuid.UUID, right_item: uuid.UUID, category: str) -> None:
+        """
+        Battles are same-type only (a movie battle stays movie-vs-movie, a
+        tv_series battle stays tv_series-vs-tv_series) -- comparing a movie
+        against a tv_series means something different to a user than
+        comparing two of the same kind, so it's a hard product constraint,
+        not an incidental limitation. category doubles as the entity_type
+        filter everywhere else in this module (see BattleRepository), so
+        both items must actually be of that type, not just match each other.
+        """
+        types = await self.repo.get_entity_types([left_item, right_item])
+        for item_id in (left_item, right_item):
+            if item_id not in types:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Entity '{item_id}' not found",
+                )
+        if types[left_item] != category or types[right_item] != category:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Both items must be of type '{category}' to match the battle category "
+                    f"(got '{types[left_item]}' and '{types[right_item]}')"
+                ),
+            )
 
     async def _enforce_rate_limit(self, user_id: uuid.UUID):
         since = datetime.now(timezone.utc) - timedelta(days=1)

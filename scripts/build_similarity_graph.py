@@ -17,6 +17,12 @@ CLEAR_OLD_SQL = """
 delete from relationships where relation_type = 'similar_to' and source = 'auto';
 """
 
+# 'creator' (tv_series' equivalent of a movie's 'directed_by' -- see
+# sync/normalizer.py's created_by handling) is weighted the same as
+# directed_by: a shared showrunner is just as strong a similarity signal
+# as a shared director. Deliberately excludes 'aired_on' (shared network) --
+# two shows both airing on the same network says little about whether
+# they're actually similar.
 COMPUTE_SIMILARITY_SQL = """
 insert into relationships (id, from_entity_id, to_entity_id, relation_type, weight, source, edge_metadata)
 select
@@ -27,6 +33,7 @@ select
     least(1.0, sum(
         case r1.relation_type
             when 'directed_by' then 0.55
+            when 'creator'     then 0.55
             when 'has_genre'   then 0.08
             when 'acted_in'    then 0.15
             else 0.05
@@ -39,13 +46,14 @@ join relationships r2
     on r1.to_entity_id = r2.to_entity_id
     and r1.relation_type = r2.relation_type
     and r1.from_entity_id != r2.from_entity_id
-where r1.relation_type in ('directed_by', 'has_genre', 'acted_in')
+where r1.relation_type in ('directed_by', 'creator', 'has_genre', 'acted_in')
 group by r1.from_entity_id, r2.from_entity_id
 -- require at least 2 distinct shared edges (not just 1 shared genre) to count as similar
 having count(*) >= 2
    and least(1.0, sum(
         case r1.relation_type
             when 'directed_by' then 0.55
+            when 'creator'     then 0.55
             when 'has_genre'   then 0.08
             when 'acted_in'    then 0.15
             else 0.05

@@ -35,6 +35,29 @@ async def unrate_movie(
     return envelope(data={"deleted": deleted})
 
 
+@router.post("/tv-series/{slug}/rate")
+async def rate_tv_series(
+    slug: str,
+    payload: RatingCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = UserService(db)
+    rating = await service.rate_tv_series(current_user.id, slug, payload.score)
+    return envelope(data=RatingPublic.model_validate(rating).model_dump())
+
+
+@router.delete("/tv-series/{slug}/rate")
+async def unrate_tv_series(
+    slug: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = UserService(db)
+    deleted = await service.unrate_tv_series(current_user.id, slug)
+    return envelope(data={"deleted": deleted})
+
+
 @router.get("/users/me/ratings")
 async def my_ratings(
     current_user: User = Depends(get_current_user),

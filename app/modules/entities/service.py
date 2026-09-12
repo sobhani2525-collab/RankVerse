@@ -67,16 +67,37 @@ class EntityService:
         year_from: int | None = None,
         year_to: int | None = None,
         sort_by: str = "score",
+        entity_type: str = "movie",
     ) -> tuple[list[MovieListItem], int]:
         entities, total = await self.repo.list_movies(
-            page, page_size, genre_slug, year_from, year_to, sort_by
+            page, page_size, genre_slug, year_from, year_to, sort_by, entity_type
         )
         return [_movie_list_item(e) for e in entities], total
+
+    async def list_tv_series(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        genre_slug: str | None = None,
+        year_from: int | None = None,
+        year_to: int | None = None,
+        sort_by: str = "score",
+    ) -> tuple[list[MovieListItem], int]:
+        """Mirrors list_movies for entity_type='tv_series' -- MovieListItem's
+        fields (title/poster/year/score/votes/media) are generic enough to
+        reuse as-is rather than duplicating the shape under a new name."""
+        return await self.list_movies(page, page_size, genre_slug, year_from, year_to, sort_by, "tv_series")
 
     async def get_movie_entity(self, slug: str):
         entity = await self.repo.get_by_slug(slug, entity_type="movie")
         if not entity:
             raise NotFoundError(f"Movie '{slug}' not found")
+        return entity
+
+    async def get_tv_series_entity(self, slug: str):
+        entity = await self.repo.get_by_slug(slug, entity_type="tv_series")
+        if not entity:
+            raise NotFoundError(f"TV series '{slug}' not found")
         return entity
 
     async def get_movie_detail(self, slug: str) -> MovieDetail:
@@ -166,6 +187,7 @@ class EntityService:
             raise NotFoundError(f"Genre '{slug}' not found")
 
         movies, _ = await self.list_movies(page=1, page_size=50, genre_slug=slug, sort_by="score")
+        tv_series, _ = await self.list_tv_series(page=1, page_size=50, genre_slug=slug, sort_by="score")
 
         return GenreDetail(
             id=entity.id,
@@ -174,6 +196,7 @@ class EntityService:
             description=entity.attributes.get("description"),
             media=_extract_media(entity.attributes),
             movies=movies,
+            tv_series=tv_series,
         )
 
     async def get_track_detail(self, slug: str) -> TrackDetail:
