@@ -63,13 +63,14 @@ class TasteRepository:
         result = await self.db.execute(stmt)
         return result.all()
 
-    async def list_insights(self, user_id: uuid.UUID, include_stale: bool = False) -> list[UserTasteInsight]:
+    async def get_insight(self, user_id: uuid.UUID, include_stale: bool = False) -> UserTasteInsight | None:
+        """Single-row-per-user table (see replace_insight below) -- mirrors get_snapshot's shape."""
         stmt = select(UserTasteInsight).where(UserTasteInsight.user_id == user_id)
         if not include_stale:
             stmt = stmt.where(UserTasteInsight.stale.is_(False))
-        stmt = stmt.order_by(UserTasteInsight.generated_at.desc())
+        stmt = stmt.order_by(UserTasteInsight.generated_at.desc()).limit(1)
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        return result.scalar_one_or_none()
 
     async def get_contribution_stats(self, user_id: uuid.UUID) -> UserContributionStats | None:
         return await self.db.get(UserContributionStats, user_id)

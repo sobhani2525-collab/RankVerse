@@ -60,5 +60,8 @@ class TasteProfile(BaseModel):
     snapshot: TasteSnapshotPublic | None = None
     dimensions: list[TasteDimensionPublic] = []
     anchors: list[TasteAnchorPublic] = []
-    insights: list[TasteInsightPublic] = []
+    # user_taste_insights is single-row-per-user (see TasteRepository.replace_insight's
+    # docstring -- same delete-then-insert contract as replace_snapshot), so this
+    # mirrors snapshot/contribution_stats as a nullable single object, not a list.
+    insight: TasteInsightPublic | None = None
     contribution_stats: ContributionStatsPublic | None = None

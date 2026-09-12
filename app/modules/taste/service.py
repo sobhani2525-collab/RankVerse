@@ -28,7 +28,7 @@ class TasteService:
         snapshot = await self.repo.get_snapshot(user_id, entity_scope)
         dimensions = await self.repo.list_dimensions(user_id)
         anchor_rows = await self.repo.list_anchors_with_entities(user_id)
-        insights = await self.repo.list_insights(user_id)
+        insight = await self.repo.get_insight(user_id)
         contribution_stats = await self.repo.get_contribution_stats(user_id)
 
         return TasteProfile(
@@ -49,7 +49,7 @@ class TasteService:
                 )
                 for anchor, entity in anchor_rows
             ],
-            insights=[TasteInsightPublic.model_validate(i) for i in insights],
+            insight=TasteInsightPublic.model_validate(insight) if insight else None,
             contribution_stats=(
                 ContributionStatsPublic.model_validate(contribution_stats) if contribution_stats else None
             ),
