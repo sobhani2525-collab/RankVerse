@@ -14,26 +14,64 @@ export const revalidate = 60;
 // Canceled) gets its actual end year shown instead.
 const ONGOING_STATUSES = new Set(["Returning Series", "In Production", "Planned", "Pilot"]);
 
-function seasonsAndYearsLabel(tv: {
-  number_of_seasons: number | null;
-  first_air_date: string | null;
-  last_air_date: string | null;
-  status: string | null;
-}): string {
-  const parts: string[] = [];
-  if (tv.number_of_seasons) {
-    parts.push(`${tv.number_of_seasons} فصل`);
-  }
-
+/**
+ * Returns JSX, not a string: the old version built one plain string ("8
+ * فصل · 2011–2019") and rendered the WHOLE thing inside className="num"
+ * (direction: ltr). That forced a Persian word ("فصل") and a dash-joined
+ * year range into one LTR context together, and the bidi algorithm ended
+ * up reordering the two numbers in the range too ("8 2019-2011 · فصل" as
+ * rendered) -- same class of bug as the Taste DNA dimension-label mixup.
+ *
+ * The fix, verified with a screenshot: isolate each PURELY-numeric
+ * fragment (the season count, the year-or-range) in its own .num span,
+ * and leave the Persian words ("فصل", "در حال پخش") and the "·" separator
+ * in plain, unforced flow -- don't wrap the whole compound in one
+ * direction like the old version did.
+ */
+function SeasonsAndYears({
+  tv,
+}: {
+  tv: {
+    number_of_seasons: number | null;
+    first_air_date: string | null;
+    last_air_date: string | null;
+    status: string | null;
+  };
+}) {
   const startYear = tv.first_air_date ? tv.first_air_date.slice(0, 4) : null;
   const isOngoing = tv.status ? ONGOING_STATUSES.has(tv.status) : false;
   const endYear = !isOngoing && tv.last_air_date ? tv.last_air_date.slice(0, 4) : null;
 
+  const seasonsPart = tv.number_of_seasons ? (
+    <>
+      <span className="num">{tv.number_of_seasons}</span> فصل
+    </>
+  ) : null;
+
+  let yearsPart: React.ReactNode = null;
   if (startYear) {
-    parts.push(isOngoing ? `${startYear}–در حال پخش` : endYear && endYear !== startYear ? `${startYear}–${endYear}` : startYear);
+    if (isOngoing) {
+      yearsPart = (
+        <>
+          <span className="num">{startYear}</span>–در حال پخش
+        </>
+      );
+    } else if (endYear && endYear !== startYear) {
+      yearsPart = <span className="num">{startYear}–{endYear}</span>;
+    } else {
+      yearsPart = <span className="num">{startYear}</span>;
+    }
   }
 
-  return parts.join(" · ");
+  if (!seasonsPart && !yearsPart) return null;
+
+  return (
+    <p className="mt-1 text-sm text-muted">
+      {seasonsPart}
+      {seasonsPart && yearsPart && " · "}
+      {yearsPart}
+    </p>
+  );
 }
 
 export default async function TvSeriesDetailPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -90,7 +128,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-ink">{tv.title}</h1>
-              <p className="num mt-1 text-sm text-muted">{seasonsAndYearsLabel(tv)}</p>
+              <SeasonsAndYears tv={tv} />
             </div>
             <Constellation director={mainCreator} genre={mainGenre} year={tv.year} size={80} />
           </div>
