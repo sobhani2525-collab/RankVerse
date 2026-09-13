@@ -89,8 +89,15 @@ export default function NewListPage() {
             className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-ink outline-none focus:border-gold/50"
           >
             <option value="movie">فیلم</option>
+            <option value="tv_series">سریال</option>
             <option value="person">بازیگر / کارگردان</option>
+            <option value="">ترکیبی (چند نوع با هم)</option>
           </select>
+          {entityType === "" && (
+            <p className="mt-1 text-xs text-muted">
+              مثل «بهترین ثنایی بازیگر-کارگردان» — هنگام افزودن آیتم، نوع هر مورد را جدا انتخاب می‌کنید.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5">

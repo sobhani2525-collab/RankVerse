@@ -3,6 +3,12 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { searchEntities, addListItem, SearchResult } from "@/lib/api";
 
+const TYPE_LABELS: Record<string, string> = {
+  movie: "فیلم",
+  tv_series: "سریال",
+  person: "بازیگر/کارگردان",
+};
+
 export default function AddListItem({
   slug,
   entityType,
@@ -18,6 +24,7 @@ export default function AddListItem({
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeType, setActiveType] = useState(entityType || "movie");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -31,7 +38,7 @@ export default function AddListItem({
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const items = await searchEntities(query, entityType || "movie");
+        const items = await searchEntities(query, activeType);
         setResults(items);
       } catch {
         setResults([]);
@@ -43,7 +50,7 @@ export default function AddListItem({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, entityType]);
+  }, [query, activeType]);
 
   async function handleAdd(entityId: string) {
     if (!token) return;
@@ -64,17 +71,44 @@ export default function AddListItem({
   return (
     <div className="mb-6 rounded-xl border border-border bg-surface/60 p-4">
       <label className="mb-2 block text-sm text-muted">افزودن آیتم به لیست</label>
+
+      {!entityType && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {Object.keys(TYPE_LABELS).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                setActiveType(key);
+                setResults([]);
+              }}
+              className={`rounded-full border px-3 py-1 text-xs transition ${
+                activeType === key
+                  ? "border-gold/50 bg-gold/10 text-gold"
+                  : "border-border text-muted"
+              }`}
+            >
+              {TYPE_LABELS[key]}
+            </button>
+          ))}
+        </div>
+      )}
+
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="نام فیلم را جستجو کنید..."
+        placeholder={`جستجوی ${TYPE_LABELS[activeType]}...`}
         className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-ink outline-none focus:border-gold/50"
       />
 
       {error && <p className="mt-2 text-sm text-gold">{error}</p>}
 
       {searching && <p className="mt-2 text-sm text-muted">در حال جستجو...</p>}
+
+      {!searching && query.trim() && results.length === 0 && (
+        <p className="mt-2 text-sm text-muted">نتیجه‌ای پیدا نشد.</p>
+      )}
 
       {results.length > 0 && (
         <div className="mt-2 flex flex-col gap-1.5">

@@ -7,6 +7,7 @@ import ListActions from "./ListActions";
 import ListComments from "./ListComments";
 import AddListItem from "./AddListItem";
 import ListItemsManager from "./ListItemsManager";
+import ShareListButton from "./ShareListButton";
 
 export default function ListDetailClient({
   slug,
@@ -58,7 +59,7 @@ export default function ListDetailClient({
         <p className="mt-3 text-ink/80">{detail.description}</p>
       )}
 
-      <div className="mt-5">
+      <div className="mt-5 flex flex-wrap items-center gap-3">
         <ListActions
           slug={slug}
           initialLiked={detail.is_liked}
@@ -67,6 +68,7 @@ export default function ListDetailClient({
           initialFollowerCount={detail.follower_count}
           isOwner={isOwner}
         />
+        <ShareListButton slug={slug} title={detail.title} />
       </div>
 
       {isOwner && (
