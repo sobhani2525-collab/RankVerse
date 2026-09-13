@@ -21,3 +21,7 @@ class AdminAccountRepository:
     async def mark_logged_in(self, admin: AdminAccount) -> None:
         admin.last_login_at = datetime.now(timezone.utc)
         await self.db.flush()
+
+    async def update_password(self, admin: AdminAccount, password_hash: str) -> None:
+        admin.password_hash = password_hash
+        await self.db.flush()

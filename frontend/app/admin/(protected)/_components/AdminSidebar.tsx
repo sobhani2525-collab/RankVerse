@@ -73,6 +73,14 @@ export function AdminSidebar({ adminEmail }: { adminEmail: string }) {
 
       <div className="border-t border-border px-5 py-4">
         <p className="truncate text-xs text-muted" dir="ltr">{adminEmail}</p>
+        <Link
+          href="/admin/settings"
+          className={`mt-2 block text-xs transition ${
+            pathname === "/admin/settings" ? "font-bold text-teal" : "text-muted hover:text-teal"
+          }`}
+        >
+          تنظیمات حساب
+        </Link>
         <button
           onClick={handleLogout}
           className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm text-ink transition hover:border-gold/50 hover:text-gold"

@@ -30,6 +30,16 @@ class UnauthorizedError(RankVerseError):
         super().__init__(message, status_code=401, code="unauthorized")
 
 
+class ValidationError(RankVerseError):
+    def __init__(self, message: str = "Invalid request"):
+        super().__init__(message, status_code=400, code="validation_error")
+
+
+class RateLimitedError(RankVerseError):
+    def __init__(self, message: str = "Too many attempts, please try again later"):
+        super().__init__(message, status_code=429, code="rate_limited")
+
+
 async def rankverse_exception_handler(request: Request, exc: RankVerseError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,

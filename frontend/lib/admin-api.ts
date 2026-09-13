@@ -38,3 +38,17 @@ export async function getAdminMe(token: string): Promise<AdminAccount> {
     cache: "no-store",
   });
 }
+
+// Goes through our own /api/admin/password route, not the backend directly —
+// the admin JWT lives in an httpOnly cookie this client-side code can't read.
+export async function changeAdminPassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await fetch("/api/admin/password", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  const json: Envelope<{ changed: boolean }> = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || "خطا در تغییر رمز عبور");
+  }
+}
