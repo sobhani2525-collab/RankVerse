@@ -166,3 +166,10 @@ async def list_comments(slug: str, db: AsyncSession = Depends(get_db)):
     service = ListService(db)
     comments = await service.list_comments(slug)
     return envelope(data=[c.model_dump() for c in comments])
+
+
+@router.get("/lists/{slug}/related")
+async def get_related_lists(slug: str, db: AsyncSession = Depends(get_db)):
+    service = ListService(db)
+    related = await service.get_related_lists(slug)
+    return envelope(data=[r.model_dump() for r in related])

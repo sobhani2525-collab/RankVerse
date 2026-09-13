@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import select, func, update, delete
+from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -197,3 +198,18 @@ class ListRepository:
         await self.db.execute(
             update(UserList).where(UserList.id == list_id).values(view_count=UserList.view_count + 1)
         )
+
+    async def find_related(
+        self, list_id: uuid.UUID, entity_type: str | None, tags: list[str], limit: int = 6
+    ) -> list[UserList]:
+        stmt = select(UserList).where(
+            UserList.visibility == "public",
+            UserList.id != list_id,
+        )
+        if entity_type:
+            stmt = stmt.where(UserList.entity_type == entity_type)
+        if tags:
+            stmt = stmt.where(UserList.tags.op("?|")(sa_array(tags)))
+        stmt = stmt.order_by(UserList.like_count.desc()).limit(limit)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())

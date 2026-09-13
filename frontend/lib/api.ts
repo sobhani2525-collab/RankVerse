@@ -279,6 +279,10 @@ export async function getListComments(slug: string): Promise<ListComment[]> {
   return fetchEnvelope<ListComment[]>(`/lists/${slug}/comments`, 30);
 }
 
+export async function getRelatedLists(slug: string): Promise<ListSummary[]> {
+  return fetchEnvelope<ListSummary[]>(`/lists/${slug}/related`, 120);
+}
+
 // --- Lists: authenticated writes ---
 
 export async function createList(

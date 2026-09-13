@@ -245,3 +245,15 @@ class ListService:
 
         comments = await self.repo.list_comments(lst.id)
         return [CommentPublic.model_validate(c) for c in comments]
+
+    # --- Related lists ---
+
+    async def get_related_lists(self, slug: str) -> list[ListSummary]:
+        lst = await self.repo.get_by_slug(slug)
+        if not lst:
+            raise NotFoundError(f"List '{slug}' not found")
+        related = await self.repo.find_related(lst.id, lst.entity_type, lst.tags)
+        if not related:
+            # fallback: اگه هم‌پوشانی تگ/نوع پیدا نشد، هر لیست عمومی دیگه‌ای رو نشون بده
+            related = await self.repo.find_related(lst.id, None, [])
+        return [ListSummary.model_validate(r) for r in related]
