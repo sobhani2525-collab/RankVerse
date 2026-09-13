@@ -28,9 +28,7 @@ export async function middleware(request: NextRequest) {
     if (payload.type !== "admin_access") {
       return redirectToLogin(request);
     }
-  } catch (err) {
-    // TEMP DEBUG — remove once production login is confirmed working.
-    console.error("DEBUG admin jwtVerify failed:", err);
+  } catch {
     return redirectToLogin(request);
   }
 
@@ -51,21 +49,16 @@ export async function middleware(request: NextRequest) {
 // even though the "real" secret value is otherwise correct.
 function getAdminJwtSecret(): string | undefined {
   let secret = process.env.ADMIN_JWT_SECRET;
-  let source = "process.env";
 
   if (!secret) {
     try {
       const env = getCloudflareContext().env as Record<string, string | undefined>;
       secret = env.ADMIN_JWT_SECRET;
-      source = "cloudflareContext";
-    } catch (err) {
-      // TEMP DEBUG — remove once production login is confirmed working.
-      console.error("DEBUG getCloudflareContext() failed:", err);
+    } catch {
+      // No Cloudflare context available (e.g. not running on Workers) —
+      // fall through to the "not set" branch below.
     }
   }
-
-  // TEMP DEBUG — remove once production login is confirmed working.
-  console.error(`DEBUG admin secret source: ${source}, length: ${secret?.length ?? 0}`);
 
   const trimmed = secret?.trim();
   return trimmed || undefined;
