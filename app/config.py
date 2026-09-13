@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
+    admin_access_token_expire_minutes: int = 30
 
     tmdb_api_key: str = ""
     tmdb_base_url: str = "https://api.themoviedb.org/3"

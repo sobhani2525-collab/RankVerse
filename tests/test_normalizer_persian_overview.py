@@ -1,0 +1,68 @@
+"""
+Unit tests for the Persian-overview fallback in normalize_movie/normalize_tv_series
+(see SyncService.sync_movie/sync_tv_series, which fetch a second TMDb response
+with language=fa-IR just for this). No DB or network needed.
+
+Run with: pytest tests/test_normalizer_persian_overview.py
+"""
+from app.modules.sync.normalizer import normalize_movie, normalize_tv_series
+
+RAW_MOVIE = {
+    "id": 238,
+    "title": "The Godfather",
+    "overview": "The aging patriarch of an organized crime dynasty transfers control to his reluctant son.",
+    "release_date": "1972-03-14",
+    "genres": [],
+    "credits": {"cast": [], "crew": []},
+}
+
+RAW_TV = {
+    "id": 1396,
+    "name": "Breaking Bad",
+    "overview": "A high school chemistry teacher turns to manufacturing meth.",
+    "first_air_date": "2008-01-20",
+    "genres": [],
+    "credits": {"cast": [], "crew": []},
+}
+
+
+def test_normalize_movie_uses_persian_overview_when_available():
+    raw_fa = {**RAW_MOVIE, "overview": "پدرسالار در حال پیر شدن یک خاندان جنایتکار، کنترل را به پسر بی‌میلش می‌سپارد."}
+
+    normalized = normalize_movie(RAW_MOVIE, raw_fa)
+
+    assert normalized["attributes"]["overview"] == raw_fa["overview"]
+
+
+def test_normalize_movie_falls_back_to_english_when_no_persian_translation():
+    # TMDb returns an empty string (not the English text) for a title with
+    # no fa-IR translation -- must fall back to the English overview, not
+    # store the empty string.
+    raw_fa = {**RAW_MOVIE, "overview": ""}
+
+    normalized = normalize_movie(RAW_MOVIE, raw_fa)
+
+    assert normalized["attributes"]["overview"] == RAW_MOVIE["overview"]
+
+
+def test_normalize_movie_falls_back_to_english_when_fa_fetch_failed():
+    # SyncService passes raw_fa=None when the fa-IR request itself failed.
+    normalized = normalize_movie(RAW_MOVIE, None)
+
+    assert normalized["attributes"]["overview"] == RAW_MOVIE["overview"]
+
+
+def test_normalize_tv_series_uses_persian_overview_when_available():
+    raw_fa = {**RAW_TV, "overview": "یک دبیر شیمی دبیرستان به تولید متامفتامین روی می‌آورد."}
+
+    normalized = normalize_tv_series(RAW_TV, raw_fa)
+
+    assert normalized["attributes"]["overview"] == raw_fa["overview"]
+
+
+def test_normalize_tv_series_falls_back_to_english_when_no_persian_translation():
+    raw_fa = {**RAW_TV, "overview": ""}
+
+    normalized = normalize_tv_series(RAW_TV, raw_fa)
+
+    assert normalized["attributes"]["overview"] == RAW_TV["overview"]

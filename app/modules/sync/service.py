@@ -132,7 +132,16 @@ class SyncService:
 
     async def sync_movie(self, tmdb_id: int) -> dict:
         raw = await self.client.get_movie(tmdb_id)
-        normalized = normalize_movie(raw)
+        try:
+            raw_fa = await self.client.get_movie(tmdb_id, language="fa-IR")
+        except Exception:
+            # A Persian synopsis is a nice-to-have, not the reason this sync
+            # exists -- if TMDb's fa-IR request fails, fall back to the
+            # English overview (normalize_movie already handles raw_fa=None)
+            # rather than failing the whole sync over it.
+            logger.warning("TMDb fa-IR fetch failed for movie %s; using English overview", tmdb_id)
+            raw_fa = None
+        normalized = normalize_movie(raw, raw_fa)
 
         movie = await self.repo.get_by_external_id("tmdb", normalized["external_id"])
         if movie:
@@ -194,7 +203,12 @@ class SyncService:
         ingestion only.
         """
         raw = await self.client.get_tv_series(tmdb_id)
-        normalized = normalize_tv_series(raw)
+        try:
+            raw_fa = await self.client.get_tv_series(tmdb_id, language="fa-IR")
+        except Exception:
+            logger.warning("TMDb fa-IR fetch failed for tv series %s; using English overview", tmdb_id)
+            raw_fa = None
+        normalized = normalize_tv_series(raw, raw_fa)
 
         series = await self.repo.get_by_external_id("tmdb", normalized["external_id"])
         if series:

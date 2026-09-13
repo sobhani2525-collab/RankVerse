@@ -89,9 +89,16 @@ async def test_suggested_battle_prefers_genre_overlapping_anchor(
     assert data["right"]["slug"] == current_movie.slug
 
 
-async def test_suggested_battle_falls_back_to_strongest_anchor_without_genre_overlap(
+async def test_suggested_battle_is_null_without_genre_overlap(
     client, db_session, test_user, auth_headers
 ):
+    """
+    Previously this fell back to the user's strongest same-type anchor even
+    when it shared no genre with the entity being viewed -- in practice that
+    produced nonsense pairings (e.g. a superhero movie "vs." an unrelated
+    sci-fi drama). The card should just not show up rather than suggest a
+    battle between two unrelated titles.
+    """
     entity_repo = EntityRepository(db_session)
     taste_repo = TasteRepository(db_session)
 
@@ -118,9 +125,7 @@ async def test_suggested_battle_falls_back_to_strongest_anchor_without_genre_ove
 
     res = await client.get(f"/api/v1/movies/{current_movie.slug}/suggested-battle", headers=auth_headers)
     assert res.status_code == 200
-    data = res.json()["data"]
-    slugs = {data["left"]["slug"], data["right"]["slug"]}
-    assert slugs == {comedy_anchor.slug, current_movie.slug}
+    assert res.json()["data"] is None
 
 
 async def test_battles_next_accepts_preselected_pair(client, db_session, auth_headers):

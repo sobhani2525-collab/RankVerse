@@ -1,10 +1,17 @@
 from slugify import slugify
 
 
-def normalize_movie(raw: dict) -> dict:
+def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
     """
     Convert a raw TMDb /movie/{id} response (with credits appended) into the
     internal shape expected by SyncService: entity attributes + related people/genres.
+
+    raw_fa is an optional second /movie/{id} response fetched with
+    language=fa-IR (see SyncService.sync_movie) -- used only for its
+    "overview" field, so the site can show a Persian synopsis. TMDb returns
+    an empty string (not the English text) when a title has no Persian
+    translation, so this falls back to raw's English overview whenever
+    raw_fa is missing or its overview is empty.
     """
     year = None
     if raw.get("release_date"):
@@ -14,10 +21,11 @@ def normalize_movie(raw: dict) -> dict:
             year = None
 
     poster_path = raw.get("poster_path")
+    overview_fa = (raw_fa or {}).get("overview") or None
 
     entity_attrs = {
         "poster_path": poster_path,
-        "overview": raw.get("overview"),
+        "overview": overview_fa or raw.get("overview"),
         "runtime": raw.get("runtime"),
         "year": year,
         "country": (raw.get("production_countries") or [{}])[0].get("iso_3166_1"),
@@ -83,7 +91,7 @@ TV_GENRE_NAME_OVERRIDES: dict[str, list[str]] = {
 }
 
 
-def normalize_tv_series(raw: dict) -> dict:
+def normalize_tv_series(raw: dict, raw_fa: dict | None = None) -> dict:
     """
     Convert a raw TMDb /tv/{id} response (with credits appended) into the
     internal shape expected by SyncService.sync_tv_series. Mirrors
@@ -92,6 +100,11 @@ def normalize_tv_series(raw: dict) -> dict:
     instead (name/first_air_date instead of title/release_date, no runtime,
     plus season/episode/status metadata and created_by/networks which movies
     don't have).
+
+    raw_fa mirrors normalize_movie's raw_fa: an optional /tv/{id} response
+    fetched with language=fa-IR, used only for its "overview" field, with
+    the same empty-string-means-no-translation fallback to raw's English
+    overview.
     """
     year = None
     if raw.get("first_air_date"):
@@ -101,10 +114,11 @@ def normalize_tv_series(raw: dict) -> dict:
             year = None
 
     poster_path = raw.get("poster_path")
+    overview_fa = (raw_fa or {}).get("overview") or None
 
     entity_attrs = {
         "poster_path": poster_path,
-        "overview": raw.get("overview"),
+        "overview": overview_fa or raw.get("overview"),
         "year": year,
         "country": (raw.get("origin_country") or [None])[0],
         # TMDb vote_average is already 0-10, matches our internal scale

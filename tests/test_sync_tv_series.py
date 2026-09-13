@@ -89,7 +89,13 @@ FIXTURES_BY_ID = {1396: BREAKING_BAD, 60059: BETTER_CALL_SAUL, 1399: GAME_OF_THR
 
 
 def _patch_tmdb(monkeypatch):
-    async def fake_get_tv_series(self, tmdb_id: int) -> dict:
+    # sync_tv_series now calls get_tv_series twice -- once for the default
+    # (English) payload, once with language="fa-IR" for a Persian overview
+    # (see SyncService.sync_tv_series / normalize_tv_series). The fixtures
+    # here have no Persian data, so both calls just return the same raw
+    # dict -- that's fine, normalize_tv_series falls back to the English
+    # overview whenever the fa-IR payload's overview is empty/missing.
+    async def fake_get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
         return FIXTURES_BY_ID[tmdb_id]
 
     monkeypatch.setattr(TMDbClient, "get_tv_series", fake_get_tv_series)
@@ -195,7 +201,7 @@ async def test_sync_tv_series_war_and_politics_maps_to_war_only(db_session, monk
     TV_GENRE_NAME_OVERRIDES) rather than inventing a standalone "Politics"
     genre entity that nothing else in the graph would ever use.
     """
-    async def fake_get_tv_series(self, tmdb_id: int) -> dict:
+    async def fake_get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
         return {
             **GAME_OF_THRONES,
             "genres": [{"id": 10768, "name": "War & Politics"}],

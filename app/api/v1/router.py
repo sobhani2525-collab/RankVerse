@@ -10,10 +10,12 @@ from app.modules.sync.router import router as sync_router
 from app.modules.battles.router import router as battles_router
 from app.modules.recommendations.router import router as recommendations_router
 from app.modules.taste.router import router as taste_router
+from app.modules.admin.router import router as admin_router
 
 api_router = APIRouter(prefix="/api/v1")
 
 api_router.include_router(auth_router)
+api_router.include_router(admin_router)
 api_router.include_router(entities_router)
 api_router.include_router(ranking_router)
 api_router.include_router(users_router)

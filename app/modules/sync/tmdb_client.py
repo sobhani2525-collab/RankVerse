@@ -26,10 +26,10 @@ class TMDbClient:
                     print(f"TMDb request failed after {max_retries} attempts: {e}")
         raise last_error
 
-    async def get_movie(self, tmdb_id: int) -> dict:
+    async def get_movie(self, tmdb_id: int, language: str = "en-US") -> dict:
         return await self._get_with_retry(
             f"{self.base_url}/movie/{tmdb_id}",
-            params={"api_key": self.api_key, "append_to_response": "credits"},
+            params={"api_key": self.api_key, "append_to_response": "credits", "language": language},
         )
 
     async def discover_movies(self, page: int = 1, sort_by: str = "popularity.desc") -> dict:
@@ -38,8 +38,8 @@ class TMDbClient:
             params={"api_key": self.api_key, "sort_by": sort_by, "page": page},
         )
 
-    async def get_tv_series(self, tmdb_id: int) -> dict:
+    async def get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
         return await self._get_with_retry(
             f"{self.base_url}/tv/{tmdb_id}",
-            params={"api_key": self.api_key, "append_to_response": "credits"},
+            params={"api_key": self.api_key, "append_to_response": "credits", "language": language},
         )

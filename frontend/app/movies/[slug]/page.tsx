@@ -69,7 +69,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             <div>
               <h1 className="text-2xl font-bold text-ink">{movie.title}</h1>
               <p className="num mt-1 text-sm text-muted">
-                {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} daghighe` : ""}
+                {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} دقیقه` : ""}
               </p>
             </div>
             <Constellation director={mainDirector} genre={mainGenre} year={movie.year} size={80} />
@@ -77,7 +77,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
           <div className="mt-4 flex items-center gap-3">
             <ScoreBadge score={movie.computed_score} />
-            <span className="num text-xs text-muted">{movie.total_votes} raay</span>
+            <span className="num text-xs text-muted">{movie.total_votes} رای</span>
           </div>
 
           {movie.overview && (
@@ -87,24 +87,24 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
             {movie.directors.length > 0 && (
               <div>
-                <dt className="text-xs text-muted">Kargardan</dt>
+                <dt className="text-xs text-muted">کارگردان</dt>
                 <dd className="mt-1 text-ink">
-                  {movie.directors.map((d) => d.title).join("- ")}
+                  {movie.directors.map((d) => d.title).join("، ")}
                 </dd>
               </div>
             )}
             {movie.genres.length > 0 && (
               <div>
-                <dt className="text-xs text-muted">Zhanr</dt>
+                <dt className="text-xs text-muted">ژانر</dt>
                 <dd className="mt-1 text-ink">
-                  {movie.genres.map((g) => genreLabel(g.title)).join("- ")}
+                  {movie.genres.map((g) => genreLabel(g.title)).join("، ")}
                 </dd>
               </div>
             )}
             {movie.cast.length > 0 && (
               <div className="col-span-2">
-                <dt className="text-xs text-muted">Bazigaran</dt>
-                <dd className="mt-1 text-ink">{movie.cast.map((c) => c.title).join("- ")}</dd>
+                <dt className="text-xs text-muted">بازیگران</dt>
+                <dd className="mt-1 text-ink">{movie.cast.map((c) => c.title).join("، ")}</dd>
               </div>
             )}
           </dl>

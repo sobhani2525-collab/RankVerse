@@ -44,6 +44,14 @@ def create_refresh_token(user_id: str) -> str:
     )
 
 
+def create_admin_access_token(admin_id: str) -> str:
+    return _create_token(
+        admin_id,
+        timedelta(minutes=settings.admin_access_token_expire_minutes),
+        "admin_access",
+    )
+
+
 def decode_token(token: str) -> dict[str, Any] | None:
     try:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])

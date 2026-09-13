@@ -70,9 +70,18 @@ class SuggestedBattleService:
         # same_type_anchors is already ordered by anchor.rank ascending
         # (strongest first, from list_anchors_with_entities) -- prefer the
         # strongest one that ALSO shares a genre with the entity the user
-        # is currently looking at, for a more relevant pairing; fall back
-        # to the strongest same-type anchor if none share a genre.
-        chosen_anchor_entity = same_type_anchors[0][1]
+        # is currently looking at, for a more relevant pairing.
+        #
+        # No non-genre-matching fallback: pairing the user's top anchor
+        # against the current entity regardless of genre produced nonsense
+        # matchups in practice (e.g. a superhero action movie suggested
+        # against a slow sci-fi drama just because it was the anchor's
+        # strongest same-type pick). Showing a card that says "compare this
+        # against something you love" only makes sense when the two are
+        # actually comparable, so -- same as the no-anchor-at-all case
+        # above -- it's better to not show the card than to show an
+        # unrelated pairing.
+        chosen_anchor_entity = None
         for _anchor, entity in same_type_anchors:
             genre_ids = {edge.to_entity_id for edge in await self.entity_repo.get_relationships(
                 entity.id, "has_genre"
@@ -80,6 +89,9 @@ class SuggestedBattleService:
             if current_genre_ids & genre_ids:
                 chosen_anchor_entity = entity
                 break
+
+        if chosen_anchor_entity is None:
+            return None
 
         anchor_score = await self._computed_score(chosen_anchor_entity.id)
         current_score = await self._computed_score(current_entity.id)
