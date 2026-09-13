@@ -1,6 +1,8 @@
+import logging
 import uuid
 
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RateLimitedError, UnauthorizedError, ValidationError
@@ -8,6 +10,8 @@ from app.core.security import create_admin_access_token, hash_password, verify_p
 from app.modules.admin.models import AdminAccount
 from app.modules.admin.repository import AdminAccountRepository
 from app.modules.admin.schemas import AdminLogin, AdminPasswordChange, AdminPublic, AdminTokenResponse
+
+logger = logging.getLogger(__name__)
 
 # Applies per-admin, not per-IP: an attacker who has to also guess/steal a
 # valid short-lived admin JWT before hitting this endpoint at all is already
@@ -52,8 +56,24 @@ class AdminAuthService:
     @staticmethod
     async def _enforce_password_change_rate_limit(redis: Redis, admin_id: uuid.UUID) -> None:
         key = f"admin:password_change_attempts:{admin_id}"
-        attempts = await redis.incr(key)
-        if attempts == 1:
-            await redis.expire(key, PASSWORD_CHANGE_RATE_WINDOW_SECONDS)
+        try:
+            attempts = await redis.incr(key)
+            if attempts == 1:
+                await redis.expire(key, PASSWORD_CHANGE_RATE_WINDOW_SECONDS)
+        except RedisError:
+            # This endpoint already sits behind get_current_admin (a valid JWT
+            # required), so the rate limit is a secondary defense, not the
+            # only thing standing between an attacker and this route -- unlike
+            # /auth/login, which is unauthenticated. Failing open here (skip
+            # the limit rather than 500 the whole request) is the safer
+            # trade-off until Redis is actually provisioned in this
+            # environment. Once genuine unauthenticated rate limiting (e.g.
+            # on /auth/login) is needed, that's the point to provision Redis
+            # for real rather than extend this fail-open behavior to it.
+            logger.warning(
+                "Redis unavailable, skipping password-change rate limit for admin_id=%s", admin_id
+            )
+            return
+
         if attempts > PASSWORD_CHANGE_RATE_LIMIT:
             raise RateLimitedError("Too many password change attempts. Try again later.")
