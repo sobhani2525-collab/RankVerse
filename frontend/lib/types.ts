@@ -27,6 +27,10 @@ export interface MovieListItem {
   id: string;
   slug: string;
   title: string;
+  // Persian title from TMDb's fa-IR translation, when there is one distinct
+  // from `title` -- null for anything not yet re-synced or with no Persian
+  // translation available. Use displayTitle() from lib/title.ts to render.
+  title_fa: string | null;
   // Defaults to "movie" server-side for entities synced before this field
   // existed -- lets a mixed list (a person's filmography, a genre page)
   // route each row to /movies/{slug} or /tv-series/{slug} correctly.
@@ -161,6 +165,7 @@ export type VoteOutcome = "left" | "right" | "skip";
 export interface BattleEntity {
   id: string;
   title: string;
+  title_fa: string | null;
   /**
    * NOTE: despite the name, the backend currently returns whatever raw
    * value it finds in Entity.attributes (poster_path / poster_url /
@@ -187,6 +192,7 @@ export interface SuggestedBattleEntity {
   id: string;
   slug: string;
   title: string;
+  title_fa: string | null;
   entity_type: string;
   poster_path: string | null;
   computed_score: number | null;

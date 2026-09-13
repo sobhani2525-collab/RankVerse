@@ -5,7 +5,7 @@ export default function TasteDnaEmptyState() {
     <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center">
       <p className="text-sm text-ink">هنوز داریم سلیقه‌ات رو می‌شناسیم</p>
       <p className="mt-2 text-xs text-muted">
-        با چند رأی و Battle بیشتر، Taste DNA‌ات شکل می‌گیرد.
+        با چند رأی و نبرد بیشتر، Taste DNA‌ات شکل می‌گیرد.
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
         <Link

@@ -32,6 +32,11 @@ class MovieListItem(BaseModel):
     id: uuid.UUID
     slug: str
     title: str
+    # Persian title from TMDb's fa-IR translation, when it has one distinct
+    # from the English title (see sync/normalizer.py's _persian_title) --
+    # None for anything not yet re-synced, or with no Persian translation
+    # available. Display components compose "{title_fa} ({title})" when set.
+    title_fa: str | None = None
     entity_type: str = "movie"
     poster_path: str | None = None
     year: int | None = None

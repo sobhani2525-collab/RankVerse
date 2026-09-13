@@ -26,7 +26,7 @@ export default function TasteContributionCard({ stats }: TasteContributionCardPr
 
       <div className="mt-4 grid grid-cols-3 gap-3">
         <StatTile value={stats.votes_count} label="رأی" />
-        <StatTile value={stats.battles_count} label="Battle" />
+        <StatTile value={stats.battles_count} label="نبرد" />
         <StatTile value={stats.comments_count} label="نظر" />
       </div>
 

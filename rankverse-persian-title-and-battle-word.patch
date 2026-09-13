@@ -1,0 +1,488 @@
+diff --git a/app/modules/battles/router.py b/app/modules/battles/router.py
+index 17f91cc..6f35417 100644
+--- a/app/modules/battles/router.py
++++ b/app/modules/battles/router.py
+@@ -55,6 +55,7 @@ async def get_next_battle(
+         left=BattleEntity(
+             id=anchor.id,
+             title=anchor.title,
++            title_fa=(anchor.attributes or {}).get("title_fa"),
+             poster_url=_poster_url(anchor),
+             elo_score=anchor_elo.elo_score,
+             matches_played=anchor_elo.matches_played,
+@@ -62,6 +63,7 @@ async def get_next_battle(
+         right=BattleEntity(
+             id=opponent.id,
+             title=opponent.title,
++            title_fa=(opponent.attributes or {}).get("title_fa"),
+             poster_url=_poster_url(opponent),
+             elo_score=opponent_elo.elo_score,
+             matches_played=opponent_elo.matches_played,
+diff --git a/app/modules/battles/schemas.py b/app/modules/battles/schemas.py
+index 6bd3836..60806f4 100644
+--- a/app/modules/battles/schemas.py
++++ b/app/modules/battles/schemas.py
+@@ -16,6 +16,7 @@ class BattleEntity(BaseModel):
+ 
+     id: uuid.UUID
+     title: str
++    title_fa: str | None = None
+     poster_url: str | None = None
+     elo_score: float
+     matches_played: int
+@@ -73,6 +74,7 @@ class SuggestedBattleEntity(BaseModel):
+     id: uuid.UUID
+     slug: str
+     title: str
++    title_fa: str | None = None
+     entity_type: str
+     poster_path: str | None = None
+     computed_score: float | None = None
+diff --git a/app/modules/battles/suggested.py b/app/modules/battles/suggested.py
+index 0dc5ac6..a6253e4 100644
+--- a/app/modules/battles/suggested.py
++++ b/app/modules/battles/suggested.py
+@@ -101,6 +101,7 @@ class SuggestedBattleService:
+                 "id": chosen_anchor_entity.id,
+                 "slug": chosen_anchor_entity.slug,
+                 "title": chosen_anchor_entity.title,
++                "title_fa": chosen_anchor_entity.attributes.get("title_fa"),
+                 "entity_type": chosen_anchor_entity.entity_type,
+                 "poster_path": chosen_anchor_entity.attributes.get("poster_path"),
+                 "computed_score": anchor_score,
+@@ -109,6 +110,7 @@ class SuggestedBattleService:
+                 "id": current_entity.id,
+                 "slug": current_entity.slug,
+                 "title": current_entity.title,
++                "title_fa": current_entity.attributes.get("title_fa"),
+                 "entity_type": current_entity.entity_type,
+                 "poster_path": current_entity.attributes.get("poster_path"),
+                 "computed_score": current_score,
+diff --git a/app/modules/entities/schemas.py b/app/modules/entities/schemas.py
+index 553957a..adc0789 100644
+--- a/app/modules/entities/schemas.py
++++ b/app/modules/entities/schemas.py
+@@ -32,6 +32,11 @@ class MovieListItem(BaseModel):
+     id: uuid.UUID
+     slug: str
+     title: str
++    # Persian title from TMDb's fa-IR translation, when it has one distinct
++    # from the English title (see sync/normalizer.py's _persian_title) --
++    # None for anything not yet re-synced, or with no Persian translation
++    # available. Display components compose "{title_fa} ({title})" when set.
++    title_fa: str | None = None
+     entity_type: str = "movie"
+     poster_path: str | None = None
+     year: int | None = None
+diff --git a/app/modules/entities/service.py b/app/modules/entities/service.py
+index afc2e73..358f1f2 100644
+--- a/app/modules/entities/service.py
++++ b/app/modules/entities/service.py
+@@ -41,6 +41,7 @@ def _movie_list_item(entity) -> MovieListItem:
+         id=entity.id,
+         slug=entity.slug,
+         title=entity.title,
++        title_fa=entity.attributes.get("title_fa"),
+         entity_type=entity.entity_type,
+         poster_path=entity.attributes.get("poster_path"),
+         year=entity.attributes.get("year"),
+@@ -131,6 +132,7 @@ class EntityService:
+             id=entity.id,
+             slug=entity.slug,
+             title=entity.title,
++            title_fa=entity.attributes.get("title_fa"),
+             poster_path=entity.attributes.get("poster_path"),
+             year=entity.attributes.get("year"),
+             overview=entity.attributes.get("overview"),
+@@ -186,6 +188,7 @@ class EntityService:
+             id=entity.id,
+             slug=entity.slug,
+             title=entity.title,
++            title_fa=entity.attributes.get("title_fa"),
+             poster_path=entity.attributes.get("poster_path"),
+             year=entity.attributes.get("year"),
+             overview=entity.attributes.get("overview"),
+diff --git a/app/modules/sync/normalizer.py b/app/modules/sync/normalizer.py
+index 0ce91c6..c99c433 100644
+--- a/app/modules/sync/normalizer.py
++++ b/app/modules/sync/normalizer.py
+@@ -1,6 +1,23 @@
+ from slugify import slugify
+ 
+ 
++def _persian_title(title_fa: str | None, title_en: str | None) -> str | None:
++    """
++    Unlike overview (which TMDb returns as an empty string when there's no
++    fa-IR translation), TMDb's "title"/"name" field is never empty -- when
++    there's no Persian translation it just falls back to returning the same
++    value as the default-language request. So "no real translation" shows
++    up as title_fa == title_en, not as title_fa being falsy, and that's the
++    case this treats as "no Persian title" (returns None) rather than
++    storing a duplicate of the English title under a different key.
++    """
++    if not title_fa or not title_en:
++        return None
++    if title_fa.strip() == title_en.strip():
++        return None
++    return title_fa
++
++
+ def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
+     """
+     Convert a raw TMDb /movie/{id} response (with credits appended) into the
+@@ -22,9 +39,11 @@ def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
+ 
+     poster_path = raw.get("poster_path")
+     overview_fa = (raw_fa or {}).get("overview") or None
++    title_fa = _persian_title((raw_fa or {}).get("title"), raw.get("title"))
+ 
+     entity_attrs = {
+         "poster_path": poster_path,
++        "title_fa": title_fa,
+         "overview": overview_fa or raw.get("overview"),
+         "runtime": raw.get("runtime"),
+         "year": year,
+@@ -115,9 +134,11 @@ def normalize_tv_series(raw: dict, raw_fa: dict | None = None) -> dict:
+ 
+     poster_path = raw.get("poster_path")
+     overview_fa = (raw_fa or {}).get("overview") or None
++    title_fa = _persian_title((raw_fa or {}).get("name"), raw.get("name"))
+ 
+     entity_attrs = {
+         "poster_path": poster_path,
++        "title_fa": title_fa,
+         "overview": overview_fa or raw.get("overview"),
+         "year": year,
+         "country": (raw.get("origin_country") or [None])[0],
+diff --git a/frontend/app/battles/page.tsx b/frontend/app/battles/page.tsx
+index 77d63e7..e82ca1d 100644
+--- a/frontend/app/battles/page.tsx
++++ b/frontend/app/battles/page.tsx
+@@ -35,7 +35,7 @@ function BattlesPageInner() {
+   const { token, isAuthenticated, loading: authLoading } = useAuth();
+   const searchParams = useSearchParams();
+ 
+-  // A SuggestedBattleCard's "شروع Battle" link arrives as
++  // A SuggestedBattleCard's "شروع نبرد" link arrives as
+   // /battles?category=movie&left_id=...&right_id=... -- consumed once for
+   // the first load only; a later "رد کردن"/vote goes back to the normal
+   // random/closest-opponent flow rather than repeating the same pair.
+diff --git a/frontend/app/movies/[slug]/page.tsx b/frontend/app/movies/[slug]/page.tsx
+index 6e07084..b4c5ac3 100644
+--- a/frontend/app/movies/[slug]/page.tsx
++++ b/frontend/app/movies/[slug]/page.tsx
+@@ -9,6 +9,7 @@ import NotableRankings from "@/components/NotableRankings";
+ import SuggestedBattleSection from "@/components/SuggestedBattleSection";
+ import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
+ import { genreLabel } from "@/lib/genre-labels";
++import { displayTitle } from "@/lib/title";
+ 
+ export const revalidate = 60;
+ 
+@@ -52,7 +53,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
+           {posterUrl ? (
+             <Image
+               src={posterUrl}
+-              alt={movie.title}
++              alt={displayTitle(movie)}
+               width={192}
+               height={288}
+               className="h-full w-full object-cover"
+@@ -67,7 +68,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
+         <div className="flex-1">
+           <div className="flex items-start justify-between gap-4">
+             <div>
+-              <h1 className="text-2xl font-bold text-ink">{movie.title}</h1>
++              <h1 className="text-2xl font-bold text-ink">{displayTitle(movie)}</h1>
+               <p className="num mt-1 text-sm text-muted">
+                 {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} دقیقه` : ""}
+               </p>
+diff --git a/frontend/app/tv-series/[slug]/page.tsx b/frontend/app/tv-series/[slug]/page.tsx
+index 546a4ce..4b7c30d 100644
+--- a/frontend/app/tv-series/[slug]/page.tsx
++++ b/frontend/app/tv-series/[slug]/page.tsx
+@@ -9,6 +9,7 @@ import NotableRankings from "@/components/NotableRankings";
+ import SuggestedBattleSection from "@/components/SuggestedBattleSection";
+ import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
+ import { genreLabel } from "@/lib/genre-labels";
++import { displayTitle } from "@/lib/title";
+ 
+ export const revalidate = 60;
+ 
+@@ -114,7 +115,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
+           {posterUrl ? (
+             <Image
+               src={posterUrl}
+-              alt={tv.title}
++              alt={displayTitle(tv)}
+               width={192}
+               height={288}
+               className="h-full w-full object-cover"
+@@ -129,7 +130,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
+         <div className="flex-1">
+           <div className="flex items-start justify-between gap-4">
+             <div>
+-              <h1 className="text-2xl font-bold text-ink">{tv.title}</h1>
++              <h1 className="text-2xl font-bold text-ink">{displayTitle(tv)}</h1>
+               <SeasonsAndYears tv={tv} />
+             </div>
+             <Constellation director={mainCreator} genre={mainGenre} year={tv.year} size={80} />
+diff --git a/frontend/components/BattleCard.tsx b/frontend/components/BattleCard.tsx
+index 7445c91..5a1c2f7 100644
+--- a/frontend/components/BattleCard.tsx
++++ b/frontend/components/BattleCard.tsx
+@@ -2,6 +2,7 @@
+ 
+ import Image from "next/image";
+ import { BattleEntity } from "@/lib/types";
++import { displayTitle } from "@/lib/title";
+ 
+ function posterSrc(poster: string | null): string | null {
+   if (!poster) return null;
+@@ -88,7 +89,7 @@ export default function BattleCard({
+         {src ? (
+           <Image
+             src={src}
+-            alt={entity.title}
++            alt={displayTitle(entity)}
+             fill
+             sizes="(max-width: 768px) 45vw, 320px"
+             className="object-cover"
+@@ -114,7 +115,7 @@ export default function BattleCard({
+       </div>
+ 
+       <div className="flex flex-1 flex-col gap-1 p-3">
+-        <h3 className="line-clamp-2 font-medium text-ink">{entity.title}</h3>
++        <h3 className="line-clamp-2 font-medium text-ink">{displayTitle(entity)}</h3>
+         {revealScore && (
+           <span className="num text-xs text-muted">
+             امتیاز Elo: {Math.round(entity.elo_score)}
+diff --git a/frontend/components/EntityRow.tsx b/frontend/components/EntityRow.tsx
+index 9d00f6b..32d00d4 100644
+--- a/frontend/components/EntityRow.tsx
++++ b/frontend/components/EntityRow.tsx
+@@ -4,6 +4,7 @@ import Constellation from "./Constellation";
+ import ScoreBadge from "./ScoreBadge";
+ import { MovieListItem } from "@/lib/types";
+ import { detailPathFor } from "@/lib/entity-routes";
++import { displayTitle } from "@/lib/title";
+ 
+ export default function EntityRow({
+   movie,
+@@ -33,7 +34,7 @@ export default function EntityRow({
+         {posterUrl ? (
+           <Image
+             src={posterUrl}
+-            alt={movie.title}
++            alt={displayTitle(movie)}
+             width={44}
+             height={64}
+             className="h-full w-full object-cover"
+@@ -47,7 +48,7 @@ export default function EntityRow({
+ 
+       <div className="min-w-0 flex-1">
+         <div className="flex items-center gap-2">
+-          <h3 className="truncate font-medium text-ink">{movie.title}</h3>
++          <h3 className="truncate font-medium text-ink">{displayTitle(movie)}</h3>
+           {isTvSeries && (
+             <span className="num shrink-0 rounded-full border border-teal/40 bg-teal/10 px-1.5 py-0.5 text-[10px] text-teal">
+               سریال
+diff --git a/frontend/components/SuggestedBattleCard.tsx b/frontend/components/SuggestedBattleCard.tsx
+index 5d9f425..aea6428 100644
+--- a/frontend/components/SuggestedBattleCard.tsx
++++ b/frontend/components/SuggestedBattleCard.tsx
+@@ -2,6 +2,7 @@ import Image from "next/image";
+ import Link from "next/link";
+ import ScoreBadge from "./ScoreBadge";
+ import { SuggestedBattle, SuggestedBattleEntity } from "@/lib/types";
++import { displayTitle } from "@/lib/title";
+ 
+ function Side({ entity }: { entity: SuggestedBattleEntity }) {
+   const posterUrl = entity.poster_path
+@@ -14,7 +15,7 @@ function Side({ entity }: { entity: SuggestedBattleEntity }) {
+         {posterUrl ? (
+           <Image
+             src={posterUrl}
+-            alt={entity.title}
++            alt={displayTitle(entity)}
+             width={80}
+             height={112}
+             className="h-full w-full object-cover"
+@@ -25,7 +26,7 @@ function Side({ entity }: { entity: SuggestedBattleEntity }) {
+           </div>
+         )}
+       </div>
+-      <p className="line-clamp-2 text-sm font-medium text-ink">{entity.title}</p>
++      <p className="line-clamp-2 text-sm font-medium text-ink">{displayTitle(entity)}</p>
+       <ScoreBadge score={entity.computed_score} />
+     </div>
+   );
+@@ -36,7 +37,7 @@ export default function SuggestedBattleCard({ battle }: { battle: SuggestedBattl
+ 
+   return (
+     <div className="rounded-xl border border-border bg-surface/60 p-5">
+-      <h3 className="text-sm font-bold text-ink">Battle پیشنهادی</h3>
++      <h3 className="text-sm font-bold text-ink">نبرد پیشنهادی</h3>
+       <p className="mt-1 text-xs text-muted">
+         این یکی رو با یکی از موردعلاقه‌های خودت مقایسه کن
+       </p>
+@@ -51,7 +52,7 @@ export default function SuggestedBattleCard({ battle }: { battle: SuggestedBattl
+         href={battleHref}
+         className="mt-5 block rounded-lg bg-gold px-4 py-2 text-center text-sm font-bold text-bg transition hover:bg-gold/90"
+       >
+-        شروع Battle
++        شروع نبرد
+       </Link>
+     </div>
+   );
+diff --git a/frontend/components/TasteContributionCard.tsx b/frontend/components/TasteContributionCard.tsx
+index 0fccc4c..116566e 100644
+--- a/frontend/components/TasteContributionCard.tsx
++++ b/frontend/components/TasteContributionCard.tsx
+@@ -26,7 +26,7 @@ export default function TasteContributionCard({ stats }: TasteContributionCardPr
+ 
+       <div className="mt-4 grid grid-cols-3 gap-3">
+         <StatTile value={stats.votes_count} label="رأی" />
+-        <StatTile value={stats.battles_count} label="Battle" />
++        <StatTile value={stats.battles_count} label="نبرد" />
+         <StatTile value={stats.comments_count} label="نظر" />
+       </div>
+ 
+diff --git a/frontend/components/TasteDnaEmptyState.tsx b/frontend/components/TasteDnaEmptyState.tsx
+index a89dbb9..c64c6c9 100644
+--- a/frontend/components/TasteDnaEmptyState.tsx
++++ b/frontend/components/TasteDnaEmptyState.tsx
+@@ -5,7 +5,7 @@ export default function TasteDnaEmptyState() {
+     <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center">
+       <p className="text-sm text-ink">هنوز داریم سلیقه‌ات رو می‌شناسیم</p>
+       <p className="mt-2 text-xs text-muted">
+-        با چند رأی و Battle بیشتر، Taste DNA‌ات شکل می‌گیرد.
++        با چند رأی و نبرد بیشتر، Taste DNA‌ات شکل می‌گیرد.
+       </p>
+       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+         <Link
+diff --git a/frontend/lib/title.ts b/frontend/lib/title.ts
+new file mode 100644
+index 0000000..de2f35a
+--- /dev/null
++++ b/frontend/lib/title.ts
+@@ -0,0 +1,16 @@
++/**
++ * Composes the "PersianTitle (EnglishTitle)" display format for a movie/tv
++ * entity, e.g. "پدرخوانده (Godfather)". Falls back to just the plain title
++ * when there's no Persian translation on file (title_fa is null -- either
++ * the entity hasn't been re-synced since fa-IR fetching was added, or TMDb
++ * has no Persian translation for it; see sync/normalizer.py's
++ * _persian_title for how title_fa is decided).
++ *
++ * Year is deliberately NOT appended here: every place that renders a title
++ * already shows the year separately nearby (a line under the heading, a
++ * badge on a list row), so folding it into this string too would just
++ * duplicate it.
++ */
++export function displayTitle(entity: { title: string; title_fa?: string | null }): string {
++  return entity.title_fa ? `${entity.title_fa} (${entity.title})` : entity.title;
++}
+diff --git a/frontend/lib/types.ts b/frontend/lib/types.ts
+index a061912..c848ea7 100644
+--- a/frontend/lib/types.ts
++++ b/frontend/lib/types.ts
+@@ -27,6 +27,10 @@ export interface MovieListItem {
+   id: string;
+   slug: string;
+   title: string;
++  // Persian title from TMDb's fa-IR translation, when there is one distinct
++  // from `title` -- null for anything not yet re-synced or with no Persian
++  // translation available. Use displayTitle() from lib/title.ts to render.
++  title_fa: string | null;
+   // Defaults to "movie" server-side for entities synced before this field
+   // existed -- lets a mixed list (a person's filmography, a genre page)
+   // route each row to /movies/{slug} or /tv-series/{slug} correctly.
+@@ -161,6 +165,7 @@ export type VoteOutcome = "left" | "right" | "skip";
+ export interface BattleEntity {
+   id: string;
+   title: string;
++  title_fa: string | null;
+   /**
+    * NOTE: despite the name, the backend currently returns whatever raw
+    * value it finds in Entity.attributes (poster_path / poster_url /
+@@ -187,6 +192,7 @@ export interface SuggestedBattleEntity {
+   id: string;
+   slug: string;
+   title: string;
++  title_fa: string | null;
+   entity_type: string;
+   poster_path: string | null;
+   computed_score: number | null;
+diff --git a/tests/test_normalizer_persian_overview.py b/tests/test_normalizer_persian_overview.py
+index 100494e..fb28e17 100644
+--- a/tests/test_normalizer_persian_overview.py
++++ b/tests/test_normalizer_persian_overview.py
+@@ -1,11 +1,12 @@
+ """
+-Unit tests for the Persian-overview fallback in normalize_movie/normalize_tv_series
+-(see SyncService.sync_movie/sync_tv_series, which fetch a second TMDb response
+-with language=fa-IR just for this). No DB or network needed.
++Unit tests for the Persian-overview and Persian-title fallback in
++normalize_movie/normalize_tv_series (see SyncService.sync_movie/sync_tv_series,
++which fetch a second TMDb response with language=fa-IR just for these). No
++DB or network needed.
+ 
+ Run with: pytest tests/test_normalizer_persian_overview.py
+ """
+-from app.modules.sync.normalizer import normalize_movie, normalize_tv_series
++from app.modules.sync.normalizer import _persian_title, normalize_movie, normalize_tv_series
+ 
+ RAW_MOVIE = {
+     "id": 238,
+@@ -66,3 +67,50 @@ def test_normalize_tv_series_falls_back_to_english_when_no_persian_translation()
+     normalized = normalize_tv_series(RAW_TV, raw_fa)
+ 
+     assert normalized["attributes"]["overview"] == RAW_TV["overview"]
++
++
++# --- title_fa (used for the "PersianTitle (EnglishTitle)" display format) ---
++
++
++def test_persian_title_returns_translation_when_it_differs_from_english():
++    assert _persian_title("پدرخوانده", "The Godfather") == "پدرخوانده"
++
++
++def test_persian_title_is_none_when_tmdb_has_no_translation():
++    # Unlike overview, TMDb's title/name field is never empty -- when there's
++    # no fa-IR translation it just echoes back the same value the default-
++    # language request got. That's the signal treated as "no translation".
++    assert _persian_title("The Godfather", "The Godfather") is None
++
++
++def test_persian_title_is_none_when_missing_or_empty():
++    assert _persian_title(None, "The Godfather") is None
++    assert _persian_title("", "The Godfather") is None
++
++
++def test_normalize_movie_sets_title_fa_when_translation_available():
++    raw_fa = {**RAW_MOVIE, "title": "پدرخوانده"}
++
++    normalized = normalize_movie(RAW_MOVIE, raw_fa)
++
++    assert normalized["attributes"]["title_fa"] == "پدرخوانده"
++
++
++def test_normalize_movie_title_fa_is_none_without_translation():
++    normalized = normalize_movie(RAW_MOVIE, {**RAW_MOVIE})  # raw_fa echoes the English title back
++
++    assert normalized["attributes"]["title_fa"] is None
++
++
++def test_normalize_tv_series_sets_title_fa_when_translation_available():
++    raw_fa = {**RAW_TV, "name": "برکینگ بد"}
++
++    normalized = normalize_tv_series(RAW_TV, raw_fa)
++
++    assert normalized["attributes"]["title_fa"] == "برکینگ بد"
++
++
++def test_normalize_tv_series_title_fa_is_none_without_translation():
++    normalized = normalize_tv_series(RAW_TV, {**RAW_TV})
++
++    assert normalized["attributes"]["title_fa"] is None

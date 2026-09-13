@@ -4,6 +4,7 @@ import Constellation from "./Constellation";
 import ScoreBadge from "./ScoreBadge";
 import { MovieListItem } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
+import { displayTitle } from "@/lib/title";
 
 export default function EntityRow({
   movie,
@@ -33,7 +34,7 @@ export default function EntityRow({
         {posterUrl ? (
           <Image
             src={posterUrl}
-            alt={movie.title}
+            alt={displayTitle(movie)}
             width={44}
             height={64}
             className="h-full w-full object-cover"
@@ -47,7 +48,7 @@ export default function EntityRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <h3 className="truncate font-medium text-ink">{movie.title}</h3>
+          <h3 className="truncate font-medium text-ink">{displayTitle(movie)}</h3>
           {isTvSeries && (
             <span className="num shrink-0 rounded-full border border-teal/40 bg-teal/10 px-1.5 py-0.5 text-[10px] text-teal">
               سریال

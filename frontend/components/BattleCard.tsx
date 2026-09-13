@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { BattleEntity } from "@/lib/types";
+import { displayTitle } from "@/lib/title";
 
 function posterSrc(poster: string | null): string | null {
   if (!poster) return null;
@@ -88,7 +89,7 @@ export default function BattleCard({
         {src ? (
           <Image
             src={src}
-            alt={entity.title}
+            alt={displayTitle(entity)}
             fill
             sizes="(max-width: 768px) 45vw, 320px"
             className="object-cover"
@@ -114,7 +115,7 @@ export default function BattleCard({
       </div>
 
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <h3 className="line-clamp-2 font-medium text-ink">{entity.title}</h3>
+        <h3 className="line-clamp-2 font-medium text-ink">{displayTitle(entity)}</h3>
         {revealScore && (
           <span className="num text-xs text-muted">
             امتیاز Elo: {Math.round(entity.elo_score)}

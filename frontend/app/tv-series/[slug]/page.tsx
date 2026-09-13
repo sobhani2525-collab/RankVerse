@@ -9,6 +9,7 @@ import NotableRankings from "@/components/NotableRankings";
 import SuggestedBattleSection from "@/components/SuggestedBattleSection";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
+import { displayTitle } from "@/lib/title";
 
 export const revalidate = 60;
 
@@ -114,7 +115,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           {posterUrl ? (
             <Image
               src={posterUrl}
-              alt={tv.title}
+              alt={displayTitle(tv)}
               width={192}
               height={288}
               className="h-full w-full object-cover"
@@ -129,7 +130,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-ink">{tv.title}</h1>
+              <h1 className="text-2xl font-bold text-ink">{displayTitle(tv)}</h1>
               <SeasonsAndYears tv={tv} />
             </div>
             <Constellation director={mainCreator} genre={mainGenre} year={tv.year} size={80} />

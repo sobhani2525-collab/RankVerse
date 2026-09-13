@@ -1,6 +1,23 @@
 from slugify import slugify
 
 
+def _persian_title(title_fa: str | None, title_en: str | None) -> str | None:
+    """
+    Unlike overview (which TMDb returns as an empty string when there's no
+    fa-IR translation), TMDb's "title"/"name" field is never empty -- when
+    there's no Persian translation it just falls back to returning the same
+    value as the default-language request. So "no real translation" shows
+    up as title_fa == title_en, not as title_fa being falsy, and that's the
+    case this treats as "no Persian title" (returns None) rather than
+    storing a duplicate of the English title under a different key.
+    """
+    if not title_fa or not title_en:
+        return None
+    if title_fa.strip() == title_en.strip():
+        return None
+    return title_fa
+
+
 def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
     """
     Convert a raw TMDb /movie/{id} response (with credits appended) into the
@@ -22,9 +39,11 @@ def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
 
     poster_path = raw.get("poster_path")
     overview_fa = (raw_fa or {}).get("overview") or None
+    title_fa = _persian_title((raw_fa or {}).get("title"), raw.get("title"))
 
     entity_attrs = {
         "poster_path": poster_path,
+        "title_fa": title_fa,
         "overview": overview_fa or raw.get("overview"),
         "runtime": raw.get("runtime"),
         "year": year,
@@ -115,9 +134,11 @@ def normalize_tv_series(raw: dict, raw_fa: dict | None = None) -> dict:
 
     poster_path = raw.get("poster_path")
     overview_fa = (raw_fa or {}).get("overview") or None
+    title_fa = _persian_title((raw_fa or {}).get("name"), raw.get("name"))
 
     entity_attrs = {
         "poster_path": poster_path,
+        "title_fa": title_fa,
         "overview": overview_fa or raw.get("overview"),
         "year": year,
         "country": (raw.get("origin_country") or [None])[0],

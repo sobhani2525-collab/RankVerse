@@ -9,6 +9,7 @@ import NotableRankings from "@/components/NotableRankings";
 import SuggestedBattleSection from "@/components/SuggestedBattleSection";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
+import { displayTitle } from "@/lib/title";
 
 export const revalidate = 60;
 
@@ -52,7 +53,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           {posterUrl ? (
             <Image
               src={posterUrl}
-              alt={movie.title}
+              alt={displayTitle(movie)}
               width={192}
               height={288}
               className="h-full w-full object-cover"
@@ -67,7 +68,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-ink">{movie.title}</h1>
+              <h1 className="text-2xl font-bold text-ink">{displayTitle(movie)}</h1>
               <p className="num mt-1 text-sm text-muted">
                 {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} دقیقه` : ""}
               </p>

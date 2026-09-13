@@ -55,6 +55,7 @@ async def get_next_battle(
         left=BattleEntity(
             id=anchor.id,
             title=anchor.title,
+            title_fa=(anchor.attributes or {}).get("title_fa"),
             poster_url=_poster_url(anchor),
             elo_score=anchor_elo.elo_score,
             matches_played=anchor_elo.matches_played,
@@ -62,6 +63,7 @@ async def get_next_battle(
         right=BattleEntity(
             id=opponent.id,
             title=opponent.title,
+            title_fa=(opponent.attributes or {}).get("title_fa"),
             poster_url=_poster_url(opponent),
             elo_score=opponent_elo.elo_score,
             matches_played=opponent_elo.matches_played,

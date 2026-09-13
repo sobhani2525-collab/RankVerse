@@ -16,6 +16,7 @@ class BattleEntity(BaseModel):
 
     id: uuid.UUID
     title: str
+    title_fa: str | None = None
     poster_url: str | None = None
     elo_score: float
     matches_played: int
@@ -73,6 +74,7 @@ class SuggestedBattleEntity(BaseModel):
     id: uuid.UUID
     slug: str
     title: str
+    title_fa: str | None = None
     entity_type: str
     poster_path: str | None = None
     computed_score: float | None = None

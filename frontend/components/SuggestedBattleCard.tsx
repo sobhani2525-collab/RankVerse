@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ScoreBadge from "./ScoreBadge";
 import { SuggestedBattle, SuggestedBattleEntity } from "@/lib/types";
+import { displayTitle } from "@/lib/title";
 
 function Side({ entity }: { entity: SuggestedBattleEntity }) {
   const posterUrl = entity.poster_path
@@ -14,7 +15,7 @@ function Side({ entity }: { entity: SuggestedBattleEntity }) {
         {posterUrl ? (
           <Image
             src={posterUrl}
-            alt={entity.title}
+            alt={displayTitle(entity)}
             width={80}
             height={112}
             className="h-full w-full object-cover"
@@ -25,7 +26,7 @@ function Side({ entity }: { entity: SuggestedBattleEntity }) {
           </div>
         )}
       </div>
-      <p className="line-clamp-2 text-sm font-medium text-ink">{entity.title}</p>
+      <p className="line-clamp-2 text-sm font-medium text-ink">{displayTitle(entity)}</p>
       <ScoreBadge score={entity.computed_score} />
     </div>
   );
@@ -36,7 +37,7 @@ export default function SuggestedBattleCard({ battle }: { battle: SuggestedBattl
 
   return (
     <div className="rounded-xl border border-border bg-surface/60 p-5">
-      <h3 className="text-sm font-bold text-ink">Battle پیشنهادی</h3>
+      <h3 className="text-sm font-bold text-ink">نبرد پیشنهادی</h3>
       <p className="mt-1 text-xs text-muted">
         این یکی رو با یکی از موردعلاقه‌های خودت مقایسه کن
       </p>
@@ -51,7 +52,7 @@ export default function SuggestedBattleCard({ battle }: { battle: SuggestedBattl
         href={battleHref}
         className="mt-5 block rounded-lg bg-gold px-4 py-2 text-center text-sm font-bold text-bg transition hover:bg-gold/90"
       >
-        شروع Battle
+        شروع نبرد
       </Link>
     </div>
   );

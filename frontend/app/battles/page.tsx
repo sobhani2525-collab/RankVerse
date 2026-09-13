@@ -35,7 +35,7 @@ function BattlesPageInner() {
   const { token, isAuthenticated, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
 
-  // A SuggestedBattleCard's "شروع Battle" link arrives as
+  // A SuggestedBattleCard's "شروع نبرد" link arrives as
   // /battles?category=movie&left_id=...&right_id=... -- consumed once for
   // the first load only; a later "رد کردن"/vote goes back to the normal
   // random/closest-opponent flow rather than repeating the same pair.
