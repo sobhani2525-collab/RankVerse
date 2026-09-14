@@ -23,12 +23,5 @@
   },
   "observability": {
     "enabled": true
-  },
-  // Raised for the OG image route (frontend/app/lists/[slug]/opengraph-image.tsx),
-  // which does font shaping + PNG rasterization via Satori/resvg -- CPU-heavy enough
-  // to trip the platform default and return a 1102 "Worker exceeded resource limits"
-  // error. 30000 is the max Workers allows (actual ceiling still depends on plan).
-  "limits": {
-    "cpu_ms": 30000
   }
 }
