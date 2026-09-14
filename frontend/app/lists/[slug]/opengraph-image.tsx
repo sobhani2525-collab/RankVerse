@@ -77,24 +77,6 @@ async function loadVazirmatnBold(text: string): Promise<ArrayBuffer> {
   return fontRes.arrayBuffer();
 }
 
-// Fetches posters ourselves and hands Satori a data: URI instead of a
-// remote src -- Satori's own internal image fetch fails silently (no
-// thrown error, the <img> just renders blank), so this is the only way
-// to know when a poster actually failed to load, and it's more robust
-// than trusting an opaque internal fetch anyway. A single failed poster
-// is dropped rather than breaking the whole image.
-async function fetchPosterDataUri(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const contentType = res.headers.get("content-type") || "image/jpeg";
-    const buf = await res.arrayBuffer();
-    return `data:${contentType};base64,${Buffer.from(buf).toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
-
 function fallbackImage() {
   return new ImageResponse(
     (
@@ -123,14 +105,11 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   try {
     const detail = await getListBySlug(slug);
 
-    const rawPosterUrls = detail.items
+    const posterUrls = detail.items
       .slice(0, 4)
       .map((item) => item.entity.poster_path)
       .filter((p): p is string => Boolean(p))
       .map((p) => `${POSTER_BASE}${p}`);
-    const posterUrls = (await Promise.all(rawPosterUrls.map(fetchPosterDataUri))).filter(
-      (uri): uri is string => Boolean(uri)
-    );
 
     // Reversed once, rendered as a single no-wrap line in literal
     // left-to-right flex order (direction: ltr below) -- reads correctly
@@ -194,7 +173,6 @@ export default async function Image({ params }: { params: Promise<{ slug: string
                     top: collageOffsets[i].top,
                     borderRadius: 14,
                     border: `4px solid ${COLORS.surface}`,
-                    boxShadow: "0 24px 48px rgba(0,0,0,0.55)",
                     objectFit: "cover",
                     transform: `rotate(${collageOffsets[i].rotate}deg)`,
                   }}
