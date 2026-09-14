@@ -1,15 +1,16 @@
 import uuid
 
 from slugify import slugify
-from app.modules.lists.models import UserList
+from app.modules.lists.models import UserList, UserListItem, ContributionMode, ListType
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedError
 from app.modules.entities.repository import EntityRepository
 from app.modules.lists.repository import ListRepository
+from app.modules.lists.scoring import compute_like_score, community_order_key
 from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
-    ListItemPublic, EntityMini, CommentCreate, CommentPublic,
+    ListItemPublic, EntityMini, CommentCreate, CommentPublic, ListItemVoteResult,
 )
 from app.modules.taste.compute import ContributionStatsComputer
 
@@ -40,9 +41,20 @@ class ListService:
             is_ranked=payload.is_ranked,
             visibility=payload.visibility,
             tags=payload.tags,
+            list_type=payload.list_type,
+            contribution_mode=payload.contribution_mode,
         )
         await self.db.commit()
         return lst
+
+    def _can_add_item(self, lst: UserList, user_id: uuid.UUID, is_following: bool) -> bool:
+        if user_id == lst.user_id:
+            return True
+        if lst.contribution_mode == ContributionMode.ANYONE:
+            return True
+        if lst.contribution_mode == ContributionMode.FOLLOWERS_ONLY:
+            return is_following
+        return False
 
     async def get_list_detail(self, slug: str, current_user_id: uuid.UUID | None) -> ListDetail:
         lst = await self.repo.get_by_slug(slug)
@@ -57,9 +69,20 @@ class ListService:
 
         is_liked = False
         is_following = False
+        is_owner = (current_user_id == lst.user_id) if current_user_id else False
+        my_votes: dict[uuid.UUID, bool] = {}
         if current_user_id:
             is_liked = (await self.repo.get_like(lst.id, current_user_id)) is not None
             is_following = (await self.repo.get_follow(lst.id, current_user_id)) is not None
+            my_votes = await self.repo.user_item_votes_for_list(lst.id, current_user_id)
+
+        vote_counts = await self.repo.item_vote_counts_for_list(lst.id)
+
+        ordered = list(lst.items)
+        if lst.list_type == ListType.COMMUNITY_ORDERED:
+            ordered.sort(key=lambda i: community_order_key(i.id, i.like_score, i.added_at))
+        else:
+            ordered.sort(key=lambda i: i.position)
 
         items = [
             ListItemPublic(
@@ -67,6 +90,13 @@ class ListService:
                 position=item.position,
                 note=item.note,
                 added_at=item.added_at,
+                added_by_user_id=item.added_by_user_id,
+                like_score=item.like_score,
+                like_count=vote_counts.get(item.id, (0, 0))[0],
+                dislike_count=vote_counts.get(item.id, (0, 0))[1],
+                is_own=(current_user_id == item.added_by_user_id) if current_user_id else False,
+                can_remove=is_owner or (current_user_id == item.added_by_user_id if current_user_id else False),
+                my_vote=my_votes.get(item.id),
                 entity=EntityMini(
                     id=item.entity.id,
                     slug=item.entity.slug,
@@ -75,7 +105,7 @@ class ListService:
                     poster_path=item.entity.attributes.get("poster_path"),
                 ),
             )
-            for item in lst.items
+            for item in ordered
         ]
 
         return ListDetail(
@@ -88,6 +118,8 @@ class ListService:
             visibility=lst.visibility,
             cover_image_url=lst.cover_image_url,
             tags=lst.tags,
+            list_type=lst.list_type,
+            contribution_mode=lst.contribution_mode,
             view_count=lst.view_count,
             like_count=lst.like_count,
             comment_count=lst.comment_count,
@@ -96,7 +128,7 @@ class ListService:
             items=items,
             is_liked=is_liked,
             is_following=is_following,
-            is_owner=(current_user_id == lst.user_id) if current_user_id else False,
+            is_owner=is_owner,
         )
 
     async def update_list(self, user_id: uuid.UUID, slug: str, payload: ListUpdate) -> UserList:
@@ -113,6 +145,8 @@ class ListService:
             visibility=payload.visibility,
             cover_image_url=payload.cover_image_url,
             tags=payload.tags,
+            list_type=payload.list_type,
+            contribution_mode=payload.contribution_mode,
         )
         await self.db.commit()
         return lst
@@ -143,8 +177,12 @@ class ListService:
         lst = await self.repo.get_by_slug(slug)
         if not lst:
             raise NotFoundError(f"List '{slug}' not found")
-        if lst.user_id != user_id:
-            raise UnauthorizedError("You don't have permission to edit this list")
+
+        is_following = False
+        if user_id != lst.user_id and lst.contribution_mode == ContributionMode.FOLLOWERS_ONLY:
+            is_following = (await self.repo.get_follow(lst.id, user_id)) is not None
+        if not self._can_add_item(lst, user_id, is_following):
+            raise UnauthorizedError("You don't have permission to add items to this list")
 
         entity = await self.entity_repo.get_by_id(payload.entity_id)
         if not entity:
@@ -154,7 +192,9 @@ class ListService:
             raise AlreadyExistsError("This item is already in the list")
 
         position = await self.repo.max_position(lst.id) + 1
-        item = await self.repo.add_item(lst.id, entity.id, entity.entity_type, payload.note, position)
+        item = await self.repo.add_item(
+            lst.id, entity.id, entity.entity_type, payload.note, position, added_by_user_id=user_id
+        )
         await self.db.commit()
 
         return ListItemPublic(
@@ -162,6 +202,9 @@ class ListService:
             position=item.position,
             note=item.note,
             added_at=item.added_at,
+            added_by_user_id=item.added_by_user_id,
+            is_own=True,
+            can_remove=True,
             entity=EntityMini(
                 id=entity.id, slug=entity.slug, title=entity.title,
                 entity_type=entity.entity_type, poster_path=entity.attributes.get("poster_path"),
@@ -172,12 +215,15 @@ class ListService:
         lst = await self.repo.get_by_slug(slug)
         if not lst:
             raise NotFoundError(f"List '{slug}' not found")
-        if lst.user_id != user_id:
-            raise UnauthorizedError("You don't have permission to edit this list")
 
         item = await self.repo.get_item(lst.id, item_id)
         if not item:
             raise NotFoundError("Item not found in this list")
+
+        is_owner = lst.user_id == user_id
+        is_contributor = item.added_by_user_id == user_id
+        if not (is_owner or is_contributor):
+            raise UnauthorizedError("You don't have permission to remove this item")
 
         await self.repo.remove_item(item)
         await self.db.commit()
@@ -191,6 +237,49 @@ class ListService:
 
         await self.repo.reorder_items(lst.id, item_ids)
         await self.db.commit()
+
+    # --- Item likes (community_ordered scoring) ---
+
+    async def _recompute_item_score(self, item_id: uuid.UUID) -> tuple[float, int, int]:
+        likes, dislikes = await self.repo.count_item_votes(item_id)
+        score = compute_like_score(likes, dislikes)
+        await self.repo.set_item_like_score(item_id, score)
+        return score, likes, dislikes
+
+    async def vote_item(
+        self, user_id: uuid.UUID, slug: str, item_id: uuid.UUID, is_like: bool
+    ) -> ListItemVoteResult:
+        lst = await self.repo.get_by_slug(slug)
+        if not lst:
+            raise NotFoundError(f"List '{slug}' not found")
+
+        item = await self.repo.get_item(lst.id, item_id)
+        if not item:
+            raise NotFoundError("Item not found in this list")
+
+        await self.repo.upsert_item_vote(item.id, user_id, is_like)
+        score, likes, dislikes = await self._recompute_item_score(item.id)
+        await self.db.commit()
+
+        return ListItemVoteResult(like_score=score, like_count=likes, dislike_count=dislikes, my_vote=is_like)
+
+    async def remove_item_vote(self, user_id: uuid.UUID, slug: str, item_id: uuid.UUID) -> ListItemVoteResult:
+        lst = await self.repo.get_by_slug(slug)
+        if not lst:
+            raise NotFoundError(f"List '{slug}' not found")
+
+        item = await self.repo.get_item(lst.id, item_id)
+        if not item:
+            raise NotFoundError("Item not found in this list")
+
+        existing = await self.repo.get_item_like(item.id, user_id)
+        if existing:
+            await self.repo.remove_item_vote(existing)
+
+        score, likes, dislikes = await self._recompute_item_score(item.id)
+        await self.db.commit()
+
+        return ListItemVoteResult(like_score=score, like_count=likes, dislike_count=dislikes, my_vote=None)
 
     # --- Social: likes ---
 

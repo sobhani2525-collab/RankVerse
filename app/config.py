@@ -57,6 +57,13 @@ class Settings(BaseSettings):
     taste_predicted_picks_dimension_weight: float = 0.6
     taste_predicted_picks_ranking_weight: float = 0.4
 
+    # Community-ordered list item scoring (see app/modules/lists/scoring.py):
+    # a Bayesian-average shrinkage of the like/dislike ratio toward a global
+    # prior, same v/(v+k) family as ranking_min_votes above. K is how many
+    # votes it takes for an item's own ratio to outweigh the prior.
+    list_item_score_k: float = 5.0
+    list_item_score_global_avg: float = 0.5
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

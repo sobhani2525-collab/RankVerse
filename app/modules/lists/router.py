@@ -8,7 +8,7 @@ from app.core.schemas import envelope, Meta
 from app.modules.auth.dependencies import get_current_user, get_current_user_optional
 from app.modules.users.models import User
 from app.modules.lists.schemas import (
-    ListCreate, ListUpdate, ListItemCreate, ListItemReorder, CommentCreate,
+    ListCreate, ListUpdate, ListItemCreate, ListItemReorder, ListItemLikeCreate, CommentCreate,
 )
 from app.modules.lists.service import ListService
 
@@ -123,6 +123,31 @@ async def reorder_items(
     service = ListService(db)
     await service.reorder_items(current_user.id, slug, payload.item_ids)
     return envelope(data={"reordered": True})
+
+
+@router.post("/lists/{slug}/items/{item_id}/like")
+async def vote_item(
+    slug: str,
+    item_id: uuid.UUID,
+    payload: ListItemLikeCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ListService(db)
+    result = await service.vote_item(current_user.id, slug, item_id, payload.is_like)
+    return envelope(data=result.model_dump())
+
+
+@router.delete("/lists/{slug}/items/{item_id}/like")
+async def remove_item_vote(
+    slug: str,
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ListService(db)
+    result = await service.remove_item_vote(current_user.id, slug, item_id)
+    return envelope(data=result.model_dump())
 
 
 # --- Social ---

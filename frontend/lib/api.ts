@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, ListType, ListContributionMode, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -294,6 +294,8 @@ export async function createList(
     is_ranked?: boolean;
     visibility?: string;
     tags?: string[];
+    list_type?: ListType;
+    contribution_mode?: ListContributionMode;
   }
 ): Promise<{ id: string; slug: string }> {
   return authFetch(`/lists`, token, { method: "POST", body: payload });
@@ -308,6 +310,8 @@ export async function updateList(
     visibility: string;
     cover_image_url: string;
     tags: string[];
+    list_type: ListType;
+    contribution_mode: ListContributionMode;
   }>
 ): Promise<{ id: string; slug: string }> {
   return authFetch(`/lists/${slug}`, token, { method: "PUT", body: payload });
@@ -338,6 +342,33 @@ export async function reorderListItems(token: string, slug: string, itemIds: str
     method: "PUT",
     body: { item_ids: itemIds },
   });
+}
+
+export interface ListItemVoteResult {
+  like_score: number | null;
+  like_count: number;
+  dislike_count: number;
+  my_vote: boolean | null;
+}
+
+export async function voteListItem(
+  token: string,
+  slug: string,
+  itemId: string,
+  isLike: boolean
+): Promise<ListItemVoteResult> {
+  return authFetch(`/lists/${slug}/items/${itemId}/like`, token, {
+    method: "POST",
+    body: { is_like: isLike },
+  });
+}
+
+export async function removeListItemVote(
+  token: string,
+  slug: string,
+  itemId: string
+): Promise<ListItemVoteResult> {
+  return authFetch(`/lists/${slug}/items/${itemId}/like`, token, { method: "DELETE" });
 }
 
 export async function toggleListLike(token: string, slug: string): Promise<{ liked: boolean }> {

@@ -7,6 +7,7 @@ import ListActions from "./ListActions";
 import ListComments from "./ListComments";
 import AddListItem from "./AddListItem";
 import ListItemsManager from "./ListItemsManager";
+import ListSettings, { CONTRIBUTION_MODE_LABELS } from "./ListSettings";
 import ShareListButton from "./ShareListButton";
 
 export default function ListDetailClient({
@@ -18,8 +19,14 @@ export default function ListDetailClient({
   initialDetail: ListDetail;
   initialComments: ListComment[];
 }) {
-  const { token, loading: authLoading } = useAuth();
+  const { token, user, loading: authLoading } = useAuth();
   const [detail, setDetail] = useState(initialDetail);
+
+  function refetch() {
+    if (token) {
+      getListBySlug(slug, token).then(setDetail).catch(() => {});
+    }
+  }
 
   useEffect(() => {
     if (!authLoading && token) {
@@ -32,6 +39,11 @@ export default function ListDetailClient({
   }, [authLoading, token, slug]);
 
   const isOwner = detail.is_owner;
+  const canAddItem =
+    isOwner ||
+    (!!user &&
+      (detail.contribution_mode === "anyone" ||
+        (detail.contribution_mode === "followers_only" && detail.is_following)));
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
@@ -46,6 +58,9 @@ export default function ListDetailClient({
             #{tag}
           </span>
         ))}
+        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted">
+          {CONTRIBUTION_MODE_LABELS[detail.contribution_mode]}
+        </span>
       </div>
 
       <h1 className="text-2xl font-bold text-ink">{detail.title}</h1>
@@ -73,14 +88,21 @@ export default function ListDetailClient({
 
       {isOwner && (
         <div className="mt-8">
+          <ListSettings
+            slug={slug}
+            initialListType={detail.list_type}
+            initialContributionMode={detail.contribution_mode}
+            onChanged={refetch}
+          />
+        </div>
+      )}
+
+      {canAddItem && (
+        <div className="mt-8">
           <AddListItem
             slug={slug}
             entityType={detail.entity_type}
-            onAdded={() => {
-              if (token) {
-                getListBySlug(slug, token).then(setDetail);
-              }
-            }}
+            onAdded={refetch}
           />
         </div>
       )}
@@ -89,6 +111,7 @@ export default function ListDetailClient({
         <ListItemsManager
           key={detail.items.map((i) => i.id).join(",")}
           slug={slug}
+          listType={detail.list_type}
           isRanked={detail.is_ranked}
           isOwner={isOwner}
           initialItems={detail.items}

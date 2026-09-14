@@ -1,12 +1,12 @@
 import uuid
 
-from sqlalchemy import select, func, update, delete
+from sqlalchemy import select, func, case, update, delete
 from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.lists.models import (
-    UserList, UserListItem, ListLike, ListFollow, ListComment
+    UserList, UserListItem, ListLike, ListFollow, ListComment, ListItemLike
 )
 
 
@@ -86,13 +86,22 @@ class ListRepository:
 
     # --- Items ---
 
-    async def add_item(self, list_id: uuid.UUID, entity_id: uuid.UUID, entity_type: str, note: str | None, position: int) -> UserListItem:
+    async def add_item(
+        self,
+        list_id: uuid.UUID,
+        entity_id: uuid.UUID,
+        entity_type: str,
+        note: str | None,
+        position: int,
+        added_by_user_id: uuid.UUID,
+    ) -> UserListItem:
         item = UserListItem(
             list_id=list_id,
             entity_id=entity_id,
             entity_type=entity_type,
             note=note,
             position=position,
+            added_by_user_id=added_by_user_id,
         )
         self.db.add(item)
         await self.db.flush()
@@ -148,6 +157,65 @@ class ListRepository:
         await self.db.delete(like)
         await self.db.execute(
             update(UserList).where(UserList.id == like.list_id).values(like_count=UserList.like_count - 1)
+        )
+
+    # --- Item likes (per-item, distinct from the whole-list ListLike above) ---
+
+    async def get_item_like(self, item_id: uuid.UUID, user_id: uuid.UUID) -> ListItemLike | None:
+        stmt = select(ListItemLike).where(
+            ListItemLike.list_item_id == item_id, ListItemLike.user_id == user_id
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def upsert_item_vote(self, item_id: uuid.UUID, user_id: uuid.UUID, is_like: bool) -> ListItemLike:
+        existing = await self.get_item_like(item_id, user_id)
+        if existing:
+            existing.is_like = is_like
+        else:
+            existing = ListItemLike(list_item_id=item_id, user_id=user_id, is_like=is_like)
+            self.db.add(existing)
+        await self.db.flush()
+        return existing
+
+    async def remove_item_vote(self, vote: ListItemLike) -> None:
+        await self.db.delete(vote)
+        await self.db.flush()
+
+    async def count_item_votes(self, item_id: uuid.UUID) -> tuple[int, int]:
+        stmt = select(
+            func.sum(case((ListItemLike.is_like.is_(True), 1), else_=0)),
+            func.sum(case((ListItemLike.is_like.is_(False), 1), else_=0)),
+        ).where(ListItemLike.list_item_id == item_id)
+        likes, dislikes = (await self.db.execute(stmt)).one()
+        return likes or 0, dislikes or 0
+
+    async def item_vote_counts_for_list(self, list_id: uuid.UUID) -> dict[uuid.UUID, tuple[int, int]]:
+        stmt = (
+            select(
+                ListItemLike.list_item_id,
+                func.sum(case((ListItemLike.is_like.is_(True), 1), else_=0)),
+                func.sum(case((ListItemLike.is_like.is_(False), 1), else_=0)),
+            )
+            .join(UserListItem, UserListItem.id == ListItemLike.list_item_id)
+            .where(UserListItem.list_id == list_id)
+            .group_by(ListItemLike.list_item_id)
+        )
+        result = await self.db.execute(stmt)
+        return {row[0]: (row[1] or 0, row[2] or 0) for row in result.all()}
+
+    async def user_item_votes_for_list(self, list_id: uuid.UUID, user_id: uuid.UUID) -> dict[uuid.UUID, bool]:
+        stmt = (
+            select(ListItemLike.list_item_id, ListItemLike.is_like)
+            .join(UserListItem, UserListItem.id == ListItemLike.list_item_id)
+            .where(UserListItem.list_id == list_id, ListItemLike.user_id == user_id)
+        )
+        result = await self.db.execute(stmt)
+        return {row[0]: row[1] for row in result.all()}
+
+    async def set_item_like_score(self, item_id: uuid.UUID, score: float) -> None:
+        await self.db.execute(
+            update(UserListItem).where(UserListItem.id == item_id).values(like_score=score)
         )
 
     # --- Follows ---

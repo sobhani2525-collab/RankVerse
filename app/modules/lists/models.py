@@ -1,14 +1,27 @@
+import enum
 import uuid
 from app.modules.entities.models import Entity
 from datetime import datetime
 
 from sqlalchemy import (
-    String, Text, Boolean, Integer, ForeignKey, DateTime, func, UniqueConstraint, Index
+    String, Text, Boolean, Integer, Float, ForeignKey, DateTime, Enum, func,
+    UniqueConstraint, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+
+class ListType(str, enum.Enum):
+    RANKED = "ranked"
+    COMMUNITY_ORDERED = "community_ordered"
+
+
+class ContributionMode(str, enum.Enum):
+    OWNER_ONLY = "owner_only"
+    ANYONE = "anyone"
+    FOLLOWERS_ONLY = "followers_only"
 
 
 class UserList(Base):
@@ -32,6 +45,27 @@ class UserList(Base):
     visibility: Mapped[str] = mapped_column(String(20), default="public", nullable=False)
     cover_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     tags: Mapped[list] = mapped_column(JSONB, default=list)
+
+    list_type: Mapped[ListType] = mapped_column(
+        Enum(
+            ListType,
+            name="list_type",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=ListType.RANKED,
+        server_default=ListType.RANKED.value,
+        nullable=False,
+    )
+    contribution_mode: Mapped[ContributionMode] = mapped_column(
+        Enum(
+            ContributionMode,
+            name="list_contribution_mode",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=ContributionMode.OWNER_ONLY,
+        server_default=ContributionMode.OWNER_ONLY.value,
+        nullable=False,
+    )
 
     view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     like_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -64,8 +98,15 @@ class UserListItem(Base):
     )
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
 
+    added_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Cached Bayesian-average score for community_ordered lists (see
+    # app/modules/lists/scoring.py). Null until the first vote is cast.
+    like_score: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     list: Mapped["UserList"] = relationship(back_populates="items")
@@ -97,6 +138,21 @@ class ListFollow(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ListItemLike(Base):
+    __tablename__ = "list_item_likes"
+    __table_args__ = (UniqueConstraint("list_item_id", "user_id", name="uq_list_item_like_once"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    list_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_list_items.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    is_like: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

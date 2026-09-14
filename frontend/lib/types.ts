@@ -113,11 +113,21 @@ export interface EntityMini {
   poster_path: string | null;
 }
 
+export type ListType = "ranked" | "community_ordered";
+export type ListContributionMode = "owner_only" | "anyone" | "followers_only";
+
 export interface ListItem {
   id: string;
   position: number;
   note: string | null;
   added_at: string;
+  added_by_user_id: string;
+  like_score: number | null;
+  like_count: number;
+  dislike_count: number;
+  is_own: boolean;
+  can_remove: boolean;
+  my_vote: boolean | null;
   entity: EntityMini;
 }
 
@@ -131,6 +141,8 @@ export interface ListSummary {
   visibility: string;
   cover_image_url: string | null;
   tags: string[];
+  list_type: ListType;
+  contribution_mode: ListContributionMode;
   view_count: number;
   like_count: number;
   comment_count: number;
