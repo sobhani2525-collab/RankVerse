@@ -92,6 +92,12 @@ class ListDetail(ListSummary):
     is_following: bool = False
     is_owner: bool = False
 
+class ListItemSuggestion(BaseModel):
+    entity: EntityMini
+    reason: str
+    reason_label_fa: str
+
+
 class ListItemVoteResult(BaseModel):
     like_score: float | None
     like_count: int

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { searchEntities, addListItem, SearchResult } from "@/lib/api";
+import SmartSuggestionChips from "./SmartSuggestionChips";
 
 const TYPE_LABELS: Record<string, string> = {
   movie: "فیلم",
@@ -11,10 +12,14 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function AddListItem({
   slug,
+  listId,
+  itemCount,
   entityType,
   onAdded,
 }: {
   slug: string;
+  listId: string;
+  itemCount: number;
   entityType: string | null;
   onAdded: () => void;
 }) {
@@ -71,6 +76,8 @@ export default function AddListItem({
   return (
     <div className="mb-6 rounded-xl border border-border bg-surface/60 p-4">
       <label className="mb-2 block text-sm text-muted">افزودن آیتم به لیست</label>
+
+      <SmartSuggestionChips listId={listId} slug={slug} itemCount={itemCount} onAdded={onAdded} />
 
       {!entityType && (
         <div className="mb-2 flex flex-wrap gap-1.5">

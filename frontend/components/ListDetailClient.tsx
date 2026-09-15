@@ -131,6 +131,8 @@ export default function ListDetailClient({
         <div className="mt-8">
           <AddListItem
             slug={slug}
+            listId={detail.id}
+            itemCount={detail.items.length}
             entityType={detail.entity_type}
             onAdded={refetch}
           />

@@ -205,3 +205,14 @@ async def get_lists_containing_entity(entity_id: uuid.UUID, db: AsyncSession = D
     service = ListService(db)
     lists = await service.get_lists_containing_entity(entity_id)
     return envelope(data=[l.model_dump() for l in lists])
+
+
+@router.get("/lists/{list_id}/suggestions")
+async def get_list_suggestions(
+    list_id: uuid.UUID,
+    limit: int = Query(6, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ListService(db)
+    suggestions = await service.get_smart_suggestions(list_id, limit)
+    return envelope(data=[s.model_dump() for s in suggestions])

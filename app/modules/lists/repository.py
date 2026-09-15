@@ -114,6 +114,11 @@ class ListRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def list_item_entity_ids(self, list_id: uuid.UUID) -> list[uuid.UUID]:
+        stmt = select(UserListItem.entity_id).where(UserListItem.list_id == list_id)
+        result = await self.db.execute(stmt)
+        return [row[0] for row in result.all()]
+
     async def item_exists(self, list_id: uuid.UUID, entity_id: uuid.UUID) -> bool:
         stmt = select(func.count()).select_from(UserListItem).where(
             UserListItem.list_id == list_id, UserListItem.entity_id == entity_id

@@ -128,6 +128,57 @@ class EntityRepository:
         result = await self.db.execute(stmt, {"e1": str(entity1_id), "e2": str(entity2_id)})
         return result.all()
 
+    async def find_top_shared_relation(
+        self, entity_ids: list[uuid.UUID], min_shared: int
+    ) -> list[tuple[str, uuid.UUID, str, int]]:
+        """
+        All (relation_type, target_entity_id) pairs that at least
+        `min_shared` of entity_ids point to via an outgoing edge, each with
+        the target's title and how many of entity_ids share it. One simple
+        indexed aggregate query (from_entity_id is indexed) -- callers pick
+        the best row themselves (e.g. to apply a relation_type priority
+        tie-break), no heavy recommendation engine involved.
+        """
+        if not entity_ids:
+            return []
+        stmt = (
+            select(
+                RelationshipEdge.relation_type,
+                RelationshipEdge.to_entity_id,
+                Entity.title,
+                func.count(func.distinct(RelationshipEdge.from_entity_id)).label("shared_count"),
+            )
+            .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+            .where(RelationshipEdge.from_entity_id.in_(entity_ids))
+            .group_by(RelationshipEdge.relation_type, RelationshipEdge.to_entity_id, Entity.title)
+            .having(func.count(func.distinct(RelationshipEdge.from_entity_id)) >= min_shared)
+        )
+        result = await self.db.execute(stmt)
+        return [(row[0], row[1], row[2], row[3]) for row in result.all()]
+
+    async def find_entities_by_relation(
+        self,
+        relation_type: str,
+        target_id: uuid.UUID,
+        exclude_ids: list[uuid.UUID],
+        limit: int = 6,
+    ) -> list[Entity]:
+        """Entities with their own outgoing (relation_type, target_id) edge --
+        e.g. other movies directed_by the same person -- excluding entities
+        already in the caller's set (e.g. the list's current items)."""
+        stmt = (
+            select(Entity)
+            .join(RelationshipEdge, RelationshipEdge.from_entity_id == Entity.id)
+            .where(
+                RelationshipEdge.relation_type == relation_type,
+                RelationshipEdge.to_entity_id == target_id,
+                Entity.id.notin_(exclude_ids),
+            )
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_related_ids(self, entity_id: uuid.UUID, limit: int = 30) -> list[uuid.UUID]:
         stmt = (
             select(RelationshipEdge.to_entity_id)

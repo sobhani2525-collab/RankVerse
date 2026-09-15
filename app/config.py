@@ -70,6 +70,20 @@ class Settings(BaseSettings):
     list_item_score_k: float = 5.0
     list_item_score_global_avg: float = 0.5
 
+    # Smart graph-based list-item suggestions (see
+    # ListService.get_smart_suggestions): a real-time aggregate over the
+    # existing relationships graph for a list's current items, not the
+    # heavier batch recommendation engine. min_shared_items is how many of
+    # the list's items must share a (relation_type, target) edge before it
+    # counts as a signal; relation_priority (comma-separated, most
+    # important first) breaks ties when multiple edges are shared by the
+    # same number of items.
+    list_suggestion_min_shared_items: int = 2
+    list_suggestion_limit: int = 6
+    list_suggestion_relation_priority: str = (
+        "directed_by,creator,has_genre,acted_in,performed_by,part_of,aired_on,similar_to"
+    )
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

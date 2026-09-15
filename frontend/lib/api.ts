@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, ListType, ListContributionMode, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -298,6 +298,23 @@ export async function getRelatedLists(slug: string): Promise<ListSummary[]> {
 
 export async function getListsContainingEntity(entityId: string): Promise<ListSummary[]> {
   return fetchEnvelope<ListSummary[]>(`/lists/for-entity/${entityId}`, 120);
+}
+
+export interface SmartSuggestion {
+  entity: EntityMini;
+  reason: string;
+  reason_label_fa: string;
+}
+
+// Real-time (not cached) -- reflects the list's current items, which can
+// change from one moment to the next while the user is adding items.
+export async function getListSuggestions(listId: string, limit: number = 6): Promise<SmartSuggestion[]> {
+  const res = await fetch(`${API_BASE}/lists/${listId}/suggestions?limit=${limit}`, { cache: "no-store" });
+  const json: Envelope<SmartSuggestion[]> = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || "Failed to fetch suggestions");
+  }
+  return json.data;
 }
 
 // --- Lists: authenticated writes ---

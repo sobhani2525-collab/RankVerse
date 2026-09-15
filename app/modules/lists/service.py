@@ -4,6 +4,7 @@ from slugify import slugify
 from app.modules.lists.models import UserList, UserListItem, ContributionMode, ListType
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedError
 from app.modules.entities.repository import EntityRepository
 from app.modules.lists.repository import ListRepository
@@ -11,8 +12,24 @@ from app.modules.lists.scoring import compute_like_score, community_order_key
 from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
     ListItemPublic, EntityMini, CommentCreate, CommentPublic, ListItemVoteResult,
+    ListItemSuggestion,
 )
 from app.modules.taste.compute import ContributionStatsComputer
+
+# Persian label prefix per relation_type for the smart-suggestion "why"
+# chip (see ListService.get_smart_suggestions) -- e.g. "کارگردان مشترک: X".
+# Anything not listed here still works, just with a generic fallback label.
+RELATION_LABELS_FA: dict[str, str] = {
+    "directed_by": "کارگردان مشترک",
+    "creator": "سازنده مشترک",
+    "has_genre": "ژانر مشترک",
+    "acted_in": "بازیگر مشترک",
+    "performed_by": "هنرمند مشترک",
+    "part_of": "بخشی از همان مجموعه",
+    "aired_on": "پخش‌کننده مشترک",
+    "similar_to": "شبیه به",
+}
+RELATION_LABEL_FALLBACK_FA = "ویژگی مشترک"
 
 
 class ListService:
@@ -350,3 +367,55 @@ class ListService:
     async def get_lists_containing_entity(self, entity_id: uuid.UUID) -> list[ListSummary]:
         lists = await self.repo.find_lists_containing_entity(entity_id)
         return [ListSummary.model_validate(lst) for lst in lists]
+
+    # --- Smart graph-based suggestions ---
+
+    async def get_smart_suggestions(
+        self, list_id: uuid.UUID, limit: int | None = None
+    ) -> list[ListItemSuggestion]:
+        limit = limit or settings.list_suggestion_limit
+        entity_ids = await self.repo.list_item_entity_ids(list_id)
+        if len(entity_ids) < 2:
+            # Nothing to triangulate a shared relation from -- frontend
+            # falls back to plain search.
+            return []
+
+        shared = await self.entity_repo.find_top_shared_relation(
+            entity_ids, min_shared=settings.list_suggestion_min_shared_items
+        )
+        if not shared:
+            return []
+
+        priority_order = settings.list_suggestion_relation_priority.split(",")
+
+        def priority_index(relation_type: str) -> int:
+            try:
+                return priority_order.index(relation_type)
+            except ValueError:
+                return len(priority_order)
+
+        relation_type, target_id, target_title, shared_count = max(
+            shared, key=lambda row: (row[3], -priority_index(row[0]))
+        )
+
+        candidates = await self.entity_repo.find_entities_by_relation(
+            relation_type, target_id, exclude_ids=entity_ids, limit=limit
+        )
+        if not candidates:
+            return []
+
+        reason_label = RELATION_LABELS_FA.get(relation_type, RELATION_LABEL_FALLBACK_FA)
+        return [
+            ListItemSuggestion(
+                entity=EntityMini(
+                    id=c.id,
+                    slug=c.slug,
+                    title=c.title,
+                    entity_type=c.entity_type,
+                    poster_path=c.attributes.get("poster_path"),
+                ),
+                reason=relation_type,
+                reason_label_fa=f"{reason_label}: {target_title}",
+            )
+            for c in candidates
+        ]
