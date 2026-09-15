@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { updateList, deleteList } from "@/lib/api";
-import { ListDetail } from "@/lib/types";
+import { ListDetail, ListType, ListContributionMode } from "@/lib/types";
 import ListSettings from "./ListSettings";
 
 export default function ListEditPanel({
@@ -21,6 +21,8 @@ export default function ListEditPanel({
   const { getToken } = useAuth();
   const [title, setTitle] = useState(detail.title);
   const [description, setDescription] = useState(detail.description ?? "");
+  const [listType, setListType] = useState<ListType>(detail.list_type);
+  const [contributionMode, setContributionMode] = useState<ListContributionMode>(detail.contribution_mode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +35,8 @@ export default function ListEditPanel({
       await updateList(token, slug, {
         title: title.trim(),
         description: description.trim() || undefined,
+        list_type: listType,
+        contribution_mode: contributionMode,
       });
       onSaved();
     } catch (err) {
@@ -45,6 +49,8 @@ export default function ListEditPanel({
   function handleCancel() {
     setTitle(detail.title);
     setDescription(detail.description ?? "");
+    setListType(detail.list_type);
+    setContributionMode(detail.contribution_mode);
     setError(null);
     onCancel();
   }
@@ -84,10 +90,10 @@ export default function ListEditPanel({
       </div>
 
       <ListSettings
-        slug={slug}
-        initialListType={detail.list_type}
-        initialContributionMode={detail.contribution_mode}
-        onChanged={onSaved}
+        listType={listType}
+        contributionMode={contributionMode}
+        onListTypeChange={setListType}
+        onContributionModeChange={setContributionMode}
       />
 
       {error && <p className="text-sm text-gold">{error}</p>}
