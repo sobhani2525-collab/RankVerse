@@ -17,6 +17,12 @@ export default function LoginPage() {
         <LoginForm onSuccess={() => router.push("/")} />
       </div>
 
+      <p className="mt-4 text-center text-sm">
+        <Link href="/forgot-password" className="text-teal hover:underline">
+          فراموشی رمز عبور
+        </Link>
+      </p>
+
       <p className="mt-6 text-center text-sm text-muted">
         حساب ندارید؟{" "}
         <Link href="/register" className="text-teal hover:underline">

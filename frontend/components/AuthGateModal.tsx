@@ -45,6 +45,19 @@ export default function AuthGateModal() {
           <LoginForm onSuccess={runPendingAction} />
         </div>
 
+        <p className="mt-4 text-center text-sm">
+          <button
+            type="button"
+            onClick={() => {
+              closeModal();
+              router.push("/forgot-password");
+            }}
+            className="text-teal hover:underline"
+          >
+            فراموشی رمز عبور
+          </button>
+        </p>
+
         <p className="mt-6 text-center text-sm text-muted">
           حساب ندارید؟{" "}
           <button

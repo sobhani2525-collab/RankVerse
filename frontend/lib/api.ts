@@ -154,6 +154,19 @@ export async function getMe(token: string) {
   return authFetch<{ id: string; email: string; username: string }>("/auth/me", token);
 }
 
+export async function requestPasswordReset(email: string) {
+  return postEnvelope<{ message: string; dev_reset_link?: string }>("/auth/forgot-password", {
+    email,
+  });
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  return postEnvelope<{ reset: boolean }>("/auth/reset-password", {
+    token,
+    new_password: newPassword,
+  });
+}
+
 export interface UserRating {
   id: string;
   entity_id: string;

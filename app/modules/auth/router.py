@@ -7,7 +7,9 @@ from app.core.security import create_access_token, decode_token
 from app.core.exceptions import UnauthorizedError
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
-from app.modules.users.schemas import UserCreate, UserLogin, UserPublic, TokenPair
+from app.modules.users.schemas import (
+    UserCreate, UserLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest,
+)
 from app.modules.users.service import UserService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -40,3 +42,22 @@ async def refresh(refresh_token: str):
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)):
     return envelope(data=UserPublic.model_validate(current_user).model_dump())
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    service = UserService(db)
+    reset_link = await service.request_password_reset(payload.email)
+    data = {"message": "اگر این ایمیل در سیستم ثبت شده باشد، لینک بازیابی رمز عبور برایتان ارسال می‌شود."}
+    if reset_link:
+        # Dev-only convenience until a real email provider is wired up --
+        # see UserService.request_password_reset.
+        data["dev_reset_link"] = reset_link
+    return envelope(data=data)
+
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    service = UserService(db)
+    await service.reset_password(payload.token, payload.new_password)
+    return envelope(data={"reset": True})

@@ -1,9 +1,18 @@
+import logging
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedError
-from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
+from app.core.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    create_password_reset_token,
+    decode_token,
+)
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
 from app.modules.taste.compute import (
@@ -15,6 +24,8 @@ from app.modules.taste.compute import (
 )
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserLogin, TokenPair
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -44,6 +55,38 @@ class UserService:
             access_token=create_access_token(str(user.id)),
             refresh_token=create_refresh_token(str(user.id)),
         )
+
+    async def request_password_reset(self, email: str) -> str | None:
+        user = await self.repo.get_by_email(email)
+        if not user:
+            # Don't reveal whether the email exists -- caller always gets
+            # the same generic response regardless.
+            logger.info("Password reset requested for unknown email: %s", email)
+            return None
+
+        token = create_password_reset_token(str(user.id))
+        reset_link = f"{settings.frontend_base_url}/reset-password?token={token}"
+
+        # No transactional email provider is wired up yet, so this is a
+        # stand-in: log the link, and -- outside production -- also hand it
+        # back in the API response so the flow is fully testable today.
+        # Swap this for a real send_password_reset_email(user.email, reset_link)
+        # call once a provider is configured; nothing else here should need
+        # to change.
+        logger.info("Password reset link for %s: %s", email, reset_link)
+        return reset_link if settings.environment != "production" else None
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        payload = decode_token(token)
+        if not payload or payload.get("type") != "password_reset":
+            raise UnauthorizedError("Invalid or expired reset link")
+
+        user = await self.repo.get_by_id(uuid.UUID(payload["sub"]))
+        if not user:
+            raise UnauthorizedError("Invalid or expired reset link")
+
+        await self.repo.update_password(user, hash_password(new_password))
+        await self.db.commit()
 
     async def rate_entity(self, user_id: uuid.UUID, entity_slug: str, score: int, entity_type: str = "movie"):
         entity_repo = EntityRepository(self.db)

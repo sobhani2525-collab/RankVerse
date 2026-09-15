@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
     admin_access_token_expire_minutes: int = 30
+    password_reset_token_expire_minutes: int = 30
+
+    # Used to build the link inside a password-reset email. No transactional
+    # email provider is wired up yet (see UserService.request_password_reset)
+    # -- override via env for whichever origin should receive the click.
+    frontend_base_url: str = "http://localhost:3000"
 
     tmdb_api_key: str = ""
     tmdb_base_url: str = "https://api.themoviedb.org/3"

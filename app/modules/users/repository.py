@@ -23,6 +23,10 @@ class UserRepository:
         await self.db.flush()
         return user
 
+    async def update_password(self, user: User, hashed_password: str) -> None:
+        user.hashed_password = hashed_password
+        await self.db.flush()
+
     async def get_rating(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> UserRating | None:
         result = await self.db.execute(
             select(UserRating).where(UserRating.user_id == user_id, UserRating.entity_id == entity_id)
