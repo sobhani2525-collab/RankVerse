@@ -16,14 +16,25 @@ export default function AddListItem({
   itemCount,
   entityType,
   onAdded,
+  onSelectPending,
+  selectedIds,
 }: {
-  slug: string;
-  listId: string;
-  itemCount: number;
+  slug?: string;
+  listId?: string;
+  itemCount?: number;
   entityType: string | null;
-  onAdded: () => void;
+  onAdded?: () => void;
+  /**
+   * When set, picking a result adds it to the caller's own local
+   * (unsaved) list instead of calling addListItem -- used by NewListForm,
+   * where there's no slug/listId yet because the list doesn't exist.
+   */
+  onSelectPending?: (result: SearchResult) => void;
+  /** Ids already picked in pending mode, so they render disabled instead of re-addable. */
+  selectedIds?: string[];
 }) {
   const { token } = useAuth();
+  const isPending = !!onSelectPending;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -57,15 +68,25 @@ export default function AddListItem({
     };
   }, [query, activeType]);
 
+  function handleSelect(result: SearchResult) {
+    if (isPending) {
+      onSelectPending?.(result);
+      setQuery("");
+      setResults([]);
+      return;
+    }
+    handleAdd(result.id);
+  }
+
   async function handleAdd(entityId: string) {
-    if (!token) return;
+    if (!token || !slug) return;
     setAdding(entityId);
     setError(null);
     try {
       await addListItem(token, slug, { entity_id: entityId });
       setQuery("");
       setResults([]);
-      onAdded();
+      onAdded?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در افزودن آیتم");
     } finally {
@@ -77,7 +98,9 @@ export default function AddListItem({
     <div className="mb-6 rounded-xl border border-border bg-surface/60 p-4">
       <label className="mb-2 block text-sm text-muted">افزودن آیتم به لیست</label>
 
-      <SmartSuggestionChips listId={listId} slug={slug} itemCount={itemCount} onAdded={onAdded} />
+      {!isPending && listId && slug && itemCount !== undefined && (
+        <SmartSuggestionChips listId={listId} slug={slug} itemCount={itemCount} onAdded={onAdded!} />
+      )}
 
       {!entityType && (
         <div className="mb-2 flex flex-wrap gap-1.5">
@@ -119,19 +142,27 @@ export default function AddListItem({
 
       {results.length > 0 && (
         <div className="mt-2 flex flex-col gap-1.5">
-          {results.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => handleAdd(r.id)}
-              disabled={adding === r.id}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-ink transition hover:border-gold/40 hover:bg-surface2 disabled:opacity-50"
-            >
-              <span>{r.title}</span>
-              <span className="num text-xs text-gold">
-                {adding === r.id ? "در حال افزودن..." : "+ افزودن"}
-              </span>
-            </button>
-          ))}
+          {results.map((r) => {
+            const alreadySelected = !!selectedIds?.includes(r.id);
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => handleSelect(r)}
+                disabled={adding === r.id || alreadySelected}
+                className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-ink transition hover:border-gold/40 hover:bg-surface2 disabled:opacity-50"
+              >
+                <span>{r.title}</span>
+                <span className="num text-xs text-gold">
+                  {adding === r.id
+                    ? "در حال افزودن..."
+                    : alreadySelected
+                      ? "افزوده شد"
+                      : "+ افزودن"}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

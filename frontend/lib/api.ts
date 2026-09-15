@@ -430,6 +430,7 @@ export interface SearchResult {
   slug: string;
   title: string;
   type: string;
+  image_url: string | null;
 }
 
 export async function searchEntities(q: string, type?: string): Promise<SearchResult[]> {

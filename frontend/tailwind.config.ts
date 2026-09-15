@@ -20,6 +20,10 @@ const config: Config = {
           DEFAULT: "#4FB8A6",
           dim: "#2E6E63",
         },
+        violet: {
+          DEFAULT: "#7C5CFC",
+          dim: "#493A8C",
+        },
         ink: "#F2F0E8",
         muted: "#8A93A6",
       },
@@ -30,6 +34,10 @@ const config: Config = {
       backgroundImage: {
         "sky-gradient":
           "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(232,179,74,0.10), transparent), radial-gradient(ellipse 60% 50% at 90% 10%, rgba(79,184,166,0.08), transparent)",
+        "constellation-gradient": "linear-gradient(135deg, #7C5CFC, #4FB8A6)",
+      },
+      screens: {
+        wide: "860px",
       },
     },
   },

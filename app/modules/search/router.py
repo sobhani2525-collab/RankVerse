@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.schemas import envelope
 from app.modules.entities.models import Entity
+from app.modules.entities.service import _extract_media
 
 router = APIRouter(tags=["search"])
 
@@ -34,7 +35,13 @@ async def search(
 
     return envelope(
         data=[
-            {"id": str(e.id), "slug": e.slug, "title": e.title, "type": e.entity_type}
+            {
+                "id": str(e.id),
+                "slug": e.slug,
+                "title": e.title,
+                "type": e.entity_type,
+                "image_url": _extract_media(e.attributes).image_url,
+            }
             for e in entities
         ]
     )
