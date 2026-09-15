@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import {
   loginUser,
   registerUser,
@@ -23,6 +23,16 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
+  /**
+   * Reads the token from a ref instead of the reactive `token` above.
+   * Use this inside a callback that might run as an AuthGate
+   * `requireAuth` retry (e.g. right after a guest logs in) -- a plain
+   * closure over `token` was captured on the pre-login render and would
+   * still see it as null even after login resolves, since React hasn't
+   * re-rendered that closure's scope yet. getToken() always dereferences
+   * the current value.
+   */
+  getToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,17 +41,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const tokenRef = useRef<string | null>(null);
+
+  function setTokenEverywhere(next: string | null) {
+    tokenRef.current = next;
+    setToken(next);
+  }
 
   useEffect(() => {
     const stored = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     if (stored) {
-      setToken(stored);
+      setTokenEverywhere(stored);
       getMe(stored)
         .then(setUser)
         .catch(() => {
           localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
           localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-          setToken(null);
+          setTokenEverywhere(null);
         })
         .finally(() => setLoading(false));
     } else {
@@ -53,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Keeps this context's token in sync when lib/api.ts silently
     // refreshes an expired access token behind the scenes (on a 401).
     return onAccessTokenRefreshed((newToken) => {
-      setToken(newToken);
+      setTokenEverywhere(newToken);
     });
   }, []);
 
@@ -61,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const tokens = await loginUser({ email, password });
     localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokens.access_token);
     localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token);
-    setToken(tokens.access_token);
+    setTokenEverywhere(tokens.access_token);
     const me = await getMe(tokens.access_token);
     setUser(me);
   }
@@ -74,13 +90,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-    setToken(null);
+    setTokenEverywhere(null);
     setUser(null);
   }
 
   return (
     <AuthContext.Provider
-      value={{ token, user, isAuthenticated: !!token, loading, login, register, logout }}
+      value={{
+        token,
+        user,
+        isAuthenticated: !!token,
+        loading,
+        login,
+        register,
+        logout,
+        getToken: () => tokenRef.current,
+      }}
     >
       {children}
     </AuthContext.Provider>

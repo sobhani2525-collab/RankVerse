@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { removeListItem, reorderListItems, voteListItem, removeListItemVote } from "@/lib/api";
 import { ListItem, ListType } from "@/lib/types";
 
@@ -37,7 +38,8 @@ export default function ListItemsManager({
   isOwner: boolean;
   initialItems: ListItem[];
 }) {
-  const { token } = useAuth();
+  const { token, getToken } = useAuth();
+  const { requireAuth } = useAuthGate();
   const isCommunityOrdered = listType === "community_ordered";
   const [items, setItems] = useState(
     isCommunityOrdered ? initialItems : [...initialItems].sort((a, b) => a.position - b.position)
@@ -58,8 +60,9 @@ export default function ListItemsManager({
   const [votingId, setVotingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleVote(itemId: string, isLike: boolean) {
-    if (!token || votingId) return;
+  async function performVote(itemId: string, isLike: boolean) {
+    const authToken = getToken();
+    if (!authToken) return;
     const current = items.find((i) => i.id === itemId);
     if (!current) return;
     setVotingId(itemId);
@@ -68,8 +71,8 @@ export default function ListItemsManager({
     try {
       const result =
         wasVote === isLike
-          ? await removeListItemVote(token, slug, itemId)
-          : await voteListItem(token, slug, itemId, isLike);
+          ? await removeListItemVote(authToken, slug, itemId)
+          : await voteListItem(authToken, slug, itemId, isLike);
       setItems((prev) => {
         const next = prev.map((i) =>
           i.id === itemId
@@ -89,6 +92,11 @@ export default function ListItemsManager({
     } finally {
       setVotingId(null);
     }
+  }
+
+  function handleVote(itemId: string, isLike: boolean) {
+    if (votingId) return;
+    requireAuth(() => performVote(itemId, isLike));
   }
 
   async function persistOrder(newItems: ListItem[]) {
@@ -197,7 +205,7 @@ export default function ListItemsManager({
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   onClick={() => handleVote(item.id, true)}
-                  disabled={!token || votingId === item.id}
+                  disabled={votingId === item.id}
                   className={`num flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition disabled:opacity-50 ${
                     item.my_vote === true
                       ? "border-teal/50 bg-teal/10 text-teal"
@@ -209,7 +217,7 @@ export default function ListItemsManager({
                 </button>
                 <button
                   onClick={() => handleVote(item.id, false)}
-                  disabled={!token || votingId === item.id}
+                  disabled={votingId === item.id}
                   className={`num flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition disabled:opacity-50 ${
                     item.my_vote === false
                       ? "border-red-500/50 bg-red-500/10 text-red-400"

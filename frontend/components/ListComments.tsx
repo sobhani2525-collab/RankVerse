@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { addListComment } from "@/lib/api";
 import { ListComment } from "@/lib/types";
 
@@ -15,14 +16,15 @@ export default function ListComments({
   slug: string;
   initialComments: ListComment[];
 }) {
-  const { token, isAuthenticated, user } = useAuth();
+  const { getToken, user } = useAuth();
+  const { requireAuth } = useAuthGate();
   const [comments, setComments] = useState(initialComments);
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function postComment() {
+    const token = getToken();
     if (!token || !body.trim()) return;
     setSubmitting(true);
     setError(null);
@@ -37,33 +39,35 @@ export default function ListComments({
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!body.trim()) return;
+    requireAuth(postComment);
+  }
+
   return (
     <div className="mt-10">
       <h2 className="mb-4 text-lg font-bold text-ink">
         نظرات <span className="num text-muted">({comments.length})</span>
       </h2>
 
-      {isAuthenticated ? (
-        <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-2">
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="نظر خود را بنویسید..."
-            rows={2}
-            className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-ink outline-none focus:border-gold/50"
-          />
-          {error && <p className="text-sm text-gold">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting || !body.trim()}
-            className="self-end rounded-lg bg-gold px-4 py-2 text-sm font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
-          >
-            {submitting ? "در حال ارسال..." : "ارسال نظر"}
-          </button>
-        </form>
-      ) : (
-        <p className="mb-6 text-sm text-muted">برای ثبت نظر وارد حساب کاربری‌تان شوید.</p>
-      )}
+      <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-2">
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="نظر خود را بنویسید..."
+          rows={2}
+          className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-ink outline-none focus:border-gold/50"
+        />
+        {error && <p className="text-sm text-gold">{error}</p>}
+        <button
+          type="submit"
+          disabled={submitting || !body.trim()}
+          className="self-end rounded-lg bg-gold px-4 py-2 text-sm font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
+        >
+          {submitting ? "در حال ارسال..." : "ارسال نظر"}
+        </button>
+      </form>
 
       {comments.length === 0 ? (
         <p className="text-sm text-muted">هنوز نظری ثبت نشده. اولین نفر باشید!</p>

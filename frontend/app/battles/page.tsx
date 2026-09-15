@@ -1,9 +1,9 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getNextBattle, castBattleVote } from "@/lib/api";
 import { NextBattleResponse, VoteOutcome } from "@/lib/types";
 import BattleCard from "@/components/BattleCard";
@@ -32,7 +32,8 @@ export default function BattlesPage() {
 }
 
 function BattlesPageInner() {
-  const { token, isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, getToken } = useAuth();
+  const { requireAuth } = useAuthGate();
   const searchParams = useSearchParams();
 
   // A SuggestedBattleCard's "شروع نبرد" link arrives as
@@ -56,6 +57,7 @@ function BattlesPageInner() {
   const [outcomes, setOutcomes] = useState<{ left?: "win" | "lose"; right?: "win" | "lose" }>({});
 
   const loadNextBattle = useCallback(async () => {
+    const token = getToken();
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -71,7 +73,7 @@ function BattlesPageInner() {
     } finally {
       setLoading(false);
     }
-  }, [token, category]);
+  }, [getToken, category]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -80,6 +82,7 @@ function BattlesPageInner() {
   }, [isAuthenticated, loadNextBattle]);
 
   async function handleVote(winner: VoteOutcome) {
+    const token = getToken();
     if (!token || !battle || voting) return;
     setVoting(true);
     setError(null);
@@ -119,12 +122,12 @@ function BattlesPageInner() {
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
         <h1 className="mb-2 text-xl font-semibold text-ink">نبرد بهترین‌ها</h1>
         <p className="mb-6 text-muted">برای رأی دادن در نبردها ابتدا وارد حساب‌تان شوید.</p>
-        <Link
-          href="/login"
+        <button
+          onClick={() => requireAuth(loadNextBattle)}
           className="inline-block rounded-xl border border-gold/40 bg-gold/10 px-5 py-2 text-gold transition hover:bg-gold/20"
         >
           ورود به حساب
-        </Link>
+        </button>
       </div>
     );
   }

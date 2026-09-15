@@ -2,11 +2,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { createList } from "@/lib/api";
 
 export default function NewListPage() {
   const router = useRouter();
-  const { token, isAuthenticated, loading: authLoading } = useAuth();
+  const { getToken } = useAuth();
+  const { requireAuth } = useAuthGate();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -17,8 +19,8 @@ export default function NewListPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function doCreate() {
+    const token = getToken();
     if (!token) return;
     setError(null);
     setSubmitting(true);
@@ -44,12 +46,9 @@ export default function NewListPage() {
     }
   }
 
-  if (!authLoading && !isAuthenticated) {
-    return (
-      <main className="mx-auto flex min-h-[60vh] max-w-sm flex-col items-center justify-center px-6 text-center">
-        <p className="text-muted">برای ساخت لیست ابتدا وارد حساب کاربری‌تان شوید.</p>
-      </main>
-    );
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    requireAuth(doCreate);
   }
 
   return (

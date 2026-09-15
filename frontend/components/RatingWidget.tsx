@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { rateEntity, unrateEntity, getMyRatings } from "@/lib/api";
 
 export default function RatingWidget({
@@ -11,7 +12,8 @@ export default function RatingWidget({
   slug: string;
   entityType?: string;
 }) {
-  const { token } = useAuth();
+  const { token, getToken } = useAuth();
+  const { requireAuth } = useAuthGate();
   const [selected, setSelected] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "removing" | "error">("idle");
 
@@ -28,29 +30,32 @@ export default function RatingWidget({
       .catch(() => {});
   }, [token, slug]);
 
-  async function submitRating(score: number) {
-    if (!token) {
-      setStatus("error");
-      return;
-    }
+  async function doSubmitRating(score: number) {
+    const authToken = getToken();
+    if (!authToken) return;
 
     setStatus("saving");
     setSelected(score);
 
     try {
-      await rateEntity(token, slug, score, entityType);
+      await rateEntity(authToken, slug, score, entityType);
       setStatus("saved");
     } catch {
       setStatus("error");
     }
   }
 
+  function submitRating(score: number) {
+    requireAuth(() => doSubmitRating(score));
+  }
+
   async function removeRating() {
-    if (!token) return;
+    const authToken = getToken();
+    if (!authToken) return;
 
     setStatus("removing");
     try {
-      await unrateEntity(token, slug, entityType);
+      await unrateEntity(authToken, slug, entityType);
       setSelected(null);
       setStatus("idle");
     } catch {

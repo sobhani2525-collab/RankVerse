@@ -1,5 +1,7 @@
 import ConditionalHeader from "@/components/ConditionalHeader";
+import AuthGateModal from "@/components/AuthGateModal";
 import { AuthProvider } from "@/lib/auth-context";
+import { AuthGateProvider } from "@/contexts/AuthGateContext";
 import type { Metadata } from "next";
 import { Vazirmatn, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -31,8 +33,11 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen antialiased">
         <AuthProvider>
-          <ConditionalHeader />
-          {children}
+          <AuthGateProvider>
+            <ConditionalHeader />
+            {children}
+            <AuthGateModal />
+          </AuthGateProvider>
         </AuthProvider>
       </body>
     </html>

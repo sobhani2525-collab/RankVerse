@@ -1,13 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getListBySlug } from "@/lib/api";
 import { ListDetail, ListComment } from "@/lib/types";
 import ListActions from "./ListActions";
 import ListComments from "./ListComments";
 import AddListItem from "./AddListItem";
 import ListItemsManager from "./ListItemsManager";
-import ListSettings, { CONTRIBUTION_MODE_LABELS } from "./ListSettings";
+import ListEditPanel from "./ListEditPanel";
+import { CONTRIBUTION_MODE_LABELS } from "./ListSettings";
 import ShareListButton from "./ShareListButton";
 
 export default function ListDetailClient({
@@ -19,8 +21,11 @@ export default function ListDetailClient({
   initialDetail: ListDetail;
   initialComments: ListComment[];
 }) {
-  const { token, user, loading: authLoading } = useAuth();
+  const { token, loading: authLoading } = useAuth();
+  const { requireAuth } = useAuthGate();
   const [detail, setDetail] = useState(initialDetail);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAddItemForm, setShowAddItemForm] = useState(false);
 
   function refetch() {
     if (token) {
@@ -39,11 +44,14 @@ export default function ListDetailClient({
   }, [authLoading, token, slug]);
 
   const isOwner = detail.is_owner;
-  const canAddItem =
+  const canAddItemAuthed =
     isOwner ||
-    (!!user &&
-      (detail.contribution_mode === "anyone" ||
-        (detail.contribution_mode === "followers_only" && detail.is_following)));
+    detail.contribution_mode === "anyone" ||
+    (detail.contribution_mode === "followers_only" && detail.is_following);
+  // A logged-out visitor's follower status is unknown until they log in, so
+  // don't pre-validate it -- show the button for anything but owner_only and
+  // let the backend's permission check surface the real answer post-login.
+  const showAddItemButton = token ? canAddItemAuthed : detail.contribution_mode !== "owner_only";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
@@ -63,7 +71,18 @@ export default function ListDetailClient({
         </span>
       </div>
 
-      <h1 className="text-2xl font-bold text-ink">{detail.title}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="text-2xl font-bold text-ink">{detail.title}</h1>
+        {isOwner && (
+          <button
+            onClick={() => setIsEditing((v) => !v)}
+            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
+          >
+            {isEditing ? "بستن ویرایش" : "ویرایش"}
+          </button>
+        )}
+      </div>
+
       {detail.owner_username && (
         <p className="mt-1 text-sm text-muted">
           ساخته شده توسط{" "}
@@ -81,23 +100,34 @@ export default function ListDetailClient({
           initialFollowing={detail.is_following}
           initialLikeCount={detail.like_count}
           initialFollowerCount={detail.follower_count}
-          isOwner={isOwner}
         />
         <ShareListButton slug={slug} title={detail.title} />
       </div>
 
-      {isOwner && (
+      {isOwner && isEditing && (
+        <ListEditPanel
+          slug={slug}
+          detail={detail}
+          onSaved={() => {
+            setIsEditing(false);
+            refetch();
+          }}
+          onCancel={() => setIsEditing(false)}
+        />
+      )}
+
+      {showAddItemButton && !showAddItemForm && (
         <div className="mt-8">
-          <ListSettings
-            slug={slug}
-            initialListType={detail.list_type}
-            initialContributionMode={detail.contribution_mode}
-            onChanged={refetch}
-          />
+          <button
+            onClick={() => requireAuth(() => setShowAddItemForm(true))}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-ink transition hover:border-gold/40 hover:text-gold"
+          >
+            + افزودن آیتم
+          </button>
         </div>
       )}
 
-      {canAddItem && (
+      {showAddItemForm && (
         <div className="mt-8">
           <AddListItem
             slug={slug}
