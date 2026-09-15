@@ -296,6 +296,10 @@ export async function getRelatedLists(slug: string): Promise<ListSummary[]> {
   return fetchEnvelope<ListSummary[]>(`/lists/${slug}/related`, 120);
 }
 
+export async function getListsContainingEntity(entityId: string): Promise<ListSummary[]> {
+  return fetchEnvelope<ListSummary[]>(`/lists/for-entity/${entityId}`, 120);
+}
+
 // --- Lists: authenticated writes ---
 
 export async function createList(

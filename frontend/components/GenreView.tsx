@@ -3,6 +3,7 @@ import EntityHero from "@/components/EntityHero";
 import EntityDescription from "@/components/EntityDescription";
 import MediaPlayer from "@/components/MediaPlayer";
 import RelatedList from "@/components/RelatedList";
+import EntityLists from "@/components/EntityLists";
 import { GenreDetail } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
 
@@ -32,6 +33,8 @@ export default function GenreView({ data }: { data: GenreDetail }) {
       <MediaPlayer media={data.media} />
       <EntityDescription text={data.description} />
       <RelatedList items={items} />
+
+      <EntityLists entityId={data.id} />
     </main>
   );
 }

@@ -281,3 +281,16 @@ class ListRepository:
         stmt = stmt.order_by(UserList.like_count.desc()).limit(limit)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def find_lists_containing_entity(
+        self, entity_id: uuid.UUID, limit: int = 20
+    ) -> list[UserList]:
+        stmt = (
+            select(UserList)
+            .join(UserListItem, UserListItem.list_id == UserList.id)
+            .where(UserListItem.entity_id == entity_id, UserList.visibility == "public")
+            .order_by(UserList.like_count.desc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())

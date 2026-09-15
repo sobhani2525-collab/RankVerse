@@ -3,6 +3,7 @@ import EntityHero from "@/components/EntityHero";
 import EntityDescription from "@/components/EntityDescription";
 import MediaPlayer from "@/components/MediaPlayer";
 import RelatedList from "@/components/RelatedList";
+import EntityLists from "@/components/EntityLists";
 import { PersonDetail } from "@/lib/types";
 
 export default function PersonView({ data }: { data: PersonDetail }) {
@@ -21,6 +22,8 @@ export default function PersonView({ data }: { data: PersonDetail }) {
       <RelatedList title="بازیگری‌ها" items={data.acted_in} />
       <RelatedList title="آهنگ‌ها" items={data.tracks} />
       <RelatedList title="آلبوم‌ها" items={data.albums} />
+
+      <EntityLists entityId={data.id} />
     </main>
   );
 }

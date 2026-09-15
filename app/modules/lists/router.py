@@ -198,3 +198,10 @@ async def get_related_lists(slug: str, db: AsyncSession = Depends(get_db)):
     service = ListService(db)
     related = await service.get_related_lists(slug)
     return envelope(data=[r.model_dump() for r in related])
+
+
+@router.get("/lists/for-entity/{entity_id}")
+async def get_lists_containing_entity(entity_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    service = ListService(db)
+    lists = await service.get_lists_containing_entity(entity_id)
+    return envelope(data=[l.model_dump() for l in lists])

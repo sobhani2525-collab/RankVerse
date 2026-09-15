@@ -2,6 +2,7 @@ import Link from "next/link";
 import EntityHero from "@/components/EntityHero";
 import MediaPlayer from "@/components/MediaPlayer";
 import RelatedList from "@/components/RelatedList";
+import EntityLists from "@/components/EntityLists";
 import { TrackDetail } from "@/lib/types";
 
 export default function TrackView({ data }: { data: TrackDetail }) {
@@ -20,6 +21,8 @@ export default function TrackView({ data }: { data: TrackDetail }) {
         title={data.artist ? `آهنگ‌های دیگر از ${data.artist.title}` : undefined}
         items={data.other_tracks}
       />
+
+      <EntityLists entityId={data.id} />
     </main>
   );
 }

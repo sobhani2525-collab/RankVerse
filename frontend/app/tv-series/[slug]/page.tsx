@@ -7,6 +7,7 @@ import RatingWidget from "@/components/RatingWidget";
 import RelatedEntities from "@/components/RelatedEntities";
 import NotableRankings from "@/components/NotableRankings";
 import SuggestedBattleSection from "@/components/SuggestedBattleSection";
+import EntityLists from "@/components/EntityLists";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
@@ -189,6 +190,8 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
       <div className="mt-10">
         <NotableRankings items={rankingHighlights} />
       </div>
+
+      <EntityLists entityId={tv.id} />
     </main>
   );
 }
