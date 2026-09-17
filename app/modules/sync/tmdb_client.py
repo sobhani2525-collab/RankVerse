@@ -32,14 +32,36 @@ class TMDbClient:
             params={"api_key": self.api_key, "append_to_response": "credits", "language": language},
         )
 
-    async def discover_movies(self, page: int = 1, sort_by: str = "popularity.desc") -> dict:
-        return await self._get_with_retry(
-            f"{self.base_url}/discover/movie",
-            params={"api_key": self.api_key, "sort_by": sort_by, "page": page},
-        )
+    async def discover_movies(
+        self,
+        page: int = 1,
+        sort_by: str = "popularity.desc",
+        with_origin_country: str | None = None,
+        with_original_language: str | None = None,
+    ) -> dict:
+        params = {"api_key": self.api_key, "sort_by": sort_by, "page": page}
+        if with_origin_country:
+            params["with_origin_country"] = with_origin_country
+        if with_original_language:
+            params["with_original_language"] = with_original_language
+        return await self._get_with_retry(f"{self.base_url}/discover/movie", params=params)
 
     async def get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
         return await self._get_with_retry(
             f"{self.base_url}/tv/{tmdb_id}",
             params={"api_key": self.api_key, "append_to_response": "credits", "language": language},
         )
+
+    async def discover_tv(
+        self,
+        page: int = 1,
+        sort_by: str = "popularity.desc",
+        with_origin_country: str | None = None,
+        with_original_language: str | None = None,
+    ) -> dict:
+        params = {"api_key": self.api_key, "sort_by": sort_by, "page": page}
+        if with_origin_country:
+            params["with_origin_country"] = with_origin_country
+        if with_original_language:
+            params["with_original_language"] = with_original_language
+        return await self._get_with_retry(f"{self.base_url}/discover/tv", params=params)
