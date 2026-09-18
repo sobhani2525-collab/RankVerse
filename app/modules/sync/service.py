@@ -280,4 +280,48 @@ class SyncService:
                         movie["id"], movie.get("title"),
                     )
                     await self.db.rollback()
-        return synced   
+        return synced
+
+    async def bulk_sync_iranian(self, pages: int = 5) -> int:
+        """
+        Discovers Iranian movies/TV series two ways -- origin_country=IR and,
+        separately, original_language=fa -- because TMDb's /discover endpoints
+        AND all filters together rather than OR-ing them: a single request
+        with both params would only match titles that are simultaneously
+        IR-produced AND Farsi-language, missing e.g. Farsi-language titles
+        produced abroad or IR co-productions in another language. Running the
+        two filters separately and deduping by tmdb id below covers both.
+        """
+        seen_movie_ids: set[int] = set()
+        seen_tv_ids: set[int] = set()
+        synced = 0
+
+        for page in range(1, pages + 1):
+            for movie in (await self.client.discover_movies(page=page, with_origin_country="IR")).get("results", []):
+                seen_movie_ids.add(movie["id"])
+            for movie in (await self.client.discover_movies(page=page, with_original_language="fa")).get("results", []):
+                seen_movie_ids.add(movie["id"])
+
+        for tmdb_id in seen_movie_ids:
+            try:
+                await self.sync_movie(tmdb_id)
+                synced += 1
+            except Exception:
+                logger.exception("skipping Iranian movie %s due to sync error", tmdb_id)
+                await self.db.rollback()
+
+        for page in range(1, pages + 1):
+            for series in (await self.client.discover_tv(page=page, with_origin_country="IR")).get("results", []):
+                seen_tv_ids.add(series["id"])
+            for series in (await self.client.discover_tv(page=page, with_original_language="fa")).get("results", []):
+                seen_tv_ids.add(series["id"])
+
+        for tmdb_id in seen_tv_ids:
+            try:
+                await self.sync_tv_series(tmdb_id)
+                synced += 1
+            except Exception:
+                logger.exception("skipping Iranian tv series %s due to sync error", tmdb_id)
+                await self.db.rollback()
+
+        return synced
