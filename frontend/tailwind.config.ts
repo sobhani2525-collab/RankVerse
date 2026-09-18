@@ -9,9 +9,17 @@ const config: Config = {
     extend: {
       colors: {
         bg: "#0B0F1A",
-        surface: "#12172A",
+        surface: {
+          DEFAULT: "#12172A",
+          2: "#1A2036",
+        },
+        // Legacy flat alias — kept alongside surface.2 since existing
+        // components already use `bg-surface2`.
         surface2: "#1A2036",
-        border: "#232A42",
+        border: {
+          DEFAULT: "#232A42",
+          soft: "#1b2138",
+        },
         gold: {
           DEFAULT: "#E8B34A",
           dim: "#8A6B2E",
@@ -23,13 +31,20 @@ const config: Config = {
         violet: {
           DEFAULT: "#7C5CFC",
           dim: "#493A8C",
+          soft: "#a78bfa",
         },
-        ink: "#F2F0E8",
+        ink: {
+          DEFAULT: "#F2F0E8",
+          dim: "#c7cce0",
+        },
         muted: "#8A93A6",
       },
       fontFamily: {
         sans: ["var(--font-vazirmatn)", "Tahoma", "sans-serif"],
         mono: ["var(--font-jetbrains)", "monospace"],
+        // Display face for headings only — Lalezar is a single-weight,
+        // decorative face; don't use it for body copy or long labels.
+        display: ["var(--font-lalezar)", "var(--font-vazirmatn)", "Tahoma", "sans-serif"],
       },
       backgroundImage: {
         "sky-gradient":

@@ -3,20 +3,8 @@ import AuthGateModal from "@/components/AuthGateModal";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
 import type { Metadata } from "next";
-import { Vazirmatn, JetBrains_Mono } from "next/font/google";
+import { vazirmatn, jetbrainsMono, lalezar } from "./fonts";
 import "./globals.css";
-
-const vazirmatn = Vazirmatn({
-  subsets: ["arabic"],
-  variable: "--font-vazirmatn",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "RankVerse — نقشه‌ی برترین‌های سینما",
@@ -30,7 +18,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fa" dir="rtl" className={`${vazirmatn.variable} ${jetbrainsMono.variable}`}>
+    <html
+      lang="fa"
+      dir="rtl"
+      className={`${vazirmatn.variable} ${jetbrainsMono.variable} ${lalezar.variable}`}
+    >
       <body className="min-h-screen antialiased">
         <AuthProvider>
           <AuthGateProvider>

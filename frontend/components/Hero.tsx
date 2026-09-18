@@ -32,7 +32,7 @@ export default function Hero() {
 
       <div className="relative mx-auto max-w-3xl text-center">
         <p className="num text-xs uppercase tracking-widest text-teal">RankVerse Core Engine</p>
-        <h1 className="mt-4 text-4xl font-black leading-tight text-ink sm:text-5xl">
+        <h1 className="font-display mt-4 text-4xl leading-tight text-ink sm:text-5xl">
           نقشه‌ای از برترین‌های سینما،
           <br />
           ساخته‌شده از رای شما و تحلیل هوش مصنوعی

@@ -48,10 +48,7 @@ export default function SuggestedBattleCard({ battle }: { battle: SuggestedBattl
         <Side entity={battle.right} />
       </div>
 
-      <Link
-        href={battleHref}
-        className="mt-5 block rounded-lg bg-gold px-4 py-2 text-center text-sm font-bold text-bg transition hover:bg-gold/90"
-      >
+      <Link href={battleHref} className="btn-primary mt-5 w-full justify-center text-sm hover:opacity-90">
         شروع نبرد
       </Link>
     </div>

@@ -69,7 +69,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-ink">{displayTitle(movie)}</h1>
+              <h1 className="font-display text-2xl text-ink">{displayTitle(movie)}</h1>
               <p className="num mt-1 text-sm text-muted">
                 {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} دقیقه` : ""}
               </p>

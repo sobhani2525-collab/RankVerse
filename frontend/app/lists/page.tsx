@@ -17,11 +17,8 @@ export default async function ListsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-ink">لیست‌های کاربران</h1>
-        <Link
-          href="/lists/new"
-          className="rounded-lg bg-gold px-4 py-2 text-sm font-bold text-bg transition hover:bg-gold/90"
-        >
+        <h1 className="font-display text-xl text-ink">لیست‌های کاربران</h1>
+        <Link href="/lists/new" className="btn-primary text-sm hover:opacity-90">
           ساخت لیست جدید
         </Link>
       </div>

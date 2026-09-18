@@ -131,7 +131,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-ink">{displayTitle(tv)}</h1>
+              <h1 className="font-display text-2xl text-ink">{displayTitle(tv)}</h1>
               <SeasonsAndYears tv={tv} />
             </div>
             <Constellation director={mainCreator} genre={mainGenre} year={tv.year} size={80} />

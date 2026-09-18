@@ -12,7 +12,7 @@ export default function Header() {
     <header className="border-b border-border bg-surface px-6 py-4">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-black text-ink">
+          <Link href="/" className="font-display text-lg text-ink">
             RankVerse
           </Link>
           <Link href="/battles" className="text-sm text-muted transition hover:text-gold">
@@ -44,10 +44,7 @@ export default function Header() {
                 >
                   ورود
                 </button>
-                <Link
-                  href="/register"
-                  className="rounded-lg bg-gold px-3 py-1.5 text-sm font-bold text-bg transition hover:bg-gold/90"
-                >
+                <Link href="/register" className="btn-primary text-sm hover:opacity-90">
                   ثبت‌نام
                 </Link>
               </>

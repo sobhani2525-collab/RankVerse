@@ -39,7 +39,7 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-3xl px-6 py-14">
         <div className="mb-6 flex items-baseline justify-between">
-          <h2 className="text-xl font-bold text-ink">برترین‌های امروز</h2>
+          <h2 className="font-display text-xl text-ink">برترین‌های امروز</h2>
           <span className="num text-xs text-muted">دسته: فیلم</span>
         </div>
 
@@ -56,7 +56,7 @@ export default async function HomePage() {
       {tvSeries.length > 0 && (
         <section className="mx-auto max-w-3xl px-6 pb-14">
           <div className="mb-6 flex items-baseline justify-between">
-            <h2 className="text-xl font-bold text-ink">برترین‌های سریال</h2>
+            <h2 className="font-display text-xl text-ink">برترین‌های سریال</h2>
             <span className="num text-xs text-muted">دسته: سریال</span>
           </div>
 
@@ -67,7 +67,7 @@ export default async function HomePage() {
       {latestLists.length > 0 && (
         <section className="mx-auto max-w-3xl px-6 pb-14">
           <div className="mb-6 flex items-baseline justify-between">
-            <h2 className="text-xl font-bold text-ink">آخرین لیست‌ها</h2>
+            <h2 className="font-display text-xl text-ink">آخرین لیست‌ها</h2>
             <Link href="/lists" className="text-xs text-teal hover:underline">
               همه لیست‌ها
             </Link>

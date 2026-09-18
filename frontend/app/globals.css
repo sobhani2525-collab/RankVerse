@@ -68,3 +68,45 @@
     stroke-dashoffset: 0;
   }
 }
+
+.font-display {
+  font-family: var(--font-lalezar), var(--font-vazirmatn), Tahoma, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.gradient-text {
+  background-image: linear-gradient(135deg, theme(colors.violet.DEFAULT), theme(colors.teal.DEFAULT));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-primary {
+  @apply inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold;
+  background-image: linear-gradient(135deg, theme(colors.violet.DEFAULT), theme(colors.teal.DEFAULT));
+  color: theme(colors.bg);
+}
+
+.btn-secondary {
+  @apply inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-semibold;
+  border-color: theme(colors.border.DEFAULT);
+  color: theme(colors.ink.DEFAULT);
+}
+
+.score-ring {
+  background: conic-gradient(
+    from -90deg,
+    theme(colors.violet.DEFAULT),
+    theme(colors.teal.DEFAULT) var(--score-pct, 82%),
+    theme(colors.border.soft) 0
+  );
+}
+
+@keyframes constellation-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: constellation-pulse 1.8s infinite;
+}

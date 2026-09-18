@@ -30,7 +30,7 @@ export default function EntityHero({ title, subtitle, media }: EntityHeroProps) 
         </div>
       )}
       <div className="flex-1">
-        <h1 className="text-2xl font-bold text-ink">{title}</h1>
+        <h1 className="font-display text-2xl text-ink">{title}</h1>
         {subtitle && <p className="num mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
     </div>

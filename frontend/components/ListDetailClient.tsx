@@ -72,7 +72,7 @@ export default function ListDetailClient({
       </div>
 
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold text-ink">{detail.title}</h1>
+        <h1 className="font-display text-2xl text-ink">{detail.title}</h1>
         {isOwner && (
           <button
             onClick={() => setIsEditing((v) => !v)}
