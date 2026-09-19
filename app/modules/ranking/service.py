@@ -28,7 +28,7 @@ class RankingService:
         final_score    = alpha * bayesian_score + beta * external_score
 
     Where:
-        R = average user rating for the entity (0-10)
+        R = average user rating for the entity (1-5)
         v = number of user votes for the entity
         m = minimum votes threshold for full confidence (config)
         C = platform-wide average user rating
@@ -45,7 +45,7 @@ class RankingService:
         stmt = select(func.avg(UserRating.score))
         result = await self.db.execute(stmt)
         avg = result.scalar_one_or_none()
-        return float(avg) if avg is not None else 5.0  # neutral midpoint default
+        return float(avg) if avg is not None else 3.0  # neutral midpoint of the 1-5 scale
 
     async def get_entity_stats(self, entity_id) -> tuple[float | None, int]:
         stmt = select(func.avg(UserRating.score), func.count(UserRating.id)).where(

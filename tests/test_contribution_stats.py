@@ -32,7 +32,7 @@ async def test_rating_populates_contribution_stats(client, db_session, auth_head
     movie = await _create_movie(db_session, "Contribution Rating Movie")
 
     res = await client.post(
-        f"/api/v1/movies/{movie.slug}/rate", headers=auth_headers, json={"score": 8}
+        f"/api/v1/movies/{movie.slug}/rate", headers=auth_headers, json={"score": 4}
     )
     assert res.status_code == 200
 
@@ -112,7 +112,7 @@ async def test_contribution_score_weights_actions_differently(client, db_session
     left = await _create_movie(db_session, "Weighted Left Movie")
     right = await _create_movie(db_session, "Weighted Right Movie")
 
-    await client.post(f"/api/v1/movies/{movie.slug}/rate", headers=auth_headers, json={"score": 7})
+    await client.post(f"/api/v1/movies/{movie.slug}/rate", headers=auth_headers, json={"score": 4})
     await client.post(
         "/api/v1/battles/vote",
         headers=auth_headers,

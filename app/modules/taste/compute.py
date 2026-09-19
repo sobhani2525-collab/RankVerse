@@ -46,9 +46,13 @@ from app.modules.users.models import UserRating
 
 # UserRating.score's actual range (see the ck_rating_range CheckConstraint
 # on user_ratings) -- the span between these anchors how far a genre's
-# mean rating can deviate from a user's overall average.
+# mean rating can deviate from a user's overall average. Migrated from
+# 1-10 to 1-5 (see alembic/versions/*_rescale_user_ratings_to_five_stars.py);
+# _rating_component normalizes relative to each user's own baseline, so
+# updating this span is the only change this pipeline needs for the new
+# scale -- no other normalization logic here is scale-dependent.
 RATING_SCALE_MIN = 1
-RATING_SCALE_MAX = 10
+RATING_SCALE_MAX = 5
 
 
 def _clamp01(x: float) -> float:

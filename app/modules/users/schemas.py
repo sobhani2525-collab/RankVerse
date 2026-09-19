@@ -37,7 +37,7 @@ class TokenPair(BaseModel):
 
 
 class RatingCreate(BaseModel):
-    score: int = Field(ge=1, le=10)
+    score: int = Field(ge=1, le=5)
 
 
 class RatingPublic(BaseModel):

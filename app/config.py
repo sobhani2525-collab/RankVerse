@@ -24,6 +24,19 @@ class Settings(BaseSettings):
 
     internal_api_key: str = ""
 
+    # NOTE on the 1-5 rating scale (migrated from 1-10, see
+    # alembic/versions/*_rescale_user_ratings_to_five_stars.py): every
+    # constant below that is a *count* threshold (how many votes/samples
+    # before we trust the data) is intentionally left unchanged by that
+    # migration. ranking_min_votes/taste_dimension_confidence_k/
+    # taste_snapshot_confidence_k/list_item_score_k all gate the Bayesian
+    # v/(v+k) shrinkage on the NUMBER of ratings collected, not on the
+    # numeric range those ratings fall in -- 50 votes still means "50
+    # votes' worth of evidence" whether each vote is worth 1-10 or 1-5, so
+    # there is no statistical reason to retune them for the new scale.
+    # The one constant that DOES need rescaling is taste_anchor_min_rating
+    # below, because it's a literal cutoff expressed in raw rating units
+    # (score >= N), not a sample count.
     ranking_min_votes: int = 50
     ranking_user_weight: float = 0.7
     ranking_external_weight: float = 0.3
@@ -38,7 +51,13 @@ class Settings(BaseSettings):
     taste_dimension_confidence_threshold: float = 0.35
 
     # Taste DNA anchor scoring (see TasteAnchorComputer in the same file).
-    taste_anchor_min_rating: int = 8
+    # taste_anchor_min_rating is expressed in raw UserRating.score units
+    # (RATING_SCALE_MIN..RATING_SCALE_MAX in taste/compute.py), so it was
+    # rescaled from 8 (out of the old 1-10 range) to 4 (out of the current
+    # 1-5 range) via the same round-half-up rule the data migration uses,
+    # to keep "counts as a taste anchor" meaning the same relative bar
+    # (roughly the top two rating values) on the new scale.
+    taste_anchor_min_rating: int = 4
     taste_anchor_rating_weight: float = 0.6
     taste_anchor_centrality_weight: float = 0.4
     taste_anchor_max_count: int = 6
