@@ -1,25 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rankverse-frontend",
-  "compatibility_date": "2026-09-03",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "main": ".open-next/worker.js",
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
-  },
-  "services": [
-    {
-      "binding": "WORKER_SELF_REFERENCE",
-      "service": "rankverse-frontend"
-    }
-  ],
-  // NOTE: this only sets a runtime binding (env.NEXT_PUBLIC_API_BASE_URL) inside the
-  // Worker. NEXT_PUBLIC_* values used via process.env.* in the app code are inlined at
-  // `next build` time from .env.production instead (see frontend/.env.production) —
-  // update both if this value ever changes.
-  "vars": {
-    "NEXT_PUBLIC_API_BASE_URL": "https://cinemagozin.liara.run/api/v1"
   },
   "observability": {
     "enabled": true
