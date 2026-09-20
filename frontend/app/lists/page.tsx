@@ -1,6 +1,7 @@
 import Link from "next/link";
-import ListCard from "@/components/ListCard";
+import ListCard from "@/components/lists/list-card";
 import { discoverLists } from "@/lib/api";
+import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 
 export const revalidate = 60;
 
@@ -33,9 +34,9 @@ export default async function ListsPage() {
           هنوز لیستی ساخته نشده. اولین نفر باشید!
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
           {lists.map((list) => (
-            <ListCard key={list.id} list={list} />
+            <ListCard key={list.id} list={listSummaryToListCard(list)} />
           ))}
         </div>
       )}

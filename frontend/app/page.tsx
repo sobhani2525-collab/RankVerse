@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Hero from "@/components/Hero";
-import RankingList from "@/components/RankingList";
+import EntityCard from "@/components/entities/entity-card";
 import { getTopMovies, getTopTvSeries, discoverLists } from "@/lib/api";
+import { movieListItemToEntityCard } from "@/lib/entity-card-adapters";
 
 export const revalidate = 300;
 
@@ -37,7 +38,7 @@ export default async function HomePage() {
     <main>
       <Hero />
 
-      <section className="mx-auto max-w-3xl px-6 py-14">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="mb-6 flex items-baseline justify-between">
           <h2 className="font-display text-xl text-ink">برترین‌های امروز</h2>
           <span className="num text-xs text-muted">دسته: فیلم</span>
@@ -48,19 +49,31 @@ export default async function HomePage() {
             اتصال به RankVerse Core Engine برقرار نشد.
             <span className="num block text-xs mt-1 text-gold/70">{loadError}</span>
           </div>
+        ) : movies.length === 0 ? (
+          <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
+            هنوز فیلمی همگام‌سازی نشده. اولین sync را از طریق API انجام دهید.
+          </div>
         ) : (
-          <RankingList movies={movies} />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
+            {movies.map((movie) => (
+              <EntityCard key={movie.id} entity={movieListItemToEntityCard(movie)} />
+            ))}
+          </div>
         )}
       </section>
 
       {tvSeries.length > 0 && (
-        <section className="mx-auto max-w-3xl px-6 pb-14">
+        <section className="mx-auto max-w-7xl px-6 pb-14">
           <div className="mb-6 flex items-baseline justify-between">
             <h2 className="font-display text-xl text-ink">برترین‌های سریال</h2>
             <span className="num text-xs text-muted">دسته: سریال</span>
           </div>
 
-          <RankingList movies={tvSeries} />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
+            {tvSeries.map((show) => (
+              <EntityCard key={show.id} entity={movieListItemToEntityCard(show)} />
+            ))}
+          </div>
         </section>
       )}
 

@@ -29,7 +29,7 @@ const config: Config = {
           dim: "#2E6E63",
         },
         violet: {
-          DEFAULT: "#7C5CFC",
+          DEFAULT: "#9163f5",
           dim: "#493A8C",
           soft: "#a78bfa",
         },
@@ -49,7 +49,9 @@ const config: Config = {
       backgroundImage: {
         "sky-gradient":
           "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(232,179,74,0.10), transparent), radial-gradient(ellipse 60% 50% at 90% 10%, rgba(79,184,166,0.08), transparent)",
-        "constellation-gradient": "linear-gradient(135deg, #7C5CFC, #4FB8A6)",
+        "constellation-gradient": "linear-gradient(135deg, #9163f5, #4FB8A6)",
+        // Brand gradient — composite scores, primary CTAs (battle start), active nav badge.
+        "gradient-brand": "linear-gradient(135deg, #9163f5, #4FB8A6)",
       },
       screens: {
         wide: "860px",

@@ -2,10 +2,11 @@ import Link from "next/link";
 import EntityHero from "@/components/EntityHero";
 import EntityDescription from "@/components/EntityDescription";
 import MediaPlayer from "@/components/MediaPlayer";
-import RelatedList from "@/components/RelatedList";
+import EntityCard from "@/components/entities/entity-card";
 import EntityLists from "@/components/EntityLists";
 import { GenreDetail } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
+import { movieListItemToEntityCard } from "@/lib/entity-card-adapters";
 
 // Movies and tv_series both belong under one genre ranking -- merged into a
 // single list (sorted by score, nulls last) rather than two separate
@@ -20,7 +21,7 @@ export default function GenreView({ data }: { data: GenreDetail }) {
   const items = [...data.movies, ...data.tv_series].sort(byScoreDesc);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-14">
+    <main className="mx-auto max-w-6xl px-6 py-14">
       <Link href="/" className="text-sm text-muted hover:text-gold">
         بازگشت به فهرست
       </Link>
@@ -32,7 +33,16 @@ export default function GenreView({ data }: { data: GenreDetail }) {
       />
       <MediaPlayer media={data.media} />
       <EntityDescription text={data.description} />
-      <RelatedList items={items} />
+
+      {items.length > 0 && (
+        <section className="mt-10">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
+            {items.map((item) => (
+              <EntityCard key={item.id} entity={movieListItemToEntityCard(item)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <EntityLists entityId={data.id} />
     </main>

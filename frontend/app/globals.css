@@ -10,6 +10,8 @@
   body {
     @apply bg-bg text-ink;
     background-image:
+      radial-gradient(circle at 12% 4%, rgba(145,99,245,0.14), transparent 34%),
+      radial-gradient(circle at 92% 12%, rgba(79,184,166,0.10), transparent 36%),
       radial-gradient(1px 1px at 20% 30%, rgba(242,240,232,0.35), transparent),
       radial-gradient(1px 1px at 70% 15%, rgba(242,240,232,0.25), transparent),
       radial-gradient(1.5px 1.5px at 40% 70%, rgba(232,179,74,0.3), transparent),
@@ -17,6 +19,7 @@
       radial-gradient(1px 1px at 55% 45%, rgba(242,240,232,0.2), transparent);
     background-repeat: no-repeat;
     background-size: 100% 100%;
+    background-attachment: fixed;
   }
 
   ::selection {
