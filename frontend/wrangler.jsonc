@@ -12,5 +12,8 @@
   },
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "NEXT_PUBLIC_API_BASE_URL": "https://cinemagozin.liara.run/api/v1"
   }
 }
