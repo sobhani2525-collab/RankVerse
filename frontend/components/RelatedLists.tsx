@@ -1,5 +1,6 @@
 import { getRelatedLists } from "@/lib/api";
-import ListCard from "./ListCard";
+import ListCard from "@/components/lists/list-card";
+import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 
 export default async function RelatedLists({ slug }: { slug: string }) {
   let related;
@@ -14,9 +15,9 @@ export default async function RelatedLists({ slug }: { slug: string }) {
   return (
     <div className="mt-10">
       <h2 className="text-lg font-bold text-ink">لیست‌های مشابه</h2>
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
         {related.map((list) => (
-          <ListCard key={list.id} list={list} />
+          <ListCard key={list.id} list={listSummaryToListCard(list)} />
         ))}
       </div>
     </div>

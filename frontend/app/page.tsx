@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Hero from "@/components/Hero";
 import FavoriteEntityCard from "@/components/entities/favorite-entity-card";
+import ListCard from "@/components/lists/list-card";
 import { getTopMovies, getTopTvSeries, discoverLists } from "@/lib/api";
-import { movieListItemToEntityCard } from "@/lib/entity-card-adapters";
+import { movieListItemToEntityCard, listSummaryToListCard } from "@/lib/entity-card-adapters";
 
 export const revalidate = 300;
 
@@ -86,19 +87,9 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
             {latestLists.map((list) => (
-              <Link
-                key={list.id ?? list.slug}
-                href={`/lists/${list.slug}`}
-                className="rounded-lg border border-border bg-surface px-4 py-3 transition-colors hover:border-teal/30"
-              >
-                <p className="truncate text-sm text-ink">{list.title}</p>
-                <p className="mt-1 text-xs text-muted">
-                  {list.owner_username ?? list.username ?? "کاربر RankVerse"}
-                  {typeof list.item_count === "number" && ` · ${list.item_count} مورد`}
-                </p>
-              </Link>
+              <ListCard key={list.id} list={listSummaryToListCard(list)} />
             ))}
           </div>
         </section>
