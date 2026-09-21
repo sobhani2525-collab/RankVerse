@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import DetailShareButton from "@/components/entities/detail-share-button";
+import AddToListMenu from "@/components/entities/add-to-list-menu";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
@@ -84,6 +85,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
               <DetailFavoriteButton entity={movie} size={44} />
               <DetailShareButton entity={movie} title={displayTitle(movie)} size={44} />
             </div>
+          </div>
+
+          <div className="mt-3 flex justify-end">
+            <AddToListMenu entity={movie} />
           </div>
 
           <div className="mt-4 flex items-center gap-3">
