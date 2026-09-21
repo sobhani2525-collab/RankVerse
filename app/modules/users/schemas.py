@@ -48,3 +48,12 @@ class RatingPublic(BaseModel):
     movie_slug: str | None = None
     movie_title: str | None = None
     movie_poster_path: str | None = None
+
+
+class FavoritePublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    entity_id: uuid.UUID
+    movie_slug: str | None = None
+    movie_title: str | None = None
+    movie_poster_path: str | None = None

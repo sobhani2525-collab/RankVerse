@@ -2,7 +2,7 @@ import Link from "next/link";
 import EntityHero from "@/components/EntityHero";
 import EntityDescription from "@/components/EntityDescription";
 import MediaPlayer from "@/components/MediaPlayer";
-import EntityCard from "@/components/entities/entity-card";
+import FavoriteEntityCard from "@/components/entities/favorite-entity-card";
 import EntityLists from "@/components/EntityLists";
 import { GenreDetail } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
@@ -38,7 +38,7 @@ export default function GenreView({ data }: { data: GenreDetail }) {
         <section className="mt-10">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
             {items.map((item) => (
-              <EntityCard key={item.id} entity={movieListItemToEntityCard(item)} />
+              <FavoriteEntityCard key={item.id} entity={movieListItemToEntityCard(item)} />
             ))}
           </div>
         </section>

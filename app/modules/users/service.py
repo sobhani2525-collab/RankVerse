@@ -88,6 +88,20 @@ class UserService:
         await self.repo.update_password(user, hash_password(new_password))
         await self.db.commit()
 
+    async def _recompute_taste_dna(self, user_id: uuid.UUID) -> None:
+        """
+        Shared by every action that changes a signal Taste DNA reads from
+        (a rating, a favorite toggle): recomputes on-demand for
+        responsiveness. The nightly batch equivalents still run to catch
+        anyone who acts outside the app (sync/import, etc). Snapshot/
+        insight read the dimensions row(s), so they must run after them.
+        """
+        await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
+        await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
+        await TasteInsightComputer(self.db).compute_insight(user_id)
+        await TasteAnchorComputer(self.db).compute_anchors(user_id)
+        await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
+
     async def rate_entity(self, user_id: uuid.UUID, entity_slug: str, score: int, entity_type: str = "movie"):
         entity_repo = EntityRepository(self.db)
         entity = await entity_repo.get_by_slug(entity_slug, entity_type=entity_type)
@@ -101,15 +115,7 @@ class UserService:
         ranking_service = RankingService(self.db)
         await ranking_service.recompute_entity(entity)
 
-        # Same on-demand logic for the voting user's own Taste DNA. The nightly
-        # batch (TasteDimensionComputer.compute_genre_dimensions_batch) still
-        # runs to catch anyone who rates outside the app (sync/import, etc).
-        # Snapshot reads the dimensions row(s) above, so it must run after them.
-        await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
-        await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
-        await TasteInsightComputer(self.db).compute_insight(user_id)
-        await TasteAnchorComputer(self.db).compute_anchors(user_id)
-        await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
+        await self._recompute_taste_dna(user_id)
 
         await self.db.commit()
         return rating
@@ -124,11 +130,7 @@ class UserService:
         if deleted:
             ranking_service = RankingService(self.db)
             await ranking_service.recompute_entity(entity)
-            await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
-            await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
-            await TasteInsightComputer(self.db).compute_insight(user_id)
-            await TasteAnchorComputer(self.db).compute_anchors(user_id)
-            await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
+            await self._recompute_taste_dna(user_id)
             await self.db.commit()
         return deleted
 
@@ -143,3 +145,28 @@ class UserService:
 
     async def unrate_tv_series(self, user_id: uuid.UUID, entity_slug: str):
         return await self.unrate_entity(user_id, entity_slug, entity_type="tv_series")
+
+    async def toggle_favorite(self, user_id: uuid.UUID, entity_slug: str, entity_type: str = "movie") -> bool:
+        """Returns the new favorited state (True = just favorited, False = just unfavorited)."""
+        entity_repo = EntityRepository(self.db)
+        entity = await entity_repo.get_by_slug(entity_slug, entity_type=entity_type)
+        if not entity:
+            raise NotFoundError(f"{entity_type} '{entity_slug}' not found")
+
+        existing = await self.repo.get_favorite(user_id, entity.id)
+        if existing:
+            await self.repo.remove_favorite(existing)
+            favorited = False
+        else:
+            await self.repo.add_favorite(user_id, entity.id)
+            favorited = True
+
+        await self._recompute_taste_dna(user_id)
+        await self.db.commit()
+        return favorited
+
+    async def favorite_movie(self, user_id: uuid.UUID, entity_slug: str) -> bool:
+        return await self.toggle_favorite(user_id, entity_slug, entity_type="movie")
+
+    async def favorite_tv_series(self, user_id: uuid.UUID, entity_slug: str) -> bool:
+        return await self.toggle_favorite(user_id, entity_slug, entity_type="tv_series")

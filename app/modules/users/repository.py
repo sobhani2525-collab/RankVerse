@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.users.models import User, UserRating
+from app.modules.users.models import User, UserFavorite, UserRating
 
 
 class UserRepository:
@@ -75,5 +75,42 @@ class UserRepository:
                 "movie_poster_path": entity.attributes.get("poster_path"),
             }
             for rating, entity in rows
+        ]
+
+    async def get_favorite(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> UserFavorite | None:
+        result = await self.db.execute(
+            select(UserFavorite).where(UserFavorite.user_id == user_id, UserFavorite.entity_id == entity_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def add_favorite(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> UserFavorite:
+        favorite = UserFavorite(user_id=user_id, entity_id=entity_id)
+        self.db.add(favorite)
+        await self.db.flush()
+        return favorite
+
+    async def remove_favorite(self, favorite: UserFavorite) -> None:
+        await self.db.delete(favorite)
+        await self.db.flush()
+
+    async def list_favorites_with_movies(self, user_id: uuid.UUID) -> list[dict]:
+        from app.modules.entities.models import Entity
+        stmt = (
+            select(UserFavorite, Entity)
+            .join(Entity, Entity.id == UserFavorite.entity_id)
+            .where(UserFavorite.user_id == user_id)
+            .order_by(UserFavorite.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        return [
+            {
+                "id": favorite.id,
+                "entity_id": favorite.entity_id,
+                "movie_slug": entity.slug,
+                "movie_title": entity.title,
+                "movie_poster_path": entity.attributes.get("poster_path"),
+            }
+            for favorite, entity in rows
         ]
 
