@@ -7,7 +7,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   tv_series: "سریال",
   track: "موسیقی",
   album: "آلبوم",
-  person: "شخص",
+  person: "شخصیت",
   genre: "ژانر",
 };
 
@@ -36,13 +36,4 @@ export function entityTypeLabel(entityType: string): string {
 export function entityTypeBadgeClass(entityType: string): string {
   const color = ENTITY_TYPE_COLORS[entityType] ?? "muted";
   return ENTITY_TYPE_BADGE_CLASSES[color];
-}
-
-// Battle categories currently supported by /battles (see
-// app/modules/battles/service.py -- category doubles as entity_type, and
-// only these two types have Elo tracking + a category tab in app/battles).
-export const BATTLE_COMPARABLE_TYPES = ["movie", "tv_series"];
-
-export function isBattleComparable(entityType: string): boolean {
-  return BATTLE_COMPARABLE_TYPES.includes(entityType);
 }

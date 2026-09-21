@@ -4,7 +4,7 @@ import Link from "next/link";
 import EntityMedia, { MediaKind } from "./entity-media";
 import { detailPathFor } from "@/lib/entity-routes";
 import { displayTitle } from "@/lib/title";
-import { isBattleComparable } from "@/lib/constants";
+import { entityTypeLabel } from "@/lib/constants";
 
 export interface EntityCardNotableRanking {
   label: string;
@@ -45,11 +45,9 @@ export interface EntityCardEntity {
 
 export interface EntityCardProps {
   entity: EntityCardEntity;
-  showBattleAction?: boolean;
   showFavoriteAction?: boolean;
   isFavorite?: boolean;
   onToggleFavorite?: (entity: EntityCardEntity) => void;
-  onAddToBattle?: (entity: EntityCardEntity) => void;
   /** false forces the sub-metric row to show below the md breakpoint too. */
   compact?: boolean;
 }
@@ -63,16 +61,13 @@ const TREND_CLASS: Record<EntityCardTrend, string> = {
 
 export default function EntityCard({
   entity,
-  showBattleAction = true,
   showFavoriteAction = true,
   isFavorite = false,
   onToggleFavorite,
-  onAddToBattle,
   compact,
 }: EntityCardProps) {
   const title = displayTitle(entity);
   const href = detailPathFor(entity.entity_type, entity.slug) ?? `/${entity.entity_type}/${entity.slug}`;
-  const canBattle = showBattleAction && isBattleComparable(entity.entity_type);
   const hasSubmetrics =
     entity.communityScore != null || entity.trend != null || entity.confidence != null;
   const submetricRowClass = compact === false ? "flex" : "hidden md:flex";
@@ -127,21 +122,6 @@ export default function EntityCard({
           </button>
         )}
 
-        {canBattle && (
-          <button
-            type="button"
-            aria-label="افزودن به نبرد"
-            onClick={(e) => {
-              e.preventDefault();
-              onAddToBattle?.(entity);
-            }}
-            className={`num absolute left-2 flex h-6 items-center justify-center rounded-lg border border-border px-2 text-[10px] font-bold tracking-wide text-teal backdrop-blur-sm transition hover:border-teal/40 ${cornerButtonBottomClass}`}
-            style={{ background: "rgba(7,11,22,.78)" }}
-          >
-            VS
-          </button>
-        )}
-
         {entity.trending === true && (
           <div
             className={`absolute right-2 flex items-center gap-1 rounded-lg border border-teal/40 px-2 py-1 backdrop-blur-sm ${cornerButtonBottomClass}`}
@@ -171,6 +151,8 @@ export default function EntityCard({
       </div>
 
       <div className="mt-2.5 flex flex-col gap-1.5">
+        <span className="text-[10.5px] font-semibold text-muted">{entityTypeLabel(entity.entity_type)}</span>
+
         <Link href={href} className="truncate text-sm font-bold text-ink hover:text-teal md:text-[15px]">
           {title}
         </Link>
