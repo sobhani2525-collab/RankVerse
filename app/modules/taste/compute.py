@@ -42,7 +42,7 @@ from app.modules.entities.models import Entity, RelationshipEdge
 from app.modules.lists.models import ListComment
 from app.modules.taste.insight_templates import TEMPLATES
 from app.modules.taste.repository import TasteRepository
-from app.modules.users.models import UserRating
+from app.modules.users.models import UserFavorite, UserRating
 
 # UserRating.score's actual range (see the ck_rating_range CheckConstraint
 # on user_ratings) -- the span between these anchors how far a genre's
@@ -148,26 +148,59 @@ class TasteDimensionComputer:
         result = await self.db.execute(stmt)
         return [GenreVote(genre_slug=slug, score=score) for slug, score in result.all()]
 
+    async def _favorited_unrated_genre_slugs_for_user(self, user_id: uuid.UUID) -> list[str]:
+        """
+        One row per (favorited-but-not-rated movie, genre it belongs to) --
+        the ♥ counterpart of _genre_votes_for_user, for the weaker implicit
+        signal. An entity the user has ALSO rated is excluded entirely: the
+        explicit rating is strictly more informative for that same movie,
+        so it's used instead of, never alongside, the favorite pseudo-score.
+        """
+        rated_entity_ids = select(UserRating.entity_id).where(UserRating.user_id == user_id)
+        stmt = (
+            select(Entity.slug)
+            .select_from(UserFavorite)
+            .join(
+                RelationshipEdge,
+                (RelationshipEdge.from_entity_id == UserFavorite.entity_id)
+                & (RelationshipEdge.relation_type == "has_genre"),
+            )
+            .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+            .where(UserFavorite.user_id == user_id, UserFavorite.entity_id.not_in(rated_entity_ids))
+        )
+        result = await self.db.execute(stmt)
+        return [slug for (slug,) in result.all()]
+
     async def compute_genre_dimensions(self, user_id: uuid.UUID) -> int:
         """
         Recomputes dimension_type="genre" rows for one user from their
-        explicit movie ratings + has_genre relationships. Flushes but does
-        NOT commit -- the caller (on-demand trigger or batch loop) owns
-        the transaction boundary, same convention as
+        explicit movie ratings + has_genre relationships, plus a weaker
+        signal from ♥ favorites on movies they haven't rated (see
+        _favorited_unrated_genre_slugs_for_user). Flushes but does NOT
+        commit -- the caller (on-demand trigger or batch loop) owns the
+        transaction boundary, same convention as
         RankingService.recompute_entity.
 
         Returns the number of dimension rows persisted (post-threshold).
         """
         votes = await self._genre_votes_for_user(user_id)
-        if not votes:
+        favorite_genre_slugs = await self._favorited_unrated_genre_slugs_for_user(user_id)
+        if not votes and not favorite_genre_slugs:
             await self.repo.bulk_upsert_dimensions(user_id, "genre", [])
             return 0
 
         user_avg = await _overall_avg_rating(self.db, user_id)
+        if user_avg is None:
+            # A favorites-only user has no explicit ratings to establish a
+            # baseline -- fall back to the scale midpoint, same convention
+            # as RankingService.get_platform_average's neutral default.
+            user_avg = (RATING_SCALE_MIN + RATING_SCALE_MAX) / 2
 
         by_genre: dict[str, list[int]] = {}
         for vote in votes:
             by_genre.setdefault(vote.genre_slug, []).append(vote.score)
+        for genre_slug in favorite_genre_slugs:
+            by_genre.setdefault(genre_slug, []).append(settings.taste_favorite_rating_equivalent)
 
         max_sample_size = max(len(scores) for scores in by_genre.values())
 
@@ -191,12 +224,16 @@ class TasteDimensionComputer:
     async def compute_genre_dimensions_batch(self, user_ids: list[uuid.UUID] | None = None) -> int:
         """
         Nightly/batch entry point. Pass explicit user_ids for a partial
-        run (e.g. only users with new ratings since the last run); omit
-        to recompute every user with at least one rating. Commits once at
-        the end, matching RankingService.recompute_all.
+        run (e.g. only users with new ratings/favorites since the last
+        run); omit to recompute every user with at least one rating OR
+        favorite (a favorites-only user still has genre signal to
+        compute, per _favorited_unrated_genre_slugs_for_user). Commits
+        once at the end, matching RankingService.recompute_all.
         """
         if user_ids is None:
-            stmt = select(UserRating.user_id).distinct()
+            rated_ids = select(UserRating.user_id)
+            favorited_ids = select(UserFavorite.user_id)
+            stmt = rated_ids.union(favorited_ids)
             result = await self.db.execute(stmt)
             user_ids = [row[0] for row in result.all()]
 
@@ -546,11 +583,15 @@ class ContributionStatsComputer:
         comments_count = await self._count(select(func.count()).select_from(ListComment).where(
             ListComment.user_id == user_id
         ))
+        favorites_count = await self._count(select(func.count()).select_from(UserFavorite).where(
+            UserFavorite.user_id == user_id
+        ))
 
         contribution_score = (
             votes_count * settings.taste_contribution_vote_weight
             + battles_count * settings.taste_contribution_battle_weight
             + comments_count * settings.taste_contribution_comment_weight
+            + favorites_count * settings.taste_contribution_favorite_weight
         )
 
         await self.repo.replace_contribution_stats(
@@ -559,6 +600,7 @@ class ContributionStatsComputer:
                 "votes_count": votes_count,
                 "battles_count": battles_count,
                 "comments_count": comments_count,
+                "favorites_count": favorites_count,
                 "contribution_score": contribution_score,
             },
         )

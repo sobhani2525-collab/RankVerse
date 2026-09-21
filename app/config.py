@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     taste_dimension_engagement_weight: float = 0.3
     taste_dimension_confidence_threshold: float = 0.35
 
+    # A ♥ favorite (UserFavorite) is a deliberately weaker, implicit signal
+    # than an explicit UserRating -- see TasteDimensionComputer's
+    # _favorited_unrated_genre_slugs_for_user. When a favorited entity
+    # hasn't also been rated, its genres get one extra data point worth
+    # this many stars (out of RATING_SCALE_MAX in taste/compute.py) rather
+    # than a real score; an entity the user has explicitly rated always
+    # uses that rating instead, never both.
+    taste_favorite_rating_equivalent: int = 4
+
     # Taste DNA anchor scoring (see TasteAnchorComputer in the same file).
     # taste_anchor_min_rating is expressed in raw UserRating.score units
     # (RATING_SCALE_MIN..RATING_SCALE_MAX in taste/compute.py), so it was
@@ -70,10 +79,13 @@ class Settings(BaseSettings):
 
     # Taste DNA contribution scoring (see ContributionStatsComputer in the
     # same file). A battle vote and a written comment take more deliberate
-    # effort than a single rating tap, hence the higher weights.
+    # effort than a single rating tap, hence the higher weights. A ♥
+    # favorite is a single tap with even less deliberation than a rating
+    # (no score to choose), hence the lowest weight of the four.
     taste_contribution_vote_weight: float = 1.0
     taste_contribution_battle_weight: float = 2.0
     taste_contribution_comment_weight: float = 3.0
+    taste_contribution_favorite_weight: float = 0.5
 
     # Predicted picks (see PredictedPicksService in
     # app/modules/taste/predicted_picks.py): how much a candidate's match

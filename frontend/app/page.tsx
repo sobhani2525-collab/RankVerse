@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Hero from "@/components/Hero";
-import EntityCard from "@/components/entities/entity-card";
+import FavoriteEntityCard from "@/components/entities/favorite-entity-card";
 import { getTopMovies, getTopTvSeries, discoverLists } from "@/lib/api";
 import { movieListItemToEntityCard } from "@/lib/entity-card-adapters";
 
@@ -56,7 +56,7 @@ export default async function HomePage() {
         ) : (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
             {movies.map((movie) => (
-              <EntityCard key={movie.id} entity={movieListItemToEntityCard(movie)} />
+              <FavoriteEntityCard key={movie.id} entity={movieListItemToEntityCard(movie)} />
             ))}
           </div>
         )}
@@ -71,7 +71,7 @@ export default async function HomePage() {
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
             {tvSeries.map((show) => (
-              <EntityCard key={show.id} entity={movieListItemToEntityCard(show)} />
+              <FavoriteEntityCard key={show.id} entity={movieListItemToEntityCard(show)} />
             ))}
           </div>
         </section>

@@ -2,6 +2,7 @@ import ConditionalHeader from "@/components/ConditionalHeader";
 import AuthGateModal from "@/components/AuthGateModal";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
+import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import type { Metadata } from "next";
 import { vazirmatn, jetbrainsMono, lalezar } from "./fonts";
 import "./globals.css";
@@ -26,9 +27,11 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         <AuthProvider>
           <AuthGateProvider>
-            <ConditionalHeader />
-            {children}
-            <AuthGateModal />
+            <FavoritesProvider>
+              <ConditionalHeader />
+              {children}
+              <AuthGateModal />
+            </FavoritesProvider>
           </AuthGateProvider>
         </AuthProvider>
       </body>

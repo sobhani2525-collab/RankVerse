@@ -107,6 +107,32 @@ async def test_list_comment_increments_comments_count(client, db_session, auth_h
     assert stats["comments_count"] == 1
 
 
+async def test_favorite_populates_contribution_stats(client, db_session, auth_headers):
+    movie = await _create_movie(db_session, "Contribution Favorite Movie")
+
+    res = await client.post(f"/api/v1/movies/{movie.slug}/favorite", headers=auth_headers)
+    assert res.status_code == 200
+    assert res.json()["data"]["favorited"] is True
+
+    profile = await client.get("/api/v1/users/me/taste-dna", headers=auth_headers)
+    stats = profile.json()["data"]["contribution_stats"]
+    assert stats["favorites_count"] == 1
+    assert stats["contribution_score"] == 0.5  # taste_contribution_favorite_weight
+
+
+async def test_unfavoriting_decrements_contribution_stats(client, db_session, auth_headers):
+    movie = await _create_movie(db_session, "Contribution Unfavorite Movie")
+
+    await client.post(f"/api/v1/movies/{movie.slug}/favorite", headers=auth_headers)
+    res = await client.post(f"/api/v1/movies/{movie.slug}/favorite", headers=auth_headers)
+    assert res.json()["data"]["favorited"] is False
+
+    profile = await client.get("/api/v1/users/me/taste-dna", headers=auth_headers)
+    stats = profile.json()["data"]["contribution_stats"]
+    assert stats["favorites_count"] == 0
+    assert stats["contribution_score"] == 0.0
+
+
 async def test_contribution_score_weights_actions_differently(client, db_session, auth_headers):
     movie = await _create_movie(db_session, "Weighted Score Movie")
     left = await _create_movie(db_session, "Weighted Left Movie")

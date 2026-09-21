@@ -6,7 +6,7 @@ from app.core.schemas import envelope
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import RatingCreate, RatingPublic
+from app.modules.users.schemas import FavoritePublic, RatingCreate, RatingPublic
 from app.modules.users.service import UserService
 
 router = APIRouter(tags=["users"])
@@ -65,3 +65,34 @@ async def my_ratings(
 ):
     ratings = await UserRepository(db).list_ratings_with_movies(current_user.id)
     return envelope(data=[RatingPublic.model_validate(r).model_dump() for r in ratings])
+
+
+@router.post("/movies/{slug}/favorite")
+async def favorite_movie(
+    slug: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = UserService(db)
+    favorited = await service.favorite_movie(current_user.id, slug)
+    return envelope(data={"favorited": favorited})
+
+
+@router.post("/tv-series/{slug}/favorite")
+async def favorite_tv_series(
+    slug: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = UserService(db)
+    favorited = await service.favorite_tv_series(current_user.id, slug)
+    return envelope(data={"favorited": favorited})
+
+
+@router.get("/users/me/favorites")
+async def my_favorites(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    favorites = await UserRepository(db).list_favorites_with_movies(current_user.id)
+    return envelope(data=[FavoritePublic.model_validate(f).model_dump() for f in favorites])

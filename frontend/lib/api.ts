@@ -235,6 +235,30 @@ export async function unrateMovie(token: string, slug: string): Promise<{ delete
   return unrateEntity(token, slug, "movie");
 }
 
+export interface UserFavorite {
+  id: string;
+  entity_id: string;
+  movie_slug: string;
+  movie_title: string;
+  movie_poster_path: string | null;
+}
+
+function favoritePathFor(entityType: string, slug: string): string {
+  return entityType === "tv_series" ? `/tv-series/${slug}/favorite` : `/movies/${slug}/favorite`;
+}
+
+export async function toggleFavorite(
+  token: string,
+  slug: string,
+  entityType: string = "movie"
+): Promise<{ favorited: boolean }> {
+  return authFetch<{ favorited: boolean }>(favoritePathFor(entityType, slug), token, { method: "POST" });
+}
+
+export async function getMyFavorites(token: string): Promise<UserFavorite[]> {
+  return authFetch<UserFavorite[]>("/users/me/favorites", token);
+}
+
 // --- Authenticated helper ---
 
 async function authFetch<T>(
