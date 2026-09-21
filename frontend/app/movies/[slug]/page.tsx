@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import Constellation from "@/components/Constellation";
+import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
@@ -40,8 +40,6 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : null;
-  const mainDirector = movie.directors[0]?.title ?? null;
-  const mainGenre = movie.genres[0]?.title ? genreLabel(movie.genres[0].title) : null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
@@ -74,7 +72,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
                 {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} دقیقه` : ""}
               </p>
             </div>
-            <Constellation director={mainDirector} genre={mainGenre} year={movie.year} size={80} />
+            <DetailFavoriteButton entity={movie} size={80} />
           </div>
 
           <div className="mt-4 flex items-center gap-3">
