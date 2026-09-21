@@ -112,14 +112,17 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         بازگشت به فهرست
       </Link>
 
-      <div className="mt-6 flex max-w-3xl flex-col gap-8 sm:flex-row">
-        <div className="h-72 w-48 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
+      <div className="mt-6 flex flex-col gap-8 sm:flex-row">
+        {/* Deliberately bigger than any related-entity card (max ~227px wide
+            at the lg:grid-cols-5 breakpoint of a max-w-7xl page) so the
+            show's own poster always reads as the primary image on the page. */}
+        <div className="h-96 w-64 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
           {posterUrl ? (
             <Image
               src={posterUrl}
               alt={displayTitle(tv)}
-              width={192}
-              height={288}
+              width={256}
+              height={384}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -183,11 +186,11 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      <div className="mt-10 max-w-3xl">
+      <div className="mt-10">
         <StarRating entity={tv} />
       </div>
 
-      <div className="mt-10 max-w-3xl">
+      <div className="mt-10">
         <SuggestedBattleSection entityType="tv_series" slug={tv.slug} />
       </div>
 
@@ -195,7 +198,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         <RelatedEntities items={related} />
       </div>
 
-      <div className="mt-10 max-w-3xl">
+      <div className="mt-10">
         <NotableRankings items={rankingHighlights} />
       </div>
 
