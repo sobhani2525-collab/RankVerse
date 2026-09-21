@@ -79,7 +79,7 @@ export default async function HomePage() {
       )}
 
       {latestLists.length > 0 && (
-        <section className="mx-auto max-w-3xl px-6 pb-14">
+        <section className="mx-auto max-w-7xl px-6 pb-14">
           <div className="mb-6 flex items-baseline justify-between">
             <h2 className="font-display text-xl text-ink">آخرین لیست‌ها</h2>
             <Link href="/lists" className="text-xs text-teal hover:underline">
@@ -87,7 +87,7 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
             {latestLists.map((list) => (
               <ListCard key={list.id} list={listSummaryToListCard(list)} />
             ))}
