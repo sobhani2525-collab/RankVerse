@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -26,6 +27,7 @@ interface MyListRow {
  * container, absolute panel, click-outside-to-close).
  */
 export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
+  const router = useRouter();
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -85,6 +87,10 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
     }
   }
 
+  // Navigates to the new list's page on success (instead of just closing the
+  // menu) so the user lands where they can keep adding items to it --
+  // `creating` deliberately stays true through the redirect so the form
+  // can't be resubmitted while the page transitions.
   async function handleCreateList() {
     const token = getToken();
     const title = newTitle.trim();
@@ -95,13 +101,9 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
     try {
       const result = await createList(token, { title, entity_type: entity.entity_type });
       await addListItem(token, result.slug, { entity_id: entity.id });
-
-      setLists((prev) => [{ id: result.id, slug: result.slug, title }, ...(prev ?? [])]);
-      setAddedListIds((prev) => new Set(prev).add(result.id));
-      setNewTitle("");
+      router.push(`/lists/${result.slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در ساخت لیست");
-    } finally {
       setCreating(false);
     }
   }
@@ -113,7 +115,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
       <button
         type="button"
         onClick={handleToggleOpen}
-        className="flex items-center gap-1.5 rounded-full border border-border bg-surface/60 px-3.5 py-2 text-xs text-muted transition hover:border-gold/40 hover:text-ink"
+        className="flex items-center gap-1.5 rounded-full border border-violet/40 bg-violet/10 px-3.5 py-2 text-xs font-semibold text-violet-soft transition hover:border-violet/60 hover:bg-violet/20"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <line x1="12" y1="5" x2="12" y2="19" />
