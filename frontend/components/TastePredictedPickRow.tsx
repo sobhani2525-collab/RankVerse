@@ -3,6 +3,7 @@ import Image from "next/image";
 import { PredictedPick } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
 import { entityTypeLabel } from "@/lib/constants";
+import { toFaDigits } from "@/lib/format-number";
 
 export default function TastePredictedPickRow({ pick }: { pick: PredictedPick }) {
   const { entity } = pick;
@@ -36,7 +37,7 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
 
       {/* match_score is already 0-100 (see PredictedPicksService's docstring) --
           same convention as anchor.match_score in TasteAnchorRow. */}
-      <span className="num shrink-0 text-sm text-teal">{Math.round(pick.match_score)}٪</span>
+      <span className="num shrink-0 text-sm text-teal">{toFaDigits(Math.round(pick.match_score))}٪</span>
     </>
   );
 

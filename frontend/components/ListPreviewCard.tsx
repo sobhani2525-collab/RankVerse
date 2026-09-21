@@ -1,6 +1,7 @@
 import Image from "next/image";
 import ScoreBadge from "@/components/ScoreBadge";
 import { entityTypeLabel } from "@/lib/constants";
+import { toFaDigits } from "@/lib/format-number";
 
 export interface ListPreviewItem {
   id: string;
@@ -77,7 +78,9 @@ export default function ListPreviewCard({
       </div>
 
       <div className="mt-3 flex items-center justify-between">
-        <span className="num text-xs text-muted">{pendingItems.length} آیتم</span>
+        <span className="text-xs text-muted">
+          <span className="num">{toFaDigits(pendingItems.length)}</span> آیتم
+        </span>
       </div>
     </div>
   );

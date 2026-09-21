@@ -11,6 +11,7 @@ import EntityLists from "@/components/EntityLists";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
+import { toFaDigits } from "@/lib/format-number";
 
 export const revalidate = 60;
 
@@ -69,7 +70,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             <div>
               <h1 className="font-display text-2xl text-ink">{displayTitle(movie)}</h1>
               <p className="num mt-1 text-sm text-muted">
-                {movie.year ?? "-"} {movie.runtime ? `- ${movie.runtime} دقیقه` : ""}
+                {toFaDigits(movie.year ?? "-")} {movie.runtime ? `- ${toFaDigits(movie.runtime)} دقیقه` : ""}
               </p>
             </div>
             <DetailFavoriteButton entity={movie} size={80} />
@@ -77,7 +78,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
           <div className="mt-4 flex items-center gap-3">
             <ScoreBadge score={movie.computed_score} />
-            <span className="num text-xs text-muted">{movie.total_votes} رای</span>
+            <span className="num text-xs text-muted">{toFaDigits(movie.total_votes)} رای</span>
           </div>
 
           {movie.overview && (

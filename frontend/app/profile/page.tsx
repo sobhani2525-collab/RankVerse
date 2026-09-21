@@ -9,6 +9,7 @@ import { TasteProfile, PredictedPick } from "@/lib/types";
 import Loading from "@/components/Loading";
 import TasteDnaSection from "@/components/TasteDnaSection";
 import TasteDnaErrorState from "@/components/TasteDnaErrorState";
+import { toFaDigits } from "@/lib/format-number";
 
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
@@ -165,13 +166,13 @@ export default function ProfilePage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-lg border border-border bg-surface px-5 py-4">
             <div className="text-2xl font-bold text-gold">
-              {loadingRatings ? "—" : totalCount}
+              {loadingRatings ? "—" : toFaDigits(totalCount)}
             </div>
             <div className="mt-1 text-xs text-muted">رتبه‌بندی‌های ثبت‌شده</div>
           </div>
           <div className="rounded-lg border border-border bg-surface px-5 py-4">
             <div className="text-2xl font-bold text-teal">
-              {loadingRatings ? "—" : avgScore != null ? avgScore.toFixed(1) : "—"}
+              {loadingRatings ? "—" : avgScore != null ? toFaDigits(avgScore.toFixed(1)) : "—"}
             </div>
             <div className="mt-1 text-xs text-muted">میانگین امتیاز شما</div>
           </div>
@@ -227,7 +228,7 @@ export default function ProfilePage() {
                   <span className="truncate text-sm">{list.title}</span>
                   {typeof list.item_count === "number" && (
                     <span className="flex-shrink-0 text-xs text-muted">
-                      {list.item_count} مورد
+                      {toFaDigits(list.item_count)} مورد
                     </span>
                   )}
                 </Link>
@@ -282,7 +283,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex-shrink-0 rounded-full border border-teal/30 px-3 py-1 text-sm text-teal">
-                    {r.score.toFixed(1)}
+                    {toFaDigits(r.score.toFixed(1))}
                   </div>
                 </Link>
               </li>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { rateEntity, unrateEntity, getMyRatings } from "@/lib/api";
+import { toFaDigits } from "@/lib/format-number";
 
 const STAR_COUNT = 5;
 
@@ -136,7 +137,8 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
       <p className="mt-2 font-sans text-sm text-muted">
         {selected !== null ? (
           <>
-            امتیاز شما: <span className="num text-ink">{selected}</span> از {STAR_COUNT}
+            امتیاز شما: <span className="num text-ink">{toFaDigits(selected)}</span> از{" "}
+            <span className="num">{toFaDigits(STAR_COUNT)}</span>
           </>
         ) : (
           "امتیاز شما را ثبت کنید"

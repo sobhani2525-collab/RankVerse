@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { toFaDigits } from "@/lib/format-number";
 
 export default function NotFound() {
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-6 text-center">
-      <p className="num text-sm text-teal">404</p>
+      <p className="num text-sm text-teal">{toFaDigits(404)}</p>
       <h1 className="mt-3 text-2xl font-bold text-ink">این فیلم روی نقشه پیدا نشد</h1>
       <p className="mt-2 text-sm text-muted">
         شاید هنوز همگام‌سازی نشده یا آدرس اشتباه است.

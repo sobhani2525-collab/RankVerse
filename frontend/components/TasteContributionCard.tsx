@@ -1,5 +1,6 @@
 import ProgressBar from "./ProgressBar";
 import { ContributionStats } from "@/lib/types";
+import { toFaDigits } from "@/lib/format-number";
 
 interface TasteContributionCardProps {
   stats: ContributionStats;
@@ -8,7 +9,7 @@ interface TasteContributionCardProps {
 function StatTile({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded-lg border border-border bg-surface2 px-3 py-3 text-center">
-      <div className="num text-xl font-bold text-ink">{value}</div>
+      <div className="num text-xl font-bold text-ink">{toFaDigits(value)}</div>
       <div className="mt-1 text-[11px] text-muted">{label}</div>
     </div>
   );
@@ -33,7 +34,7 @@ export default function TasteContributionCard({ stats }: TasteContributionCardPr
       <div className="mt-5">
         <div className="mb-1.5 flex items-center justify-between text-xs text-muted">
           <span>امتیاز مشارکت</span>
-          <span className="num text-ink">{Math.round(stats.contribution_score)}</span>
+          <span className="num text-ink">{toFaDigits(Math.round(stats.contribution_score))}</span>
         </div>
         <ProgressBar value={scorePercent} fillClassName="bg-teal" />
       </div>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { toggleListLike, toggleListFollow } from "@/lib/api";
+import { toFaDigits } from "@/lib/format-number";
 
 export default function ListActions({
   slug,
@@ -60,25 +61,25 @@ export default function ListActions({
       <button
         onClick={() => requireAuth(doLike)}
         disabled={busy}
-        className={`num flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition disabled:opacity-50 ${
+        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition disabled:opacity-50 ${
           liked
             ? "border-gold/50 bg-gold/10 text-gold"
             : "border-border text-muted hover:border-gold/40"
         }`}
       >
-        ♥ {likeCount}
+        ♥ <span className="num">{toFaDigits(likeCount)}</span>
       </button>
 
       <button
         onClick={() => requireAuth(doFollow)}
         disabled={busy}
-        className={`num flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition disabled:opacity-50 ${
+        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition disabled:opacity-50 ${
           following
             ? "border-teal/50 bg-teal/10 text-teal"
             : "border-border text-muted hover:border-teal/40"
         }`}
       >
-        {following ? "دنبال می‌کنید" : "دنبال کردن"} · {followerCount}
+        {following ? "دنبال می‌کنید" : "دنبال کردن"} · <span className="num">{toFaDigits(followerCount)}</span>
       </button>
     </div>
   );

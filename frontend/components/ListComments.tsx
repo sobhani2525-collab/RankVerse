@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { addListComment } from "@/lib/api";
 import { ListComment } from "@/lib/types";
+import { toFaDigits } from "@/lib/format-number";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fa-IR");
@@ -49,7 +50,7 @@ export default function ListComments({
   return (
     <div className="mt-10">
       <h2 className="mb-4 text-lg font-bold text-ink">
-        نظرات <span className="num text-muted">({comments.length})</span>
+        نظرات <span className="num text-muted">({toFaDigits(comments.length)})</span>
       </h2>
 
       <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-2">

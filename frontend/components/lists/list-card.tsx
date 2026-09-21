@@ -8,6 +8,7 @@ import { relativeTimeFa } from "@/lib/relative-time";
 import { toggleListLike } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { toFaDigits } from "@/lib/format-number";
 
 export interface ListCardItem {
   id: string;
@@ -99,9 +100,9 @@ export default function ListCard({ list }: { list: ListCardList }) {
             {typeCounts.map(([type, count]) => (
               <span
                 key={type}
-                className={`num rounded-md border px-2 py-0.5 text-[11px] font-bold ${entityTypeBadgeClass(type)}`}
+                className={`rounded-md border px-2 py-0.5 text-[11px] font-bold ${entityTypeBadgeClass(type)}`}
               >
-                {count} {entityTypeLabel(type)}
+                <span className="num">{toFaDigits(count)}</span> {entityTypeLabel(type)}
               </span>
             ))}
           </div>
@@ -149,7 +150,7 @@ export default function ListCard({ list }: { list: ListCardList }) {
               <svg width="17" height="17" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
               </svg>
-              <span className="num">{likeCount}</span>
+              <span className="num">{toFaDigits(likeCount)}</span>
             </button>
           )}
         </div>

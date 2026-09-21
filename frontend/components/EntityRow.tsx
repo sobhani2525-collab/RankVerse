@@ -6,6 +6,7 @@ import { MovieListItem } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
 import { displayTitle } from "@/lib/title";
 import { entityTypeLabel } from "@/lib/constants";
+import { toFaDigits } from "@/lib/format-number";
 
 export default function EntityRow({
   movie,
@@ -26,7 +27,7 @@ export default function EntityRow({
       className="group flex items-center gap-4 rounded-xl border border-border bg-surface/60 px-4 py-3 transition hover:border-gold/40 hover:bg-surface2"
     >
       <span className="num w-9 shrink-0 text-center text-lg text-muted group-hover:text-gold">
-        {String(rank).padStart(2, "0")}
+        {toFaDigits(String(rank).padStart(2, "0"))}
       </span>
 
       <div className="h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface2">
@@ -52,7 +53,7 @@ export default function EntityRow({
           {movie.year && (
             <>
               <span className="opacity-50">·</span>
-              <span className="num">{movie.year}</span>
+              <span className="num">{toFaDigits(movie.year)}</span>
             </>
           )}
         </div>
@@ -62,7 +63,7 @@ export default function EntityRow({
 
       <div className="flex flex-col items-end gap-1">
         <ScoreBadge score={movie.computed_score} />
-        <span className="num text-[11px] text-muted">{movie.total_votes} رای</span>
+        <span className="num text-[11px] text-muted">{toFaDigits(movie.total_votes)} رای</span>
       </div>
     </Link>
   );

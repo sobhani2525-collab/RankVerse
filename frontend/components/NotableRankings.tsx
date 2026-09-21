@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
+import { toFaDigits } from "@/lib/format-number";
 
 function highlightLabel(highlight: RankingHighlight): string {
   const title = highlight.group.title;
@@ -53,10 +54,12 @@ export default function NotableRankings({ items }: NotableRankingsProps) {
           >
             <div className="min-w-0">
               <p className="truncate text-sm text-ink">{highlightLabel(h)}</p>
-              <p className="num mt-1 text-[11px] text-muted">از میان {h.group_size} عنوان</p>
+              <p className="mt-1 text-[11px] text-muted">
+                از میان <span className="num">{toFaDigits(h.group_size)}</span> عنوان
+              </p>
             </div>
             <span className="num shrink-0 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-sm font-medium text-gold">
-              #{h.rank}
+              #{toFaDigits(h.rank)}
             </span>
           </Link>
         ))}

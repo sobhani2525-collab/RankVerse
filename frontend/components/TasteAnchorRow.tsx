@@ -3,6 +3,7 @@ import Image from "next/image";
 import { TasteAnchor } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
 import { entityTypeLabel } from "@/lib/constants";
+import { toFaDigits } from "@/lib/format-number";
 
 const STRENGTH_LABELS: Record<string, string> = {
   primary: "محور اصلی",
@@ -50,7 +51,7 @@ export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
 
       {/* match_score is already 0-100 (compute.py: round(100 * anchor_score)),
           unlike model_confidence which is a 0-1 fraction -- verified live. */}
-      <span className="num shrink-0 text-sm text-teal">{Math.round(anchor.match_score)}٪</span>
+      <span className="num shrink-0 text-sm text-teal">{toFaDigits(Math.round(anchor.match_score))}٪</span>
     </>
   );
 

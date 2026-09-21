@@ -1,7 +1,7 @@
-// Native Intl-based Persian relative time ("۲ روز پیش" -> rendered with
-// Latin digits, matching the rest of the app's numeric convention -- see
-// the .num utility in globals.css). No date library dependency needed.
-const RTF = new Intl.RelativeTimeFormat("fa-IR-u-nu-latn", { numeric: "auto" });
+// Native Intl-based Persian relative time ("۲ روز پیش", with Persian
+// digits -- fa-IR's default numbering system). No date library dependency
+// needed.
+const RTF = new Intl.RelativeTimeFormat("fa-IR", { numeric: "auto" });
 
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 60 * 60 * 24 * 365],

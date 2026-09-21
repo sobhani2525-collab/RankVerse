@@ -5,6 +5,7 @@ import EntityMedia, { MediaKind } from "./entity-media";
 import { detailPathFor } from "@/lib/entity-routes";
 import { displayTitle } from "@/lib/title";
 import { entityTypeLabel } from "@/lib/constants";
+import { toFaDigits } from "@/lib/format-number";
 
 export interface EntityCardNotableRanking {
   label: string;
@@ -98,7 +99,7 @@ export default function EntityCard({
               className="num flex h-full w-full items-center justify-center rounded-full text-xs font-bold text-ink backdrop-blur-sm md:text-sm"
               style={{ background: "rgba(7,11,22,.85)" }}
             >
-              {entity.compositeScore.toFixed(1)}
+              {toFaDigits(entity.compositeScore.toFixed(1))}
             </div>
           </div>
         )}
@@ -137,7 +138,7 @@ export default function EntityCard({
             className={`num absolute inset-x-0 bottom-0 items-center gap-1.5 px-2.5 py-1.5 text-[9px] text-muted backdrop-blur-sm ${submetricRowClass}`}
             style={{ background: "rgba(5,8,16,.72)" }}
           >
-            {entity.communityScore != null && <span>c:{entity.communityScore.toFixed(1)}</span>}
+            {entity.communityScore != null && <span>c:{toFaDigits(entity.communityScore.toFixed(1))}</span>}
             {entity.communityScore != null && entity.trend != null && <span className="opacity-40">·</span>}
             {entity.trend != null && (
               <span className={TREND_CLASS[entity.trend]}>روند {TREND_GLYPH[entity.trend]}</span>
@@ -159,7 +160,7 @@ export default function EntityCard({
 
         {(entity.year != null || entity.genre) && (
           <div className="flex items-center gap-1.5 text-[11px] text-muted">
-            {entity.year != null && <span className="num">{entity.year}</span>}
+            {entity.year != null && <span className="num">{toFaDigits(entity.year)}</span>}
             {entity.year != null && entity.genre && <span className="opacity-50">·</span>}
             {entity.genre && <span className="truncate">{entity.genre}</span>}
           </div>

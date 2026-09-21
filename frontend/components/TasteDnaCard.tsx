@@ -2,6 +2,7 @@ import TasteDnaRing from "./TasteDnaRing";
 import ProgressBar from "./ProgressBar";
 import { TasteSnapshot, TasteDimension } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
+import { toFaDigits } from "@/lib/format-number";
 
 /**
  * Genre labels are now Persian (via genreLabel), so joining "top[0]" and
@@ -51,11 +52,11 @@ export default function TasteDnaCard({ snapshot, dimensions }: TasteDnaCardProps
                     which are 0-1 fractions. Verified against a live-seeded profile. */}
                 <ProgressBar value={d.score} fillClassName="bg-gradient-to-l from-gold to-teal" />
                 <p className="mt-1 text-[10px] text-muted">
-                  بر اساس <span className="num">{d.sample_size}</span> رأی
+                  بر اساس <span className="num">{toFaDigits(d.sample_size)}</span> رأی
                 </p>
               </div>
               <span className="num w-10 shrink-0 text-left text-xs text-ink">
-                {Math.round(d.score)}
+                {toFaDigits(Math.round(d.score))}
               </span>
             </div>
           ))}

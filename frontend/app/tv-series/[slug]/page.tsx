@@ -11,6 +11,7 @@ import EntityLists from "@/components/EntityLists";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
+import { toFaDigits } from "@/lib/format-number";
 
 export const revalidate = 60;
 
@@ -48,7 +49,7 @@ function SeasonsAndYears({
 
   const seasonsPart = tv.number_of_seasons ? (
     <>
-      <span className="num">{tv.number_of_seasons}</span> فصل
+      <span className="num">{toFaDigits(tv.number_of_seasons)}</span> فصل
     </>
   ) : null;
 
@@ -57,13 +58,13 @@ function SeasonsAndYears({
     if (isOngoing) {
       yearsPart = (
         <>
-          <span className="num">{startYear}</span>–در حال پخش
+          <span className="num">{toFaDigits(startYear)}</span>–در حال پخش
         </>
       );
     } else if (endYear && endYear !== startYear) {
-      yearsPart = <span className="num">{startYear}–{endYear}</span>;
+      yearsPart = <span className="num">{toFaDigits(startYear)}–{toFaDigits(endYear)}</span>;
     } else {
-      yearsPart = <span className="num">{startYear}</span>;
+      yearsPart = <span className="num">{toFaDigits(startYear)}</span>;
     }
   }
 
@@ -137,7 +138,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
           <div className="mt-4 flex items-center gap-3">
             <ScoreBadge score={tv.computed_score} />
-            <span className="num text-xs text-muted">{tv.total_votes} رای</span>
+            <span className="num text-xs text-muted">{toFaDigits(tv.total_votes)} رای</span>
           </div>
 
           {tv.overview && (

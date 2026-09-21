@@ -1,3 +1,5 @@
+import { toFaDigits } from "@/lib/format-number";
+
 interface TasteDnaRingProps {
   /** 0-100 */
   confidencePercent: number;
@@ -54,7 +56,7 @@ export default function TasteDnaRing({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="num text-2xl font-bold text-ink">{Math.round(clamped)}٪</span>
+        <span className="num text-2xl font-bold text-ink">{toFaDigits(Math.round(clamped))}٪</span>
         <span className="text-[11px] text-muted">{centerLabel}</span>
       </div>
     </div>

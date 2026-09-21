@@ -1,3 +1,5 @@
+import { toFaDigits } from "@/lib/format-number";
+
 export default function ScoreBadge({ score }: { score: number | null }) {
   if (score === null) {
     return (
@@ -14,7 +16,7 @@ export default function ScoreBadge({ score }: { score: number | null }) {
 
   return (
     <span className={`num text-sm font-medium rounded-full border px-2.5 py-1 ${tone}`}>
-      {score.toFixed(1)}
+      {toFaDigits(score.toFixed(1))}
     </span>
   );
 }

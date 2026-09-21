@@ -31,7 +31,12 @@ export default function EntityHero({ title, subtitle, media }: EntityHeroProps) 
       )}
       <div className="flex-1">
         <h1 className="font-display text-2xl text-ink">{title}</h1>
-        {subtitle && <p className="num mt-1 text-sm text-muted">{subtitle}</p>}
+        {/* No blanket .num here: subtitle is caller-composed and can mix
+            Persian words with a number (e.g. GenreView's "12 عنوان") --
+            forcing the whole string ltr would scramble that word order,
+            so callers pre-convert their own numeric parts with
+            toFaDigits() before building the string. */}
+        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
     </div>
   );

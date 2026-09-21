@@ -7,6 +7,7 @@ import EntityLists from "@/components/EntityLists";
 import { GenreDetail } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
 import { movieListItemToEntityCard } from "@/lib/entity-card-adapters";
+import { toFaDigits } from "@/lib/format-number";
 
 // Movies and tv_series both belong under one genre ranking -- merged into a
 // single list (sorted by score, nulls last) rather than two separate
@@ -28,7 +29,7 @@ export default function GenreView({ data }: { data: GenreDetail }) {
 
       <EntityHero
         title={`بهترین‌های ${genreLabel(data.title)}`}
-        subtitle={`${items.length} عنوان`}
+        subtitle={`${toFaDigits(items.length)} عنوان`}
         media={data.media}
       />
       <MediaPlayer media={data.media} />

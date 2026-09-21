@@ -7,6 +7,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { removeListItem, reorderListItems, voteListItem, removeListItemVote } from "@/lib/api";
 import { ListItem, ListType } from "@/lib/types";
 import { entityTypeLabel } from "@/lib/constants";
+import { toFaDigits } from "@/lib/format-number";
 
 // Mirrors the default in app/config.py (list_item_score_global_avg) so a
 // freshly-voted item can be re-sorted optimistically before the next full
@@ -166,7 +167,7 @@ export default function ListItemsManager({
           >
             {isRanked && !isCommunityOrdered && (
               <span className="num w-9 shrink-0 text-center text-lg text-muted">
-                {String(idx + 1).padStart(2, "0")}
+                {toFaDigits(String(idx + 1).padStart(2, "0"))}
               </span>
             )}
 
@@ -215,7 +216,7 @@ export default function ListItemsManager({
                   }`}
                   title="پسندیدم"
                 >
-                  ▲ {item.like_count}
+                  ▲ {toFaDigits(item.like_count)}
                 </button>
                 <button
                   onClick={() => handleVote(item.id, false)}
@@ -227,7 +228,7 @@ export default function ListItemsManager({
                   }`}
                   title="نپسندیدم"
                 >
-                  ▼ {item.dislike_count}
+                  ▼ {toFaDigits(item.dislike_count)}
                 </button>
               </div>
             )}

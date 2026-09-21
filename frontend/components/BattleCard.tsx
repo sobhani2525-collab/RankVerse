@@ -4,6 +4,7 @@ import Image from "next/image";
 import { BattleEntity } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { entityTypeLabel } from "@/lib/constants";
+import { toFaDigits } from "@/lib/format-number";
 
 function posterSrc(poster: string | null): string | null {
   if (!poster) return null;
@@ -113,7 +114,7 @@ export default function BattleCard({
             }`}
           >
             {(scoreDelta ?? 0) >= 0 ? "+" : ""}
-            {scoreDelta ?? 0}
+            {toFaDigits(scoreDelta ?? 0)}
           </div>
         )}
       </div>
@@ -123,7 +124,7 @@ export default function BattleCard({
         <h3 className="line-clamp-2 font-medium text-ink">{displayTitle(entity)}</h3>
         {revealScore && (
           <span className="num text-xs text-muted">
-            امتیاز Elo: {Math.round(entity.elo_score)}
+            امتیاز Elo: {toFaDigits(Math.round(entity.elo_score))}
           </span>
         )}
       </div>
