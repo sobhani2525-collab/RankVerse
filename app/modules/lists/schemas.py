@@ -84,6 +84,11 @@ class ListSummary(BaseModel):
     follower_count: int
     created_at: datetime
     owner_username: str | None = None
+    # First few items (position order), for a poster collage on list cards.
+    # Only populated by ListService.discover today -- other ListSummary call
+    # sites (list_by_user, related, for-entity) don't eager-load items/owner,
+    # so this stays empty and owner_username stays None there.
+    preview_items: list[EntityMini] = Field(default_factory=list)
 
 
 class ListDetail(ListSummary):

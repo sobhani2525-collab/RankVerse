@@ -1,6 +1,7 @@
 import enum
 import uuid
 from app.modules.entities.models import Entity
+from app.modules.users.models import User
 from datetime import datetime
 
 from sqlalchemy import (
@@ -80,6 +81,12 @@ class UserList(Base):
     items: Mapped[list["UserListItem"]] = relationship(
         back_populates="list", cascade="all, delete-orphan", order_by="UserListItem.position"
     )
+
+    # lazy="raise" on purpose: nothing should lazy-load this in an async
+    # session (that raises MissingGreenlet anyway) -- callers that need the
+    # owner's username must eager-load it explicitly (see
+    # ListRepository.discover, the only caller today).
+    owner: Mapped["User"] = relationship("User", foreign_keys=[user_id], lazy="raise")
 
 
 class UserListItem(Base):

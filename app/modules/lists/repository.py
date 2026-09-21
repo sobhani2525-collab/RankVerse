@@ -80,7 +80,14 @@ class ListRepository:
         else:
             stmt = stmt.order_by(UserList.created_at.desc())
 
-        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        stmt = (
+            stmt.options(
+                selectinload(UserList.owner),
+                selectinload(UserList.items).selectinload(UserListItem.entity),
+            )
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
         result = await self.db.execute(stmt)
         return list(result.scalars().all()), total
 

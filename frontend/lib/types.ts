@@ -149,6 +149,9 @@ export interface ListSummary {
   follower_count: number;
   created_at: string;
   owner_username: string | null;
+  // First few items (position order) -- only populated by /lists
+  // (discoverLists); see app/modules/lists/service.py's discover().
+  preview_items: EntityMini[];
 }
 
 export interface ListDetail extends ListSummary {

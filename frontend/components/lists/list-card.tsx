@@ -27,9 +27,9 @@ export interface ListCardList {
   slug: string;
   title: string;
   /** First few items, used for the poster collage and the "شامل: " line.
-   *  Not populated by today's /lists (ListSummary) response -- only a
-   *  list's own detail endpoint returns items, so this stays empty on the
-   *  /lists grid until that endpoint grows a preview-items field. */
+   *  Populated by /lists (ListSummary.preview_items, up to 3, position
+   *  order); empty for callers that pass a ListSummary without eager-loaded
+   *  items (see listSummaryToListCard's doc comment). */
   items?: ListCardItem[];
   /** entity_type -> count. Same caveat as `items`: no list summary
    *  endpoint currently returns per-type counts. */
@@ -103,7 +103,11 @@ export default function ListCard({ list }: { list: ListCardList }) {
         )}
 
         <div className="flex items-center justify-between border-t border-border-soft pt-2.5 text-[11px] text-muted/80">
-          <span className="num">{list.updatedAt ? relativeTimeFa(list.updatedAt) : ""}</span>
+          <span className="flex items-center gap-1">
+            {list.updatedAt && <span className="num">{relativeTimeFa(list.updatedAt)}</span>}
+            {list.updatedAt && list.author?.username && <span>توسط</span>}
+            {list.author?.username && <span dir="ltr" className="text-teal">@{list.author.username}</span>}
+          </span>
           {list.likesCount != null && (
             <span className="num flex items-center gap-1">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -186,7 +186,25 @@ class ListService:
         self, page: int, page_size: int, entity_type: str | None, tag: str | None, sort_by: str
     ) -> tuple[list[ListSummary], int]:
         lists, total = await self.repo.discover(page, page_size, entity_type, tag, sort_by)
-        return [ListSummary.model_validate(lst) for lst in lists], total
+        return [self._to_summary_with_preview(lst) for lst in lists], total
+
+    def _to_summary_with_preview(self, lst: UserList) -> ListSummary:
+        """Like ListSummary.model_validate(lst), plus owner_username and a
+        3-item poster preview -- requires `owner` and `items.entity` to
+        already be eager-loaded (see ListRepository.discover)."""
+        summary = ListSummary.model_validate(lst)
+        summary.owner_username = lst.owner.username if lst.owner else None
+        summary.preview_items = [
+            EntityMini(
+                id=item.entity.id,
+                slug=item.entity.slug,
+                title=item.entity.title,
+                entity_type=item.entity.entity_type,
+                poster_path=item.entity.attributes.get("poster_path"),
+            )
+            for item in lst.items[:3]
+        ]
+        return summary
 
     # --- Items ---
 
