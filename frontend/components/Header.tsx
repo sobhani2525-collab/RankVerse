@@ -10,7 +10,7 @@ export default function Header() {
   const { openLoginModal } = useAuthGate();
   return (
     <header className="border-b border-border bg-surface px-6 py-4">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <Link href="/" className="font-display text-lg text-ink">
             RankVerse

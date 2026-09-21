@@ -16,7 +16,7 @@ export default async function ListsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-14">
+    <main className="mx-auto max-w-7xl px-6 py-14">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-display text-xl text-ink">لیست‌های کاربران</h1>
         <Link href="/lists/new" className="btn-primary text-sm hover:opacity-90">
@@ -34,7 +34,7 @@ export default async function ListsPage() {
           هنوز لیستی ساخته نشده. اولین نفر باشید!
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
           {lists.map((list) => (
             <ListCard key={list.id} list={listSummaryToListCard(list)} />
           ))}

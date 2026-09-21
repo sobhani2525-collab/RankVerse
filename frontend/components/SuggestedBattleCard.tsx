@@ -11,14 +11,14 @@ function Side({ entity }: { entity: SuggestedBattleEntity }) {
     : null;
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-2 text-center">
-      <div className="h-28 w-20 overflow-hidden rounded-lg bg-surface2">
+    <div className="flex flex-1 flex-col items-center gap-2.5 text-center">
+      <div className="h-44 w-[7.5rem] overflow-hidden rounded-lg bg-surface2">
         {posterUrl ? (
           <Image
             src={posterUrl}
             alt={displayTitle(entity)}
-            width={80}
-            height={112}
+            width={120}
+            height={176}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -27,8 +27,8 @@ function Side({ entity }: { entity: SuggestedBattleEntity }) {
           </div>
         )}
       </div>
-      <span className="text-[10px] font-semibold text-muted">{entityTypeLabel(entity.entity_type)}</span>
-      <p className="line-clamp-2 text-sm font-medium text-ink">{displayTitle(entity)}</p>
+      <span className="text-xs font-semibold text-muted">{entityTypeLabel(entity.entity_type)}</span>
+      <p className="line-clamp-2 text-base font-medium text-ink">{displayTitle(entity)}</p>
       <ScoreBadge score={entity.computed_score} />
     </div>
   );
@@ -44,7 +44,7 @@ export default function SuggestedBattleCard({ battle }: { battle: SuggestedBattl
         این یکی رو با یکی از موردعلاقه‌های خودت مقایسه کن
       </p>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-5 flex items-center gap-4">
         <Side entity={battle.left} />
         <span className="shrink-0 text-xs font-bold text-muted">در برابر</span>
         <Side entity={battle.right} />

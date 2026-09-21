@@ -306,7 +306,14 @@ class ListRepository:
             stmt = stmt.where(UserList.entity_type == entity_type)
         if tags:
             stmt = stmt.where(UserList.tags.op("?|")(sa_array(tags)))
-        stmt = stmt.order_by(UserList.like_count.desc()).limit(limit)
+        stmt = (
+            stmt.options(
+                selectinload(UserList.owner),
+                selectinload(UserList.items).selectinload(UserListItem.entity),
+            )
+            .order_by(UserList.like_count.desc())
+            .limit(limit)
+        )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -317,6 +324,10 @@ class ListRepository:
             select(UserList)
             .join(UserListItem, UserListItem.list_id == UserList.id)
             .where(UserListItem.entity_id == entity_id, UserList.visibility == "public")
+            .options(
+                selectinload(UserList.owner),
+                selectinload(UserList.items).selectinload(UserListItem.entity),
+            )
             .order_by(UserList.like_count.desc())
             .limit(limit)
         )

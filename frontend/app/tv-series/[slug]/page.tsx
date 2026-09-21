@@ -107,12 +107,12 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   const posterUrl = tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-14">
+    <main className="mx-auto max-w-7xl px-6 py-14">
       <Link href="/" className="text-sm text-muted hover:text-gold">
         بازگشت به فهرست
       </Link>
 
-      <div className="mt-6 flex flex-col gap-8 sm:flex-row">
+      <div className="mt-6 flex max-w-3xl flex-col gap-8 sm:flex-row">
         <div className="h-72 w-48 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
           {posterUrl ? (
             <Image
@@ -183,11 +183,11 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 max-w-3xl">
         <StarRating entity={tv} />
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 max-w-3xl">
         <SuggestedBattleSection entityType="tv_series" slug={tv.slug} />
       </div>
 
@@ -195,7 +195,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         <RelatedEntities items={related} />
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 max-w-3xl">
         <NotableRankings items={rankingHighlights} />
       </div>
 

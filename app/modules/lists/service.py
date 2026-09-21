@@ -384,11 +384,11 @@ class ListService:
         if not related:
             # fallback: اگه هم‌پوشانی تگ/نوع پیدا نشد، هر لیست عمومی دیگه‌ای رو نشون بده
             related = await self.repo.find_related(lst.id, None, [])
-        return [ListSummary.model_validate(r) for r in related]
+        return [self._to_summary_with_preview(r) for r in related]
 
     async def get_lists_containing_entity(self, entity_id: uuid.UUID) -> list[ListSummary]:
         lists = await self.repo.find_lists_containing_entity(entity_id)
-        return [ListSummary.model_validate(lst) for lst in lists]
+        return [self._to_summary_with_preview(lst) for lst in lists]
 
     # --- Smart graph-based suggestions ---
 

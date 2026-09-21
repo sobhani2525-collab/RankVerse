@@ -45,12 +45,12 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
     : null;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-14">
+    <main className="mx-auto max-w-7xl px-6 py-14">
       <Link href="/" className="text-sm text-muted hover:text-gold">
         بازگشت به فهرست
       </Link>
 
-      <div className="mt-6 flex flex-col gap-8 sm:flex-row">
+      <div className="mt-6 flex max-w-3xl flex-col gap-8 sm:flex-row">
         <div className="h-72 w-48 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
           {posterUrl ? (
             <Image
@@ -127,11 +127,11 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         </div>
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 max-w-3xl">
         <StarRating entity={movie} />
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 max-w-3xl">
         <SuggestedBattleSection entityType="movie" slug={movie.slug} />
       </div>
 
@@ -139,7 +139,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         <RelatedEntities items={related} />
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 max-w-3xl">
         <NotableRankings items={rankingHighlights} />
       </div>
 
