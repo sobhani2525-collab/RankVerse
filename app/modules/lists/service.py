@@ -182,6 +182,10 @@ class ListService:
         lists = await self.repo.list_by_user(user_id)
         return [ListSummary.model_validate(lst) for lst in lists]
 
+    async def list_user_public_lists(self, user_id: uuid.UUID) -> list[ListSummary]:
+        lists = await self.repo.list_by_user_public(user_id)
+        return [self._to_summary_with_preview(lst) for lst in lists]
+
     async def discover(
         self, page: int, page_size: int, entity_type: str | None, tag: str | None, sort_by: str
     ) -> tuple[list[ListSummary], int]:

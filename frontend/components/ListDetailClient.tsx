@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getListBySlug } from "@/lib/api";
@@ -86,7 +87,9 @@ export default function ListDetailClient({
       {detail.owner_username && (
         <p className="mt-1 text-sm text-muted">
           ساخته شده توسط{" "}
-          <span className="text-teal">@{detail.owner_username}</span>
+          <Link href={`/profile/${detail.owner_username}`} className="text-teal hover:underline">
+            @{detail.owner_username}
+          </Link>
         </p>
       )}
       {detail.description && (

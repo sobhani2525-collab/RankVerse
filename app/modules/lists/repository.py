@@ -57,6 +57,22 @@ class ListRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_by_user_public(self, user_id: uuid.UUID) -> list[UserList]:
+        """Like list_by_user, but scoped to a public profile page: only
+        public lists, and eager-loaded the same way discover() is so the
+        poster-collage preview can be built from it."""
+        stmt = (
+            select(UserList)
+            .where(UserList.user_id == user_id, UserList.visibility == "public")
+            .options(
+                selectinload(UserList.owner),
+                selectinload(UserList.items).selectinload(UserListItem.entity),
+            )
+            .order_by(UserList.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def discover(
         self,
         page: int = 1,

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { addListComment } from "@/lib/api";
@@ -76,9 +77,13 @@ export default function ListComments({
           {comments.map((c) => (
             <div key={c.id} className="rounded-lg border border-border bg-surface/60 px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-sm font-medium text-teal">
-                  @{c.username ?? "کاربر"}
-                </span>
+                {c.username ? (
+                  <Link href={`/profile/${c.username}`} className="text-sm font-medium text-teal hover:underline">
+                    @{c.username}
+                  </Link>
+                ) : (
+                  <span className="text-sm font-medium text-teal">@کاربر</span>
+                )}
                 <span className="num text-xs text-muted">{formatDate(c.created_at)}</span>
               </div>
               <p className="text-sm text-ink">{c.body}</p>

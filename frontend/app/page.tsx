@@ -12,7 +12,7 @@ export default async function HomePage() {
   let loadError: string | null = null;
 
   try {
-    movies = await getTopMovies({ page_size: 20 });
+    movies = await getTopMovies({ page_size: 10 });
   } catch (err) {
     loadError = err instanceof Error ? err.message : "خطا در دریافت اطلاعات";
   }
@@ -21,7 +21,7 @@ export default async function HomePage() {
   // take down the rest of the home page, it just hides this section.
   let tvSeries: any[] = [];
   try {
-    tvSeries = await getTopTvSeries({ page_size: 20 });
+    tvSeries = await getTopTvSeries({ page_size: 10 });
   } catch {
     tvSeries = [];
   }

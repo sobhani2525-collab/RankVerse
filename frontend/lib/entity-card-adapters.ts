@@ -61,6 +61,8 @@ export function listSummaryToListCard(list: ListSummary): ListCardList {
     items,
     likesCount: list.like_count,
     updatedAt: list.created_at,
-    author: list.owner_username ? { username: list.owner_username } : null,
+    author: list.owner_username
+      ? { username: list.owner_username, profileHref: `/profile/${list.owner_username}` }
+      : null,
   };
 }

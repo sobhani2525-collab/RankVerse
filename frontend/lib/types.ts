@@ -4,6 +4,14 @@ export interface Envelope<T> {
   error: { code: string; message: string } | null;
 }
 
+// From GET /users/{username} -- the public profile lookup, deliberately
+// carries no email (unlike the authenticated user object from auth/me).
+export interface PublicUser {
+  id: string;
+  username: string;
+  created_at: string;
+}
+
 export interface PersonSummary {
   id: string;
   slug: string;

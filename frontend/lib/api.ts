@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -298,6 +298,16 @@ export async function discoverLists(params: {
   if (params.tag) qs.set("tag", params.tag);
   if (params.sort) qs.set("sort", params.sort);
   return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, 60);
+}
+
+// --- Public user profiles ---
+
+export async function getPublicUser(username: string): Promise<PublicUser> {
+  return fetchEnvelope<PublicUser>(`/users/${encodeURIComponent(username)}`, 120);
+}
+
+export async function getPublicUserLists(username: string): Promise<ListSummary[]> {
+  return fetchEnvelope<ListSummary[]>(`/users/${encodeURIComponent(username)}/lists`, 60);
 }
 
 export async function getListBySlug(slug: string, token?: string | null): Promise<ListDetail> {

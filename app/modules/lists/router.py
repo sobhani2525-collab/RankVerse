@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope, Meta
 from app.modules.auth.dependencies import get_current_user, get_current_user_optional
 from app.modules.users.models import User
+from app.modules.users.repository import UserRepository
 from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListItemReorder, ListItemLikeCreate, CommentCreate,
 )
@@ -84,6 +86,16 @@ async def my_lists(
 ):
     service = ListService(db)
     lists = await service.list_user_lists(current_user.id)
+    return envelope(data=[l.model_dump() for l in lists])
+
+
+@router.get("/users/{username}/lists")
+async def user_public_lists(username: str, db: AsyncSession = Depends(get_db)):
+    user = await UserRepository(db).get_by_username(username)
+    if not user:
+        raise NotFoundError(f"User '{username}' not found")
+    service = ListService(db)
+    lists = await service.list_user_public_lists(user.id)
     return envelope(data=[l.model_dump() for l in lists])
 
 

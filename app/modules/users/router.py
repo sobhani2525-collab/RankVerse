@@ -2,14 +2,23 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import FavoritePublic, RatingCreate, RatingPublic
+from app.modules.users.schemas import FavoritePublic, RatingCreate, RatingPublic, UserProfilePublic
 from app.modules.users.service import UserService
 
 router = APIRouter(tags=["users"])
+
+
+@router.get("/users/{username}")
+async def get_public_user(username: str, db: AsyncSession = Depends(get_db)):
+    user = await UserRepository(db).get_by_username(username)
+    if not user:
+        raise NotFoundError(f"User '{username}' not found")
+    return envelope(data=UserProfilePublic.model_validate(user).model_dump())
 
 
 @router.post("/movies/{slug}/rate")

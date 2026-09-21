@@ -21,9 +21,9 @@ export interface ListCardItem {
 export interface ListCardAuthor {
   username: string;
   avatarUrl?: string | null;
-  /** Only rendered as a real <Link> when present -- no public profile route
-   *  exists for arbitrary usernames yet, so callers that don't have one
-   *  should leave this undefined rather than pointing at a dead URL. */
+  /** Only rendered as a real <Link> when present -- callers that don't
+   *  have a username to build /profile/[username] from should leave this
+   *  undefined rather than pointing at a dead URL. */
   profileHref?: string | null;
 }
 
@@ -76,26 +76,22 @@ export default function ListCard({ list }: { list: ListCardList }) {
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface/60 transition hover:border-teal/30">
-      <div className="relative flex h-28 md:h-56">
+      <Link href={href} aria-label={list.title} className="relative flex h-28 md:h-56">
         {Array.from({ length: COLLAGE_SLOTS }).map((_, i) => {
           const item = items[i];
-          const itemHref =
-            item && item.slug && item.entity_type ? detailPathFor(item.entity_type, item.slug) ?? href : href;
           return (
             <div key={item?.id ?? `empty-${i}`} className="relative flex-1 bg-surface2">
-              {item ? (
-                <Link href={itemHref} aria-label={item.title} className="absolute inset-0">
-                  <EntityMedia src={item.posterUrl} alt={item.title} mediaKind={item.mediaKind ?? "image"} />
-                </Link>
-              ) : (
-                <EntityMedia src={null} alt={list.title} mediaKind="none" />
-              )}
+              <EntityMedia
+                src={item?.posterUrl}
+                alt={item?.title ?? list.title}
+                mediaKind={item ? item.mediaKind ?? "image" : "none"}
+              />
             </div>
           );
         })}
         {/* First item (rightmost in RTL) stays clearest; third item (leftmost) fades darkest. */}
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-l from-transparent to-black/85" />
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col gap-2.5 p-4 md:p-6">
         {typeCounts.length > 0 && (
@@ -135,8 +131,8 @@ export default function ListCard({ list }: { list: ListCardList }) {
         )}
 
         <div className="flex items-center justify-between border-t border-border-soft pt-2.5 text-[11px] text-muted/80">
-          <span className="flex items-center gap-1">
-            {list.updatedAt && <span className="num">{relativeTimeFa(list.updatedAt)}</span>}
+          <span className="text-right">
+            {list.updatedAt && relativeTimeFa(list.updatedAt)}
           </span>
           {list.likesCount != null && (
             <button
@@ -144,14 +140,16 @@ export default function ListCard({ list }: { list: ListCardList }) {
               onClick={() => requireAuth(doLike)}
               disabled={likeBusy}
               aria-pressed={liked}
-              className={`num flex items-center gap-1 rounded-md px-1.5 py-0.5 transition disabled:opacity-50 ${
-                liked ? "text-gold" : "hover:text-gold"
+              className={`flex min-h-[40px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition disabled:opacity-50 ${
+                liked
+                  ? "border-gold/50 bg-gold/10 text-gold"
+                  : "border-border text-muted hover:border-gold/40 hover:bg-surface2 hover:text-gold"
               }`}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
               </svg>
-              {likeCount}
+              <span className="num">{likeCount}</span>
             </button>
           )}
         </div>
@@ -175,16 +173,28 @@ export default function ListCard({ list }: { list: ListCardList }) {
   );
 }
 
-function AuthorAvatar({ author }: { author: ListCardAuthor }) {
+/** Exported so the public profile page (app/profile/[username]) can reuse
+ *  the same avatar look at a larger size for its header. */
+export function AuthorAvatar({
+  author,
+  sizeClassName = "h-6 w-6",
+  textClassName = "text-[10px]",
+}: {
+  author: ListCardAuthor;
+  sizeClassName?: string;
+  textClassName?: string;
+}) {
   if (author.avatarUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- a 24px avatar isn't worth next/image's overhead here
-      <img src={author.avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+      // eslint-disable-next-line @next/next/no-img-element -- a small avatar isn't worth next/image's overhead here
+      <img src={author.avatarUrl} alt="" className={`${sizeClassName} shrink-0 rounded-full object-cover`} />
     );
   }
 
   return (
-    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-brand text-[10px] font-bold text-ink">
+    <div
+      className={`flex ${sizeClassName} shrink-0 items-center justify-center rounded-full bg-gradient-brand ${textClassName} font-bold text-ink`}
+    >
       {author.username.charAt(0).toUpperCase()}
     </div>
   );

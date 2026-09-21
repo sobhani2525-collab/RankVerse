@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
@@ -28,6 +29,16 @@ class UserPublic(BaseModel):
     id: uuid.UUID
     email: str
     username: str
+
+
+# Deliberately excludes email -- served from a public, unauthenticated
+# GET /users/{username} route, unlike UserPublic above which is only ever
+# returned to the user themselves (auth/me).
+class UserProfilePublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    username: str
+    created_at: datetime
 
 
 class TokenPair(BaseModel):
