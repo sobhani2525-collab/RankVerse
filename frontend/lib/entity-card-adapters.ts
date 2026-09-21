@@ -1,4 +1,5 @@
 import { MovieListItem, ListSummary, EntityMini } from "./types";
+import { RelatedEntity } from "./api";
 import { EntityCardEntity } from "@/components/entities/entity-card";
 import { ListCardItem, ListCardList } from "@/components/lists/list-card";
 
@@ -30,6 +31,23 @@ export function movieListItemToEntityCard(item: MovieListItem): EntityCardEntity
     posterUrl: resolvePosterUrl(item),
     mediaKind: "image",
     compositeScore: item.computed_score,
+  };
+}
+
+/**
+ * Adapts a RelatedEntity (from /entities/{id}/related) into EntityCardEntity,
+ * so "اگر این را دوست داری..." can render the same EntityCard used on the
+ * home page instead of its own bespoke poster markup. weight/reason have no
+ * EntityCard equivalent, so the caller still renders those alongside the card.
+ */
+export function relatedEntityToEntityCard(item: RelatedEntity): EntityCardEntity {
+  return {
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    entity_type: item.entity_type,
+    posterUrl: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
+    mediaKind: "image",
   };
 }
 

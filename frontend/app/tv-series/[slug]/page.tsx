@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
+import DetailShareButton from "@/components/entities/detail-share-button";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
@@ -133,7 +134,10 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
               <h1 className="font-display text-2xl text-ink">{displayTitle(tv)}</h1>
               <SeasonsAndYears tv={tv} />
             </div>
-            <DetailFavoriteButton entity={tv} size={80} />
+            <div className="flex shrink-0 items-center gap-2">
+              <DetailFavoriteButton entity={tv} size={44} />
+              <DetailShareButton entity={tv} title={displayTitle(tv)} size={44} />
+            </div>
           </div>
 
           <div className="mt-4 flex items-center gap-3">

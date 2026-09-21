@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { RelatedEntity } from "@/lib/api";
-import { detailPathFor } from "@/lib/entity-routes";
-import { entityTypeLabel } from "@/lib/constants";
+import { relatedEntityToEntityCard } from "@/lib/entity-card-adapters";
 import { toFaDigits } from "@/lib/format-number";
+import FavoriteEntityCard from "@/components/entities/favorite-entity-card";
 
 interface RelatedEntitiesProps {
   items: RelatedEntity[];
@@ -23,48 +21,28 @@ export default function RelatedEntities({ items }: RelatedEntitiesProps) {
         <h2 className="text-lg font-bold text-ink">اگر این را دوست داری...</h2>
         <span className="text-xs text-muted">بر اساس گراف دانش</span>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
         {items.map((item) => {
-          const posterUrl = item.poster_path
-            ? `https://image.tmdb.org/t/p/w342${item.poster_path}`
-            : null;
           const isOpen = openReasonId === item.id;
 
           return (
-            <div key={item.id} className="rounded-xl bg-surface2 p-3">
-              <Link href={detailPathFor(item.entity_type, item.slug) ?? `/movies/${item.slug}`} className="group block">
-                <div className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-lg bg-ink/5">
-                  {posterUrl ? (
-                    <Image
-                      src={posterUrl}
-                      alt={item.title}
-                      fill
-                      className="object-cover transition group-hover:opacity-90"
-                      sizes="200px"
-                    />
-                  ) : (
-                    <span className="text-xs text-muted">no poster</span>
-                  )}
-                </div>
-                <span className="mt-2 block text-[10px] font-semibold text-muted">{entityTypeLabel(item.entity_type)}</span>
-                <b className="block truncate text-sm text-ink">{item.title}</b>
-                <span className="num text-xs text-muted">{toFaDigits(Math.round(item.weight * 100))}% mashabeh</span>
-              </Link>
+            <div key={item.id} className="flex flex-col gap-1.5">
+              <FavoriteEntityCard entity={relatedEntityToEntityCard(item)} />
 
-              {item.reason && (
-                <div className="mt-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="num text-[10px] text-muted">{toFaDigits(Math.round(item.weight * 100))}% مشابهت</span>
+                {item.reason && (
                   <button
                     onClick={() => setOpenReasonId(isOpen ? null : item.id)}
-                    className="text-[11px] text-gold hover:underline"
+                    className="shrink-0 text-[10px] text-gold hover:underline"
                   >
                     {isOpen ? "بستن" : "چرا این پیشنهاد؟"}
                   </button>
-                  {isOpen && (
-                    <p className="mt-1 text-[11px] leading-snug text-muted">
-                      {item.reason}
-                    </p>
-                  )}
-                </div>
+                )}
+              </div>
+
+              {isOpen && item.reason && (
+                <p className="text-[11px] leading-snug text-muted">{item.reason}</p>
               )}
             </div>
           );

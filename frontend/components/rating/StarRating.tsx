@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { rateEntity, unrateEntity, getMyRatings } from "@/lib/api";
-import { toFaDigits } from "@/lib/format-number";
 
 const STAR_COUNT = 5;
 
@@ -106,7 +105,7 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
               </span>
             ))}
           </div>
-          <div className="flex text-border" style={{ width: (STAR_COUNT - filledCount) * 44 }}>
+          <div className="flex text-muted/50" style={{ width: (STAR_COUNT - filledCount) * 44 }}>
             {Array.from({ length: STAR_COUNT - filledCount }, (_, i) => (
               <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none">
                 ★
@@ -135,14 +134,7 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
       </div>
 
       <p className="mt-2 font-sans text-sm text-muted">
-        {selected !== null ? (
-          <>
-            امتیاز شما: <span className="num text-ink">{toFaDigits(selected)}</span> از{" "}
-            <span className="num">{toFaDigits(STAR_COUNT)}</span>
-          </>
-        ) : (
-          "امتیاز شما را ثبت کنید"
-        )}
+        {selected !== null ? <span className="text-teal">امتیاز شما ثبت شد</span> : "امتیاز خود را ثبت کنید"}
       </p>
 
       {selected !== null && (

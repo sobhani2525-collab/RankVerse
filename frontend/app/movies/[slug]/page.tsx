@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
+import DetailShareButton from "@/components/entities/detail-share-button";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
@@ -69,11 +70,20 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="font-display text-2xl text-ink">{displayTitle(movie)}</h1>
-              <p className="num mt-1 text-sm text-muted">
-                {toFaDigits(movie.year ?? "-")} {movie.runtime ? `- ${toFaDigits(movie.runtime)} دقیقه` : ""}
+              <p className="mt-1 text-sm text-muted">
+                <span className="num">{toFaDigits(movie.year ?? "-")}</span>
+                {movie.runtime != null && (
+                  <>
+                    {" - "}
+                    <span className="num">{toFaDigits(movie.runtime)}</span> دقیقه
+                  </>
+                )}
               </p>
             </div>
-            <DetailFavoriteButton entity={movie} size={80} />
+            <div className="flex shrink-0 items-center gap-2">
+              <DetailFavoriteButton entity={movie} size={44} />
+              <DetailShareButton entity={movie} title={displayTitle(movie)} size={44} />
+            </div>
           </div>
 
           <div className="mt-4 flex items-center gap-3">

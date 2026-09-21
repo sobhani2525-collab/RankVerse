@@ -14,7 +14,7 @@ export interface DetailFavoriteEntity {
  */
 export default function DetailFavoriteButton({
   entity,
-  size = 80,
+  size = 44,
 }: {
   entity: DetailFavoriteEntity;
   size?: number;
