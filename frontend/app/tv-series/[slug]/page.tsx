@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import Constellation from "@/components/Constellation";
+import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
@@ -102,8 +102,6 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   }
 
   const posterUrl = tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null;
-  const mainCreator = tv.creators[0]?.title ?? null;
-  const mainGenre = tv.genres[0]?.title ? genreLabel(tv.genres[0].title) : null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-14">
@@ -134,7 +132,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
               <h1 className="font-display text-2xl text-ink">{displayTitle(tv)}</h1>
               <SeasonsAndYears tv={tv} />
             </div>
-            <Constellation director={mainCreator} genre={mainGenre} year={tv.year} size={80} />
+            <DetailFavoriteButton entity={tv} size={80} />
           </div>
 
           <div className="mt-4 flex items-center gap-3">
