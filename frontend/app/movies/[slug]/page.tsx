@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Constellation from "@/components/Constellation";
 import ScoreBadge from "@/components/ScoreBadge";
-import RatingWidget from "@/components/RatingWidget";
+import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
 import NotableRankings from "@/components/NotableRankings";
 import SuggestedBattleSection from "@/components/SuggestedBattleSection";
@@ -114,7 +114,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
       </div>
 
       <div className="mt-10">
-        <RatingWidget slug={movie.slug} />
+        <StarRating entity={movie} />
       </div>
 
       <div className="mt-10">

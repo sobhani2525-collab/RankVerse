@@ -101,11 +101,11 @@ async def test_rate_tv_series_via_service(db_session, test_user):
     await db_session.commit()
 
     service = UserService(db_session)
-    rating = await service.rate_tv_series(test_user.id, "bb-rate-2008", 9)
-    assert rating.score == 9
+    rating = await service.rate_tv_series(test_user.id, "bb-rate-2008", 4)
+    assert rating.score == 4
 
     stored = await UserRepository(db_session).get_rating(test_user.id, tv.id)
-    assert stored is not None and stored.score == 9
+    assert stored is not None and stored.score == 4
 
     deleted = await service.unrate_tv_series(test_user.id, "bb-rate-2008")
     assert deleted is True
@@ -150,7 +150,7 @@ async def test_rate_movie_lookup_rejects_tv_series_slug(db_session, test_user):
 
     service = UserService(db_session)
     try:
-        await service.rate_movie(test_user.id, "not-a-movie-2020", 8)
+        await service.rate_movie(test_user.id, "not-a-movie-2020", 4)
         assert False, "expected NotFoundError"
     except NotFoundError:
         pass
@@ -162,10 +162,10 @@ async def test_rate_tv_series_via_api(client, db_session, auth_headers):
     await db_session.commit()
 
     res = await client.post(
-        "/api/v1/tv-series/got-rate-2011/rate", headers=auth_headers, json={"score": 10}
+        "/api/v1/tv-series/got-rate-2011/rate", headers=auth_headers, json={"score": 5}
     )
     assert res.status_code == 200
-    assert res.json()["data"]["score"] == 10
+    assert res.json()["data"]["score"] == 5
 
     res2 = await client.delete("/api/v1/tv-series/got-rate-2011/rate", headers=auth_headers)
     assert res2.status_code == 200

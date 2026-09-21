@@ -24,7 +24,7 @@ class UserRating(Base):
     __tablename__ = "user_ratings"
     __table_args__ = (
         UniqueConstraint("user_id", "entity_id", name="uq_user_entity_rating"),
-        CheckConstraint("score >= 1 AND score <= 10", name="ck_rating_range"),
+        CheckConstraint("score >= 1 AND score <= 5", name="ck_rating_range"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

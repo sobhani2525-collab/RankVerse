@@ -66,7 +66,7 @@ async def test_predicted_picks_ranks_by_match_score_and_excludes_rated(
     # directly (not via POST /rate) so the real dimension-recompute
     # cascade that endpoint triggers doesn't overwrite the manually
     # seeded dimension above with one built from just this single rating.
-    await UserRepository(db_session).upsert_rating(test_user.id, already_rated.id, 9)
+    await UserRepository(db_session).upsert_rating(test_user.id, already_rated.id, 5)
     await db_session.commit()
 
     res = await client.get("/api/v1/users/me/predicted-picks", headers=auth_headers)
