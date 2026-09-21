@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { getListSuggestions, addListItem, SmartSuggestion } from "@/lib/api";
+import { entityTypeLabel } from "@/lib/constants";
 
 export default function SmartSuggestionChips({
   listId,
@@ -87,7 +88,10 @@ export default function SmartSuggestionChips({
                   </div>
                 )}
               </div>
-              <span className="mt-1 line-clamp-1 w-full text-xs text-ink">{s.entity.title}</span>
+              <span className="mt-1 line-clamp-1 w-full text-[9px] font-semibold text-muted">
+                {entityTypeLabel(s.entity.entity_type)}
+              </span>
+              <span className="line-clamp-1 w-full text-xs text-ink">{s.entity.title}</span>
               <span className="line-clamp-1 w-full text-[10px] text-teal">
                 {addingId === s.entity.id ? "در حال افزودن..." : s.reason_label_fa}
               </span>

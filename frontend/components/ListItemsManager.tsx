@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { removeListItem, reorderListItems, voteListItem, removeListItemVote } from "@/lib/api";
 import { ListItem, ListType } from "@/lib/types";
+import { entityTypeLabel } from "@/lib/constants";
 
 // Mirrors the default in app/config.py (list_item_score_global_avg) so a
 // freshly-voted item can be re-sorted optimistically before the next full
@@ -196,6 +197,7 @@ export default function ListItemsManager({
               >
                 {item.entity.title}
               </Link>
+              <p className="text-xs text-muted">{entityTypeLabel(item.entity.entity_type)}</p>
               {item.note && (
                 <p className="mt-0.5 truncate text-sm text-muted">{item.note}</p>
               )}

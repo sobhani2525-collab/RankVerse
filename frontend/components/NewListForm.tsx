@@ -6,6 +6,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { createList, addListItem, SearchResult } from "@/lib/api";
 import AddListItem from "@/components/AddListItem";
 import ListPreviewCard, { ListPreviewItem } from "@/components/ListPreviewCard";
+import { entityTypeLabel } from "@/lib/constants";
 
 export default function NewListForm() {
   const router = useRouter();
@@ -124,9 +125,9 @@ export default function NewListForm() {
               onChange={(e) => setEntityType(e.target.value)}
               className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-ink outline-none focus:border-gold/50"
             >
-              <option value="movie">فیلم</option>
-              <option value="tv_series">سریال</option>
-              <option value="person">بازیگر / کارگردان</option>
+              <option value="movie">{entityTypeLabel("movie")}</option>
+              <option value="tv_series">{entityTypeLabel("tv_series")}</option>
+              <option value="person">{entityTypeLabel("person")}</option>
               <option value="">ترکیبی (چند نوع با هم)</option>
             </select>
             {entityType === "" && (

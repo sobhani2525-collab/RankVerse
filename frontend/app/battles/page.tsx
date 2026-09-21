@@ -7,14 +7,10 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getNextBattle, castBattleVote } from "@/lib/api";
 import { NextBattleResponse, VoteOutcome } from "@/lib/types";
 import BattleCard from "@/components/BattleCard";
+import { entityTypeLabel } from "@/lib/constants";
 
-const CATEGORIES = [
-  { value: "movie", label: "فیلم" },
-  { value: "tv_series", label: "سریال" },
-  { value: "person", label: "افراد" },
-  { value: "genre", label: "ژانر" },
-  { value: "country", label: "کشور" },
-];
+const CATEGORY_VALUES = ["movie", "tv_series", "person", "genre", "country"];
+const CATEGORIES = CATEGORY_VALUES.map((value) => ({ value, label: entityTypeLabel(value) }));
 
 type RevealState = {
   leftDelta: number;
@@ -172,6 +168,7 @@ function BattlesPageInner() {
           <div className="grid grid-cols-2 gap-4">
             <BattleCard
               entity={battle.left}
+              entityType={battle.category}
               onSelect={() => handleVote("left")}
               disabled={voting}
               revealScore={!!reveal}
@@ -180,6 +177,7 @@ function BattlesPageInner() {
             />
             <BattleCard
               entity={battle.right}
+              entityType={battle.category}
               onSelect={() => handleVote("right")}
               disabled={voting}
               revealScore={!!reveal}

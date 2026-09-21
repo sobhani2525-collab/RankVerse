@@ -9,6 +9,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   album: "آلبوم",
   person: "شخصیت",
   genre: "ژانر",
+  country: "کشور",
 };
 
 export type EntityTypeColor = "gold" | "violet" | "teal" | "muted";

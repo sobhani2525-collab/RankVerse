@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { TasteAnchor } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
+import { entityTypeLabel } from "@/lib/constants";
 
 const STRENGTH_LABELS: Record<string, string> = {
   primary: "محور اصلی",
@@ -39,9 +40,12 @@ export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{entity.title}</p>
-        <span className="mt-1 inline-block rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[10px] text-gold">
-          {STRENGTH_LABELS[anchor.anchor_strength] ?? anchor.anchor_strength}
-        </span>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</span>
+          <span className="inline-block rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[10px] text-gold">
+            {STRENGTH_LABELS[anchor.anchor_strength] ?? anchor.anchor_strength}
+          </span>
+        </div>
       </div>
 
       {/* match_score is already 0-100 (compute.py: round(100 * anchor_score)),

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import ScoreBadge from "@/components/ScoreBadge";
+import { entityTypeLabel } from "@/lib/constants";
 
 export interface ListPreviewItem {
   id: string;
@@ -84,19 +85,24 @@ export default function ListPreviewCard({
 
 function PosterSlot({ item }: { item: ListPreviewItem }) {
   return (
-    <div className="animate-pop-in aspect-[2/3] overflow-hidden rounded-lg bg-surface2">
-      {item.posterUrl ? (
-        <Image
-          src={item.posterUrl}
-          alt={item.name}
-          width={96}
-          height={144}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-constellation-gradient px-1 text-center text-[10px] text-ink/90">
-          {item.name}
-        </div>
+    <div className="animate-pop-in flex flex-col gap-1">
+      <div className="aspect-[2/3] overflow-hidden rounded-lg bg-surface2">
+        {item.posterUrl ? (
+          <Image
+            src={item.posterUrl}
+            alt={item.name}
+            width={96}
+            height={144}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-constellation-gradient px-1 text-center text-[10px] text-ink/90">
+            {item.name}
+          </div>
+        )}
+      </div>
+      {item.entity_type && (
+        <span className="truncate text-[9px] font-semibold text-muted">{entityTypeLabel(item.entity_type)}</span>
       )}
     </div>
   );

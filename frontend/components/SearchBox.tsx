@@ -3,26 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { searchEntities, SearchResult } from "@/lib/api";
+import { entityTypeLabel } from "@/lib/constants";
 
-// entity_type -> route + Persian label, for every type this app can
-// actually navigate to (movie/tv_series have their own route; the rest go
-// through the polymorphic [type]/[slug] page via ENTITY_TYPE_REGISTRY).
-// A search result whose type isn't in here (e.g. album, production_company)
-// has nowhere to link to, so it's filtered out rather than shown as a dead end.
+// entity_type -> route, for every type this app can actually navigate to
+// (movie/tv_series have their own route; the rest go through the
+// polymorphic [type]/[slug] page via ENTITY_TYPE_REGISTRY). A search result
+// whose type isn't in here (e.g. album, production_company) has nowhere to
+// link to, so it's filtered out rather than shown as a dead end.
 const ROUTE_BY_TYPE: Record<string, string> = {
   movie: "/movies",
   tv_series: "/tv-series",
   person: "/person",
   genre: "/genre",
   track: "/track",
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  movie: "فیلم",
-  tv_series: "سریال",
-  person: "فرد",
-  genre: "ژانر",
-  track: "آهنگ",
 };
 
 export default function SearchBox() {
@@ -98,7 +91,7 @@ export default function SearchBox() {
               >
                 <span className="truncate">{r.title}</span>
                 <span className="num shrink-0 rounded-full border border-border bg-surface2 px-1.5 py-0.5 text-[10px] text-muted">
-                  {TYPE_LABELS[r.type] ?? r.type}
+                  {entityTypeLabel(r.type)}
                 </span>
               </button>
             ))

@@ -3,6 +3,7 @@ import Link from "next/link";
 import ScoreBadge from "./ScoreBadge";
 import { SuggestedBattle, SuggestedBattleEntity } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
+import { entityTypeLabel } from "@/lib/constants";
 
 function Side({ entity }: { entity: SuggestedBattleEntity }) {
   const posterUrl = entity.poster_path
@@ -26,6 +27,7 @@ function Side({ entity }: { entity: SuggestedBattleEntity }) {
           </div>
         )}
       </div>
+      <span className="text-[10px] font-semibold text-muted">{entityTypeLabel(entity.entity_type)}</span>
       <p className="line-clamp-2 text-sm font-medium text-ink">{displayTitle(entity)}</p>
       <ScoreBadge score={entity.computed_score} />
     </div>

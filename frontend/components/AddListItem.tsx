@@ -3,12 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { searchEntities, addListItem, SearchResult } from "@/lib/api";
 import SmartSuggestionChips from "./SmartSuggestionChips";
+import { entityTypeLabel } from "@/lib/constants";
 
-const TYPE_LABELS: Record<string, string> = {
-  movie: "فیلم",
-  tv_series: "سریال",
-  person: "بازیگر/کارگردان",
-};
+const SEARCHABLE_TYPES = ["movie", "tv_series", "person"];
 
 export default function AddListItem({
   slug,
@@ -104,7 +101,7 @@ export default function AddListItem({
 
       {!entityType && (
         <div className="mb-2 flex flex-wrap gap-1.5">
-          {Object.keys(TYPE_LABELS).map((key) => (
+          {SEARCHABLE_TYPES.map((key) => (
             <button
               key={key}
               type="button"
@@ -118,7 +115,7 @@ export default function AddListItem({
                   : "border-border text-muted"
               }`}
             >
-              {TYPE_LABELS[key]}
+              {entityTypeLabel(key)}
             </button>
           ))}
         </div>
@@ -128,7 +125,7 @@ export default function AddListItem({
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={`جستجوی ${TYPE_LABELS[activeType]}...`}
+        placeholder={`جستجوی ${entityTypeLabel(activeType)}...`}
         className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-ink outline-none focus:border-gold/50"
       />
 
@@ -152,7 +149,10 @@ export default function AddListItem({
                 disabled={adding === r.id || alreadySelected}
                 className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-ink transition hover:border-gold/40 hover:bg-surface2 disabled:opacity-50"
               >
-                <span>{r.title}</span>
+                <span className="flex items-center gap-1.5">
+                  <span>{r.title}</span>
+                  <span className="text-xs text-muted">{entityTypeLabel(r.type)}</span>
+                </span>
                 <span className="num text-xs text-gold">
                   {adding === r.id
                     ? "در حال افزودن..."

@@ -5,6 +5,7 @@ import ScoreBadge from "./ScoreBadge";
 import { MovieListItem } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
 import { displayTitle } from "@/lib/title";
+import { entityTypeLabel } from "@/lib/constants";
 
 export default function EntityRow({
   movie,
@@ -18,8 +19,6 @@ export default function EntityRow({
   const posterUrl =
     movie.media.image_url ??
     (movie.poster_path ? `https://image.tmdb.org/t/p/w200${movie.poster_path}` : null);
-
-  const isTvSeries = movie.entity_type === "tv_series";
 
   return (
     <Link
@@ -47,15 +46,16 @@ export default function EntityRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate font-medium text-ink">{displayTitle(movie)}</h3>
-          {isTvSeries && (
-            <span className="num shrink-0 rounded-full border border-teal/40 bg-teal/10 px-1.5 py-0.5 text-[10px] text-teal">
-              سریال
-            </span>
+        <h3 className="truncate font-medium text-ink">{displayTitle(movie)}</h3>
+        <div className="flex items-center gap-1.5 text-xs text-muted">
+          <span>{entityTypeLabel(movie.entity_type)}</span>
+          {movie.year && (
+            <>
+              <span className="opacity-50">·</span>
+              <span className="num">{movie.year}</span>
+            </>
           )}
         </div>
-        {movie.year && <p className="num text-xs text-muted">{movie.year}</p>}
       </div>
 
       <Constellation year={movie.year} size={56} />

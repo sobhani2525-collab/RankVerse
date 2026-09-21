@@ -10,7 +10,7 @@ import { movieListItemToEntityCard } from "@/lib/entity-card-adapters";
 
 // Movies and tv_series both belong under one genre ranking -- merged into a
 // single list (sorted by score, nulls last) rather than two separate
-// sections, since EntityRow's "سریال" badge already tells them apart per row.
+// sections, since EntityCard's type label already tells them apart per card.
 function byScoreDesc(a: { computed_score: number | null }, b: { computed_score: number | null }) {
   if (a.computed_score === null) return b.computed_score === null ? 0 : 1;
   if (b.computed_score === null) return -1;

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { RelatedEntity } from "@/lib/api";
 import { detailPathFor } from "@/lib/entity-routes";
+import { entityTypeLabel } from "@/lib/constants";
 
 interface RelatedEntitiesProps {
   items: RelatedEntity[];
@@ -44,7 +45,8 @@ export default function RelatedEntities({ items }: RelatedEntitiesProps) {
                     <span className="text-xs text-muted">no poster</span>
                   )}
                 </div>
-                <b className="mt-2 block truncate text-sm text-ink">{item.title}</b>
+                <span className="mt-2 block text-[10px] font-semibold text-muted">{entityTypeLabel(item.entity_type)}</span>
+                <b className="block truncate text-sm text-ink">{item.title}</b>
                 <span className="num text-xs text-muted">{Math.round(item.weight * 100)}% mashabeh</span>
               </Link>
 

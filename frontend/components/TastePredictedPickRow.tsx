@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { PredictedPick } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
+import { entityTypeLabel } from "@/lib/constants";
 
 export default function TastePredictedPickRow({ pick }: { pick: PredictedPick }) {
   const { entity } = pick;
@@ -28,7 +29,10 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
         )}
       </div>
 
-      <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{entity.title}</p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-ink">{entity.title}</p>
+        <p className="text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</p>
+      </div>
 
       {/* match_score is already 0-100 (see PredictedPicksService's docstring) --
           same convention as anchor.match_score in TasteAnchorRow. */}
