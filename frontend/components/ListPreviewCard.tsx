@@ -16,6 +16,7 @@ export interface ListPreviewCardProps {
   description?: string | null;
   pendingItems: ListPreviewItem[];
   ownerName?: string | null;
+  onRemoveItem?: (id: string) => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export default function ListPreviewCard({
   description,
   pendingItems,
   ownerName,
+  onRemoveItem,
 }: ListPreviewCardProps) {
   const isLive = title.trim().length > 0;
   const scored = pendingItems.filter((item) => item.score !== null && item.score !== undefined);
@@ -63,17 +65,32 @@ export default function ListPreviewCard({
       {pendingItems.length > 0 ? (
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {pendingItems.map((item) => (
-            <EntityCard
-              key={item.id}
-              showFavoriteAction={false}
-              entity={{
-                id: item.id,
-                slug: item.slug,
-                title: item.name,
-                entity_type: item.entity_type ?? "movie",
-                posterUrl: item.posterUrl,
-              }}
-            />
+            <div key={item.id} className="relative">
+              <EntityCard
+                showFavoriteAction={false}
+                entity={{
+                  id: item.id,
+                  slug: item.slug,
+                  title: item.name,
+                  entity_type: item.entity_type ?? "movie",
+                  posterUrl: item.posterUrl,
+                }}
+              />
+              {onRemoveItem && (
+                <button
+                  type="button"
+                  aria-label="حذف از پیش‌نمایش"
+                  onClick={() => onRemoveItem(item.id)}
+                  className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-border text-ink backdrop-blur-sm transition hover:border-gold/50 hover:text-gold md:h-9 md:w-9"
+                  style={{ background: "rgba(7,11,22,.7)" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
           ))}
         </div>
       ) : (

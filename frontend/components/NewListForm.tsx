@@ -36,6 +36,10 @@ export default function NewListForm() {
     ]);
   }
 
+  function handleRemovePending(id: string) {
+    setPendingItems((prev) => prev.filter((item) => item.id !== id));
+  }
+
   async function doCreate() {
     const token = getToken();
     if (!token) return;
@@ -129,7 +133,15 @@ export default function NewListForm() {
             </p>
           )}
 
-          <div className="mt-2 flex items-center justify-between gap-4">
+          <div className="mt-2 flex items-center gap-4">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-lg bg-gold px-4 py-2.5 font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
+            >
+              {submitting ? "در حال ساخت..." : "ساخت لیست"}
+            </button>
+
             <label className="flex items-center gap-2 text-sm text-muted">
               <input
                 type="checkbox"
@@ -139,14 +151,6 @@ export default function NewListForm() {
               />
               عمومی
             </label>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-gold px-4 py-2.5 font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
-            >
-              {submitting ? "در حال ساخت..." : "ساخت لیست"}
-            </button>
           </div>
         </form>
 
@@ -157,6 +161,7 @@ export default function NewListForm() {
             description={description}
             pendingItems={pendingItems}
             ownerName={user?.username ?? null}
+            onRemoveItem={handleRemovePending}
           />
         </div>
       </div>
