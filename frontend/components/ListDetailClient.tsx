@@ -5,13 +5,13 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getListBySlug } from "@/lib/api";
 import { ListDetail, ListComment } from "@/lib/types";
-import ListActions from "./ListActions";
 import ListComments from "./ListComments";
 import AddListItem from "./AddListItem";
 import ListItemsManager from "./ListItemsManager";
 import ListEditPanel from "./ListEditPanel";
-import { CONTRIBUTION_MODE_LABELS } from "./ListSettings";
 import ShareListButton from "./ShareListButton";
+import ListLikeButton from "./ListLikeButton";
+import ListFollowButton from "./ListFollowButton";
 
 export default function ListDetailClient({
   slug,
@@ -55,57 +55,46 @@ export default function ListDetailClient({
   const showAddItemButton = token ? canAddItemAuthed : detail.contribution_mode !== "owner_only";
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-14">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        {detail.entity_type && (
-          <span className="num rounded-full border border-border px-2.5 py-0.5 text-xs text-muted">
-            {detail.entity_type}
-          </span>
-        )}
-        {detail.tags.map((tag) => (
-          <span key={tag} className="num rounded-full border border-teal/30 bg-teal/5 px-2.5 py-0.5 text-xs text-teal">
-            #{tag}
-          </span>
-        ))}
-        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted">
-          {CONTRIBUTION_MODE_LABELS[detail.contribution_mode]}
-        </span>
+    <main className="mx-auto max-w-7xl px-6 py-14">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl text-ink">{detail.title}</h1>
+          {detail.owner_username && (
+            <p className="mt-1 text-sm text-muted">
+              ساخته شده توسط{" "}
+              <Link href={`/profile/${detail.owner_username}`} className="text-teal hover:underline">
+                @{detail.owner_username}
+              </Link>
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {isOwner && (
+            <button
+              onClick={() => setIsEditing((v) => !v)}
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
+            >
+              {isEditing ? "بستن ویرایش" : "ویرایش"}
+            </button>
+          )}
+          <ListFollowButton
+            slug={slug}
+            initialFollowing={detail.is_following}
+            initialFollowerCount={detail.follower_count}
+          />
+          <ListLikeButton
+            slug={slug}
+            initialLiked={detail.is_liked}
+            initialLikeCount={detail.like_count}
+          />
+          <ShareListButton slug={slug} title={detail.title} />
+        </div>
       </div>
 
-      <div className="flex items-start justify-between gap-3">
-        <h1 className="font-display text-2xl text-ink">{detail.title}</h1>
-        {isOwner && (
-          <button
-            onClick={() => setIsEditing((v) => !v)}
-            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
-          >
-            {isEditing ? "بستن ویرایش" : "ویرایش"}
-          </button>
-        )}
-      </div>
-
-      {detail.owner_username && (
-        <p className="mt-1 text-sm text-muted">
-          ساخته شده توسط{" "}
-          <Link href={`/profile/${detail.owner_username}`} className="text-teal hover:underline">
-            @{detail.owner_username}
-          </Link>
-        </p>
-      )}
       {detail.description && (
         <p className="mt-3 text-ink/80">{detail.description}</p>
       )}
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <ListActions
-          slug={slug}
-          initialLiked={detail.is_liked}
-          initialFollowing={detail.is_following}
-          initialLikeCount={detail.like_count}
-          initialFollowerCount={detail.follower_count}
-        />
-        <ShareListButton slug={slug} title={detail.title} />
-      </div>
 
       {isOwner && isEditing && (
         <ListEditPanel
@@ -119,19 +108,22 @@ export default function ListDetailClient({
         />
       )}
 
-      {showAddItemButton && !showAddItemForm && (
-        <div className="mt-8">
-          <button
-            onClick={() => requireAuth(() => setShowAddItemForm(true))}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-ink transition hover:border-gold/40 hover:text-gold"
-          >
-            + افزودن آیتم
-          </button>
-        </div>
-      )}
+      <div className="mt-8">
+        <ListItemsManager
+          key={detail.items.map((i) => i.id).join(",")}
+          slug={slug}
+          listType={detail.list_type}
+          isRanked={detail.is_ranked}
+          isOwner={isOwner}
+          initialItems={detail.items}
+          canAddItem={showAddItemButton}
+          showingAddForm={showAddItemForm}
+          onRequestAdd={() => requireAuth(() => setShowAddItemForm(true))}
+        />
+      </div>
 
       {showAddItemForm && (
-        <div className="mt-8">
+        <div className="mt-4">
           <AddListItem
             slug={slug}
             listId={detail.id}
@@ -141,17 +133,6 @@ export default function ListDetailClient({
           />
         </div>
       )}
-
-      <div className="mt-8">
-        <ListItemsManager
-          key={detail.items.map((i) => i.id).join(",")}
-          slug={slug}
-          listType={detail.list_type}
-          isRanked={detail.is_ranked}
-          isOwner={isOwner}
-          initialItems={detail.items}
-        />
-      </div>
 
       <ListComments slug={slug} initialComments={initialComments} />
     </main>

@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { removeListItem, reorderListItems, voteListItem, removeListItemVote } from "@/lib/api";
 import { ListItem, ListType } from "@/lib/types";
 import { entityTypeLabel } from "@/lib/constants";
+import { detailPathFor } from "@/lib/entity-routes";
+import EntityMedia from "@/components/entities/entity-media";
 import { toFaDigits } from "@/lib/format-number";
 
 // Mirrors the default in app/config.py (list_item_score_global_avg) so a
@@ -27,18 +28,30 @@ function compareCommunityOrder(a: ListItem, b: ListItem): number {
   return ia < ib ? -1 : ia > ib ? 1 : 0;
 }
 
+function posterUrlFor(posterPath: string | null): string | null {
+  return posterPath ? `https://image.tmdb.org/t/p/w300${posterPath}` : null;
+}
+
 export default function ListItemsManager({
   slug,
   listType,
   isRanked,
   isOwner,
   initialItems,
+  canAddItem = false,
+  showingAddForm = false,
+  onRequestAdd,
 }: {
   slug: string;
   listType: ListType;
   isRanked: boolean;
   isOwner: boolean;
   initialItems: ListItem[];
+  /** Whether the "افزودن آیتم" tile should appear after the last item. */
+  canAddItem?: boolean;
+  /** Hides the tile while the add-item form (rendered by the caller) is open. */
+  showingAddForm?: boolean;
+  onRequestAdd?: () => void;
 }) {
   const { token, getToken } = useAuth();
   const { requireAuth } = useAuthGate();
@@ -140,7 +153,9 @@ export default function ListItemsManager({
     }
   }
 
-  if (items.length === 0) {
+  const showAddTile = canAddItem && !showingAddForm && !!onRequestAdd;
+
+  if (items.length === 0 && !showAddTile) {
     return (
       <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
         این لیست هنوز آیتمی ندارد.
@@ -156,120 +171,143 @@ export default function ListItemsManager({
         </p>
       )}
 
-      {items.map((item, idx) => {
-        const posterUrl = item.entity.poster_path
-          ? `https://image.tmdb.org/t/p/w200${item.entity.poster_path}`
-          : null;
-        return (
-          <div
-            key={item.id}
-            className="flex items-center gap-4 rounded-xl border border-border bg-surface/60 px-4 py-3"
-          >
-            {isRanked && !isCommunityOrdered && (
-              <span className="num w-9 shrink-0 text-center text-lg text-muted">
-                {toFaDigits(String(idx + 1).padStart(2, "0"))}
-              </span>
-            )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        {items.map((item, idx) => {
+          const posterUrl = posterUrlFor(item.entity.poster_path);
+          const href = detailPathFor(item.entity.entity_type, item.entity.slug) ?? "#";
+          const canReorder = isOwner && isRanked && !isCommunityOrdered;
+          const canRemove = isOwner || item.can_remove;
 
-            <div className="h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface2">
-              {posterUrl ? (
-                <Image
-                  src={posterUrl}
-                  alt={item.entity.title}
-                  width={44}
-                  height={64}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-muted">
-                  —
-                </div>
-              )}
-            </div>
+          return (
+            <div key={item.id} className="flex flex-col">
+              <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl border border-border-soft bg-surface2">
+                <Link href={href} className="absolute inset-0" aria-label={item.entity.title}>
+                  <EntityMedia src={posterUrl} alt={item.entity.title} mediaKind={posterUrl ? "image" : "none"} />
+                </Link>
 
-            <div className="min-w-0 flex-1">
-              <Link
-                href={
-                  item.entity.entity_type === "movie"
-                    ? `/movies/${item.entity.slug}`
-                    : "#"
-                }
-                className="truncate font-medium text-ink hover:text-gold"
-              >
-                {item.entity.title}
-              </Link>
-              <p className="text-xs text-muted">{entityTypeLabel(item.entity.entity_type)}</p>
-              {item.note && (
-                <p className="mt-0.5 truncate text-sm text-muted">{item.note}</p>
-              )}
-            </div>
-
-            {isCommunityOrdered && (
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  onClick={() => handleVote(item.id, true)}
-                  disabled={votingId === item.id}
-                  className={`num flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition disabled:opacity-50 ${
-                    item.my_vote === true
-                      ? "border-teal/50 bg-teal/10 text-teal"
-                      : "border-border text-muted hover:border-teal/40"
-                  }`}
-                  title="پسندیدم"
-                >
-                  ▲ {toFaDigits(item.like_count)}
-                </button>
-                <button
-                  onClick={() => handleVote(item.id, false)}
-                  disabled={votingId === item.id}
-                  className={`num flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition disabled:opacity-50 ${
-                    item.my_vote === false
-                      ? "border-red-500/50 bg-red-500/10 text-red-400"
-                      : "border-border text-muted hover:border-red-500/40"
-                  }`}
-                  title="نپسندیدم"
-                >
-                  ▼ {toFaDigits(item.dislike_count)}
-                </button>
-              </div>
-            )}
-
-            {(isOwner || item.can_remove) && (
-              <div className="flex shrink-0 items-center gap-1">
-                {isOwner && isRanked && !isCommunityOrdered && (
-                  <>
-                    <button
-                      onClick={() => moveUp(idx)}
-                      disabled={idx === 0}
-                      className="rounded-lg border border-border px-2 py-1.5 text-muted transition hover:border-gold/40 hover:text-gold disabled:opacity-30"
-                      title="جابجایی به بالا"
+                {isRanked && !isCommunityOrdered && (
+                  <div
+                    className="pointer-events-none absolute right-2 top-2 h-9 w-9 rounded-full p-[1.5px]"
+                    style={{ background: "linear-gradient(135deg, #9163f5, #4FB8A6)" }}
+                  >
+                    <div
+                      className="num flex h-full w-full items-center justify-center rounded-full text-xs font-bold text-ink backdrop-blur-sm"
+                      style={{ background: "rgba(7,11,22,.85)" }}
                     >
-                      ▲
-                    </button>
-                    <button
-                      onClick={() => moveDown(idx)}
-                      disabled={idx === items.length - 1}
-                      className="rounded-lg border border-border px-2 py-1.5 text-muted transition hover:border-gold/40 hover:text-gold disabled:opacity-30"
-                      title="جابجایی به پایین"
-                    >
-                      ▼
-                    </button>
-                  </>
+                      {toFaDigits(idx + 1)}
+                    </div>
+                  </div>
                 )}
-                {item.can_remove && (
+
+                {canRemove && (
                   <button
+                    type="button"
                     onClick={() => handleRemove(item.id)}
                     disabled={busyId === item.id}
-                    className="rounded-lg border border-border px-2 py-1.5 text-muted transition hover:border-red-500/50 hover:text-red-400 disabled:opacity-50"
+                    aria-label="حذف از لیست"
                     title="حذف از لیست"
+                    className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-border text-ink backdrop-blur-sm transition hover:border-red-500/50 hover:text-red-400 disabled:opacity-50"
+                    style={{ background: "rgba(7,11,22,.7)" }}
                   >
-                    ✕
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                    </svg>
                   </button>
                 )}
               </div>
-            )}
-          </div>
-        );
-      })}
+
+              <div className="mt-2.5 flex flex-col gap-1.5">
+                <span className="text-[10.5px] font-semibold text-muted">
+                  {entityTypeLabel(item.entity.entity_type)}
+                </span>
+
+                <Link href={href} className="truncate text-sm font-bold text-ink hover:text-teal">
+                  {item.entity.title}
+                </Link>
+
+                {item.note && <p className="truncate text-xs text-muted">{item.note}</p>}
+
+                {isCommunityOrdered ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleVote(item.id, true)}
+                      disabled={votingId === item.id}
+                      className={`num flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition disabled:opacity-50 ${
+                        item.my_vote === true
+                          ? "border-teal/50 bg-teal/10 text-teal"
+                          : "border-border text-muted hover:border-teal/40"
+                      }`}
+                      title="پسندیدم"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M7 22V11m0 11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3m0 11h9.28a2 2 0 0 0 1.98-1.72l1.13-8A2 2 0 0 0 17.42 10H14V5a2 2 0 0 0-2-2l-3 7.5" />
+                      </svg>
+                      {toFaDigits(item.like_count)}
+                    </button>
+                    <button
+                      onClick={() => handleVote(item.id, false)}
+                      disabled={votingId === item.id}
+                      className={`num flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition disabled:opacity-50 ${
+                        item.my_vote === false
+                          ? "border-red-500/50 bg-red-500/10 text-red-400"
+                          : "border-border text-muted hover:border-red-500/40"
+                      }`}
+                      title="نپسندیدم"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M17 2v11m0-11h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-3m0-11H7.72a2 2 0 0 0-1.98 1.72l-1.13 8A2 2 0 0 0 6.58 14H10v5a2 2 0 0 0 2 2l3-7.5" />
+                      </svg>
+                      {toFaDigits(item.dislike_count)}
+                    </button>
+                  </div>
+                ) : (
+                  canReorder && (
+                    <div className="inline-flex w-fit items-center gap-0.5 rounded-lg border border-border bg-surface/40 p-0.5">
+                      <button
+                        onClick={() => moveUp(idx)}
+                        disabled={idx === 0}
+                        title="جابجایی به بالا"
+                        aria-label="جابجایی به بالا"
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-teal/10 hover:text-teal disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M6 15l6-6 6 6" />
+                        </svg>
+                      </button>
+                      <span className="h-4 w-px bg-border" />
+                      <button
+                        onClick={() => moveDown(idx)}
+                        disabled={idx === items.length - 1}
+                        title="جابجایی به پایین"
+                        aria-label="جابجایی به پایین"
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-teal/10 hover:text-teal disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </button>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {showAddTile && (
+          <button
+            type="button"
+            onClick={onRequestAdd}
+            className="flex aspect-[2/3] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gold/40 bg-gold/5 text-gold transition hover:border-gold/70 hover:bg-gold/10"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/50 text-xl leading-none">
+              +
+            </span>
+            <span className="text-xs font-bold">افزودن آیتم</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

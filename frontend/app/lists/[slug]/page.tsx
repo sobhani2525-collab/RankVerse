@@ -19,7 +19,7 @@ export default async function ListDetailPage({
     return (
       <>
         <ListDetailClient slug={slug} initialDetail={detail} initialComments={comments} />
-        <div className="mx-auto max-w-3xl px-6 pb-14">
+        <div className="mx-auto max-w-7xl px-6 pb-14">
           <RelatedLists slug={slug} />
         </div>
       </>
