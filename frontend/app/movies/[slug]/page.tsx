@@ -7,12 +7,14 @@ import AddToListMenu from "@/components/entities/add-to-list-menu";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
+import DirectorWorks from "@/components/DirectorWorks";
 import BattleAndRankings from "@/components/BattleAndRankings";
 import EntityLists from "@/components/EntityLists";
-import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
+import { getMovieBySlug, getRelatedEntities, getMovieRankings, getPersonBySlug, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
+import { MovieListItem, SuggestedBattle } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -38,6 +40,46 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   } catch {
     rankingHighlights = [];
   }
+
+  // Powers both the "ساخته‌های دیگر X" section and, when there's no
+  // personalized suggested-battle pick (every guest, or a logged-in user
+  // without a taste anchor), the fallback battle below -- this movie vs.
+  // the director's own next-best-scored other film, so the card has
+  // something to show instead of nothing.
+  const mainDirector = movie.directors[0] ?? null;
+  let directorWorks: MovieListItem[] = [];
+  if (mainDirector) {
+    try {
+      const director = await getPersonBySlug(mainDirector.slug);
+      directorWorks = [...director.directed, ...director.created].filter((m) => m.id !== movie.id);
+    } catch {
+      directorWorks = [];
+    }
+  }
+  const fallbackBattle: SuggestedBattle | null =
+    mainDirector && directorWorks.length > 0
+      ? {
+          category: "movie",
+          left: {
+            id: directorWorks[0].id,
+            slug: directorWorks[0].slug,
+            title: directorWorks[0].title,
+            title_fa: directorWorks[0].title_fa,
+            entity_type: directorWorks[0].entity_type,
+            poster_path: directorWorks[0].poster_path,
+            computed_score: directorWorks[0].computed_score,
+          },
+          right: {
+            id: movie.id,
+            slug: movie.slug,
+            title: movie.title,
+            title_fa: movie.title_fa,
+            entity_type: movie.entity_type,
+            poster_path: movie.poster_path,
+            computed_score: movie.computed_score,
+          },
+        }
+      : null;
 
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
@@ -136,8 +178,19 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         <RelatedEntities items={related} />
       </div>
 
+      {mainDirector && (
+        <div className="mt-10">
+          <DirectorWorks directorName={mainDirector.title} items={directorWorks} />
+        </div>
+      )}
+
       <div className="mt-10">
-        <BattleAndRankings entityType="movie" slug={movie.slug} rankingHighlights={rankingHighlights} />
+        <BattleAndRankings
+          entityType="movie"
+          slug={movie.slug}
+          rankingHighlights={rankingHighlights}
+          fallbackBattle={fallbackBattle}
+        />
       </div>
 
       <EntityLists entityId={movie.id} />

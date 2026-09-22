@@ -7,12 +7,14 @@ import AddToListMenu from "@/components/entities/add-to-list-menu";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
+import DirectorWorks from "@/components/DirectorWorks";
 import BattleAndRankings from "@/components/BattleAndRankings";
 import EntityLists from "@/components/EntityLists";
-import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
+import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
+import { MovieListItem, SuggestedBattle } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -103,6 +105,46 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
     rankingHighlights = [];
   }
 
+  // Powers both the "ساخته‌های دیگر X" section and, when there's no
+  // personalized suggested-battle pick (every guest, or a logged-in user
+  // without a taste anchor), the fallback battle below -- this show vs.
+  // the creator's own next-best-scored other title, so the card has
+  // something to show instead of nothing.
+  const mainCreator = tv.creators[0] ?? null;
+  let creatorWorks: MovieListItem[] = [];
+  if (mainCreator) {
+    try {
+      const creator = await getPersonBySlug(mainCreator.slug);
+      creatorWorks = [...creator.directed, ...creator.created].filter((m) => m.id !== tv.id);
+    } catch {
+      creatorWorks = [];
+    }
+  }
+  const fallbackBattle: SuggestedBattle | null =
+    mainCreator && creatorWorks.length > 0
+      ? {
+          category: "tv_series",
+          left: {
+            id: creatorWorks[0].id,
+            slug: creatorWorks[0].slug,
+            title: creatorWorks[0].title,
+            title_fa: creatorWorks[0].title_fa,
+            entity_type: creatorWorks[0].entity_type,
+            poster_path: creatorWorks[0].poster_path,
+            computed_score: creatorWorks[0].computed_score,
+          },
+          right: {
+            id: tv.id,
+            slug: tv.slug,
+            title: tv.title,
+            title_fa: tv.title_fa,
+            entity_type: tv.entity_type,
+            poster_path: tv.poster_path,
+            computed_score: tv.computed_score,
+          },
+        }
+      : null;
+
   const posterUrl = tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null;
 
   return (
@@ -192,8 +234,19 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         <RelatedEntities items={related} />
       </div>
 
+      {mainCreator && (
+        <div className="mt-10">
+          <DirectorWorks directorName={mainCreator.title} items={creatorWorks} />
+        </div>
+      )}
+
       <div className="mt-10">
-        <BattleAndRankings entityType="tv_series" slug={tv.slug} rankingHighlights={rankingHighlights} />
+        <BattleAndRankings
+          entityType="tv_series"
+          slug={tv.slug}
+          rankingHighlights={rankingHighlights}
+          fallbackBattle={fallbackBattle}
+        />
       </div>
 
       <EntityLists entityId={tv.id} />

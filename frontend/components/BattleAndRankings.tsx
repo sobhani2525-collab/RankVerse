@@ -4,27 +4,36 @@ import { useSuggestedBattle } from "@/lib/use-suggested-battle";
 import SuggestedBattleCard from "./SuggestedBattleCard";
 import NotableRankings from "./NotableRankings";
 import { RankingHighlight } from "@/lib/api";
+import { SuggestedBattle } from "@/lib/types";
 
 /**
  * Places the suggested-battle card and the notable-rankings list side by
- * side on desktop. Whether the battle card exists is only known client-side
- * (it needs a logged-in user with a taste anchor -- see useSuggestedBattle),
- * so this lives in one client component rather than two independent
- * server-rendered blocks: that's what lets the layout collapse to a single
- * full-width column when there's no battle, which is the case for every
- * guest visitor, instead of leaving an empty half-width gap next to
- * Notable Rankings.
+ * side on desktop. Whether the *personalized* battle card exists is only
+ * known client-side (it needs a logged-in user with a taste anchor -- see
+ * useSuggestedBattle) and is null for every guest visitor, so the caller
+ * (movies/tv-series detail pages) precomputes a `fallbackBattle` server-side
+ * -- the current title vs. another work by its own director/creator, from
+ * the same getPersonBySlug call DirectorWorks uses -- so the card still
+ * shows something rather than nothing when there's no personalized pick.
+ * This lives in one client component rather than two independent
+ * server-rendered blocks so the layout can still collapse to a single
+ * full-width column when there's truly no battle at all (no director data
+ * either), instead of leaving an empty half-width gap next to Notable
+ * Rankings.
  */
 export default function BattleAndRankings({
   entityType,
   slug,
   rankingHighlights,
+  fallbackBattle = null,
 }: {
   entityType: string;
   slug: string;
   rankingHighlights: RankingHighlight[];
+  fallbackBattle?: SuggestedBattle | null;
 }) {
-  const battle = useSuggestedBattle(entityType, slug);
+  const personalizedBattle = useSuggestedBattle(entityType, slug);
+  const battle = personalizedBattle ?? fallbackBattle;
   const hasBattle = battle != null;
   const hasRankings = rankingHighlights.length > 0;
 
