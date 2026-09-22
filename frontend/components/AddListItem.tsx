@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { searchEntities, addListItem, SearchResult } from "@/lib/api";
 import SmartSuggestionChips from "./SmartSuggestionChips";
@@ -149,7 +150,14 @@ export default function AddListItem({
                 disabled={adding === r.id || alreadySelected}
                 className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-ink transition hover:border-gold/40 hover:bg-surface2 disabled:opacity-50"
               >
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-2">
+                  <span className="relative h-10 w-7 shrink-0 overflow-hidden rounded bg-surface2">
+                    {r.image_url ? (
+                      <Image src={r.image_url} alt="" fill sizes="28px" className="object-cover" />
+                    ) : (
+                      <span className="absolute inset-0 bg-gradient-brand" />
+                    )}
+                  </span>
                   <span>{r.title}</span>
                   <span className="text-xs text-muted">{entityTypeLabel(r.type)}</span>
                 </span>

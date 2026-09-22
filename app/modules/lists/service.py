@@ -49,6 +49,17 @@ class ListService:
 
     async def create_list(self, user_id: uuid.UUID, payload: ListCreate) -> UserList:
         slug = await self._unique_slug(payload.title)
+        contribution_mode = payload.contribution_mode
+        if contribution_mode is None:
+            # Every list is open to contributions unless it's private, where
+            # only the owner can even see it -- so default accordingly instead
+            # of the model's OWNER_ONLY default, which would silently lock
+            # public/unlisted lists down until someone visits list settings.
+            contribution_mode = (
+                ContributionMode.OWNER_ONLY
+                if payload.visibility == "private"
+                else ContributionMode.ANYONE
+            )
         lst = await self.repo.create_list(
             user_id=user_id,
             title=payload.title,
@@ -59,7 +70,7 @@ class ListService:
             visibility=payload.visibility,
             tags=payload.tags,
             list_type=payload.list_type,
-            contribution_mode=payload.contribution_mode,
+            contribution_mode=contribution_mode,
         )
         await self.db.commit()
         return lst

@@ -14,7 +14,7 @@ class ListCreate(BaseModel):
     visibility: str = Field(default="public", pattern="^(public|unlisted|private)$")
     tags: list[str] = []
     list_type: ListType = ListType.RANKED
-    contribution_mode: ContributionMode = ContributionMode.OWNER_ONLY
+    contribution_mode: ContributionMode | None = None
 
 
 class ListUpdate(BaseModel):

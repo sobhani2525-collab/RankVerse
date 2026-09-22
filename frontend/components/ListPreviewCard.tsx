@@ -1,10 +1,10 @@
-import Image from "next/image";
 import ScoreBadge from "@/components/ScoreBadge";
-import { entityTypeLabel } from "@/lib/constants";
+import EntityCard from "@/components/entities/entity-card";
 import { toFaDigits } from "@/lib/format-number";
 
 export interface ListPreviewItem {
   id: string;
+  slug: string;
   name: string;
   entity_type?: string | null;
   posterUrl?: string | null;
@@ -17,8 +17,6 @@ export interface ListPreviewCardProps {
   pendingItems: ListPreviewItem[];
   ownerName?: string | null;
 }
-
-const POSTER_SLOTS = 4;
 
 /**
  * Renders a list as a card -- live preview while composing a new list
@@ -62,51 +60,33 @@ export default function ListPreviewCard({
 
       {description && <p className="mt-2 line-clamp-2 text-sm text-muted">{description}</p>}
 
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {Array.from({ length: POSTER_SLOTS }).map((_, i) => {
-          const item = pendingItems[i];
-          if (!item) {
-            return (
-              <div
-                key={`empty-${i}`}
-                className="aspect-[2/3] rounded-lg border border-dashed border-border/50 bg-surface/30"
-              />
-            );
-          }
-          return <PosterSlot key={item.id} item={item} />;
-        })}
-      </div>
+      {pendingItems.length > 0 ? (
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+          {pendingItems.map((item) => (
+            <EntityCard
+              key={item.id}
+              showFavoriteAction={false}
+              entity={{
+                id: item.id,
+                slug: item.slug,
+                title: item.name,
+                entity_type: item.entity_type ?? "movie",
+                posterUrl: item.posterUrl,
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-dashed border-border/50 bg-surface/30 py-8 text-center text-xs text-muted">
+          آیتمی اضافه نشده
+        </div>
+      )}
 
       <div className="mt-3 flex items-center justify-between">
         <span className="text-xs text-muted">
           <span className="num">{toFaDigits(pendingItems.length)}</span> آیتم
         </span>
       </div>
-    </div>
-  );
-}
-
-function PosterSlot({ item }: { item: ListPreviewItem }) {
-  return (
-    <div className="animate-pop-in flex flex-col gap-1">
-      <div className="aspect-[2/3] overflow-hidden rounded-lg bg-surface2">
-        {item.posterUrl ? (
-          <Image
-            src={item.posterUrl}
-            alt={item.name}
-            width={96}
-            height={144}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-constellation-gradient px-1 text-center text-[10px] text-ink/90">
-            {item.name}
-          </div>
-        )}
-      </div>
-      {item.entity_type && (
-        <span className="truncate text-[9px] font-semibold text-muted">{entityTypeLabel(item.entity_type)}</span>
-      )}
     </div>
   );
 }
