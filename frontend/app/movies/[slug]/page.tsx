@@ -7,8 +7,7 @@ import AddToListMenu from "@/components/entities/add-to-list-menu";
 import ScoreBadge from "@/components/ScoreBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
-import NotableRankings from "@/components/NotableRankings";
-import SuggestedBattleSection from "@/components/SuggestedBattleSection";
+import BattleAndRankings from "@/components/BattleAndRankings";
 import EntityLists from "@/components/EntityLists";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, RelatedEntity, RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
@@ -90,6 +89,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             </div>
           </div>
 
+          <div className="mt-4">
+            <StarRating entity={movie} />
+          </div>
+
           <div className="mt-3 flex justify-end">
             <AddToListMenu entity={movie} />
           </div>
@@ -131,19 +134,11 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
       </div>
 
       <div className="mt-10">
-        <StarRating entity={movie} />
-      </div>
-
-      <div className="mt-10">
-        <SuggestedBattleSection entityType="movie" slug={movie.slug} />
-      </div>
-
-      <div className="mt-10">
         <RelatedEntities items={related} />
       </div>
 
       <div className="mt-10">
-        <NotableRankings items={rankingHighlights} />
+        <BattleAndRankings entityType="movie" slug={movie.slug} rankingHighlights={rankingHighlights} />
       </div>
 
       <EntityLists entityId={movie.id} />

@@ -4,23 +4,14 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getSuggestedBattle } from "@/lib/api";
 import { SuggestedBattle } from "@/lib/types";
-import SuggestedBattleCard from "./SuggestedBattleCard";
 
 /**
- * Only meaningful for a logged-in user with a taste anchor -- for a guest,
- * skips the fetch entirely (the backend would return null anyway, but
- * there's no reason to make the call). Silently renders nothing on error
- * or when there's no suggestion, same as TastePredictedPicksCard: this is
- * a supplementary discovery feature, not core page content worth an
- * error state of its own.
+ * Shared by SuggestedBattleSection and BattleAndRankings -- the latter
+ * needs to know whether a battle exists *before* rendering, so it can
+ * collapse its two-column layout to one column when there's no battle
+ * (e.g. every guest visitor, since this only fetches for a logged-in user).
  */
-export default function SuggestedBattleSection({
-  entityType,
-  slug,
-}: {
-  entityType: string;
-  slug: string;
-}) {
+export function useSuggestedBattle(entityType: string, slug: string): SuggestedBattle | null {
   const { token } = useAuth();
   const [battle, setBattle] = useState<SuggestedBattle | null>(null);
 
@@ -41,7 +32,5 @@ export default function SuggestedBattleSection({
     };
   }, [token, entityType, slug]);
 
-  if (!battle) return null;
-
-  return <SuggestedBattleCard battle={battle} />;
+  return battle;
 }

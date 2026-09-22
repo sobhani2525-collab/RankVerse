@@ -88,30 +88,30 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
     <div className="rounded-xl border border-border bg-surface/60 px-5 py-4">
       <div
         className="relative inline-flex"
-        style={{ width: STAR_COUNT * 44 }}
+        style={{ width: STAR_COUNT * 44, height: 44 }}
         onMouseLeave={() => setHovered(null)}
       >
-        {/* Visual layer: a continuous gold->teal gradient clipped across
-            every filled star glyph together, so the fill reads as one
-            gradient sweep rather than five separately-gradiented icons. */}
-        <div className="pointer-events-none flex" aria-hidden="true">
-          <div
-            className="flex bg-gradient-to-r from-gold to-teal bg-clip-text text-transparent"
-            style={{ width: filledCount * 44 }}
-          >
-            {Array.from({ length: filledCount }, (_, i) => (
-              <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none">
-                ★
-              </span>
-            ))}
-          </div>
-          <div className="flex text-muted/50" style={{ width: (STAR_COUNT - filledCount) * 44 }}>
-            {Array.from({ length: STAR_COUNT - filledCount }, (_, i) => (
-              <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none">
-                ★
-              </span>
-            ))}
-          </div>
+        {/* Visual layer: two fixed, always-5-star rows stacked on top of each
+            other -- only the gold->teal one's clip-path animates with hover,
+            so the DOM/width never changes shape (no wrapper resizing, no
+            spans mounting/unmounting) and can't nudge the card's layout. */}
+        <div className="pointer-events-none absolute inset-0 flex text-muted/50" aria-hidden="true">
+          {Array.from({ length: STAR_COUNT }, (_, i) => (
+            <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none">
+              ★
+            </span>
+          ))}
+        </div>
+        <div
+          className="pointer-events-none absolute inset-0 flex bg-gradient-to-r from-gold to-teal bg-clip-text text-transparent"
+          aria-hidden="true"
+          style={{ clipPath: `inset(0 0 0 ${(STAR_COUNT - filledCount) * 44}px)` }}
+        >
+          {Array.from({ length: STAR_COUNT }, (_, i) => (
+            <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none">
+              ★
+            </span>
+          ))}
         </div>
 
         {/* Interactive layer: real buttons, each a >=44px touch target. */}
