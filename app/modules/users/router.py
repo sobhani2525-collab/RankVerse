@@ -98,6 +98,17 @@ async def favorite_tv_series(
     return envelope(data={"favorited": favorited})
 
 
+@router.post("/persons/{slug}/favorite")
+async def favorite_person(
+    slug: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = UserService(db)
+    favorited = await service.toggle_favorite(current_user.id, slug, entity_type="person")
+    return envelope(data={"favorited": favorited})
+
+
 @router.get("/users/me/favorites")
 async def my_favorites(
     current_user: User = Depends(get_current_user),

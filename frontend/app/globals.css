@@ -26,9 +26,10 @@
     @apply bg-gold/30 text-ink;
   }
 
-  /* Numerals (ranks, scores, years) always render as tabular Latin digits in the mono face */
+  /* Numerals (ranks, scores, years) render in Vazirmatn like the rest of
+     the UI, tabular so digit columns still line up. */
   .num {
-    @apply font-mono tabular-nums;
+    @apply font-sans tabular-nums;
     direction: ltr;
     unicode-bidi: isolate;
   }

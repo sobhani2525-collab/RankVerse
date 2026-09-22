@@ -244,7 +244,9 @@ export interface UserFavorite {
 }
 
 function favoritePathFor(entityType: string, slug: string): string {
-  return entityType === "tv_series" ? `/tv-series/${slug}/favorite` : `/movies/${slug}/favorite`;
+  if (entityType === "tv_series") return `/tv-series/${slug}/favorite`;
+  if (entityType === "person") return `/persons/${slug}/favorite`;
+  return `/movies/${slug}/favorite`;
 }
 
 export async function toggleFavorite(

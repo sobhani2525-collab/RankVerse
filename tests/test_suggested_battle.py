@@ -43,38 +43,40 @@ async def test_suggested_battle_is_null_without_anchors(client, db_session, test
     assert res.json()["data"] is None
 
 
-async def test_suggested_battle_prefers_genre_overlapping_anchor(
+async def test_suggested_battle_prefers_similar_to_anchor(
     client, db_session, test_user, auth_headers
 ):
+    """
+    similar_to edges (see scripts/build_similarity_graph.py) require at
+    least 2 shared connections and a minimum composite weight, so they're
+    the gate here instead of a single shared genre -- a lone shared genre
+    like "Drama" isn't enough evidence two titles are actually comparable
+    (see test_suggested_battle_is_null_without_similar_to).
+    """
     entity_repo = EntityRepository(db_session)
     taste_repo = TasteRepository(db_session)
 
-    drama = await _create_entity(entity_repo, "genre", "Drama", "drama-sbt")
-    comedy = await _create_entity(entity_repo, "genre", "Comedy", "comedy-sbt")
-
     current_movie = await _create_entity(entity_repo, "movie", "Current Movie", "current-movie-sbt")
-    drama_anchor = await _create_entity(entity_repo, "movie", "Drama Anchor", "drama-anchor-sbt")
-    comedy_anchor = await _create_entity(entity_repo, "movie", "Comedy Anchor", "comedy-anchor-sbt")
+    similar_anchor = await _create_entity(entity_repo, "movie", "Similar Anchor", "similar-anchor-sbt")
+    unrelated_anchor = await _create_entity(entity_repo, "movie", "Unrelated Anchor", "unrelated-anchor-sbt")
     tv_anchor = await _create_entity(entity_repo, "tv_series", "TV Anchor", "tv-anchor-sbt")
     await db_session.commit()
 
-    await entity_repo.create_relationship(current_movie.id, drama.id, "has_genre")
-    await entity_repo.create_relationship(drama_anchor.id, drama.id, "has_genre")
-    await entity_repo.create_relationship(comedy_anchor.id, comedy.id, "has_genre")
+    await entity_repo.create_relationship(current_movie.id, similar_anchor.id, "similar_to", weight=0.6)
     await db_session.commit()
 
-    for entity, score in ((current_movie, 7.5), (drama_anchor, 8.5), (comedy_anchor, 8.0), (tv_anchor, 9.0)):
+    for entity, score in ((current_movie, 7.5), (similar_anchor, 8.5), (unrelated_anchor, 8.0), (tv_anchor, 9.0)):
         await _set_score(db_session, entity.id, score)
     await db_session.commit()
 
-    # comedy_anchor ranks strongest (rank=1) but doesn't share a genre with
-    # current_movie; drama_anchor is weaker (rank=2) but does. tv_anchor is
-    # the wrong entity_type entirely and must never be picked.
+    # unrelated_anchor ranks strongest (rank=1) but has no similar_to edge
+    # to current_movie; similar_anchor is weaker (rank=2) but does. tv_anchor
+    # is the wrong entity_type entirely and must never be picked.
     await taste_repo.bulk_upsert_anchors(
         test_user.id,
         [
-            {"entity_id": comedy_anchor.id, "anchor_strength": "primary", "match_score": 90.0, "rank": 1},
-            {"entity_id": drama_anchor.id, "anchor_strength": "strong_signal", "match_score": 80.0, "rank": 2},
+            {"entity_id": unrelated_anchor.id, "anchor_strength": "primary", "match_score": 90.0, "rank": 1},
+            {"entity_id": similar_anchor.id, "anchor_strength": "strong_signal", "match_score": 80.0, "rank": 2},
             {"entity_id": tv_anchor.id, "anchor_strength": "strong_signal", "match_score": 95.0, "rank": 3},
         ],
     )
@@ -85,41 +87,35 @@ async def test_suggested_battle_prefers_genre_overlapping_anchor(
     data = res.json()["data"]
     assert data["category"] == "movie"
     slugs = {data["left"]["slug"], data["right"]["slug"]}
-    assert slugs == {drama_anchor.slug, current_movie.slug}
+    assert slugs == {similar_anchor.slug, current_movie.slug}
     assert data["right"]["slug"] == current_movie.slug
 
 
-async def test_suggested_battle_is_null_without_genre_overlap(
+async def test_suggested_battle_is_null_without_similar_to(
     client, db_session, test_user, auth_headers
 ):
     """
-    Previously this fell back to the user's strongest same-type anchor even
-    when it shared no genre with the entity being viewed -- in practice that
-    produced nonsense pairings (e.g. a superhero movie "vs." an unrelated
-    sci-fi drama). The card should just not show up rather than suggest a
-    battle between two unrelated titles.
+    Previously this fell back to the user's strongest same-type anchor
+    whenever they shared even one genre -- in practice that produced
+    nonsense pairings (e.g. a sitcom "vs." an unrelated epic fantasy series
+    that both happen to be tagged "Drama" among several genres). The card
+    should just not show up rather than suggest a battle between two
+    titles with no real similar_to relationship.
     """
     entity_repo = EntityRepository(db_session)
     taste_repo = TasteRepository(db_session)
 
-    drama = await _create_entity(entity_repo, "genre", "Drama", "drama-sbt-2")
-    comedy = await _create_entity(entity_repo, "genre", "Comedy", "comedy-sbt-2")
-
     current_movie = await _create_entity(entity_repo, "movie", "Current Movie 2", "current-movie-sbt-2")
-    comedy_anchor = await _create_entity(entity_repo, "movie", "Comedy Anchor 2", "comedy-anchor-sbt-2")
+    unrelated_anchor = await _create_entity(entity_repo, "movie", "Unrelated Anchor 2", "unrelated-anchor-sbt-2")
     await db_session.commit()
 
-    await entity_repo.create_relationship(current_movie.id, drama.id, "has_genre")
-    await entity_repo.create_relationship(comedy_anchor.id, comedy.id, "has_genre")
-    await db_session.commit()
-
-    for entity, score in ((current_movie, 7.0), (comedy_anchor, 8.0)):
+    for entity, score in ((current_movie, 7.0), (unrelated_anchor, 8.0)):
         await _set_score(db_session, entity.id, score)
     await db_session.commit()
 
     await taste_repo.bulk_upsert_anchors(
         test_user.id,
-        [{"entity_id": comedy_anchor.id, "anchor_strength": "primary", "match_score": 90.0, "rank": 1}],
+        [{"entity_id": unrelated_anchor.id, "anchor_strength": "primary", "match_score": 90.0, "rank": 1}],
     )
     await db_session.commit()
 

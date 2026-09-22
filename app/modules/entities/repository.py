@@ -179,6 +179,45 @@ class EntityRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def find_similar_by_genre(
+        self, entity_id: uuid.UUID, entity_type: str, exclude_ids: list[uuid.UUID], limit: int = 6
+    ) -> list[Entity]:
+        """Fallback for the /entities/{id}/related endpoint when the
+        similar_to graph has too few (or zero) edges for this entity -- a
+        smaller/regional title with sparse director/cast data often never
+        clears build_similarity_graph.py's >=2-shared-connection bar, which
+        left "اگر این را دوست داری..." empty far more often than it should
+        be. Same entity_type only, ranked by how many genres are shared
+        (most overlap first) then by computed_score."""
+        genre_ids = (
+            select(RelationshipEdge.to_entity_id)
+            .where(
+                RelationshipEdge.from_entity_id == entity_id,
+                RelationshipEdge.relation_type == "has_genre",
+            )
+            .scalar_subquery()
+        )
+
+        shared_count = func.count(RelationshipEdge.to_entity_id).label("shared_genres")
+
+        stmt = (
+            select(Entity, shared_count)
+            .join(RelationshipEdge, RelationshipEdge.from_entity_id == Entity.id)
+            .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
+            .where(
+                RelationshipEdge.relation_type == "has_genre",
+                RelationshipEdge.to_entity_id.in_(genre_ids),
+                Entity.entity_type == entity_type,
+                Entity.id != entity_id,
+                Entity.id.notin_(exclude_ids),
+            )
+            .group_by(Entity.id, EntityRanking.computed_score)
+            .order_by(shared_count.desc(), EntityRanking.computed_score.desc().nulls_last())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return [row[0] for row in result.all()]
+
     async def get_related_ids(self, entity_id: uuid.UUID, limit: int = 30) -> list[uuid.UUID]:
         stmt = (
             select(RelationshipEdge.to_entity_id)

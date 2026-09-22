@@ -97,9 +97,8 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             <AddToListMenu entity={movie} />
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4">
             <ScoreBadge score={movie.computed_score} />
-            <span className="num text-xs text-muted">{toFaDigits(movie.total_votes)} رای</span>
           </div>
 
           {movie.overview && (

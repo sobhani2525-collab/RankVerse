@@ -106,12 +106,12 @@ export default function NotableRankings({ items }: NotableRankingsProps) {
                   style={{ background: "linear-gradient(135deg, #E8B34A, #9163f5)" }}
                 >
                   <div className="num flex h-full w-full items-center justify-center rounded-full bg-bg text-sm font-bold text-gold">
-                    #{toFaDigits(h.rank)}
+                    #{h.rank}
                   </div>
                 </div>
               ) : (
                 <span className="num shrink-0 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-sm font-medium text-gold transition group-hover:border-gold/60">
-                  #{toFaDigits(h.rank)}
+                  #{h.rank}
                 </span>
               )}
             </Link>

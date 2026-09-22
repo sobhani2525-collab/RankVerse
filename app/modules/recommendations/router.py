@@ -59,4 +59,34 @@ async def get_related_entities(
             )
         )
 
+    # Fallback: the similar_to graph (scripts/build_similarity_graph.py)
+    # only links entities with >=2 shared connections, so a title with
+    # sparse director/cast data -- common for smaller/regional titles in
+    # this catalog -- can clear zero or few of them, leaving this section
+    # empty far more often than it should be. Top up with same-genre,
+    # same-type entities ranked by score so the section (almost) always
+    # has something to show, without ever duplicating a similar_to pick.
+    if len(items) < limit:
+        already_ids = [edge.to_entity.id for edge in edges]
+        fallback_entities = await repo.find_similar_by_genre(
+            entity_id, entity.entity_type, exclude_ids=[entity_id, *already_ids], limit=limit - len(items)
+        )
+        for fallback_entity in fallback_entities:
+            shared = await repo.get_shared_connections(entity_id, fallback_entity.id)
+            items.append(
+                RelatedEntityOut(
+                    id=str(fallback_entity.id),
+                    title=fallback_entity.title,
+                    slug=fallback_entity.slug,
+                    entity_type=fallback_entity.entity_type,
+                    # Lower than a real similar_to weight (max ~0.6, see
+                    # build_similarity_graph.py) so these visibly read as a
+                    # softer match than a genuine similar_to pick.
+                    weight=0.35,
+                    relation_type="same_genre",
+                    poster_path=fallback_entity.attributes.get("poster_path"),
+                    reason=build_reason(shared),
+                )
+            )
+
     return {"data": [item.model_dump() for item in items], "meta": None, "error": None}

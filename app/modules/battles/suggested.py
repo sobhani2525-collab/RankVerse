@@ -63,30 +63,33 @@ class SuggestedBattleService:
         if not same_type_anchors:
             return None
 
-        current_genre_ids = {edge.to_entity_id for edge in await self.entity_repo.get_relationships(
-            current_entity.id, "has_genre"
-        )}
+        # "similar_to" edges (see scripts/build_similarity_graph.py -- the
+        # same graph RelatedEntities/"اگر این را دوست داری" reads) require
+        # at least 2 shared connections (director/genre/cast combined) and
+        # a minimum composite weight, so they're a much stronger relevance
+        # signal than a single shared genre. A raw genre-overlap check used
+        # to gate this instead, and it still produced nonsense matchups --
+        # e.g. a sitcom paired against an epic fantasy series that both
+        # happen to be tagged "Drama" among their several genres, which
+        # shares nothing thematically. similar_to's >=2-connection bar
+        # rules that out.
+        similar_ids = {
+            edge.to_entity_id
+            for edge in await self.entity_repo.get_relationships(current_entity.id, "similar_to")
+        }
 
         # same_type_anchors is already ordered by anchor.rank ascending
         # (strongest first, from list_anchors_with_entities) -- prefer the
-        # strongest one that ALSO shares a genre with the entity the user
-        # is currently looking at, for a more relevant pairing.
+        # strongest one that's also a genuine similar_to match.
         #
-        # No non-genre-matching fallback: pairing the user's top anchor
-        # against the current entity regardless of genre produced nonsense
-        # matchups in practice (e.g. a superhero action movie suggested
-        # against a slow sci-fi drama just because it was the anchor's
-        # strongest same-type pick). Showing a card that says "compare this
+        # No non-matching fallback: showing a card that says "compare this
         # against something you love" only makes sense when the two are
         # actually comparable, so -- same as the no-anchor-at-all case
         # above -- it's better to not show the card than to show an
         # unrelated pairing.
         chosen_anchor_entity = None
         for _anchor, entity in same_type_anchors:
-            genre_ids = {edge.to_entity_id for edge in await self.entity_repo.get_relationships(
-                entity.id, "has_genre"
-            )}
-            if current_genre_ids & genre_ids:
+            if entity.id in similar_ids:
                 chosen_anchor_entity = entity
                 break
 

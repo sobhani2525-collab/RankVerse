@@ -151,9 +151,8 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
             <AddToListMenu entity={tv} />
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4">
             <ScoreBadge score={tv.computed_score} />
-            <span className="num text-xs text-muted">{toFaDigits(tv.total_votes)} رای</span>
           </div>
 
           {tv.overview && (
