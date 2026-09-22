@@ -107,8 +107,10 @@ class Settings(BaseSettings):
     # heavier batch recommendation engine. min_shared_items is how many of
     # the list's items must share a (relation_type, target) edge before it
     # counts as a signal; relation_priority (comma-separated, most
-    # important first) breaks ties when multiple edges are shared by the
-    # same number of items.
+    # important first) picks which relation wins when several qualify --
+    # e.g. a shared director outranks a shared genre even if more items
+    # share the genre, since genre overlap is common and a weak signal by
+    # comparison. shared_count only breaks ties within the same priority.
     list_suggestion_min_shared_items: int = 2
     list_suggestion_limit: int = 6
     list_suggestion_relation_priority: str = (

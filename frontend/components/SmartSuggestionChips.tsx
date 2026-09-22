@@ -58,9 +58,9 @@ export default function SmartSuggestionChips({
   if (visible.length === 0) return null;
 
   return (
-    <div className="mb-3">
-      <p className="mb-2 text-xs text-muted">پیشنهاد سریع</p>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="mb-4">
+      <p className="mb-2.5 text-sm font-semibold text-muted">پیشنهاد سریع</p>
+      <div className="flex gap-3 overflow-x-auto pb-1">
         {visible.map((s) => {
           const posterUrl = s.entity.poster_path
             ? `https://image.tmdb.org/t/p/w200${s.entity.poster_path}`
@@ -71,28 +71,28 @@ export default function SmartSuggestionChips({
               type="button"
               onClick={() => handleAdd(s.entity.id)}
               disabled={addingId === s.entity.id}
-              className="flex w-24 shrink-0 flex-col items-center rounded-lg border border-border bg-surface px-2 py-2 text-center transition hover:border-teal/50 hover:bg-surface2 disabled:opacity-50"
+              className="flex w-32 shrink-0 flex-col items-center rounded-xl border border-border bg-surface px-2.5 py-2.5 text-center transition hover:border-teal/50 hover:bg-surface2 disabled:opacity-50"
             >
-              <div className="h-24 w-16 overflow-hidden rounded-md bg-surface2">
+              <div className="aspect-[2/3] w-full overflow-hidden rounded-lg bg-surface2">
                 {posterUrl ? (
                   <Image
                     src={posterUrl}
                     alt={s.entity.title}
-                    width={64}
-                    height={96}
+                    width={112}
+                    height={168}
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-muted">
+                  <div className="flex h-full w-full items-center justify-center text-sm text-muted">
                     —
                   </div>
                 )}
               </div>
-              <span className="mt-1 line-clamp-1 w-full text-[9px] font-semibold text-muted">
+              <span className="mt-1.5 line-clamp-1 w-full text-[11px] font-semibold text-muted">
                 {entityTypeLabel(s.entity.entity_type)}
               </span>
-              <span className="line-clamp-1 w-full text-xs text-ink">{s.entity.title}</span>
-              <span className="line-clamp-1 w-full text-[10px] text-teal">
+              <span className="line-clamp-2 w-full text-sm font-medium text-ink">{s.entity.title}</span>
+              <span className="line-clamp-1 w-full text-xs text-teal">
                 {addingId === s.entity.id ? "در حال افزودن..." : s.reason_label_fa}
               </span>
             </button>

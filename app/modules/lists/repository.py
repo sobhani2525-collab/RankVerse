@@ -25,7 +25,10 @@ class ListRepository:
     async def get_by_slug(self, slug: str) -> UserList | None:
         stmt = (
             select(UserList)
-            .options(selectinload(UserList.items).selectinload(UserListItem.entity))
+            .options(
+                selectinload(UserList.items).selectinload(UserListItem.entity),
+                selectinload(UserList.owner),
+            )
             .where(UserList.slug == slug)
         )
         result = await self.db.execute(stmt)

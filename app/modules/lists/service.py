@@ -153,6 +153,7 @@ class ListService:
             comment_count=lst.comment_count,
             follower_count=lst.follower_count,
             created_at=lst.created_at,
+            owner_username=lst.owner.username if lst.owner else None,
             items=items,
             is_liked=is_liked,
             is_following=is_following,
@@ -427,8 +428,13 @@ class ListService:
             except ValueError:
                 return len(priority_order)
 
+        # Priority goes first (director/creator relations rank above
+        # has_genre, which -- being shared by almost any pair of movies in
+        # the same genre -- would otherwise always win on raw shared_count
+        # and starve out cast/director-based suggestions entirely). Count
+        # only breaks ties within the same priority tier.
         relation_type, target_id, target_title, shared_count = max(
-            shared, key=lambda row: (row[3], -priority_index(row[0]))
+            shared, key=lambda row: (-priority_index(row[0]), row[3])
         )
 
         candidates = await self.entity_repo.find_entities_by_relation(

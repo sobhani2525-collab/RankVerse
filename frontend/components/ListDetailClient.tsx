@@ -59,14 +59,6 @@ export default function ListDetailClient({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-2xl text-ink">{detail.title}</h1>
-          {detail.owner_username && (
-            <p className="mt-1 text-sm text-muted">
-              ساخته شده توسط{" "}
-              <Link href={`/profile/${detail.owner_username}`} className="text-teal hover:underline">
-                @{detail.owner_username}
-              </Link>
-            </p>
-          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -94,6 +86,15 @@ export default function ListDetailClient({
 
       {detail.description && (
         <p className="mt-3 text-ink/80">{detail.description}</p>
+      )}
+
+      {detail.owner_username && (
+        <p className="mt-2 text-sm text-muted">
+          ساخته شده توسط{" "}
+          <Link href={`/profile/${detail.owner_username}`} className="text-teal hover:underline">
+            @{detail.owner_username}
+          </Link>
+        </p>
       )}
 
       {isOwner && isEditing && (
