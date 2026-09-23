@@ -114,3 +114,97 @@
 .live-dot {
   animation: constellation-pulse 1.8s infinite;
 }
+
+/* ---------------------------------------------------------------------
+   Home page ("کهکشان") motion + atmosphere. Everything here is CSS-only
+   (no JS animation loops) and every animation is switched off under
+   prefers-reduced-motion at the bottom of this block.
+   --------------------------------------------------------------------- */
+
+/* inline-block so an LTR kicker still follows its RTL/centred parent's alignment. */
+.kicker {
+  display: inline-block;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Scroll reveal (components/home/Reveal.tsx toggles data-inview). */
+.rv-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--rv-delay, 0ms);
+}
+.rv-reveal[data-inview="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Whole-constellation drift: moving the group (not each node) keeps edges
+   attached to their nodes. */
+@keyframes rv-drift {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(-0.8px, 0.6px) rotate(0.6deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.rv-drift {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: rv-drift 38s ease-in-out infinite;
+}
+
+@keyframes rv-halo {
+  0%, 100% { opacity: 0.1; transform: scale(1); }
+  50% { opacity: 0.22; transform: scale(1.25); }
+}
+.rv-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rv-halo var(--rv-dur, 6s) ease-in-out infinite;
+  animation-delay: var(--rv-delay, 0s);
+}
+
+@keyframes rv-twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.6; }
+}
+.rv-twinkle {
+  animation: rv-twinkle var(--rv-dur, 7s) ease-in-out infinite;
+  animation-delay: var(--rv-delay, 0s);
+}
+
+/* Edges draw in once (hero + knowledge graph); pathLength="1" on the line
+   makes the dash math unit-independent. */
+@keyframes rv-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.rv-draw {
+  stroke-dasharray: 1;
+  animation: rv-draw 1.4s ease forwards;
+  animation-delay: var(--rv-delay, 0s);
+  stroke-dashoffset: 1;
+}
+
+@keyframes rv-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.rv-rise {
+  animation: rv-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--rv-delay, 0ms);
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-reveal { opacity: 1; transform: none; transition: none; }
+  .rv-drift, .rv-halo, .rv-twinkle, .rv-rise { animation: none; }
+  .rv-draw { animation: none; stroke-dashoffset: 0; }
+  .rv-motion { transition: none !important; }
+}

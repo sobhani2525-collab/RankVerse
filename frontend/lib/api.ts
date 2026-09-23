@@ -571,3 +571,42 @@ export async function getTvSeriesRankings(slug: string): Promise<RankingHighligh
   return fetchEnvelope<RankingHighlight[]>(`/tv-series/${slug}/rankings`, 300);
 }
 
+
+// --- Rankings: paged reads with the total count ---
+//
+// getTopMovies/getTopTvSeries above return only `data`, dropping the
+// envelope's meta -- the /rankings page needs `meta.total` to paginate, so
+// this reads the whole envelope instead. `fresh` skips every cache layer
+// (Next's fetch cache on the server, the HTTP cache in the browser); the
+// home page's "your vote changes the universe" block uses it to re-read the
+// ranking right after a rating is saved.
+
+export interface RankingsPage {
+  items: MovieListItem[];
+  total: number | null;
+}
+
+export async function getRankingsPage(
+  entityType: "movie" | "tv_series",
+  params: { page?: number; page_size?: number; genre?: string } = {},
+  options: { fresh?: boolean } = {}
+): Promise<RankingsPage> {
+  const qs = new URLSearchParams();
+  if (params.page) qs.set("page", String(params.page));
+  if (params.page_size) qs.set("page_size", String(params.page_size));
+  if (params.genre) qs.set("genre", params.genre);
+  const path = `/rankings/${entityType === "tv_series" ? "tv-series" : "movies"}?${qs.toString()}`;
+
+  const res = await fetch(
+    `${API_BASE}${path}`,
+    options.fresh ? { cache: "no-store" } : { next: { revalidate: 300 } }
+  );
+  if (!res.ok) {
+    throw new Error(`RankVerse API error (${res.status}) on ${path}`);
+  }
+  const json: Envelope<MovieListItem[]> = await res.json();
+  if (json.error) {
+    throw new Error(json.error.message);
+  }
+  return { items: json.data, total: json.meta?.total ?? null };
+}

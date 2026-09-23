@@ -27,7 +27,7 @@ export default function EntityRow({
       className="group flex items-center gap-4 rounded-xl border border-border bg-surface/60 px-4 py-3 transition hover:border-gold/40 hover:bg-surface2"
     >
       <span className="num w-9 shrink-0 text-center text-lg text-muted group-hover:text-gold">
-        {String(rank).padStart(2, "0")}
+        {toFaDigits(String(rank).padStart(2, "0"))}
       </span>
 
       <div className="h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface2">
