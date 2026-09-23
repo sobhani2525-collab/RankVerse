@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     database_url: str
+    # Optional; see app.core.database.make_bulk_sessionmaker.
+    bulk_database_url: str = ""
     redis_url: str = "redis://localhost:6379/0"
 
     jwt_secret: str
@@ -29,6 +31,12 @@ class Settings(BaseSettings):
     tv_director_min_episode_ratio: float = 0.2
 
     internal_api_key: str = ""
+
+    # Used only by scripts/translate_overviews.py (machine-translating
+    # English TMDb overviews to Persian). Empty falls back to the SDK's own
+    # credential resolution (ANTHROPIC_API_KEY env var, `ant auth login`).
+    anthropic_api_key: str = ""
+    overview_translation_model: str = "claude-haiku-4-5"
 
     # NOTE on the 1-5 rating scale (migrated from 1-10, see
     # alembic/versions/*_rescale_user_ratings_to_five_stars.py): every

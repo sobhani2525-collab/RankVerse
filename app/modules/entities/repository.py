@@ -21,11 +21,18 @@ class EntityRepository:
     async def get_by_id(self, entity_id: uuid.UUID) -> Entity | None:
         return await self.db.get(Entity, entity_id)
 
-    async def get_by_external_id(self, external_source: str, external_id: str) -> Entity | None:
+    async def get_by_external_id(
+        self, external_source: str, external_id: str, entity_type: str | None = None
+    ) -> Entity | None:
+        # entity_type matters for source "tmdb": TMDb movie ids and TV ids are
+        # separate numbering spaces, so the same external_id can be both a
+        # movie and a tv_series.
         stmt = select(Entity).where(
             Entity.external_source == external_source,
             Entity.external_id == external_id,
         )
+        if entity_type:
+            stmt = stmt.where(Entity.entity_type == entity_type)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -235,6 +242,90 @@ class EntityRepository:
         self.db.add(entity)
         await self.db.flush()
         return entity
+
+    async def get_or_create_many(
+        self, entity_type: str, rows: list[dict], key: str = "external_id", external_source: str | None = None
+    ) -> dict[str, uuid.UUID]:
+        """
+        Batched find-or-create for small shared entities (people, genres,
+        networks): one SELECT, one INSERT ... ON CONFLICT (slug) DO NOTHING
+        for whatever's missing, and one re-SELECT if anything was inserted --
+        instead of a SELECT (+ INSERT) round trip per row. Each row is a dict
+        with title/slug/external_id/external_source. key is what rows are
+        matched and returned by: "external_id" (scoped to external_source)
+        or "slug" (genres, which are shared across sources by slug).
+
+        ON CONFLICT DO NOTHING also makes this safe against a concurrent
+        sync inserting the same row first -- the re-SELECT just finds it.
+        Returns {row[key]: entity id}.
+        """
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        unique = {r[key]: r for r in rows}
+        if not unique:
+            return {}
+
+        def lookup():
+            column = Entity.external_id if key == "external_id" else Entity.slug
+            stmt = select(column, Entity.id).where(Entity.entity_type == entity_type, column.in_(list(unique)))
+            if key == "external_id":
+                stmt = stmt.where(Entity.external_source == external_source)
+            return stmt
+
+        found = dict((await self.db.execute(lookup())).all())
+        missing = [r for k, r in unique.items() if k not in found]
+        if missing:
+            await self.db.execute(
+                pg_insert(Entity)
+                .values(
+                    [
+                        {
+                            "id": uuid.uuid4(),
+                            "entity_type": entity_type,
+                            "external_id": r.get("external_id"),
+                            "external_source": r.get("external_source"),
+                            "title": r["title"],
+                            "slug": r["slug"],
+                            "attributes": {},
+                        }
+                        for r in missing
+                    ]
+                )
+                .on_conflict_do_nothing(index_elements=["slug"])
+            )
+            found = dict((await self.db.execute(lookup())).all())
+        return found
+
+    async def create_relationships_bulk(
+        self, from_entity_id: uuid.UUID, edges: list[tuple[uuid.UUID, str, dict | None]], source: str = "sync"
+    ) -> None:
+        """
+        create_relationship for many (to_entity_id, relation_type,
+        edge_metadata) edges in one INSERT, with the same semantics:
+        idempotent, an existing edge is left untouched.
+        """
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        if not edges:
+            return
+        await self.db.execute(
+            pg_insert(RelationshipEdge)
+            .values(
+                [
+                    {
+                        "id": uuid.uuid4(),
+                        "from_entity_id": from_entity_id,
+                        "to_entity_id": to_id,
+                        "relation_type": relation_type,
+                        "edge_metadata": metadata or {},
+                        "weight": 1.0,
+                        "source": source,
+                    }
+                    for to_id, relation_type, metadata in edges
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["from_entity_id", "to_entity_id", "relation_type"])
+        )
 
     async def create_relationship(
         self,

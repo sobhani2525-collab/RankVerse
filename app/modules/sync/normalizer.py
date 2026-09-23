@@ -18,6 +18,25 @@ def _persian_title(title_fa: str | None, title_en: str | None) -> str | None:
     return title_fa
 
 
+def _overview_attrs(raw: dict, raw_fa: dict | None) -> dict:
+    """
+    overview is what the site displays: TMDb's fa-IR synopsis when it has
+    one, else the English one until scripts/translate_overviews.py replaces
+    it with a machine translation. overview_en keeps the English source
+    text (the translation input, and how SyncService tells whether a stored
+    translation is still current) and overview_source records where
+    overview came from: "tmdb_fa", "en", or -- set only by the translation
+    step -- "machine".
+    """
+    overview_en = raw.get("overview") or None
+    overview_fa = (raw_fa or {}).get("overview") or None
+    return {
+        "overview": overview_fa or overview_en,
+        "overview_en": overview_en,
+        "overview_source": "tmdb_fa" if overview_fa else ("en" if overview_en else None),
+    }
+
+
 def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
     """
     Convert a raw TMDb /movie/{id} response (with credits appended) into the
@@ -38,13 +57,14 @@ def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
             year = None
 
     poster_path = raw.get("poster_path")
-    overview_fa = (raw_fa or {}).get("overview") or None
     title_fa = _persian_title((raw_fa or {}).get("title"), raw.get("title"))
 
     entity_attrs = {
         "poster_path": poster_path,
         "title_fa": title_fa,
-        "overview": overview_fa or raw.get("overview"),
+        **_overview_attrs(raw, raw_fa),
+        "imdb_id": raw.get("imdb_id") or None,
+        "original_language": raw.get("original_language"),
         "runtime": raw.get("runtime"),
         "year": year,
         "country": (raw.get("production_countries") or [{}])[0].get("iso_3166_1"),
@@ -174,13 +194,14 @@ def normalize_tv_series(
             year = None
 
     poster_path = raw.get("poster_path")
-    overview_fa = (raw_fa or {}).get("overview") or None
     title_fa = _persian_title((raw_fa or {}).get("name"), raw.get("name"))
 
     entity_attrs = {
         "poster_path": poster_path,
         "title_fa": title_fa,
-        "overview": overview_fa or raw.get("overview"),
+        **_overview_attrs(raw, raw_fa),
+        "imdb_id": (raw.get("external_ids") or {}).get("imdb_id") or None,
+        "original_language": raw.get("original_language"),
         "year": year,
         "country": (raw.get("origin_country") or [None])[0],
         # TMDb vote_average is already 0-10, matches our internal scale

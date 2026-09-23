@@ -50,7 +50,13 @@ export interface MovieListItem {
   media: MediaInfo;
 }
 
-export interface MovieDetail extends MovieListItem {
+export interface ImdbInfo {
+  imdb_id: string | null;
+  imdb_rating: number | null;
+  imdb_votes: number | null;
+}
+
+export interface MovieDetail extends MovieListItem, ImdbInfo {
   id:string;
   overview: string | null;
   runtime: number | null;
@@ -60,7 +66,7 @@ export interface MovieDetail extends MovieListItem {
   genres: GenreSummary[];
 }
 
-export interface TvSeriesDetail extends MovieListItem {
+export interface TvSeriesDetail extends MovieListItem, ImdbInfo {
   overview: string | null;
   number_of_seasons: number | null;
   number_of_episodes: number | null;

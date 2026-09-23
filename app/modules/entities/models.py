@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, DateTime, UniqueConstraint, func
+from sqlalchemy import ForeignKey, Index, String, DateTime, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,6 +15,9 @@ class Entity(Base):
     entity_type distinguishes movie / person / genre / country / (future: book, album...)
     """
     __tablename__ = "entities"
+    __table_args__ = (
+        Index("ix_entities_external_source_external_id", "external_source", "external_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     entity_type: Mapped[str] = mapped_column(String(50), index=True, nullable=False)

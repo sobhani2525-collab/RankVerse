@@ -1,5 +1,9 @@
+import asyncio
 import logging
+import uuid
+from typing import Callable
 
+from slugify import slugify
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -11,6 +15,36 @@ from app.modules.sync.normalizer import normalize_movie, normalize_track, normal
 from app.modules.sync.tmdb_client import TMDbClient
 
 logger = logging.getLogger(__name__)
+
+
+# Attributes that aren't from TMDb's /movie or /tv response, so a re-sync
+# (which rebuilds attributes from that response) must carry them over.
+IMDB_ATTRIBUTE_KEYS = ("imdb_rating", "imdb_votes")
+
+
+def _merge_preserved_attributes(old: dict, new: dict) -> dict:
+    """
+    - A machine translation (overview_source == "machine", written by
+      scripts/translate_overviews.py) is kept as long as TMDb still has no
+      Persian overview and the English source text it was translated from
+      hasn't changed; otherwise the fresh TMDb value wins and the title
+      gets picked up by the next translation run.
+    - IMDb rating/votes (written by scripts/sync_imdb_ratings.py) are kept
+      while the imdb_id is unchanged.
+    """
+    merged = dict(new)
+    if (
+        old.get("overview_source") == "machine"
+        and new.get("overview_source") != "tmdb_fa"
+        and old.get("overview_en") == new.get("overview_en")
+    ):
+        merged["overview"] = old.get("overview")
+        merged["overview_source"] = "machine"
+    if old.get("imdb_id") and old.get("imdb_id") == new.get("imdb_id"):
+        for key in IMDB_ATTRIBUTE_KEYS:
+            if key in old:
+                merged[key] = old[key]
+    return merged
 
 
 class SyncService:
@@ -131,57 +165,116 @@ class SyncService:
         await self.db.commit()
         return {"id": str(track.id), "slug": track.slug, "title": track.title}
 
-    async def sync_movie(self, tmdb_id: int) -> dict:
-        raw = await self.client.get_movie(tmdb_id)
-        try:
-            raw_fa = await self.client.get_movie(tmdb_id, language="fa-IR")
-        except Exception:
-            # A Persian synopsis is a nice-to-have, not the reason this sync
-            # exists -- if TMDb's fa-IR request fails, fall back to the
-            # English overview (normalize_movie already handles raw_fa=None)
-            # rather than failing the whole sync over it.
-            logger.warning("TMDb fa-IR fetch failed for movie %s; using English overview", tmdb_id)
-            raw_fa = None
-        normalized = normalize_movie(raw, raw_fa)
+    async def _upsert_tmdb_entity(self, entity_type: str, normalized: dict):
+        """
+        Find-or-create the movie/tv_series entity for a normalized TMDb
+        payload, then refresh its title/attributes (see
+        _merge_preserved_attributes for what a re-sync keeps).
 
-        movie = await self.repo.get_by_external_id("tmdb", normalized["external_id"])
-        if movie:
-            movie.title = normalized["title"]
-            movie.attributes = normalized["attributes"]
-        else:
-            # هم external_id و هم slug رو چک کن، چون ممکنه slug از یه منبع دیگه از قبل ساخته شده باشه
-            existing_by_slug = await self.repo.get_by_slug(normalized["slug"])
-            if existing_by_slug:
-                movie = existing_by_slug
-                movie.external_id = normalized["external_id"]
-                movie.external_source = "tmdb"
-                movie.title = normalized["title"]
-                movie.attributes = normalized["attributes"]
+        An existing entity found by slug is adopted only when it's the same
+        entity_type and isn't already linked to a different TMDb id -- two
+        distinct films can share "title-year" (and a movie and a series can
+        share a slug), and adopting blindly would re-point one entity at the
+        other's TMDb id. Such a collision gets the tmdb id appended instead.
+        """
+        entity = await self.repo.get_by_external_id("tmdb", normalized["external_id"], entity_type)
+        if entity is None:
+            slug = normalized["slug"]
+            existing_by_slug = await self.repo.get_by_slug(slug)
+            if existing_by_slug and existing_by_slug.entity_type == entity_type and (
+                existing_by_slug.external_source != "tmdb" or not existing_by_slug.external_id
+            ):
+                entity = existing_by_slug
+                entity.external_id = normalized["external_id"]
+                entity.external_source = "tmdb"
             else:
-                movie = await self.repo.create_entity(
-                    entity_type="movie",
+                if existing_by_slug:
+                    slug = f"{slug}-{normalized['external_id']}"
+                return await self.repo.create_entity(
+                    entity_type=entity_type,
                     external_id=normalized["external_id"],
                     external_source="tmdb",
                     title=normalized["title"],
-                    slug=normalized["slug"],
+                    slug=slug,
                     attributes=normalized["attributes"],
                 )
- 
 
-        for d in normalized["directors"]:
-            person = await self._get_or_create_person(d["external_id"], d["name"])
-            await self.repo.create_relationship(movie.id, person.id, "directed_by")
+        entity.title = normalized["title"]
+        entity.attributes = _merge_preserved_attributes(entity.attributes or {}, normalized["attributes"])
+        return entity
 
-        for c in normalized["cast"]:
-            person = await self._get_or_create_person(c["external_id"], c["name"])
-            await self.repo.create_relationship(
-                movie.id, person.id, "acted_in",
-                edge_metadata={"character": c["character"], "order": c["order"]},
-            )
+    async def _fetch_with_persian(self, fetch, tmdb_id: int, label: str) -> tuple[dict, dict | None]:
+        """
+        The default-language and fa-IR responses for one title, requested
+        concurrently. A failed fa-IR request only costs the Persian
+        synopsis/title (the normalizers handle raw_fa=None), so it's logged
+        rather than failing the whole sync; a failed default-language
+        request still raises.
+        """
+        raw, raw_fa = await asyncio.gather(
+            fetch(tmdb_id), fetch(tmdb_id, language="fa-IR"), return_exceptions=True
+        )
+        if isinstance(raw, BaseException):
+            raise raw
+        if isinstance(raw_fa, BaseException):
+            logger.warning("TMDb fa-IR fetch failed for %s %s; using English overview", label, tmdb_id)
+            raw_fa = None
+        return raw, raw_fa
 
-        for g in normalized["genres"]:
-            genre = await self._get_or_create_genre(g["name"], g["external_id"])
-            await self.repo.create_relationship(movie.id, genre.id, "has_genre")
+    async def _people_ids(self, people: list[dict]) -> dict[str, uuid.UUID]:
+        """{tmdb person id: entity id}, creating missing people (batched
+        equivalent of _get_or_create_person)."""
+        return await self.repo.get_or_create_many(
+            "person",
+            [
+                {
+                    "external_id": p["external_id"],
+                    "external_source": "tmdb_person",
+                    "title": p["name"],
+                    "slug": f"{slugify(p['name'])}-{p['external_id']}",
+                }
+                for p in people
+            ],
+            external_source="tmdb_person",
+        )
+
+    async def _genre_ids(self, genres: list[dict]) -> dict[str, uuid.UUID]:
+        """{genre slug: entity id}, creating missing genres (batched
+        equivalent of _get_or_create_genre -- same slug-first lookup)."""
+        return await self.repo.get_or_create_many(
+            "genre",
+            [
+                {"external_id": g["external_id"], "external_source": "tmdb_genre", "title": g["name"], "slug": slugify(g["name"])}
+                for g in genres
+            ],
+            key="slug",
+        )
+
+    async def sync_movie(self, tmdb_id: int, accept: Callable[[dict], bool] | None = None) -> dict | None:
+        """
+        accept, when given, is called with the normalized payload before
+        anything is written; returning False skips the title (returns None)
+        -- e.g. the catalog import's IMDb-rating floor.
+        """
+        raw, raw_fa = await self._fetch_with_persian(self.client.get_movie, tmdb_id, "movie")
+        normalized = normalize_movie(raw, raw_fa)
+        if accept is not None and not accept(normalized):
+            return None
+
+        movie = await self._upsert_tmdb_entity("movie", normalized)
+
+        # Batched lookups/inserts rather than one round trip per person/
+        # genre/edge: the catalog import runs this tens of thousands of
+        # times against a remote database, where round trips dominate.
+        people = await self._people_ids(normalized["directors"] + normalized["cast"])
+        genres = await self._genre_ids(normalized["genres"])
+        edges = [(people[d["external_id"]], "directed_by", None) for d in normalized["directors"]]
+        edges += [
+            (people[c["external_id"]], "acted_in", {"character": c["character"], "order": c["order"]})
+            for c in normalized["cast"]
+        ]
+        edges += [(genres[slugify(g["name"])], "has_genre", None) for g in normalized["genres"]]
+        await self.repo.create_relationships_bulk(movie.id, edges)
 
         ranking_service = RankingService(self.db)
         await ranking_service.recompute_entity(movie)
@@ -189,7 +282,7 @@ class SyncService:
         await self.db.commit()
         return {"id": str(movie.id), "slug": movie.slug, "title": movie.title}
 
-    async def sync_tv_series(self, tmdb_id: int) -> dict:
+    async def sync_tv_series(self, tmdb_id: int, accept: Callable[[dict], bool] | None = None) -> dict | None:
         """
         Mirrors sync_movie, with three differences: creators (from
         created_by) get their own "creator" edge alongside directed_by/
@@ -204,47 +297,25 @@ class SyncService:
         integration for tv_series is a separate, later task; this is
         ingestion only.
         """
-        raw = await self.client.get_tv_series(tmdb_id)
-        try:
-            raw_fa = await self.client.get_tv_series(tmdb_id, language="fa-IR")
-        except Exception:
-            logger.warning("TMDb fa-IR fetch failed for tv series %s; using English overview", tmdb_id)
-            raw_fa = None
+        raw, raw_fa = await self._fetch_with_persian(self.client.get_tv_series, tmdb_id, "tv series")
         normalized = normalize_tv_series(
             raw, raw_fa, director_min_episode_ratio=settings.tv_director_min_episode_ratio
         )
+        if accept is not None and not accept(normalized):
+            return None  # see sync_movie
 
-        series = await self.repo.get_by_external_id("tmdb", normalized["external_id"])
-        if series:
-            series.title = normalized["title"]
-            series.attributes = normalized["attributes"]
-        else:
-            # هم external_id و هم slug رو چک کن، چون ممکنه slug از یه منبع دیگه از قبل ساخته شده باشه
-            existing_by_slug = await self.repo.get_by_slug(normalized["slug"])
-            if existing_by_slug:
-                series = existing_by_slug
-                series.external_id = normalized["external_id"]
-                series.external_source = "tmdb"
-                series.title = normalized["title"]
-                series.attributes = normalized["attributes"]
-            else:
-                series = await self.repo.create_entity(
-                    entity_type="tv_series",
-                    external_id=normalized["external_id"],
-                    external_source="tmdb",
-                    title=normalized["title"],
-                    slug=normalized["slug"],
-                    attributes=normalized["attributes"],
-                )
+        series = await self._upsert_tmdb_entity("tv_series", normalized)
 
         await self._sync_tv_credits(series, normalized)
 
-        for c in normalized["cast"]:
-            person = await self._get_or_create_person(c["external_id"], c["name"])
-            await self.repo.create_relationship(
-                series.id, person.id, "acted_in",
-                edge_metadata={"character": c["character"], "order": c["order"]},
-            )
+        people = await self._people_ids(normalized["cast"])
+        await self.repo.create_relationships_bulk(
+            series.id,
+            [
+                (people[c["external_id"]], "acted_in", {"character": c["character"], "order": c["order"]})
+                for c in normalized["cast"]
+            ],
+        )
 
         # replace_relationships (not create_relationship) here: TV_GENRE_NAME_OVERRIDES
         # can change which genre entities a given TMDb genre maps to (e.g. a fused

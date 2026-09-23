@@ -5,6 +5,7 @@ import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import DetailShareButton from "@/components/entities/detail-share-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
 import ScoreBadge from "@/components/ScoreBadge";
+import ImdbBadge from "@/components/ImdbBadge";
 import StarRating from "@/components/rating/StarRating";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
@@ -225,8 +226,9 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
             <AddToListMenu entity={tv} />
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <ScoreBadge score={tv.computed_score} />
+            <ImdbBadge imdbId={tv.imdb_id} rating={tv.imdb_rating} votes={tv.imdb_votes} />
           </div>
 
           {tv.overview && (

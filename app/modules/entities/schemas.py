@@ -45,7 +45,15 @@ class MovieListItem(BaseModel):
     media: MediaInfo = MediaInfo()
 
 
-class MovieDetail(MovieListItem):
+class ImdbInfo(BaseModel):
+    # Written by scripts/sync_imdb_ratings.py from IMDb's ratings dataset;
+    # imdb_id comes from TMDb at sync time. All three can be missing.
+    imdb_id: str | None = None
+    imdb_rating: float | None = None
+    imdb_votes: int | None = None
+
+
+class MovieDetail(MovieListItem, ImdbInfo):
     overview: str | None = None
     runtime: int | None = None
     country: str | None = None
@@ -54,7 +62,7 @@ class MovieDetail(MovieListItem):
     genres: list[GenreSummary] = []
 
 
-class TVSeriesDetail(MovieListItem):
+class TVSeriesDetail(MovieListItem, ImdbInfo):
     entity_type: str = "tv_series"
     overview: str | None = None
     number_of_seasons: int | None = None
