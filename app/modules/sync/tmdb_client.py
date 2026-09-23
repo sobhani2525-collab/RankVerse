@@ -47,9 +47,16 @@ class TMDbClient:
         return await self._get_with_retry(f"{self.base_url}/discover/movie", params=params)
 
     async def get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
+        # aggregate_credits (not just credits) because TV directing is credited
+        # per episode -- /tv/{id}/credits only has the latest season's
+        # series-level crew, which is usually empty for Director.
         return await self._get_with_retry(
             f"{self.base_url}/tv/{tmdb_id}",
-            params={"api_key": self.api_key, "append_to_response": "credits", "language": language},
+            params={
+                "api_key": self.api_key,
+                "append_to_response": "credits,aggregate_credits",
+                "language": language,
+            },
         )
 
     async def discover_tv(

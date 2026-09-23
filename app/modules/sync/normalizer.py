@@ -110,10 +110,51 @@ TV_GENRE_NAME_OVERRIDES: dict[str, list[str]] = {
 }
 
 
-def normalize_tv_series(raw: dict, raw_fa: dict | None = None) -> dict:
+def select_tv_directors(raw: dict, min_episode_ratio: float) -> list[dict]:
     """
-    Convert a raw TMDb /tv/{id} response (with credits appended) into the
-    internal shape expected by SyncService.sync_tv_series. Mirrors
+    Pick a series' directed_by people from a /tv/{id} response with
+    aggregate_credits appended. TMDb credits TV directing per episode, so
+    a crew member counts as a director only via a jobs[] entry with
+    job == "Director", and only that job's episode_count is used (not
+    total_episode_count, which also counts e.g. their writing credits).
+
+    Keeps everyone whose Director episode_count / number_of_episodes is
+    >= min_episode_ratio; if nobody reaches it, keeps the single director
+    with the most episodes so the series still gets one.
+
+    Falls back to plain credits' series-level "Director" entries (the old
+    behavior, which is how many Iranian shows are credited) when the
+    response has no aggregate_credits Director at all.
+    """
+    counts: dict[str, dict] = {}
+    for c in (raw.get("aggregate_credits") or {}).get("crew", []):
+        episodes = sum(j.get("episode_count") or 0 for j in c.get("jobs", []) if j.get("job") == "Director")
+        if episodes > 0:
+            counts[str(c["id"])] = {"external_id": str(c["id"]), "name": c["name"], "episode_count": episodes}
+
+    if not counts:
+        seen: dict[str, dict] = {}
+        for c in (raw.get("credits") or {}).get("crew", []):
+            if c.get("job") == "Director":
+                seen.setdefault(str(c["id"]), {"external_id": str(c["id"]), "name": c["name"], "episode_count": None})
+        return list(seen.values())
+
+    ranked = sorted(counts.values(), key=lambda d: (-d["episode_count"], d["name"]))
+    total = raw.get("number_of_episodes") or 0
+    if total > 0:
+        kept = [d for d in ranked if d["episode_count"] / total >= min_episode_ratio]
+        if kept:
+            return kept
+    return ranked[:1]
+
+
+def normalize_tv_series(
+    raw: dict, raw_fa: dict | None = None, director_min_episode_ratio: float = 0.2
+) -> dict:
+    """
+    Convert a raw TMDb /tv/{id} response (with credits and aggregate_credits
+    appended) into the internal shape expected by SyncService.sync_tv_series
+    -- see select_tv_directors for how directors are picked. Mirrors
     normalize_movie's shape -- same entity attribute conventions (poster/
     media/external_rating/etc), reading the TV-specific fields TMDb uses
     instead (name/first_air_date instead of title/release_date, no runtime,
@@ -159,17 +200,9 @@ def normalize_tv_series(raw: dict, raw_fa: dict | None = None) -> dict:
     }
 
     credits = raw.get("credits", {})
-    crew = credits.get("crew", [])
     cast = credits.get("cast", [])
 
-    # TMDb TV credits are sparse/inconsistent about a series-level "Director"
-    # (each episode has its own) -- this stays empty for most shows, which is
-    # fine, it just means no directed_by edges get created for them.
-    directors = [
-        {"external_id": str(c["id"]), "name": c["name"]}
-        for c in crew
-        if c.get("job") == "Director"
-    ]
+    directors = select_tv_directors(raw, director_min_episode_ratio)
     top_cast = [
         {"external_id": str(c["id"]), "name": c["name"], "character": c.get("character"), "order": c.get("order", 99)}
         for c in cast[:5]

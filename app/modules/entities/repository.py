@@ -244,7 +244,14 @@ class EntityRepository:
         edge_metadata: dict | None = None,
         weight: float = 1.0,
         source: str = "sync",
+        update_metadata_on_conflict: bool = False,
     ) -> None:
+        """
+        Idempotent on (from, to, relation_type). By default an existing edge
+        is left untouched; update_metadata_on_conflict refreshes its
+        edge_metadata instead, for edges whose metadata comes from source
+        data that can change between syncs (e.g. a TV director's episode_count).
+        """
         from sqlalchemy.dialects.postgresql import insert as pg_insert
 
         stmt = pg_insert(RelationshipEdge).values(
@@ -255,9 +262,14 @@ class EntityRepository:
             weight=weight,
             source=source,
         )
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["from_entity_id", "to_entity_id", "relation_type"]
-        )
+        conflict_cols = ["from_entity_id", "to_entity_id", "relation_type"]
+        if update_metadata_on_conflict:
+            stmt = stmt.on_conflict_do_update(
+                index_elements=conflict_cols,
+                set_={"edge_metadata": stmt.excluded.edge_metadata},
+            )
+        else:
+            stmt = stmt.on_conflict_do_nothing(index_elements=conflict_cols)
         await self.db.execute(stmt)
         await self.db.flush()
 
@@ -267,6 +279,7 @@ class EntityRepository:
         relation_type: str,
         to_entity_ids: list[uuid.UUID],
         source: str = "sync",
+        edge_metadata_by_target: dict[uuid.UUID, dict] | None = None,
     ) -> None:
         """
         Make from_entity_id's relation_type edges match to_entity_ids exactly:
@@ -276,6 +289,9 @@ class EntityRepository:
         sync run whose source data has since changed (e.g. a genre remapping)
         would otherwise never be retracted -- this reconciles it instead of
         leaving it to accumulate stale edges across re-syncs.
+
+        edge_metadata_by_target, when given, sets each kept edge's metadata
+        (refreshed on existing edges too, not only on newly created ones).
         """
         stale_stmt = delete(RelationshipEdge).where(
             RelationshipEdge.from_entity_id == from_entity_id,
@@ -285,4 +301,12 @@ class EntityRepository:
             stale_stmt = stale_stmt.where(RelationshipEdge.to_entity_id.notin_(to_entity_ids))
         await self.db.execute(stale_stmt)
         for to_entity_id in to_entity_ids:
-            await self.create_relationship(from_entity_id, to_entity_id, relation_type, source=source)
+            if edge_metadata_by_target is None:
+                await self.create_relationship(from_entity_id, to_entity_id, relation_type, source=source)
+            else:
+                await self.create_relationship(
+                    from_entity_id, to_entity_id, relation_type,
+                    edge_metadata=edge_metadata_by_target.get(to_entity_id),
+                    source=source,
+                    update_metadata_on_conflict=True,
+                )

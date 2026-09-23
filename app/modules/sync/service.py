@@ -2,6 +2,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
@@ -190,9 +191,10 @@ class SyncService:
 
     async def sync_tv_series(self, tmdb_id: int) -> dict:
         """
-        Mirrors sync_movie exactly, with two differences: creators (from
+        Mirrors sync_movie, with three differences: creators (from
         created_by) get their own "creator" edge alongside directed_by/
-        acted_in, and networks get an "aired_on" edge via
+        acted_in, directors come from aggregate_credits with an episode-share
+        threshold (see _sync_tv_credits), and networks get an "aired_on" edge via
         _get_or_create_network. _get_or_create_person/_get_or_create_genre
         are reused unchanged -- a person or genre shared between a movie
         and a TV series (same TMDb id, or same genre slug) resolves to the
@@ -208,7 +210,9 @@ class SyncService:
         except Exception:
             logger.warning("TMDb fa-IR fetch failed for tv series %s; using English overview", tmdb_id)
             raw_fa = None
-        normalized = normalize_tv_series(raw, raw_fa)
+        normalized = normalize_tv_series(
+            raw, raw_fa, director_min_episode_ratio=settings.tv_director_min_episode_ratio
+        )
 
         series = await self.repo.get_by_external_id("tmdb", normalized["external_id"])
         if series:
@@ -233,9 +237,7 @@ class SyncService:
                     attributes=normalized["attributes"],
                 )
 
-        for d in normalized["directors"]:
-            person = await self._get_or_create_person(d["external_id"], d["name"])
-            await self.repo.create_relationship(series.id, person.id, "directed_by")
+        await self._sync_tv_credits(series, normalized)
 
         for c in normalized["cast"]:
             person = await self._get_or_create_person(c["external_id"], c["name"])
@@ -243,10 +245,6 @@ class SyncService:
                 series.id, person.id, "acted_in",
                 edge_metadata={"character": c["character"], "order": c["order"]},
             )
-
-        for cr in normalized["creators"]:
-            person = await self._get_or_create_person(cr["external_id"], cr["name"])
-            await self.repo.create_relationship(series.id, person.id, "creator")
 
         # replace_relationships (not create_relationship) here: TV_GENRE_NAME_OVERRIDES
         # can change which genre entities a given TMDb genre maps to (e.g. a fused
@@ -265,6 +263,45 @@ class SyncService:
 
         await self.db.commit()
         return {"id": str(series.id), "slug": series.slug, "title": series.title}
+
+    async def _sync_tv_credits(self, series, normalized: dict) -> list[dict]:
+        """
+        creator + directed_by edges for a tv_series. directed_by goes through
+        replace_relationships so a re-sync also retracts directors that no
+        longer clear TV_DIRECTOR_MIN_EPISODE_RATIO (e.g. ones picked up by
+        the old credits-only logic), and refreshes each edge's episode_count.
+        Returns the directors kept.
+        """
+        for cr in normalized["creators"]:
+            person = await self._get_or_create_person(cr["external_id"], cr["name"])
+            await self.repo.create_relationship(series.id, person.id, "creator")
+
+        director_ids = []
+        metadata_by_id = {}
+        for d in normalized["directors"]:
+            person = await self._get_or_create_person(d["external_id"], d["name"])
+            director_ids.append(person.id)
+            metadata_by_id[person.id] = (
+                {"episode_count": d["episode_count"]} if d["episode_count"] is not None else {}
+            )
+        await self.repo.replace_relationships(
+            series.id, "directed_by", director_ids, edge_metadata_by_target=metadata_by_id
+        )
+        return normalized["directors"]
+
+    async def resync_tv_series_credits(self, series) -> list[dict]:
+        """
+        Re-derive only creator/directed_by edges for an existing tv_series
+        from TMDb -- one request, no fa-IR fetch, entity attributes left
+        untouched. Commits on success; the caller handles rollback.
+        """
+        raw = await self.client.get_tv_series(int(series.external_id))
+        normalized = normalize_tv_series(
+            raw, director_min_episode_ratio=settings.tv_director_min_episode_ratio
+        )
+        directors = await self._sync_tv_credits(series, normalized)
+        await self.db.commit()
+        return directors
 
     async def bulk_sync_popular(self, pages: int = 5) -> int:
         synced = 0

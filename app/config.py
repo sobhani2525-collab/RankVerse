@@ -21,6 +21,12 @@ class Settings(BaseSettings):
 
     tmdb_api_key: str = ""
     tmdb_base_url: str = "https://api.themoviedb.org/3"
+    # TMDb credits TV directing per episode, so a long-running show can have
+    # dozens of one-off episode directors. Only people who directed at least
+    # this share of a series' episodes get a directed_by edge (see
+    # normalizer.select_tv_directors); if nobody clears it, the single
+    # most-prolific director is kept so the series isn't left without one.
+    tv_director_min_episode_ratio: float = 0.2
 
     internal_api_key: str = ""
 

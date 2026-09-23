@@ -69,6 +69,7 @@ export interface TvSeriesDetail extends MovieListItem {
   last_air_date: string | null;
   country: string | null;
   creators: PersonSummary[];
+  directors: PersonSummary[];
   cast: PersonSummary[];
   genres: GenreSummary[];
   networks: GenreSummary[];

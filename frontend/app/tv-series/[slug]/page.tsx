@@ -14,7 +14,8 @@ import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBy
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { MovieListItem, SuggestedBattle } from "@/lib/types";
+import { detailPathFor } from "@/lib/entity-routes";
+import { MovieListItem, PersonSummary, SuggestedBattle } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -82,6 +83,36 @@ function SeasonsAndYears({
   );
 }
 
+/**
+ * Creators and directors as linked name lists, one row per role. Someone
+ * who is both lands in a single "سازنده و کارگردان" row instead of being
+ * listed twice.
+ */
+function creditRows(creators: PersonSummary[], directors: PersonSummary[]) {
+  const directorIds = new Set(directors.map((d) => d.id));
+  const creatorIds = new Set(creators.map((c) => c.id));
+  return [
+    { label: "سازنده", people: creators.filter((c) => !directorIds.has(c.id)) },
+    { label: "سازنده و کارگردان", people: creators.filter((c) => directorIds.has(c.id)) },
+    { label: "کارگردان", people: directors.filter((d) => !creatorIds.has(d.id)) },
+  ].filter((row) => row.people.length > 0);
+}
+
+function PersonLinks({ people }: { people: PersonSummary[] }) {
+  return (
+    <>
+      {people.map((p, i) => (
+        <span key={p.id}>
+          {i > 0 && "، "}
+          <Link href={detailPathFor("person", p.slug)!} className="hover:text-gold">
+            {p.title}
+          </Link>
+        </span>
+      ))}
+    </>
+  );
+}
+
 export default async function TvSeriesDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   let tv;
@@ -109,8 +140,9 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   // personalized suggested-battle pick (every guest, or a logged-in user
   // without a taste anchor), the fallback battle below -- this show vs.
   // the creator's own next-best-scored other title, so the card has
-  // something to show instead of nothing.
-  const mainCreator = tv.creators[0] ?? null;
+  // something to show instead of nothing. Shows without a TMDb created_by
+  // (common for Iranian series) fall back to their main director.
+  const mainCreator = tv.creators[0] ?? tv.directors[0] ?? null;
   let creatorWorks: MovieListItem[] = [];
   if (mainCreator) {
     try {
@@ -202,12 +234,14 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           )}
 
           <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
-            {tv.creators.length > 0 && (
-              <div>
-                <dt className="text-xs text-muted">سازنده</dt>
-                <dd className="mt-1 text-ink">{tv.creators.map((c) => c.title).join("، ")}</dd>
+            {creditRows(tv.creators, tv.directors).map((row) => (
+              <div key={row.label}>
+                <dt className="text-xs text-muted">{row.label}</dt>
+                <dd className="mt-1 text-ink">
+                  <PersonLinks people={row.people} />
+                </dd>
               </div>
-            )}
+            ))}
             {tv.genres.length > 0 && (
               <div>
                 <dt className="text-xs text-muted">ژانر</dt>
