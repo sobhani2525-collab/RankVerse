@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { searchEntities, addListItem, SearchResult } from "@/lib/api";
 import SmartSuggestionChips from "./SmartSuggestionChips";
 import { entityTypeLabel } from "@/lib/constants";
+import { displayTitle } from "@/lib/title";
 
 const SEARCHABLE_TYPES = ["movie", "tv_series", "person"];
 
@@ -158,7 +159,7 @@ export default function AddListItem({
                       <span className="absolute inset-0 bg-gradient-brand" />
                     )}
                   </span>
-                  <span>{r.title}</span>
+                  <span>{displayTitle(r)}</span>
                   <span className="text-xs text-muted">{entityTypeLabel(r.type)}</span>
                 </span>
                 <span className="num text-xs text-gold">

@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { searchEntities, SearchResult } from "@/lib/api";
 import { entityTypeLabel } from "@/lib/constants";
+import { displayTitle } from "@/lib/title";
 
 // entity_type -> route, for every type this app can actually navigate to
 // (movie/tv_series have their own route; the rest go through the
@@ -68,18 +70,18 @@ export default function SearchBox() {
   }
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-xs">
+    <div ref={containerRef} className="relative min-w-0 flex-1">
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => query.trim() && setOpen(true)}
         placeholder="جستجو در RankVerse..."
-        className="w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-gold/50 focus:outline-none"
+        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-gold/50 focus:outline-none"
       />
 
       {open && (
-        <div className="absolute top-full left-0 right-0 z-20 mt-1 max-h-80 overflow-y-auto rounded-lg border border-border bg-surface shadow-lg">
+        <div className="absolute top-full left-0 right-0 z-20 mt-1 max-h-[28rem] overflow-y-auto rounded-lg border border-border bg-surface shadow-lg">
           {loading ? (
             <div className="px-3 py-2 text-xs text-muted">در حال جستجو...</div>
           ) : results.length > 0 ? (
@@ -89,7 +91,16 @@ export default function SearchBox() {
                 onClick={() => handleSelect(r)}
                 className="flex w-full items-center justify-between gap-2 px-3 py-2 text-right text-sm text-ink transition hover:bg-surface2"
               >
-                <span className="truncate">{r.title}</span>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="relative h-12 w-8 shrink-0 overflow-hidden rounded bg-surface2">
+                    {r.image_url ? (
+                      <Image src={r.image_url} alt="" fill sizes="32px" className="object-cover" />
+                    ) : (
+                      <span className="absolute inset-0 bg-gradient-brand" />
+                    )}
+                  </span>
+                  <span className="line-clamp-2">{displayTitle(r)}</span>
+                </span>
                 <span className="num shrink-0 rounded-full border border-border bg-surface2 px-1.5 py-0.5 text-[10px] text-muted">
                   {entityTypeLabel(r.type)}
                 </span>

@@ -60,3 +60,21 @@ async def test_search_game_of_thrones_finds_tv_series(client, db_session):
     assert len(results) == 1
     assert results[0]["type"] == "tv_series"
     assert results[0]["slug"] == "got-search-test"
+
+
+async def test_search_matches_persian_title_with_arabic_keyboard_variants(client, db_session):
+    """title_fa lives in attributes, not the title column -- and Arabic
+    keyboards type ي/ك where the stored title has Persian ی/ک."""
+    repo = EntityRepository(db_session)
+    await repo.create_entity(
+        entity_type="movie", external_id=None, external_source=None,
+        title="Silent", slug="silent-search-test", attributes={"title_fa": "سایلنت کوچک"},
+    )
+    await db_session.commit()
+
+    for q in ["سایلنت", "سايلنت كوچك"]:
+        res = await client.get("/api/v1/search", params={"q": q})
+        assert res.status_code == 200
+        results = res.json()["data"]
+        assert [r["slug"] for r in results] == ["silent-search-test"]
+        assert results[0]["title_fa"] == "سایلنت کوچک"

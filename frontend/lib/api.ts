@@ -465,6 +465,7 @@ export interface SearchResult {
   id: string;
   slug: string;
   title: string;
+  title_fa: string | null;
   type: string;
   image_url: string | null;
 }

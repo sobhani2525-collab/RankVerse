@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -8,6 +8,23 @@ from app.modules.entities.models import Entity
 from app.modules.entities.service import _extract_media
 
 router = APIRouter(tags=["search"])
+
+# Persian text is typed inconsistently: Arabic keyboards produce ي/ك instead
+# of Persian ی/ک, آ/أ/إ are often typed as plain ا, and the half-space (ZWNJ)
+# in e.g. "می‌خواهم" is often typed as a regular space or left out. Both the
+# query and the stored titles are folded through the same char-by-char map
+# so any of these variants still match.
+_FOLD_FROM = "يىكةۀأإآ‌"
+_FOLD_TO = "ییکههااا "
+_FOLD_TABLE = str.maketrans(_FOLD_FROM, _FOLD_TO)
+
+
+def _fold_sql(expr):
+    return func.translate(expr, _FOLD_FROM, _FOLD_TO)
+
+
+def _escape_like(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
 
 
 @router.get("/search")
@@ -18,7 +35,9 @@ async def search(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    MVP search: simple ILIKE on entity title.
+    MVP search: ILIKE on the entity's English title and its Persian title
+    (attributes.title_fa, see sync/normalizer.py's _persian_title), with
+    prefix matches ranked ahead of mid-word ones.
     Post-MVP: replace with Postgres full-text search (tsvector) or a dedicated
     search engine once catalog size and query volume justify it.
 
@@ -26,10 +45,25 @@ async def search(
     an item to a movie-only list) -- omitting it searches across every
     entity_type, which is what the global site search box does.
     """
-    stmt = select(Entity).where(Entity.title.ilike(f"%{q}%"))
+    term = _escape_like(" ".join(q.translate(_FOLD_TABLE).split()))
+    if not term:
+        return envelope(data=[])
+
+    title = _fold_sql(Entity.title)
+    title_fa = _fold_sql(Entity.attributes["title_fa"].astext)
+
+    stmt = select(Entity).where(
+        or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%"))
+    )
     if type:
         stmt = stmt.where(Entity.entity_type == type)
-    stmt = stmt.limit(limit)
+    stmt = stmt.order_by(
+        case(
+            (or_(title.ilike(f"{term}%"), title_fa.ilike(f"{term}%")), 0),
+            else_=1,
+        ),
+        func.length(Entity.title),
+    ).limit(limit)
     result = await db.execute(stmt)
     entities = result.scalars().all()
 
@@ -39,6 +73,7 @@ async def search(
                 "id": str(e.id),
                 "slug": e.slug,
                 "title": e.title,
+                "title_fa": (e.attributes or {}).get("title_fa"),
                 "type": e.entity_type,
                 "image_url": _extract_media(e.attributes).image_url,
             }
