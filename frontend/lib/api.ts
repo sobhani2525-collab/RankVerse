@@ -57,8 +57,24 @@ async function fetchWithAuthRetry(path: string, init: RequestInit): Promise<Resp
   }
 }
 
+// Public reads give up after this long instead of hanging a page render
+// (or a Worker request) until the backend's own ~60s DB timeout. Next's
+// fetch cache key ignores `signal`, so this doesn't affect caching.
+const READ_TIMEOUT_MS = 8000;
+
+async function fetchWithTimeout(path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`${API_BASE}${path}`, { ...init, signal: AbortSignal.timeout(READ_TIMEOUT_MS) });
+  } catch (err) {
+    if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      throw new Error(`RankVerse API timeout (${READ_TIMEOUT_MS / 1000}s) on ${path}`);
+    }
+    throw err;
+  }
+}
+
 async function fetchEnvelope<T>(path: string, revalidateSeconds = 300): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetchWithTimeout(path, {
     next: { revalidate: revalidateSeconds },
   });
 
@@ -597,8 +613,8 @@ export async function getRankingsPage(
   if (params.genre) qs.set("genre", params.genre);
   const path = `/rankings/${entityType === "tv_series" ? "tv-series" : "movies"}?${qs.toString()}`;
 
-  const res = await fetch(
-    `${API_BASE}${path}`,
+  const res = await fetchWithTimeout(
+    path,
     options.fresh ? { cache: "no-store" } : { next: { revalidate: 300 } }
   );
   if (!res.ok) {
