@@ -132,7 +132,8 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             </div>
           </div>
 
-          <div className="mt-4">
+          {/* #rate: the list page's "امتیاز بده" links land here. */}
+          <div id="rate" className="mt-4 scroll-mt-24">
             <StarRating entity={movie} />
           </div>
 

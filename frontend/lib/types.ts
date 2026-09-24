@@ -126,6 +126,15 @@ export interface EntityMini {
   title: string;
   entity_type: string;
   poster_path: string | null;
+  title_fa?: string | null;
+}
+
+/** A graph neighbour (person/genre) linked from a list item. */
+export interface EntityRef {
+  id: string;
+  slug: string;
+  title: string;
+  entity_type: string;
 }
 
 export type ListType = "ranked" | "community_ordered";
@@ -144,6 +153,51 @@ export interface ListItem {
   can_remove: boolean;
   my_vote: boolean | null;
   entity: EntityMini;
+  year?: number | null;
+  director?: EntityRef | null;
+  lead_actor?: EntityRef | null;
+  genres?: EntityRef[];
+  /** Only present when the entity has a ranking row -- never a placeholder. */
+  composite_score?: number | null;
+}
+
+/** Why display rank `from_rank` connects to `from_rank + 1`. */
+export interface ListEdge {
+  from_rank: number;
+  kind: "people" | "genre" | "none";
+  label_fa: string | null;
+  value: string | null;
+  targets: EntityRef[];
+}
+
+/** Rank `rank` also shares a person with earlier rank `target_position`. */
+export interface ListBacklink {
+  rank: number;
+  target_position: number;
+  person_name: string;
+  person_slug: string;
+}
+
+export interface ListDnaCount {
+  entity: EntityRef;
+  count: number;
+}
+
+export interface ListDna {
+  type_counts: Record<string, number>;
+  genres: ListDnaCount[];
+  hubs: ListDnaCount[];
+  decades: { decade: number; count: number }[];
+}
+
+export interface ListBattlePair {
+  left_rank: number;
+  right_rank: number;
+  category: string;
+  kind: "director" | "actor";
+  label_fa: string;
+  person: EntityRef;
+  pair_count: number;
 }
 
 export interface ListSummary {
@@ -170,10 +224,21 @@ export interface ListSummary {
 }
 
 export interface ListDetail extends ListSummary {
+  updated_at?: string | null;
   items: ListItem[];
   is_liked: boolean;
   is_following: boolean;
   is_owner: boolean;
+  edges?: ListEdge[];
+  backlinks?: ListBacklink[];
+  dna?: ListDna | null;
+  battle_pair?: ListBattlePair | null;
+}
+
+/** GET /lists/{slug}/related -- each carries why it's related. */
+export interface RelatedListSummary extends ListSummary {
+  shared_item_count: number;
+  shared_tag: string | null;
 }
 
 export interface ListComment {

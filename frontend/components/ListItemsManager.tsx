@@ -60,7 +60,7 @@ export default function ListItemsManager({
     isCommunityOrdered ? initialItems : [...initialItems].sort((a, b) => a.position - b.position)
   );
 
-  // ListDetailClient does an anonymous SSR fetch, then a client-side
+  // The list page does an anonymous SSR fetch, then ListViewerContext a client-side
   // authenticated refetch (different is_own/can_remove/my_vote per viewer).
   // Re-sync whenever the parent hands us a new items array, not just on
   // first mount, so that second fetch's per-viewer fields actually land.

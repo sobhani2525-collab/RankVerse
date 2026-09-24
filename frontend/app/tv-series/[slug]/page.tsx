@@ -218,7 +218,8 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
             </div>
           </div>
 
-          <div className="mt-4">
+          {/* #rate: the list page's "امتیاز بده" links land here. */}
+          <div id="rate" className="mt-4 scroll-mt-24">
             <StarRating entity={tv} />
           </div>
 

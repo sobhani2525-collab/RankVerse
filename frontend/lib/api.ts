@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -344,8 +344,8 @@ export async function getListComments(slug: string): Promise<ListComment[]> {
   return fetchEnvelope<ListComment[]>(`/lists/${slug}/comments`, 30);
 }
 
-export async function getRelatedLists(slug: string): Promise<ListSummary[]> {
-  return fetchEnvelope<ListSummary[]>(`/lists/${slug}/related`, 120);
+export async function getRelatedLists(slug: string): Promise<RelatedListSummary[]> {
+  return fetchEnvelope<RelatedListSummary[]>(`/lists/${slug}/related`, 120);
 }
 
 export async function getListsContainingEntity(entityId: string): Promise<ListSummary[]> {

@@ -32,12 +32,19 @@ const config: Config = {
           DEFAULT: "#9163f5",
           dim: "#493A8C",
           soft: "#a78bfa",
+          // Constellation list page: people chips/edges (light) and the
+          // battle accent (strong). DEFAULT stays #9163f5 for the rest of
+          // the app and the brand gradient.
+          light: "#A99BFF",
+          strong: "#6E5FD9",
         },
         ink: {
           DEFAULT: "#F2F0E8",
           dim: "#c7cce0",
         },
         muted: "#8A93A6",
+        // Quieter than muted -- mono kicker labels, secondary captions.
+        dim: "#7C859B",
       },
       fontFamily: {
         sans: ["var(--font-vazirmatn)", "Tahoma", "sans-serif"],
