@@ -18,6 +18,59 @@ def _persian_title(title_fa: str | None, title_en: str | None) -> str | None:
     return title_fa
 
 
+# Profile photos: TMDb's profile sizes are w45/w185/h632/original; h632 is
+# the largest fixed size, sharp enough for a person page's portrait.
+TMDB_PROFILE_BASE = "https://image.tmdb.org/t/p/h632"
+
+
+def person_attributes(profile_path: str | None) -> dict:
+    """
+    Attributes for a person entity from a TMDb credit (cast/crew/created_by
+    entry) or /person response. Writes the standard attributes["media"]
+    shape entities/service.py's _extract_media reads, plus the raw
+    profile_path. Empty when TMDb has no photo, so an existing photo is
+    never overwritten with nothing.
+    """
+    if not profile_path:
+        return {}
+    return {"profile_path": profile_path, "media": {"image_url": f"{TMDB_PROFILE_BASE}{profile_path}"}}
+
+
+def person_biography_attrs(raw: dict) -> dict:
+    """
+    biography for a TMDb /person response fetched with
+    append_to_response=translations, same rule as _overview_attrs: the
+    Persian text when TMDb has one, else the English. biography_en keeps the
+    English, biography_source records which one is shown.
+    """
+    biography_en = (raw.get("biography") or "").strip() or None
+    biography_fa = None
+    for t in (raw.get("translations") or {}).get("translations", []):
+        if t.get("iso_639_1") == "fa":
+            biography_fa = ((t.get("data") or {}).get("biography") or "").strip() or None
+            break
+    return {
+        "biography": biography_fa or biography_en,
+        "biography_en": biography_en,
+        "biography_source": "tmdb_fa" if biography_fa else ("en" if biography_en else None),
+    }
+
+
+def person_backfill_attrs(raw: dict) -> dict:
+    """
+    What scripts/backfill_person_profiles.py merges into an existing
+    person's attributes from a TMDb /person response: photo + biography,
+    with None values dropped so a missing field never overwrites anything.
+    """
+    attrs = {**person_attributes(raw.get("profile_path")), **person_biography_attrs(raw)}
+    return {k: v for k, v in attrs.items() if v is not None}
+
+
+def _credit(c: dict, **extra) -> dict:
+    """A person from a TMDb credit, keeping the photo path for person_attributes."""
+    return {"external_id": str(c["id"]), "name": c["name"], "profile_path": c.get("profile_path"), **extra}
+
+
 def _overview_attrs(raw: dict, raw_fa: dict | None) -> dict:
     """
     overview is what the site displays: TMDb's fa-IR synopsis when it has
@@ -83,15 +136,8 @@ def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
     crew = credits.get("crew", [])
     cast = credits.get("cast", [])
 
-    directors = [
-        {"external_id": str(c["id"]), "name": c["name"]}
-        for c in crew
-        if c.get("job") == "Director"
-    ]
-    top_cast = [
-        {"external_id": str(c["id"]), "name": c["name"], "character": c.get("character"), "order": c.get("order", 99)}
-        for c in cast[:5]
-    ]
+    directors = [_credit(c) for c in crew if c.get("job") == "Director"]
+    top_cast = [_credit(c, character=c.get("character"), order=c.get("order", 99)) for c in cast[:5]]
     genres = [{"external_id": str(g["id"]), "name": g["name"]} for g in raw.get("genres", [])]
 
     return {
@@ -150,13 +196,13 @@ def select_tv_directors(raw: dict, min_episode_ratio: float) -> list[dict]:
     for c in (raw.get("aggregate_credits") or {}).get("crew", []):
         episodes = sum(j.get("episode_count") or 0 for j in c.get("jobs", []) if j.get("job") == "Director")
         if episodes > 0:
-            counts[str(c["id"])] = {"external_id": str(c["id"]), "name": c["name"], "episode_count": episodes}
+            counts[str(c["id"])] = _credit(c, episode_count=episodes)
 
     if not counts:
         seen: dict[str, dict] = {}
         for c in (raw.get("credits") or {}).get("crew", []):
             if c.get("job") == "Director":
-                seen.setdefault(str(c["id"]), {"external_id": str(c["id"]), "name": c["name"], "episode_count": None})
+                seen.setdefault(str(c["id"]), _credit(c, episode_count=None))
         return list(seen.values())
 
     ranked = sorted(counts.values(), key=lambda d: (-d["episode_count"], d["name"]))
@@ -224,12 +270,9 @@ def normalize_tv_series(
     cast = credits.get("cast", [])
 
     directors = select_tv_directors(raw, director_min_episode_ratio)
-    top_cast = [
-        {"external_id": str(c["id"]), "name": c["name"], "character": c.get("character"), "order": c.get("order", 99)}
-        for c in cast[:5]
-    ]
+    top_cast = [_credit(c, character=c.get("character"), order=c.get("order", 99)) for c in cast[:5]]
     # created_by is a top-level field on /tv/{id}, not part of credits.
-    creators = [{"external_id": str(c["id"]), "name": c["name"]} for c in raw.get("created_by", [])]
+    creators = [_credit(c) for c in raw.get("created_by", [])]
     genres = [
         {"external_id": str(g["id"]), "name": name}
         for g in raw.get("genres", [])

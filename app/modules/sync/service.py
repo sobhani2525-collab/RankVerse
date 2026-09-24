@@ -11,7 +11,7 @@ from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
 from app.modules.sync.itunes_client import ITunesClient
-from app.modules.sync.normalizer import normalize_movie, normalize_track, normalize_tv_series
+from app.modules.sync.normalizer import normalize_movie, normalize_track, normalize_tv_series, person_attributes
 from app.modules.sync.tmdb_client import TMDbClient
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,10 @@ class SyncService:
         self.client = TMDbClient()
         self.itunes_client = ITunesClient()
 
-    async def _get_or_create_person(self, external_id: str, name: str, source: str = "tmdb_person"):
+    async def _get_or_create_person(
+        self, external_id: str, name: str, source: str = "tmdb_person", profile_path: str | None = None
+    ):
+        attributes = person_attributes(profile_path)
         person = await self.repo.get_by_external_id(source, external_id)
         if not person:
             from slugify import slugify
@@ -64,8 +67,13 @@ class SyncService:
                 external_source=source,
                 title=name,
                 slug=f"{slugify(name)}-{external_id}",
-                attributes={},
+                attributes=attributes,
             )
+        elif attributes and "media" not in (person.attributes or {}):
+            # Created before photos were recorded -- fill it in (same rule
+            # as _people_ids' fill_missing_key="media").
+            person.attributes = {**(person.attributes or {}), **attributes}
+            await self.db.flush()
         return person
 
     async def _get_or_create_genre(self, name: str, external_id: str | None = None, source: str = "tmdb_genre"):
@@ -232,10 +240,13 @@ class SyncService:
                     "external_source": "tmdb_person",
                     "title": p["name"],
                     "slug": f"{slugify(p['name'])}-{p['external_id']}",
+                    "attributes": person_attributes(p.get("profile_path")),
                 }
                 for p in people
             ],
             external_source="tmdb_person",
+            # Existing people without a photo get it from this credit.
+            fill_missing_key="media",
         )
 
     async def _genre_ids(self, genres: list[dict]) -> dict[str, uuid.UUID]:
@@ -344,13 +355,13 @@ class SyncService:
         Returns the directors kept.
         """
         for cr in normalized["creators"]:
-            person = await self._get_or_create_person(cr["external_id"], cr["name"])
+            person = await self._get_or_create_person(cr["external_id"], cr["name"], profile_path=cr.get("profile_path"))
             await self.repo.create_relationship(series.id, person.id, "creator")
 
         director_ids = []
         metadata_by_id = {}
         for d in normalized["directors"]:
-            person = await self._get_or_create_person(d["external_id"], d["name"])
+            person = await self._get_or_create_person(d["external_id"], d["name"], profile_path=d.get("profile_path"))
             director_ids.append(person.id)
             metadata_by_id[person.id] = (
                 {"episode_count": d["episode_count"]} if d["episode_count"] is not None else {}

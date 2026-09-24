@@ -58,7 +58,7 @@ def test_uses_director_job_episode_count_not_total():
 def test_falls_back_to_top_director_when_nobody_reaches_ratio():
     # Nobody on Breaking Bad directed 20% of its 62 episodes (MacLaren: 11 = 18%).
     directors = select_tv_directors(BREAKING_BAD, 0.2)
-    assert directors == [{"external_id": "29779", "name": "Michelle MacLaren", "episode_count": 11}]
+    assert directors == [{"external_id": "29779", "name": "Michelle MacLaren", "profile_path": None, "episode_count": 11}]
 
 
 def test_non_director_jobs_are_ignored():
@@ -72,7 +72,7 @@ def test_single_series_director_is_kept():
         "aggregate_credits": {"crew": [_crew(1530758, "Saeed Aghakhani", ("Director", 90))]},
     }
     assert select_tv_directors(raw, 0.2) == [
-        {"external_id": "1530758", "name": "Saeed Aghakhani", "episode_count": 90}
+        {"external_id": "1530758", "name": "Saeed Aghakhani", "profile_path": None, "episode_count": 90}
     ]
 
 
@@ -82,7 +82,7 @@ def test_falls_back_to_plain_credits_without_aggregate_directors():
         "credits": {"crew": [{"id": 1530758, "name": "Saeed Aghakhani", "job": "Director"}]},
     }
     assert select_tv_directors(raw, 0.2) == [
-        {"external_id": "1530758", "name": "Saeed Aghakhani", "episode_count": None}
+        {"external_id": "1530758", "name": "Saeed Aghakhani", "profile_path": None, "episode_count": None}
     ]
 
 
@@ -90,4 +90,4 @@ def test_normalize_tv_series_passes_ratio_through():
     raw = {**BREAKING_BAD, "genres": [], "created_by": [{"id": 66633, "name": "Vince Gilligan"}]}
     normalized = normalize_tv_series(raw, director_min_episode_ratio=0.1)
     assert [d["name"] for d in normalized["directors"]] == ["Michelle MacLaren", "Adam Bernstein"]
-    assert normalized["creators"] == [{"external_id": "66633", "name": "Vince Gilligan"}]
+    assert normalized["creators"] == [{"external_id": "66633", "name": "Vince Gilligan", "profile_path": None}]

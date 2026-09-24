@@ -46,6 +46,17 @@ class TMDbClient:
             params={"api_key": self.api_key, "append_to_response": "credits", "language": language},
         )
 
+    async def get_person(self, tmdb_id: int) -> dict:
+        """
+        /person/{id} with every translation of the biography appended (one
+        request covers English and Persian -- see normalizer's
+        person_biography_attrs).
+        """
+        return await self._get_with_retry(
+            f"{self.base_url}/person/{tmdb_id}",
+            params={"api_key": self.api_key, "append_to_response": "translations"},
+        )
+
     async def discover_movies(
         self,
         page: int = 1,

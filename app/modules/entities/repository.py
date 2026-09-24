@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import bindparam, delete, func, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -244,7 +245,12 @@ class EntityRepository:
         return entity
 
     async def get_or_create_many(
-        self, entity_type: str, rows: list[dict], key: str = "external_id", external_source: str | None = None
+        self,
+        entity_type: str,
+        rows: list[dict],
+        key: str = "external_id",
+        external_source: str | None = None,
+        fill_missing_key: str | None = None,
     ) -> dict[str, uuid.UUID]:
         """
         Batched find-or-create for small shared entities (people, genres,
@@ -258,6 +264,13 @@ class EntityRepository:
         ON CONFLICT DO NOTHING also makes this safe against a concurrent
         sync inserting the same row first -- the re-SELECT just finds it.
         Returns {row[key]: entity id}.
+
+        A row may carry "attributes" (used when it's inserted). With
+        fill_missing_key, an already-existing row whose attributes lack that
+        key gets the row's attributes merged in -- e.g. people created
+        before their photo was recorded get it on the next sync that sees
+        them. Rows that already have the key are never touched, and the
+        UPDATE is skipped entirely when nothing is missing.
         """
         from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -265,14 +278,34 @@ class EntityRepository:
         if not unique:
             return {}
 
-        def lookup():
+        def lookup(with_fill_flag: bool = False):
             column = Entity.external_id if key == "external_id" else Entity.slug
-            stmt = select(column, Entity.id).where(Entity.entity_type == entity_type, column.in_(list(unique)))
+            columns = [column, Entity.id]
+            if with_fill_flag:
+                columns.append(Entity.attributes.has_key(fill_missing_key))
+            stmt = select(*columns).where(Entity.entity_type == entity_type, column.in_(list(unique)))
             if key == "external_id":
                 stmt = stmt.where(Entity.external_source == external_source)
             return stmt
 
-        found = dict((await self.db.execute(lookup())).all())
+        if fill_missing_key:
+            existing = (await self.db.execute(lookup(with_fill_flag=True))).all()
+            found = {k: entity_id for k, entity_id, _ in existing}
+            to_fill = [
+                {"b_id": entity_id, "b_attrs": unique[k]["attributes"]}
+                for k, entity_id, has_key in existing
+                if not has_key and unique[k].get("attributes")
+            ]
+            if to_fill:
+                table = Entity.__table__
+                await self.db.execute(
+                    update(table)
+                    .where(table.c.id == bindparam("b_id"), ~table.c.attributes.has_key(fill_missing_key))
+                    .values(attributes=table.c.attributes.op("||")(bindparam("b_attrs", type_=JSONB))),
+                    to_fill,
+                )
+        else:
+            found = dict((await self.db.execute(lookup())).all())
         missing = [r for k, r in unique.items() if k not in found]
         if missing:
             await self.db.execute(
@@ -286,7 +319,7 @@ class EntityRepository:
                             "external_source": r.get("external_source"),
                             "title": r["title"],
                             "slug": r["slug"],
-                            "attributes": {},
+                            "attributes": r.get("attributes") or {},
                         }
                         for r in missing
                     ]
