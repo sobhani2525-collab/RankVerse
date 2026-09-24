@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import Text, case, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -19,8 +19,23 @@ _FOLD_TO = "ییکههااا "
 _FOLD_TABLE = str.maketrans(_FOLD_FROM, _FOLD_TO)
 
 
+# The fold strings and the title_fa key are inlined as SQL literals, not
+# bind parameters: Postgres only matches an expression index against
+# constants, and the trigram indexes from migration b7e4d2a9c1f0 are built on
+# exactly what _fold_sql(Entity.title) and _fold_sql(_title_fa_sql()) render
+# to. Change the fold map here and those indexes silently stop being used --
+# add a migration that rebuilds them (tests/test_search_index_expressions.py
+# checks the two stay in sync).
+def _sql_literal(value: str):
+    return literal_column("'" + value.replace("'", "''") + "'", type_=Text)
+
+
 def _fold_sql(expr):
-    return func.translate(expr, _FOLD_FROM, _FOLD_TO)
+    return func.translate(expr, _sql_literal(_FOLD_FROM), _sql_literal(_FOLD_TO), type_=Text)
+
+
+def _title_fa_sql():
+    return Entity.attributes.op("->>", return_type=Text)(_sql_literal("title_fa"))
 
 
 def _escape_like(s: str) -> str:
@@ -50,7 +65,7 @@ async def search(
         return envelope(data=[])
 
     title = _fold_sql(Entity.title)
-    title_fa = _fold_sql(Entity.attributes["title_fa"].astext)
+    title_fa = _fold_sql(_title_fa_sql())
 
     stmt = select(Entity).where(
         or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%"))
