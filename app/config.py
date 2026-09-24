@@ -131,6 +131,20 @@ class Settings(BaseSettings):
         "directed_by,creator,has_genre,acted_in,performed_by,part_of,aired_on,similar_to"
     )
 
+    # List detail "constellation" (see app/modules/lists/graph.py): why two
+    # consecutive list items are connected. edge_priority is the order the
+    # kinds are tried in (comma-separated from director,actor,genre; the
+    # first one that matches wins). cast_depth is how many top-billed actors
+    # per title count as that title's cast (sync stores the top 5).
+    # Hubs are people appearing in >= hub_min_items items, top hub_limit.
+    list_graph_edge_priority: str = "director,actor,genre"
+    list_graph_cast_depth: int = 3
+    list_graph_max_genres_per_edge: int = 2
+    list_graph_hub_limit: int = 3
+    list_graph_hub_min_items: int = 2
+    # Related lists (ListService.get_related_lists): how many to return.
+    list_related_limit: int = 6
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,6 +48,65 @@ class EntityMini(BaseModel):
     title: str
     entity_type: str
     poster_path: str | None = None
+    # Persian title when TMDb has one (see sync/normalizer._persian_title);
+    # the frontend's displayTitle() composes "title_fa (title)".
+    title_fa: str | None = None
+
+
+class EntityRef(BaseModel):
+    """A graph neighbour (person/genre) linked from a list item."""
+    id: uuid.UUID
+    slug: str
+    title: str
+    entity_type: str
+
+
+class ListEdge(BaseModel):
+    """Why display rank `from_rank` connects to `from_rank + 1`."""
+    from_rank: int
+    kind: Literal["people", "genre", "none"]
+    label_fa: str | None = None
+    # Joined target names ("A · B"); targets carry slugs for linking and,
+    # for genres, the canonical name the frontend translates.
+    value: str | None = None
+    targets: list[EntityRef] = []
+
+
+class ListBacklink(BaseModel):
+    """Rank `rank` also shares a person with earlier, non-adjacent rank
+    `target_position` (both 1-based display ranks)."""
+    rank: int
+    target_position: int
+    person_name: str
+    person_slug: str
+
+
+class DnaCount(BaseModel):
+    entity: EntityRef
+    count: int
+
+
+class DecadeCount(BaseModel):
+    decade: int
+    count: int
+
+
+class ListDna(BaseModel):
+    type_counts: dict[str, int] = {}
+    genres: list[DnaCount] = []
+    hubs: list[DnaCount] = []
+    decades: list[DecadeCount] = []
+
+
+class ListBattlePair(BaseModel):
+    left_rank: int
+    right_rank: int
+    category: str
+    kind: Literal["director", "actor"]
+    label_fa: str
+    person: EntityRef
+    # Same-type pairs in the whole list, for "همه N جفت".
+    pair_count: int
 
 
 class ListItemPublic(BaseModel):
@@ -63,6 +123,14 @@ class ListItemPublic(BaseModel):
     can_remove: bool = False
     my_vote: bool | None = None
     entity: EntityMini
+    year: int | None = None
+    # A series' creator when it has one, else the (first) director.
+    director: EntityRef | None = None
+    lead_actor: EntityRef | None = None
+    genres: list[EntityRef] = []
+    # EntityRanking.computed_score -- None when the entity has no ranking
+    # row yet; never filled in with a placeholder.
+    composite_score: float | None = None
 
 
 class ListSummary(BaseModel):
@@ -91,11 +159,24 @@ class ListSummary(BaseModel):
     preview_items: list[EntityMini] = Field(default_factory=list)
 
 
+class RelatedListSummary(ListSummary):
+    # Why this list is related: how many items it shares with the source
+    # list, and/or a tag both carry. At least one is always set.
+    shared_item_count: int = 0
+    shared_tag: str | None = None
+
+
 class ListDetail(ListSummary):
+    updated_at: datetime | None = None
     items: list[ListItemPublic] = []
     is_liked: bool = False
     is_following: bool = False
     is_owner: bool = False
+    # Constellation data (see app/modules/lists/graph.py), in display order.
+    edges: list[ListEdge] = []
+    backlinks: list[ListBacklink] = []
+    dna: ListDna | None = None
+    battle_pair: ListBattlePair | None = None
 
 class ListItemSuggestion(BaseModel):
     entity: EntityMini

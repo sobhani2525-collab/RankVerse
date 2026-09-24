@@ -84,3 +84,109 @@ async def test_only_owner_can_update_list(client, auth_headers, db_session):
         f"/api/v1/lists/{slug}", headers=other_headers, json={"title": "Hijacked"}
     )
     assert res.status_code == 401
+
+
+async def _graph_fixture(db_session):
+    """Inception -> Memento (shared director) -> Shutter Island (no link to
+    Memento, but shares DiCaprio with Inception = a backlink)."""
+    from app.modules.entities.models import EntityRanking
+    from app.modules.entities.repository import EntityRepository
+
+    repo = EntityRepository(db_session)
+
+    async def make(entity_type, title, attributes=None):
+        return await repo.create_entity(
+            entity_type=entity_type, external_id=None, external_source=None,
+            title=title, slug=title.lower().replace(" ", "-"), attributes=attributes or {},
+        )
+
+    nolan = await make("person", "Christopher Nolan")
+    scorsese = await make("person", "Martin Scorsese")
+    dicaprio = await make("person", "Leonardo DiCaprio")
+    pearce = await make("person", "Guy Pearce")
+    scifi = await make("genre", "Science Fiction")
+    drama = await make("genre", "Drama")
+    inception = await make("movie", "Inception", {"year": 2010, "title_fa": "تلقین", "poster_path": "/i.jpg"})
+    memento = await make("movie", "Memento", {"year": 2000})
+    shutter = await make("movie", "Shutter Island", {"year": 2010})
+    await db_session.commit()
+
+    for movie_, director, actor, genre in [
+        (inception, nolan, dicaprio, scifi),
+        (memento, nolan, pearce, drama),
+        (shutter, scorsese, dicaprio, drama),
+    ]:
+        await repo.create_relationship(movie_.id, director.id, "directed_by")
+        await repo.create_relationship(movie_.id, actor.id, "acted_in", edge_metadata={"order": 0})
+        await repo.create_relationship(movie_.id, genre.id, "has_genre")
+    db_session.add(EntityRanking(entity_id=inception.id, computed_score=8.8, total_votes=10))
+    await db_session.commit()
+    return inception, memento, shutter
+
+
+async def test_list_detail_returns_constellation(client, auth_headers, db_session):
+    inception, memento, shutter = await _graph_fixture(db_session)
+    created = await client.post("/api/v1/lists", headers=auth_headers, json={"title": "Mind Benders"})
+    slug = created.json()["data"]["slug"]
+    for entity in (inception, memento, shutter):
+        res = await client.post(
+            f"/api/v1/lists/{slug}/items", headers=auth_headers, json={"entity_id": str(entity.id)}
+        )
+        assert res.status_code == 200
+
+    data = (await client.get(f"/api/v1/lists/{slug}", headers=auth_headers)).json()["data"]
+
+    first = data["items"][0]
+    assert first["entity"]["title_fa"] == "تلقین"
+    assert first["year"] == 2010
+    assert first["director"]["title"] == "Christopher Nolan"
+    assert first["lead_actor"]["title"] == "Leonardo DiCaprio"
+    assert [g["title"] for g in first["genres"]] == ["Science Fiction"]
+    assert first["composite_score"] == 8.8
+    # No ranking row -> no score, not a placeholder.
+    assert data["items"][1]["composite_score"] is None
+
+    assert [(e["kind"], e["value"]) for e in data["edges"]] == [
+        ("people", "Christopher Nolan"),
+        ("genre", "Drama"),
+    ]
+    assert data["backlinks"] == [
+        {"rank": 3, "target_position": 1, "person_name": "Leonardo DiCaprio", "person_slug": "leonardo-dicaprio"}
+    ]
+    assert data["dna"]["type_counts"] == {"movie": 3}
+    assert {h["entity"]["title"] for h in data["dna"]["hubs"]} == {"Christopher Nolan", "Leonardo DiCaprio"}
+    assert data["battle_pair"]["left_rank"] == 1
+    assert data["battle_pair"]["right_rank"] == 2
+    assert data["battle_pair"]["kind"] == "director"
+    assert data["updated_at"] is not None
+
+
+async def test_empty_list_detail_has_no_constellation(client, auth_headers):
+    created = await client.post("/api/v1/lists", headers=auth_headers, json={"title": "Empty Sky"})
+    slug = created.json()["data"]["slug"]
+    data = (await client.get(f"/api/v1/lists/{slug}")).json()["data"]
+    assert data["edges"] == [] and data["backlinks"] == []
+    assert data["dna"] is None and data["battle_pair"] is None
+
+
+async def test_related_lists_carry_a_reason_and_skip_unrelated(client, auth_headers, db_session):
+    inception, memento, _ = await _graph_fixture(db_session)
+
+    async def make_list(title, tags, entities):
+        res = await client.post("/api/v1/lists", headers=auth_headers, json={"title": title, "tags": tags})
+        slug = res.json()["data"]["slug"]
+        for entity in entities:
+            await client.post(f"/api/v1/lists/{slug}/items", headers=auth_headers, json={"entity_id": str(entity.id)})
+        return slug
+
+    source = await make_list("Source", ["nolan"], [inception, memento])
+    sharing_items = await make_list("Shares Items", [], [inception, memento])
+    sharing_tag = await make_list("Shares Tag", ["nolan"], [])
+    await make_list("Unrelated", ["other"], [])
+
+    related = (await client.get(f"/api/v1/lists/{source}/related")).json()["data"]
+    by_slug = {r["slug"]: r for r in related}
+    assert set(by_slug) == {sharing_items, sharing_tag}
+    assert by_slug[sharing_items]["shared_item_count"] == 2
+    assert by_slug[sharing_tag]["shared_tag"] == "nolan"
+    assert related[0]["slug"] == sharing_items

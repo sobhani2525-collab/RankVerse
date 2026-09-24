@@ -9,27 +9,64 @@ from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedE
 from app.modules.entities.repository import EntityRepository
 from app.modules.lists.repository import ListRepository
 from app.modules.lists.scoring import compute_like_score, community_order_key
+from app.modules.lists.graph import (
+    GraphItem, RELATION_LABELS_FA, RELATION_LABEL_FALLBACK_FA,
+    compute_backlinks, compute_dna, compute_edges, pick_battle_pair,
+)
 from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
-    ListItemPublic, EntityMini, CommentCreate, CommentPublic, ListItemVoteResult,
-    ListItemSuggestion,
+    ListItemPublic, EntityMini, EntityRef, CommentCreate, CommentPublic, ListItemVoteResult,
+    ListItemSuggestion, RelatedListSummary,
 )
 from app.modules.taste.compute import ContributionStatsComputer
 
-# Persian label prefix per relation_type for the smart-suggestion "why"
-# chip (see ListService.get_smart_suggestions) -- e.g. "کارگردان مشترک: X".
-# Anything not listed here still works, just with a generic fallback label.
-RELATION_LABELS_FA: dict[str, str] = {
-    "directed_by": "کارگردان مشترک",
-    "creator": "سازنده مشترک",
-    "has_genre": "ژانر مشترک",
-    "acted_in": "بازیگر مشترک",
-    "performed_by": "هنرمند مشترک",
-    "part_of": "بخشی از همان مجموعه",
-    "aired_on": "پخش‌کننده مشترک",
-    "similar_to": "شبیه به",
-}
-RELATION_LABEL_FALLBACK_FA = "ویژگی مشترک"
+# Relation types the list-detail constellation reads (see graph.py).
+GRAPH_RELATION_TYPES = ["directed_by", "creator", "acted_in", "has_genre"]
+
+
+def _entity_mini(entity) -> EntityMini:
+    attributes = entity.attributes or {}
+    return EntityMini(
+        id=entity.id,
+        slug=entity.slug,
+        title=entity.title,
+        entity_type=entity.entity_type,
+        poster_path=attributes.get("poster_path"),
+        title_fa=attributes.get("title_fa"),
+    )
+
+
+def _entity_ref(entity) -> EntityRef:
+    return EntityRef(id=entity.id, slug=entity.slug, title=entity.title, entity_type=entity.entity_type)
+
+
+def _build_graph_items(entities: list, edges: list[tuple]) -> list[GraphItem]:
+    """One GraphItem per entity (same order), from graph_edges_for_entities
+    rows. Cast is sorted by TMDb billing order; directors by episode share
+    (series) then name; creators and genres by name."""
+    by_entity: dict[uuid.UUID, dict[str, list[tuple]]] = {}
+    for from_id, relation_type, metadata, target in edges:
+        by_entity.setdefault(from_id, {}).setdefault(relation_type, []).append((metadata, target))
+
+    items = []
+    for entity in entities:
+        rels = by_entity.get(entity.id, {})
+        directors = sorted(
+            rels.get("directed_by", []),
+            key=lambda r: (-(r[0].get("episode_count") or 0), r[1].title),
+        )
+        cast = sorted(rels.get("acted_in", []), key=lambda r: (r[0].get("order", 99), r[1].title))
+        creators = sorted(rels.get("creator", []), key=lambda r: r[1].title)
+        genres = sorted(rels.get("has_genre", []), key=lambda r: r[1].title)
+        items.append(GraphItem(
+            entity_type=entity.entity_type,
+            year=(entity.attributes or {}).get("year"),
+            directors=[_entity_ref(t) for _, t in directors],
+            creators=[_entity_ref(t) for _, t in creators],
+            cast=[_entity_ref(t) for _, t in cast],
+            genres=[_entity_ref(t) for _, t in genres],
+        ))
+    return items
 
 
 class ListService:
@@ -85,7 +122,7 @@ class ListService:
         return False
 
     async def get_list_detail(self, slug: str, current_user_id: uuid.UUID | None) -> ListDetail:
-        lst = await self.repo.get_by_slug(slug)
+        lst = await self.repo.get_detail_by_slug(slug)
         if not lst:
             raise NotFoundError(f"List '{slug}' not found")
 
@@ -112,8 +149,20 @@ class ListService:
         else:
             ordered.sort(key=lambda i: i.position)
 
-        items = [
-            ListItemPublic(
+        entities = [item.entity for item in ordered]
+        graph_rows = await self.repo.graph_edges_for_entities(
+            [e.id for e in entities], GRAPH_RELATION_TYPES
+        )
+        graph_items = _build_graph_items(entities, graph_rows)
+
+        items = []
+        for item, node in zip(ordered, graph_items):
+            if item.entity.entity_type == "tv_series":
+                director = (node.creators or node.directors or [None])[0]
+            else:
+                director = (node.directors or node.creators or [None])[0]
+            ranking = item.entity.ranking
+            items.append(ListItemPublic(
                 id=item.id,
                 position=item.position,
                 note=item.note,
@@ -125,16 +174,16 @@ class ListService:
                 is_own=(current_user_id == item.added_by_user_id) if current_user_id else False,
                 can_remove=is_owner or (current_user_id == item.added_by_user_id if current_user_id else False),
                 my_vote=my_votes.get(item.id),
-                entity=EntityMini(
-                    id=item.entity.id,
-                    slug=item.entity.slug,
-                    title=item.entity.title,
-                    entity_type=item.entity.entity_type,
-                    poster_path=item.entity.attributes.get("poster_path"),
-                ),
-            )
-            for item in ordered
-        ]
+                entity=_entity_mini(item.entity),
+                year=node.year,
+                director=director,
+                lead_actor=node.cast[0] if node.cast else None,
+                genres=node.genres,
+                composite_score=ranking.computed_score if ranking else None,
+            ))
+
+        cast_depth = settings.list_graph_cast_depth
+        priority = [p.strip() for p in settings.list_graph_edge_priority.split(",") if p.strip()]
 
         return ListDetail(
             id=lst.id,
@@ -153,11 +202,21 @@ class ListService:
             comment_count=lst.comment_count,
             follower_count=lst.follower_count,
             created_at=lst.created_at,
+            updated_at=lst.updated_at,
             owner_username=lst.owner.username if lst.owner else None,
             items=items,
             is_liked=is_liked,
             is_following=is_following,
             is_owner=is_owner,
+            edges=compute_edges(
+                graph_items, priority, cast_depth, settings.list_graph_max_genres_per_edge
+            ),
+            backlinks=compute_backlinks(graph_items, cast_depth),
+            dna=compute_dna(
+                graph_items, cast_depth,
+                settings.list_graph_hub_limit, settings.list_graph_hub_min_items,
+            ) if graph_items else None,
+            battle_pair=pick_battle_pair(graph_items, cast_depth),
         )
 
     async def update_list(self, user_id: uuid.UUID, slug: str, payload: ListUpdate) -> UserList:
@@ -210,16 +269,7 @@ class ListService:
         already be eager-loaded (see ListRepository.discover)."""
         summary = ListSummary.model_validate(lst)
         summary.owner_username = lst.owner.username if lst.owner else None
-        summary.preview_items = [
-            EntityMini(
-                id=item.entity.id,
-                slug=item.entity.slug,
-                title=item.entity.title,
-                entity_type=item.entity.entity_type,
-                poster_path=item.entity.attributes.get("poster_path"),
-            )
-            for item in lst.items[:3]
-        ]
+        summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:3]]
         return summary
 
     # --- Items ---
@@ -246,6 +296,7 @@ class ListService:
         item = await self.repo.add_item(
             lst.id, entity.id, entity.entity_type, payload.note, position, added_by_user_id=user_id
         )
+        await self.repo.touch(lst.id)
         await self.db.commit()
 
         return ListItemPublic(
@@ -256,10 +307,7 @@ class ListService:
             added_by_user_id=item.added_by_user_id,
             is_own=True,
             can_remove=True,
-            entity=EntityMini(
-                id=entity.id, slug=entity.slug, title=entity.title,
-                entity_type=entity.entity_type, poster_path=entity.attributes.get("poster_path"),
-            ),
+            entity=_entity_mini(entity),
         )
 
     async def remove_item(self, user_id: uuid.UUID, slug: str, item_id: uuid.UUID) -> None:
@@ -277,6 +325,7 @@ class ListService:
             raise UnauthorizedError("You don't have permission to remove this item")
 
         await self.repo.remove_item(item)
+        await self.repo.touch(lst.id)
         await self.db.commit()
 
     async def reorder_items(self, user_id: uuid.UUID, slug: str, item_ids: list[uuid.UUID]) -> None:
@@ -287,6 +336,7 @@ class ListService:
             raise UnauthorizedError("You don't have permission to edit this list")
 
         await self.repo.reorder_items(lst.id, item_ids)
+        await self.repo.touch(lst.id)
         await self.db.commit()
 
     # --- Item likes (community_ordered scoring) ---
@@ -388,15 +438,33 @@ class ListService:
 
     # --- Related lists ---
 
-    async def get_related_lists(self, slug: str) -> list[ListSummary]:
+    async def get_related_lists(self, slug: str) -> list[RelatedListSummary]:
+        """Public lists that share items with this one (most shared first),
+        topped up with lists sharing a tag. Every result carries its reason;
+        a list with neither overlap isn't related and isn't returned."""
         lst = await self.repo.get_by_slug(slug)
         if not lst:
             raise NotFoundError(f"List '{slug}' not found")
-        related = await self.repo.find_related(lst.id, lst.entity_type, lst.tags)
-        if not related:
-            # fallback: اگه هم‌پوشانی تگ/نوع پیدا نشد، هر لیست عمومی دیگه‌ای رو نشون بده
-            related = await self.repo.find_related(lst.id, None, [])
-        return [self._to_summary_with_preview(r) for r in related]
+        limit = settings.list_related_limit
+
+        shared_counts = dict(await self.repo.lists_sharing_items(
+            lst.id, [item.entity_id for item in lst.items], limit
+        ))
+        by_items = await self.repo.get_many_with_items(list(shared_counts))
+        by_items.sort(key=lambda r: (-shared_counts[r.id], -r.like_count))
+
+        own_tags = lst.tags or []
+        by_tags = await self.repo.lists_sharing_tags(
+            [lst.id, *shared_counts], own_tags, limit - len(by_items)
+        )
+
+        results = []
+        for related in [*by_items, *by_tags]:
+            summary = RelatedListSummary(**self._to_summary_with_preview(related).model_dump())
+            summary.shared_item_count = shared_counts.get(related.id, 0)
+            summary.shared_tag = next((t for t in own_tags if t in (related.tags or [])), None)
+            results.append(summary)
+        return results
 
     async def get_lists_containing_entity(self, entity_id: uuid.UUID) -> list[ListSummary]:
         lists = await self.repo.find_lists_containing_entity(entity_id)
@@ -446,13 +514,7 @@ class ListService:
         reason_label = RELATION_LABELS_FA.get(relation_type, RELATION_LABEL_FALLBACK_FA)
         return [
             ListItemSuggestion(
-                entity=EntityMini(
-                    id=c.id,
-                    slug=c.slug,
-                    title=c.title,
-                    entity_type=c.entity_type,
-                    poster_path=c.attributes.get("poster_path"),
-                ),
+                entity=_entity_mini(c),
                 reason=relation_type,
                 reason_label_fa=f"{reason_label}: {target_title}",
             )

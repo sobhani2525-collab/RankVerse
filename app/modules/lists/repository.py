@@ -5,9 +5,16 @@ from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.entities.models import Entity, RelationshipEdge
 from app.modules.lists.models import (
     UserList, UserListItem, ListLike, ListFollow, ListComment, ListItemLike
 )
+
+# UserList.updated_at has onupdate=func.now(), which also fires on these
+# Core UPDATEs -- so a view/like/follow/comment counter bump would read as
+# "the list was just edited" (the list page's freshness badge). Setting the
+# column to itself keeps it untouched; real edits go through touch().
+_KEEP_UPDATED_AT = {"updated_at": UserList.updated_at}
 
 
 class ListRepository:
@@ -33,6 +40,52 @@ class ListRepository:
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_detail_by_slug(self, slug: str) -> UserList | None:
+        """get_by_slug plus each item entity's ranking row (for the
+        composite score on the list detail page)."""
+        stmt = (
+            select(UserList)
+            .options(
+                selectinload(UserList.items)
+                .selectinload(UserListItem.entity)
+                .selectinload(Entity.ranking),
+                selectinload(UserList.owner),
+            )
+            .where(UserList.slug == slug)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def graph_edges_for_entities(
+        self, entity_ids: list[uuid.UUID], relation_types: list[str]
+    ) -> list[tuple[uuid.UUID, str, dict, Entity]]:
+        """Every outgoing (relation_type) edge of the given entities, with
+        its target entity, in one query -- (from_entity_id, relation_type,
+        edge_metadata, target)."""
+        if not entity_ids:
+            return []
+        stmt = (
+            select(
+                RelationshipEdge.from_entity_id,
+                RelationshipEdge.relation_type,
+                RelationshipEdge.edge_metadata,
+                Entity,
+            )
+            .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+            .where(
+                RelationshipEdge.from_entity_id.in_(entity_ids),
+                RelationshipEdge.relation_type.in_(relation_types),
+            )
+        )
+        result = await self.db.execute(stmt)
+        return [(row[0], row[1], row[2] or {}, row[3]) for row in result.all()]
+
+    async def touch(self, list_id: uuid.UUID) -> None:
+        """Mark the list as edited (items added/removed/reordered)."""
+        await self.db.execute(
+            update(UserList).where(UserList.id == list_id).values(updated_at=func.now())
+        )
 
     async def get_by_id(self, list_id: uuid.UUID) -> UserList | None:
         return await self.db.get(UserList, list_id)
@@ -179,7 +232,7 @@ class ListRepository:
         like = ListLike(list_id=list_id, user_id=user_id)
         self.db.add(like)
         await self.db.execute(
-            update(UserList).where(UserList.id == list_id).values(like_count=UserList.like_count + 1)
+            update(UserList).where(UserList.id == list_id).values(like_count=UserList.like_count + 1, **_KEEP_UPDATED_AT)
         )
         await self.db.flush()
         return like
@@ -187,7 +240,7 @@ class ListRepository:
     async def remove_like(self, like: ListLike) -> None:
         await self.db.delete(like)
         await self.db.execute(
-            update(UserList).where(UserList.id == like.list_id).values(like_count=UserList.like_count - 1)
+            update(UserList).where(UserList.id == like.list_id).values(like_count=UserList.like_count - 1, **_KEEP_UPDATED_AT)
         )
 
     # --- Item likes (per-item, distinct from the whole-list ListLike above) ---
@@ -260,7 +313,7 @@ class ListRepository:
         follow = ListFollow(list_id=list_id, user_id=user_id)
         self.db.add(follow)
         await self.db.execute(
-            update(UserList).where(UserList.id == list_id).values(follower_count=UserList.follower_count + 1)
+            update(UserList).where(UserList.id == list_id).values(follower_count=UserList.follower_count + 1, **_KEEP_UPDATED_AT)
         )
         await self.db.flush()
         return follow
@@ -268,7 +321,7 @@ class ListRepository:
     async def remove_follow(self, follow: ListFollow) -> None:
         await self.db.delete(follow)
         await self.db.execute(
-            update(UserList).where(UserList.id == follow.list_id).values(follower_count=UserList.follower_count - 1)
+            update(UserList).where(UserList.id == follow.list_id).values(follower_count=UserList.follower_count - 1, **_KEEP_UPDATED_AT)
         )
 
     # --- Comments ---
@@ -279,7 +332,7 @@ class ListRepository:
         )
         self.db.add(comment)
         await self.db.execute(
-            update(UserList).where(UserList.id == list_id).values(comment_count=UserList.comment_count + 1)
+            update(UserList).where(UserList.id == list_id).values(comment_count=UserList.comment_count + 1, **_KEEP_UPDATED_AT)
         )
         await self.db.flush()
         return comment
@@ -295,27 +348,66 @@ class ListRepository:
 
     async def increment_view(self, list_id: uuid.UUID) -> None:
         await self.db.execute(
-            update(UserList).where(UserList.id == list_id).values(view_count=UserList.view_count + 1)
+            update(UserList).where(UserList.id == list_id).values(view_count=UserList.view_count + 1, **_KEEP_UPDATED_AT)
         )
 
-    async def find_related(
-        self, list_id: uuid.UUID, entity_type: str | None, tags: list[str], limit: int = 6
-    ) -> list[UserList]:
-        stmt = select(UserList).where(
-            UserList.visibility == "public",
-            UserList.id != list_id,
-        )
-        if entity_type:
-            stmt = stmt.where(UserList.entity_type == entity_type)
-        if tags:
-            stmt = stmt.where(UserList.tags.op("?|")(sa_array(tags)))
+    async def lists_sharing_items(
+        self, list_id: uuid.UUID, entity_ids: list[uuid.UUID], limit: int
+    ) -> list[tuple[uuid.UUID, int]]:
+        """Other public lists holding any of entity_ids, most shared first:
+        (list_id, shared_item_count)."""
+        if not entity_ids:
+            return []
+        shared = func.count(UserListItem.id)
         stmt = (
-            stmt.options(
+            select(UserListItem.list_id, shared)
+            .join(UserList, UserList.id == UserListItem.list_id)
+            .where(
+                UserListItem.entity_id.in_(entity_ids),
+                UserListItem.list_id != list_id,
+                UserList.visibility == "public",
+            )
+            .group_by(UserListItem.list_id, UserList.like_count)
+            .order_by(shared.desc(), UserList.like_count.desc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def lists_sharing_tags(
+        self, exclude_ids: list[uuid.UUID], tags: list[str], limit: int
+    ) -> list[UserList]:
+        """Public lists carrying any of tags (owner + items eager-loaded)."""
+        if not tags or limit <= 0:
+            return []
+        stmt = (
+            select(UserList)
+            .where(
+                UserList.visibility == "public",
+                UserList.id.notin_(exclude_ids),
+                UserList.tags.op("?|")(sa_array(tags)),
+            )
+            .options(
                 selectinload(UserList.owner),
                 selectinload(UserList.items).selectinload(UserListItem.entity),
             )
             .order_by(UserList.like_count.desc())
             .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_many_with_items(self, list_ids: list[uuid.UUID]) -> list[UserList]:
+        """Lists by id (owner + items eager-loaded), in no particular order."""
+        if not list_ids:
+            return []
+        stmt = (
+            select(UserList)
+            .where(UserList.id.in_(list_ids))
+            .options(
+                selectinload(UserList.owner),
+                selectinload(UserList.items).selectinload(UserListItem.entity),
+            )
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
