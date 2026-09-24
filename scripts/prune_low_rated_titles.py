@@ -16,8 +16,8 @@ CASCADE) -- the report lists how many of those each run would remove.
 Run from the repo root with the venv active, after `import_tmdb_catalog.py
 --existing` and `sync_imdb_ratings.py` (titles synced before imdb_id
 existed are left alone and reported, not judged):
-    python scripts/prune_low_rated_titles.py [--imdb-above 5]         # report only
-    python scripts/prune_low_rated_titles.py [--imdb-above 5] --yes   # delete
+    python scripts/prune_low_rated_titles.py [--imdb-above 5] [--tv-imdb-above 7]         # report only
+    python scripts/prune_low_rated_titles.py [--imdb-above 5] [--tv-imdb-above 7] --yes   # delete
 """
 import sys
 from pathlib import Path
@@ -38,7 +38,7 @@ LOW_RATED = f"""
     WHERE entity_type IN ('movie', 'tv_series')
       AND attributes ? 'overview_source'
       AND NOT {IRANIAN}
-      AND ({SCORE} IS NULL OR {SCORE} <= :floor)
+      AND ({SCORE} IS NULL OR {SCORE} <= CASE entity_type WHEN 'tv_series' THEN CAST(:tv_floor AS float) ELSE CAST(:floor AS float) END)
 """
 
 ORPHANS = """
@@ -54,10 +54,11 @@ ORPHANS = """
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--imdb-above", type=float, default=5.0, help="keep titles rated strictly above this (default 5)")
+    parser.add_argument("--imdb-above", type=float, default=5.0, help="keep movies rated strictly above this (default 5)")
+    parser.add_argument("--tv-imdb-above", type=float, default=7.0, help="the same for TV series (default 7)")
     parser.add_argument("--yes", action="store_true", help="actually delete (default: report only)")
     args = parser.parse_args()
-    params = {"floor": args.imdb_above}
+    params = {"floor": args.imdb_above, "tv_floor": args.tv_imdb_above}
 
     async with AsyncSessionLocal() as db:
         unjudged = (
@@ -91,7 +92,7 @@ async def main() -> None:
             )
         ).one()
 
-        print(f"{len(rows)} foreign title(s) rated <= {args.imdb_above}:")
+        print(f"{len(rows)} foreign title(s) at or below the floor (movies {args.imdb_above}, series {args.tv_imdb_above}):")
         for entity_type, title, year, imdb, tmdb in rows:
             score = f"IMDb {imdb}" if imdb else f"no IMDb rating, TMDb {tmdb}"
             print(f"  [{entity_type}] {title} ({year or '?'}) -- {score}")

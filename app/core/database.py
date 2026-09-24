@@ -37,6 +37,11 @@ def make_bulk_sessionmaker() -> async_sessionmaker[AsyncSession]:
         connect_args={
             "statement_cache_size": 0,
             "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
+            # Fail instead of hanging forever when the network drops mid-run
+            # (e.g. the machine went to sleep) -- a stuck connection otherwise
+            # stalls its worker indefinitely.
+            "timeout": 30,
+            "command_timeout": 120,
         },
     )
     return async_sessionmaker(bind=bulk_engine, class_=AsyncSession, expire_on_commit=False)
