@@ -23,7 +23,9 @@ TMDB_MAX_PAGES = 500
 CATALOG_START = date(1874, 1, 1)  # earliest dated entries on TMDb
 
 
-async def _discover_page(client: TMDbClient, kind: str, min_votes: int, start: date, end: date, page: int) -> dict:
+async def _discover_page(
+    client: TMDbClient, kind: str, min_votes: int, start: date, end: date, page: int, filters: dict
+) -> dict:
     if kind == "movie":
         return await client.discover_movies(
             page=page,
@@ -31,6 +33,7 @@ async def _discover_page(client: TMDbClient, kind: str, min_votes: int, start: d
             vote_count_gte=min_votes,
             release_date_gte=start.isoformat(),
             release_date_lte=end.isoformat(),
+            **filters,
         )
     return await client.discover_tv(
         page=page,
@@ -38,6 +41,7 @@ async def _discover_page(client: TMDbClient, kind: str, min_votes: int, start: d
         vote_count_gte=min_votes,
         first_air_date_gte=start.isoformat(),
         first_air_date_lte=end.isoformat(),
+        **filters,
     )
 
 
@@ -47,13 +51,17 @@ async def discover_catalog_ids(
     exclude_languages: frozenset[str] = frozenset({"fa"}),
     end: date | None = None,
     concurrency: int = 8,
+    filters: dict | None = None,
 ) -> dict[int, dict]:
     """
     Returns {tmdb_id: {"vote_count": ..., "original_language": ...}} for
     every `kind` ("movie" or "tv") title with vote_count >= min_votes whose
     original_language isn't in exclude_languages. Farsi-language titles are
-    excluded by default because bulk_sync_iranian already owns those.
+    excluded by default because they're imported separately (see
+    discover_iranian_ids). filters are extra discover params (e.g.
+    with_origin_country) applied to every request.
     """
+    filters = filters or {}
     if kind not in ("movie", "tv"):
         raise ValueError(f"kind must be 'movie' or 'tv', got {kind!r}")
     client = TMDbClient()
@@ -63,7 +71,7 @@ async def discover_catalog_ids(
 
     async def fetch(start: date, stop: date, page: int) -> dict:
         async with semaphore:
-            return await _discover_page(client, kind, min_votes, start, stop, page)
+            return await _discover_page(client, kind, min_votes, start, stop, page, filters)
 
     async def walk(start: date, stop: date) -> None:
         first = await fetch(start, stop, 1)
@@ -90,3 +98,19 @@ async def discover_catalog_ids(
 
     await walk(CATALOG_START, end)
     return found
+
+
+async def discover_iranian_ids(kind: str, min_votes: int) -> dict[int, dict]:
+    """
+    Iranian titles: Farsi-language OR produced in Iran. TMDb's discover
+    ANDs its filters, so (like SyncService.bulk_sync_iranian) the two are
+    queried separately and merged -- this catches Farsi titles made abroad
+    and Iranian productions in another language.
+    """
+    by_language = await discover_catalog_ids(
+        kind, min_votes, exclude_languages=frozenset(), filters={"with_original_language": "fa"}
+    )
+    by_country = await discover_catalog_ids(
+        kind, min_votes, exclude_languages=frozenset(), filters={"with_origin_country": "IR"}
+    )
+    return {**by_country, **by_language}

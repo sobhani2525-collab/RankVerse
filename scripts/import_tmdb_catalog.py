@@ -18,6 +18,9 @@ imdb_ratings.rating_above; a title with no IMDb rating falls back to its
 TMDb score). Skipped titles are simply fetched and re-checked again on
 the next run.
 
+--iranian imports Iranian titles instead (Farsi-language or produced in
+Iran), with no IMDb floor -- e.g. `--iranian --min-votes 1`.
+
 Set BULK_DATABASE_URL (see .env.example) to run with many workers;
 without it the worker count is capped so the live site keeps its DB
 connections.
@@ -48,7 +51,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.core.database import make_bulk_sessionmaker
 from app.modules.entities.models import Entity
-from app.modules.sync.catalog import discover_catalog_ids
+from app.modules.sync.catalog import discover_catalog_ids, discover_iranian_ids
 from app.modules.sync.imdb_ratings import download_ratings, load_ratings, rating_above
 from app.modules.sync.service import SyncService
 
@@ -178,7 +181,13 @@ async def sync_all(
 
 
 async def run(
-    kind: str, min_votes: int, workers: int, limit: int | None, existing: bool, accept: Callable[[dict], bool] | None
+    kind: str,
+    min_votes: int,
+    workers: int,
+    limit: int | None,
+    existing: bool,
+    accept: Callable[[dict], bool] | None,
+    iranian: bool = False,
 ) -> None:
     entity_type = ENTITY_TYPE[kind]
     have = await existing_tmdb_ids(entity_type)
@@ -188,7 +197,7 @@ async def run(
         print(f"[{kind}] re-syncing {len(todo)} existing title(s)", flush=True)
     else:
         print(f"[{kind}] discovering TMDb titles with >= {min_votes} votes...", flush=True)
-        catalog = await discover_catalog_ids(kind, min_votes)
+        catalog = await (discover_iranian_ids if iranian else discover_catalog_ids)(kind, min_votes)
         # Most-voted first, so a partial run has imported the titles people
         # are most likely to look for.
         todo = [
@@ -197,7 +206,7 @@ async def run(
             if tmdb_id not in have
         ]
         print(
-            f"[{kind}] {len(catalog)} non-Farsi title(s) on TMDb, {len(catalog) - len(todo)} already imported, "
+            f"[{kind}] {len(catalog)} {'Iranian' if iranian else 'non-Farsi'} title(s) on TMDb, {len(catalog) - len(todo)} already imported, "
             f"{len(todo)} to import",
             flush=True,
         )
@@ -226,6 +235,10 @@ async def main() -> None:
     )
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--limit", type=int, default=None, help="only sync the first N titles per kind (for a trial run)")
+    parser.add_argument(
+        "--iranian", action="store_true",
+        help="import Iranian titles (Farsi-language or produced in Iran) instead; no IMDb floor applies",
+    )
     parser.add_argument("--existing", action="store_true", help="re-sync titles synced before imdb_id/overview_source existed, instead of importing new ones")
     args = parser.parse_args()
     keep_system_awake()
@@ -241,7 +254,7 @@ async def main() -> None:
     kinds = ["movie", "tv"] if args.kind == "all" else [args.kind]
     floors = {"movie": args.imdb_above, "tv": args.tv_imdb_above}
     accepts: dict[str, Callable[[dict], bool] | None] = {kind: None for kind in kinds}
-    if not args.existing and any(floors[kind] >= 0 for kind in kinds):
+    if not args.existing and not args.iranian and any(floors[kind] >= 0 for kind in kinds):
         with tempfile.TemporaryDirectory() as tmp:
             print("downloading IMDb ratings dataset for the rating floor...", flush=True)
             ratings = load_ratings(await download_ratings(Path(tmp) / "title.ratings.tsv.gz"))
@@ -252,7 +265,7 @@ async def main() -> None:
                 accepts[kind] = rating_above(ratings, floors[kind])
 
     for kind in kinds:
-        await run(kind, args.min_votes, args.workers, args.limit, args.existing, accepts[kind])
+        await run(kind, args.min_votes, args.workers, args.limit, args.existing, accepts[kind], args.iranian)
 
 
 if __name__ == "__main__":
