@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HeroConstellation from "./HeroConstellation";
+import HeroGraphSearch from "./HeroGraphSearch";
 import { HomeTitle } from "@/lib/home-data";
 import { toFaDigits } from "@/lib/format-number";
 
@@ -13,7 +14,9 @@ export default function HomeHero({
   tvTotal: number | null;
 }) {
   return (
-    <section className="relative overflow-hidden border-b border-border/60 bg-[#070A12]">
+    // overflow-x-clip (not overflow-hidden) so the search dropdown can hang
+    // below the hero instead of being cut off.
+    <section className="relative overflow-x-clip border-b border-border/60 bg-[#070A12]">
       {/* Atmosphere: two faint nebulae, no data meaning. */}
       <div
         aria-hidden="true"
@@ -38,7 +41,9 @@ export default function HomeHero({
             جهان‌هایی‌اند که به هم وصل‌اند.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <HeroGraphSearch />
+
+          <div className="mt-6 flex flex-wrap gap-3">
             <Link href="#universe" className="btn-primary text-sm hover:opacity-90">
               کاوش در کهکشان
             </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SectionHeading from "./SectionHeading";
@@ -11,6 +11,7 @@ import { displayTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 import { detailPathFor } from "@/lib/entity-routes";
+import { GRAPH_FOCUS_EVENT, GRAPH_SECTION_ID, GraphFocusRequest } from "@/lib/graph-focus";
 
 type Kind = "movie" | "tv_series" | "person" | "genre" | "year";
 
@@ -148,29 +149,52 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
     return () => cancelAnimationFrame(id);
   }, [focus]);
 
-  async function open(sat: Satellite) {
-    if (sat.kind === "year" || !sat.slug || loadingKey) return;
-    const key = `${sat.kind}:${sat.slug}`;
+  // Bumped on every focus request so a slow earlier fetch can't land on
+  // top of a newer one (e.g. a hero search made while a node is loading).
+  const requestId = useRef(0);
+
+  const focusOn = useCallback(async (kind: Exclude<Kind, "year">, slug: string) => {
+    const key = `${kind}:${slug}`;
+    const id = ++requestId.current;
     setError(null);
-    const existingIndex = trail.findIndex((f) => `${f.kind}:${f.slug}` === key);
-    if (existingIndex >= 0) {
-      setTrail(trail.slice(0, existingIndex + 1));
-      return;
-    }
-    try {
-      let next = cache.current.get(key);
-      if (!next) {
-        setLoadingKey(key);
-        next = await loadFocus(sat.kind, sat.slug);
+    let next = cache.current.get(key);
+    if (!next) {
+      setLoadingKey(key);
+      try {
+        next = await loadFocus(kind, slug);
         cache.current.set(key, next);
+      } catch {
+        if (id === requestId.current) {
+          setError("دریافت اتصال‌های این گره ممکن نشد. دوباره امتحان کنید.");
+          setLoadingKey(null);
+        }
+        return;
       }
-      setTrail((t) => [...t, next!].slice(-6));
-    } catch {
-      setError("دریافت اتصال‌های این گره ممکن نشد. دوباره امتحان کنید.");
-    } finally {
-      setLoadingKey(null);
     }
+    if (id !== requestId.current) return;
+    setLoadingKey(null);
+    const found = next;
+    // Already on the path -> step back to it; otherwise extend the path.
+    setTrail((t) => {
+      const i = t.findIndex((f) => `${f.kind}:${f.slug}` === key);
+      return i >= 0 ? t.slice(0, i + 1) : [...t, found].slice(-6);
+    });
+  }, []);
+
+  function open(sat: Satellite) {
+    if (sat.kind === "year" || !sat.slug || loadingKey) return;
+    focusOn(sat.kind, sat.slug);
   }
+
+  // Requests from elsewhere on the page (the hero search box).
+  useEffect(() => {
+    function onRequest(e: Event) {
+      const { kind, slug } = (e as CustomEvent<GraphFocusRequest>).detail;
+      focusOn(kind, slug);
+    }
+    window.addEventListener(GRAPH_FOCUS_EVENT, onRequest);
+    return () => window.removeEventListener(GRAPH_FOCUS_EVENT, onRequest);
+  }, [focusOn]);
 
   const n = focus.satellites.length;
   const placed = focus.satellites.map((s, i) => {
@@ -181,7 +205,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
   const focusHref = detailPathFor(focus.kind, focus.slug);
 
   return (
-    <section id="universe" className="relative scroll-mt-20 overflow-hidden">
+    <section id={GRAPH_SECTION_ID} className="relative scroll-mt-20 overflow-hidden">
       <div className="mx-auto max-w-7xl px-6 py-24">
         <SectionHeading
           kicker="Everything is connected"
@@ -303,6 +327,13 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                 </Link>
               )}
             </div>
+
+            {loadingKey && (
+              <p role="status" className="flex items-center gap-2 text-sm text-muted">
+                <span className="h-2 w-2 animate-ping rounded-full bg-gold" aria-hidden="true" />
+                در حال دریافت اتصال‌ها…
+              </p>
+            )}
 
             {error && (
               <p role="alert" className="rounded-xl border border-gold/30 bg-gold/5 px-4 py-3 text-sm text-gold">
