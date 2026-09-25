@@ -159,6 +159,19 @@ export interface ListItem {
   genres?: EntityRef[];
   /** Only present when the entity has a ranking row -- never a placeholder. */
   composite_score?: number | null;
+  /** fa-IR synopsis, else the English one. */
+  overview?: string | null;
+}
+
+/** GET /lists/{slug}/candidates -- an entity the viewer could add, with the
+ * same graph fields as a ListItem so the add form can explain the link. */
+export interface ListCandidate {
+  entity: EntityMini;
+  year: number | null;
+  director: EntityRef | null;
+  lead_actor: EntityRef | null;
+  genres: EntityRef[];
+  overview: string | null;
 }
 
 /** Why display rank `from_rank` connects to `from_rank + 1`. */

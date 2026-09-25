@@ -6,7 +6,6 @@ import { ListViewerProvider } from "@/components/list-detail/ListViewerContext";
 import ListHero from "@/components/list-detail/ListHero";
 import ListDNA from "@/components/list-detail/ListDNA";
 import ListManageArea from "@/components/list-detail/ListManageArea";
-import ConstellationSpine from "@/components/list-detail/ConstellationSpine";
 import ListBattlePreview from "@/components/list-detail/ListBattlePreview";
 import { getListBySlug, getListComments } from "@/lib/api";
 import type { ListComment, ListDetail } from "@/lib/types";
@@ -41,9 +40,7 @@ export default async function ListDetailPage({
 
         <div className="flex flex-col gap-12 lg:flex-row lg:items-start lg:gap-14">
           <div className="min-w-0 flex-1">
-            <ListManageArea>
-              <ConstellationSpine detail={detail} />
-            </ListManageArea>
+            <ListManageArea />
           </div>
 
           <aside className="flex shrink-0 flex-col gap-10 lg:w-[380px] lg:gap-7">

@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { searchEntities, addListItem, SearchResult } from "@/lib/api";
 import SmartSuggestionChips from "./SmartSuggestionChips";
 import { entityTypeLabel } from "@/lib/constants";
 import { displayTitle } from "@/lib/title";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const SEARCHABLE_TYPES = ["movie", "tv_series", "person"];
 
@@ -40,32 +41,29 @@ export default function AddListItem({
   const [adding, setAdding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeType, setActiveType] = useState(entityType || "movie");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedQuery = useDebouncedValue(query, 350);
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (!query.trim()) {
+    if (!debouncedQuery.trim()) {
       setResults([]);
       return;
     }
-
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const items = await searchEntities(query, activeType);
-        setResults(items);
-      } catch {
-        setResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 350);
-
+    let cancelled = false;
+    setSearching(true);
+    searchEntities(debouncedQuery, activeType)
+      .then((items) => {
+        if (!cancelled) setResults(items);
+      })
+      .catch(() => {
+        if (!cancelled) setResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      cancelled = true;
     };
-  }, [query, activeType]);
+  }, [debouncedQuery, activeType]);
 
   function handleSelect(result: SearchResult) {
     if (isPending) {

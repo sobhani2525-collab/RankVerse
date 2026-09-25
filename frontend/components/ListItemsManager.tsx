@@ -9,6 +9,7 @@ import { entityTypeLabel } from "@/lib/constants";
 import { detailPathFor } from "@/lib/entity-routes";
 import EntityMedia from "@/components/entities/entity-media";
 import { toFaDigits } from "@/lib/format-number";
+import { ThumbsDownIcon, ThumbsUpIcon } from "@/components/list-detail/icons";
 
 // Mirrors the default in app/config.py (list_item_score_global_avg) so a
 // freshly-voted item can be re-sorted optimistically before the next full
@@ -233,31 +234,31 @@ export default function ListItemsManager({
                     <button
                       onClick={() => handleVote(item.id, true)}
                       disabled={votingId === item.id}
-                      className={`num flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition disabled:opacity-50 ${
+                      aria-pressed={item.my_vote === true}
+                      aria-label="پسندیدم"
+                      className={`num flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold transition-[background-color,border-color,color] duration-[160ms] disabled:opacity-50 ${
                         item.my_vote === true
-                          ? "border-teal/50 bg-teal/10 text-teal"
-                          : "border-border text-muted hover:border-teal/40"
+                          ? "border-[#4CC9A6] bg-[rgba(76,201,166,0.14)] text-[#4CC9A6]"
+                          : "border-[#2A3247] text-[#C9CFDC] hover:border-[#3A4560]"
                       }`}
                       title="پسندیدم"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M7 22V11m0 11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3m0 11h9.28a2 2 0 0 0 1.98-1.72l1.13-8A2 2 0 0 0 17.42 10H14V5a2 2 0 0 0-2-2l-3 7.5" />
-                      </svg>
+                      <ThumbsUpIcon size={14} fill={item.my_vote === true ? "rgba(76,201,166,0.35)" : "none"} />
                       {toFaDigits(item.like_count)}
                     </button>
                     <button
                       onClick={() => handleVote(item.id, false)}
                       disabled={votingId === item.id}
-                      className={`num flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition disabled:opacity-50 ${
+                      aria-pressed={item.my_vote === false}
+                      aria-label="نپسندیدم"
+                      className={`num flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold transition-[background-color,border-color,color] duration-[160ms] disabled:opacity-50 ${
                         item.my_vote === false
-                          ? "border-red-500/50 bg-red-500/10 text-red-400"
-                          : "border-border text-muted hover:border-red-500/40"
+                          ? "border-[#F07178] bg-[rgba(240,113,120,0.14)] text-[#F07178]"
+                          : "border-[#2A3247] text-[#C9CFDC] hover:border-[#3A4560]"
                       }`}
                       title="نپسندیدم"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M17 2v11m0-11h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-3m0-11H7.72a2 2 0 0 0-1.98 1.72l-1.13 8A2 2 0 0 0 6.58 14H10v5a2 2 0 0 0 2 2l3-7.5" />
-                      </svg>
+                      <ThumbsDownIcon size={14} fill={item.my_vote === false ? "rgba(240,113,120,0.35)" : "none"} />
                       {toFaDigits(item.dislike_count)}
                     </button>
                   </div>

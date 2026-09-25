@@ -5,16 +5,43 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { removeListItemVote, voteListItem } from "@/lib/api";
 import { toFaDigits } from "@/lib/format-number";
 import { useListViewer } from "./ListViewerContext";
+import { ThumbsDownIcon, ThumbsUpIcon } from "./icons";
 
 type VoteState = { like_count: number; dislike_count: number; my_vote: boolean | null };
 
+/** Tapping the active vote clears it; tapping the other one switches. */
+function nextState(state: VoteState, isLike: boolean): VoteState {
+  const my_vote = state.my_vote === isLike ? null : isLike;
+  const count = (vote: boolean) =>
+    (vote ? state.like_count : state.dislike_count) - (state.my_vote === vote ? 1 : 0) + (my_vote === vote ? 1 : 0);
+  return { like_count: count(true), dislike_count: count(false), my_vote };
+}
+
+const BUTTON =
+  "num flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] border text-sm font-bold transition-[background-color,border-color,color] duration-[160ms] disabled:cursor-default";
+const IDLE = "border-[#2A3247] bg-transparent text-[#C9CFDC] hover:border-[#3A4560]";
+const LIKED = "border-[#4CC9A6] bg-[rgba(76,201,166,0.14)] text-[#4CC9A6]";
+const DISLIKED = "border-[#F07178] bg-[rgba(240,113,120,0.14)] text-[#F07178]";
+
 /**
- * Like/dislike on a community-ordered list's item (same endpoints as
- * ListItemsManager). The viewer's own vote comes from the authed refetch
- * in ListViewerContext; after voting, the page refreshes so the spine
+ * An item's button row: like, dislike (the list-item votes, same endpoints
+ * as ListItemsManager) and whatever `trailing` holds (the battle link), all
+ * equal widths. A vote flips immediately and rolls back if the request
+ * fails. On a community-ordered list the page then refreshes so the spine
  * re-sorts by the new scores.
  */
-export default function ItemVoteButtons({ itemId, initial }: { itemId: string; initial: VoteState }) {
+export default function ItemVoteButtons({
+  itemId,
+  initial,
+  trailing,
+  pending = false,
+}: {
+  itemId: string;
+  initial: VoteState;
+  trailing?: React.ReactNode;
+  /** The item is still being saved (optimistic add) -- nothing to vote on yet. */
+  pending?: boolean;
+}) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const { slug, detail, refresh } = useListViewer();
@@ -31,24 +58,28 @@ export default function ItemVoteButtons({ itemId, initial }: { itemId: string; i
 
   async function vote(isLike: boolean) {
     const token = getToken();
-    if (!token || busy) return;
+    if (!token || busy || pending) return;
+    const prev = state;
+    setLocal(nextState(prev, isLike));
     setBusy(true);
     setError(null);
     try {
       const result =
-        state.my_vote === isLike
+        prev.my_vote === isLike
           ? await removeListItemVote(token, slug, itemId)
           : await voteListItem(token, slug, itemId, isLike);
       setLocal({ like_count: result.like_count, dislike_count: result.dislike_count, my_vote: result.my_vote });
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "خطا در ثبت رای");
+      if (detail.list_type === "community_ordered") refresh();
+    } catch {
+      setLocal(prev);
+      setError("رأی ثبت نشد. دوباره تلاش کن.");
     } finally {
       setBusy(false);
     }
   }
 
-  const base = "num flex h-11 min-w-[64px] items-center justify-center gap-1.5 rounded-[10px] border px-3 text-[13px] transition disabled:opacity-50 lg:h-10";
+  const liked = state.my_vote === true;
+  const disliked = state.my_vote === false;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -56,31 +87,28 @@ export default function ItemVoteButtons({ itemId, initial }: { itemId: string; i
         <button
           type="button"
           onClick={() => requireAuth(() => vote(true))}
-          disabled={busy}
-          aria-pressed={state.my_vote === true}
+          disabled={busy || pending}
+          aria-pressed={liked}
           aria-label="پسندیدم"
-          className={`${base} ${state.my_vote === true ? "border-teal/60 bg-teal/10 text-teal" : "border-border text-muted hover:border-teal/40"}`}
+          className={`${BUTTON} ${liked ? LIKED : IDLE}`}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M7 22V11m0 11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3m0 11h9.28a2 2 0 0 0 1.98-1.72l1.13-8A2 2 0 0 0 17.42 10H14V5a2 2 0 0 0-2-2l-3 7.5" />
-          </svg>
+          <ThumbsUpIcon fill={liked ? "rgba(76,201,166,0.35)" : "none"} />
           {toFaDigits(state.like_count)}
         </button>
         <button
           type="button"
           onClick={() => requireAuth(() => vote(false))}
-          disabled={busy}
-          aria-pressed={state.my_vote === false}
+          disabled={busy || pending}
+          aria-pressed={disliked}
           aria-label="نپسندیدم"
-          className={`${base} ${state.my_vote === false ? "border-red-500/50 bg-red-500/10 text-red-400" : "border-border text-muted hover:border-red-500/40"}`}
+          className={`${BUTTON} ${disliked ? DISLIKED : IDLE}`}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M17 2v11m0-11h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-3m0-11H7.72a2 2 0 0 0-1.98 1.72l-1.13 8A2 2 0 0 0 6.58 14H10v5a2 2 0 0 0 2 2l3-7.5" />
-          </svg>
+          <ThumbsDownIcon fill={disliked ? "rgba(240,113,120,0.35)" : "none"} />
           {toFaDigits(state.dislike_count)}
         </button>
+        {trailing}
       </div>
-      {error && <p className="text-xs text-gold">{error}</p>}
+      {error && <p className="text-xs text-[#F07178]" role="alert">{error}</p>}
     </div>
   );
 }

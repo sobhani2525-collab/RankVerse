@@ -1,14 +1,14 @@
 import Link from "next/link";
 import type { ListDetail } from "@/lib/types";
-import { toFaDigits } from "@/lib/format-number";
 import { relativeTimeFa } from "@/lib/relative-time";
-import { connectionCount, isUpdatedToday, TAG_CHIP } from "@/lib/list-constellation";
+import { isUpdatedToday, TAG_CHIP } from "@/lib/list-constellation";
 import { Chip, MonoLabel, RingDot } from "./ui";
 import ListHeroActions from "./ListHeroActions";
+import GraphCountLine from "./GraphCountLine";
 
-function kickerFor(detail: ListDetail): { en: string; fa: string } {
+function kickerFor(detail: ListDetail): { en: string; fa: string | null } {
   if (detail.list_type === "community_ordered") {
-    return { en: "USER LIST · COMMUNITY", fa: "لیست با ترتیب جمعی" };
+    return { en: "USER LIST · COMMUNITY", fa: null };
   }
   return detail.is_ranked
     ? { en: "USER LIST · RANKED", fa: "لیست رتبه‌دار کاربر" }
@@ -17,32 +17,23 @@ function kickerFor(detail: ListDetail): { en: string; fa: string } {
 
 export default function ListHero({ detail }: { detail: ListDetail }) {
   const kicker = kickerFor(detail);
-  const nodes = detail.items.length;
-  const links = connectionCount(detail);
   const updatedToday = detail.updated_at ? isUpdatedToday(detail.updated_at) : false;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-[18px] lg:gap-6">
       <div className="flex items-center gap-3 lg:gap-3.5">
         <RingDot />
-        <div className="flex flex-col gap-0.5 lg:gap-1">
+        <div className="flex flex-col items-start gap-0.5 text-start lg:gap-1">
           <MonoLabel className="text-dim" size="text-[11px] lg:text-xs">
             {kicker.en}
           </MonoLabel>
-          <span className="text-[13px] text-muted lg:text-[15px]">{kicker.fa}</span>
+          {kicker.fa && <span className="text-[13px] text-muted lg:text-[15px]">{kicker.fa}</span>}
         </div>
       </div>
 
-      <h1 className="text-[34px] font-black leading-[1.3] text-ink lg:text-[68px] lg:leading-[1.15]">
+      <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
         {detail.title}
-        {nodes > 0 && (
-          <>
-            <br />
-            <span className="text-dim">
-              {toFaDigits(nodes)} گره، {toFaDigits(links)} اتصال.
-            </span>
-          </>
-        )}
+        <GraphCountLine />
       </h1>
 
       {detail.description && (

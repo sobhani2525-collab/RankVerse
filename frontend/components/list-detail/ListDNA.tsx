@@ -49,7 +49,7 @@ export default function ListDNA({ dna, itemCount }: { dna: ListDna; itemCount: n
       aria-label="شناسنامه لیست"
       className="flex shrink-0 flex-col gap-[18px] rounded-[18px] border border-border bg-surface/85 p-5 lg:w-[380px] lg:gap-6 lg:rounded-[20px] lg:p-7"
     >
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-col items-start gap-1 text-start">
         <MonoLabel size="text-[11px] lg:text-xs">LIST DNA</MonoLabel>
         <span className="text-[13px] text-muted lg:text-sm">شناسنامه لیست</span>
       </div>
