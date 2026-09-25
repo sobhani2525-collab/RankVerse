@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.core.schemas import envelope, Meta
 from app.modules.entities.service import EntityService
 from app.modules.ranking.service import RankingService
+from app.modules.sync.dependencies import verify_internal_api_key
 
 router = APIRouter(tags=["ranking"])
 
@@ -61,7 +62,7 @@ async def tv_series_ranking_highlights(slug: str, db: AsyncSession = Depends(get
     return envelope(data=[h.model_dump() for h in highlights])
 
 
-@router.post("/internal/rankings/recompute")
+@router.post("/internal/rankings/recompute", dependencies=[Depends(verify_internal_api_key)])
 async def recompute_rankings(entity_type: str = "movie", db: AsyncSession = Depends(get_db)):
     """Internal-only endpoint to trigger a full ranking recompute (normally run by a scheduled job)."""
     service = RankingService(db)

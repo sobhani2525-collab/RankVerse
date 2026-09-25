@@ -80,3 +80,29 @@ def test_battle_adjustment_is_capped_at_battle_weight():
     # far past the +/-400 spread and the k threshold, still never beyond w
     assert svc.battle_adjustment(elo=3000.0, matches=100_000) <= 0.5
     assert svc.battle_adjustment(elo=0.0, matches=100_000) >= -0.5
+
+
+# --- /internal/rankings/recompute is internal-only ---
+
+async def test_recompute_endpoint_rejects_missing_or_wrong_key(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "internal_api_key", "correct-horse-battery-staple")
+    url = "/api/v1/internal/rankings/recompute?entity_type=movie"
+
+    res = await client.post(url)
+    assert res.status_code == 401
+    res = await client.post(url, headers={"X-Internal-API-Key": "wrong-key"})
+    assert res.status_code == 401
+
+
+async def test_recompute_endpoint_accepts_the_internal_key(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "internal_api_key", "correct-horse-battery-staple")
+    res = await client.post(
+        "/api/v1/internal/rankings/recompute?entity_type=movie",
+        headers={"X-Internal-API-Key": "correct-horse-battery-staple"},
+    )
+    assert res.status_code == 200
+    assert "recomputed" in res.json()["data"]
