@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { castBattleVote } from "@/lib/api";
-import type { ListBattlePair, ListItem } from "@/lib/types";
+import type { ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { entityHref, posterUrl } from "@/lib/list-constellation";
@@ -27,13 +27,7 @@ const BATTLE_TYPES = new Set(["movie", "tv_series"]);
  * same-type movie/tv_series pairs, since the backend rejects cross-type
  * matchups. Other rounds still count toward this local run.
  */
-export default function ListBattlePreview({
-  items,
-  pair,
-}: {
-  items: ListItem[];
-  pair: ListBattlePair | null;
-}) {
+export default function ListBattlePreview({ items }: { items: ListItem[] }) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   // Index (into items) of the current champion, and of the next challenger.
@@ -149,16 +143,13 @@ export default function ListBattlePreview({
 
         {error && <p className="text-xs text-gold">{error}</p>}
 
-        <div className="flex flex-wrap items-center gap-x-5">
-          <button
-            type="button"
-            onClick={restart}
-            className="flex min-h-[44px] items-center text-sm font-bold text-violet-light hover:text-ink"
-          >
-            ↻ دوباره از اول
-          </button>
-          {pair && <AllPairsLink pair={pair} items={items} />}
-        </div>
+        <button
+          type="button"
+          onClick={restart}
+          className="flex min-h-[44px] items-center self-start text-sm font-bold text-violet-light hover:text-ink"
+        >
+          ↻ دوباره از اول
+        </button>
       </section>
     );
   }
@@ -243,28 +234,6 @@ export default function ListBattlePreview({
         .
       </p>
       {error && <p className="text-xs text-gold">{error}</p>}
-
-      {pair && <AllPairsLink pair={pair} items={items} />}
     </section>
-  );
-}
-
-/** Continues on /battles from the backend's related pair for this list. */
-function AllPairsLink({ pair, items }: { pair: ListBattlePair; items: ListItem[] }) {
-  const left = items[pair.left_rank - 1];
-  const right = items[pair.right_rank - 1];
-  if (!left || !right) return null;
-  const params = new URLSearchParams({
-    category: pair.category,
-    left_id: left.entity.id,
-    right_id: right.entity.id,
-  });
-  return (
-    <Link
-      href={`/battles?${params.toString()}`}
-      className="flex min-h-[44px] items-center self-start text-sm font-bold text-violet-light hover:text-ink"
-    >
-      همه {toFaDigits(pair.pair_count)} جفت این لیست ←
-    </Link>
   );
 }
