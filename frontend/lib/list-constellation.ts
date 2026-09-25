@@ -73,42 +73,39 @@ export function isBattleable(entityType: string): boolean {
   return entityType === "movie" || entityType === "tv_series";
 }
 
-export interface BattleOpponent {
-  /** Index into the list's items. */
-  index: number;
-  kind: EdgeKind;
-  reason: string;
+/** Why two items belong in the same battle round, closest link first (tier 0 = shared director). */
+export function battleLink(a: ListItem, b: ListItem): { tier: number; kind: EdgeKind; reason: string } {
+  if (a.director && b.director?.id === a.director.id) {
+    return { tier: 0, kind: "people", reason: `هر دو ساخته ${a.director.title}` };
+  }
+  if (a.lead_actor && b.lead_actor?.id === a.lead_actor.id) {
+    return { tier: 1, kind: "people", reason: `${a.lead_actor.title} در هر دو` };
+  }
+  const bGenres = new Set((b.genres ?? []).map((g) => g.id));
+  const shared = (a.genres ?? []).filter((g) => bGenres.has(g.id));
+  if (shared.length > 0) {
+    return { tier: 2, kind: "genre", reason: `ژانر مشترک: ${shared.map((g) => genreLabel(g.title)).join("، ")}` };
+  }
+  return { tier: 3, kind: "none", reason: "بدون اتصال مستقیم" };
 }
 
 /**
- * Opponents for an in-page battle anchored on items[anchor], closest in
- * the graph first: shared director, then shared lead actor, then shared
- * genres, then no direct link -- ties keep list order. Only same-type
- * movie/tv_series items qualify, since /battles/vote rejects anything else.
+ * Indexes of the items an in-page battle started from items[anchor] runs
+ * through, closest to the anchor in the graph first (see battleLink) --
+ * ties keep list order. Only same-type movie/tv_series items qualify,
+ * since /battles/vote rejects anything else.
  */
-export function battleOpponents(items: ListItem[], anchor: number): BattleOpponent[] {
+export function battleOpponents(items: ListItem[], anchor: number): number[] {
   const a = items[anchor];
   if (!a || !isBattleable(a.entity.entity_type)) return [];
-  const anchorGenres = new Map((a.genres ?? []).map((g) => [g.id, g]));
-
-  const ranked = items.flatMap((item, index): (BattleOpponent & { tier: number })[] => {
-    if (index === anchor || item.entity.entity_type !== a.entity.entity_type) return [];
-    if (a.director && item.director?.id === a.director.id) {
-      return [{ tier: 0, index, kind: "people", reason: `هر دو ساخته ${a.director.title}` }];
-    }
-    if (a.lead_actor && item.lead_actor?.id === a.lead_actor.id) {
-      return [{ tier: 1, index, kind: "people", reason: `${a.lead_actor.title} در هر دو` }];
-    }
-    const shared = (item.genres ?? []).filter((g) => anchorGenres.has(g.id));
-    if (shared.length > 0) {
-      const names = shared.map((g) => genreLabel(g.title)).join("، ");
-      return [{ tier: 2, index, kind: "genre", reason: `ژانر مشترک: ${names}` }];
-    }
-    return [{ tier: 3, index, kind: "none", reason: "بدون اتصال مستقیم" }];
-  });
-
-  ranked.sort((x, y) => x.tier - y.tier || x.index - y.index);
-  return ranked.map(({ index, kind, reason }) => ({ index, kind, reason }));
+  return items
+    .flatMap((item, index) =>
+      index === anchor || item.entity.entity_type !== a.entity.entity_type
+        ? []
+        : [{ index, tier: battleLink(a, item).tier }]
+    )
+    .sort((x, y) => x.tier - y.tier || x.index - y.index)
+    .map((o) => o.index);
 }
 
 /** True when `iso` falls on today's date in Tehran. */
