@@ -128,6 +128,9 @@ class ListItemPublic(BaseModel):
     director: EntityRef | None = None
     lead_actor: EntityRef | None = None
     genres: list[EntityRef] = []
+    # The entity's synopsis: TMDb's fa-IR overview, else the English one
+    # (see sync/normalizer._overview_attrs).
+    overview: str | None = None
     # EntityRanking.computed_score -- None when the entity has no ranking
     # row yet; never filled in with a placeholder.
     composite_score: float | None = None
@@ -177,6 +180,18 @@ class ListDetail(ListSummary):
     backlinks: list[ListBacklink] = []
     dna: ListDna | None = None
     battle_pair: ListBattlePair | None = None
+
+class ListCandidate(BaseModel):
+    """An entity the viewer could add to a list (GET /lists/{slug}/candidates),
+    with the same graph fields as a ListItemPublic so the client can say how
+    it connects to the list and draw its edge once it's added."""
+    entity: EntityMini
+    year: int | None = None
+    director: EntityRef | None = None
+    lead_actor: EntityRef | None = None
+    genres: list[EntityRef] = []
+    overview: str | None = None
+
 
 class ListItemSuggestion(BaseModel):
     entity: EntityMini

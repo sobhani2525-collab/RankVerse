@@ -7,6 +7,7 @@ import { toFaDigits } from "@/lib/format-number";
 import ShareListButton from "@/components/ShareListButton";
 import ListEditPanel from "@/components/ListEditPanel";
 import { useListViewer } from "./ListViewerContext";
+import { HeartIcon } from "./icons";
 
 /**
  * Follow (primary), like (with count) and share, plus the owner's edit
@@ -75,26 +76,15 @@ export default function ListHeroActions() {
           type="button"
           onClick={() => requireAuth(doLike)}
           aria-pressed={liked}
-          aria-label={liked ? "لغو لایک" : "لایک"}
-          className={`flex h-12 items-center gap-2.5 rounded-xl border bg-surface px-4 text-[15px] text-ink transition lg:px-5 ${
-            liked ? "border-gold/60" : "border-border hover:border-gold/40"
+          aria-label={liked ? "لغو پسندیدن لیست" : "پسندیدن لیست"}
+          className={`num flex h-12 items-center gap-2.5 rounded-xl border px-4 text-sm font-bold transition-[background-color,border-color,color] duration-[160ms] lg:px-5 ${
+            liked
+              ? "border-gold bg-gold/[0.14] text-gold"
+              : "border-[#2A3247] bg-transparent text-[#C9CFDC] hover:border-[#3A4560]"
           }`}
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill={liked ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-gold"
-            aria-hidden="true"
-          >
-            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
-          </svg>
-          <span className="num">{toFaDigits(likeCount)}</span>
+          <HeartIcon fill={liked ? "rgba(232,179,74,0.35)" : "none"} />
+          {toFaDigits(likeCount)}
         </button>
 
         <ShareListButton slug={slug} title={detail.title} size={48} shape="square" />

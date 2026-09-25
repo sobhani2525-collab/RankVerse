@@ -28,36 +28,20 @@ function PosterFallback({ title }: { title: string }) {
   );
 }
 
-function ActionLinks({ rateHref, battleHref, className }: { rateHref: string; battleHref: string; className: string }) {
-  return (
-    <div className={className}>
-      <Link
-        href={rateHref}
-        className="flex h-11 flex-1 items-center justify-center rounded-[10px] border border-border text-[13px] text-ink transition hover:border-gold/50 lg:h-10 lg:flex-none"
-      >
-        امتیاز بده
-      </Link>
-      <Link
-        href={battleHref}
-        className="flex h-11 flex-1 items-center justify-center rounded-[10px] border border-violet-strong/60 text-[13px] text-violet-light transition hover:border-violet-light lg:h-10 lg:flex-none"
-      >
-        نبرد
-      </Link>
-    </div>
-  );
-}
-
 /** One list item on the constellation spine. */
 export default function ListNodeItem({
   item,
   backlink,
   battleHref,
-  communityVoting,
+  pending = false,
+  className = "",
 }: {
   item: ListItem;
   backlink?: ListBacklink;
   battleHref: string;
-  communityVoting: boolean;
+  /** Added optimistically and not saved yet. */
+  pending?: boolean;
+  className?: string;
 }) {
   const { entity } = item;
   const href = entityHref(entity.entity_type, entity.slug);
@@ -69,8 +53,8 @@ export default function ListNodeItem({
   );
   const genres = item.genres ?? [];
   const score = item.composite_score;
-  const rateable = isRateable(entity.entity_type) && !!href;
-  const rateHref = `${href}#rate`;
+  const battleable = isRateable(entity.entity_type);
+  const overview = item.overview?.trim();
 
   const posterBox = (
     <div className="relative aspect-[2/3] w-full overflow-hidden border-b border-border-soft bg-surface-2 lg:w-[104px] lg:shrink-0 lg:self-start lg:rounded-[10px] lg:border lg:border-border">
@@ -83,7 +67,7 @@ export default function ListNodeItem({
   );
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border-soft bg-surface lg:flex lg:gap-6 lg:rounded-[18px] lg:p-[22px]">
+    <article className={`overflow-hidden rounded-2xl border border-border-soft bg-surface lg:flex lg:gap-6 lg:rounded-[18px] lg:p-[22px] ${className}`}>
       {href ? (
         <Link href={href} aria-label={title} className="block lg:shrink-0">
           {posterBox}
@@ -93,8 +77,8 @@ export default function ListNodeItem({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-3.5 p-4 lg:gap-3 lg:p-0">
-        <div className="flex flex-col gap-1.5 lg:gap-3">
-          <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col items-start gap-1.5 text-start lg:gap-2.5">
+          <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-2 lg:gap-2.5">
               <MonoLabel size="text-[10px] lg:text-[11px]" className="text-gold">
                 {type.en}
@@ -109,18 +93,21 @@ export default function ListNodeItem({
             )}
           </div>
           {href ? (
-            <Link href={href} className="text-xl font-extrabold leading-[1.45] text-ink transition hover:text-gold lg:text-[25px] lg:leading-[1.35]">
+            <Link href={href} className="text-lg font-extrabold leading-[1.5] text-ink transition hover:text-gold lg:text-[22px] lg:leading-[1.4]">
               {title}
             </Link>
           ) : (
-            <span className="text-xl font-extrabold leading-[1.45] text-ink lg:text-[25px]">{title}</span>
+            <span className="text-lg font-extrabold leading-[1.5] text-ink lg:text-[22px] lg:leading-[1.4]">{title}</span>
+          )}
+          {overview && (
+            <p className="line-clamp-2 text-[13px] leading-[1.8] text-[#9AA3B8] lg:text-sm lg:leading-[1.8]">{overview}</p>
           )}
         </div>
 
         {(people.length > 0 || genres.length > 0 || item.year) && (
           <div className="flex flex-col gap-3.5 lg:flex-row lg:flex-wrap lg:gap-7 lg:pt-0.5">
             {people.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col items-start gap-2">
                 <RowLabel dot="bg-violet-light" en="PEOPLE" fa="آدم‌ها" />
                 <div className="flex flex-wrap gap-1.5">
                   {people.map((p) => (
@@ -133,7 +120,7 @@ export default function ListNodeItem({
             )}
             <div className="flex gap-5 lg:contents">
               {genres.length > 0 && (
-                <div className="flex flex-1 flex-col gap-2 lg:flex-none">
+                <div className="flex flex-1 flex-col items-start gap-2 lg:flex-none">
                   <RowLabel dot="bg-teal" en="GENRES" fa="ژانرها" />
                   <div className="flex flex-wrap gap-1.5">
                     {genres.map((g) => (
@@ -145,9 +132,9 @@ export default function ListNodeItem({
                 </div>
               )}
               {item.year ? (
-                <div className="flex shrink-0 flex-col gap-2">
+                <div className="flex shrink-0 flex-col items-start gap-2">
                   <RowLabel dot="bg-ink-dim" en="YEAR" fa="سال" />
-                  <Chip tone="self-start border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
+                  <Chip tone="border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
                     <span className="num">{toFaDigits(item.year)}</span>
                   </Chip>
                 </div>
@@ -157,11 +144,11 @@ export default function ListNodeItem({
         )}
 
         {item.note && (
-          <div className="flex flex-col gap-1 border-t border-border-soft pt-3 lg:flex-row lg:items-baseline lg:gap-2.5 lg:border-0 lg:pt-1">
+          <div className="flex flex-col items-start gap-1 border-t border-border-soft pt-3 text-start lg:border-0 lg:pt-1">
             <MonoLabel size="text-[10px]" className="shrink-0 text-dim">
               WHY HERE
             </MonoLabel>
-            <p className="whitespace-pre-line text-sm leading-[1.8] text-ink-dim lg:text-[15px]">{item.note}</p>
+            <p className="whitespace-pre-line text-[13px] leading-[1.8] text-ink-dim lg:text-sm lg:leading-[1.8]">{item.note}</p>
           </div>
         )}
 
@@ -181,30 +168,30 @@ export default function ListNodeItem({
           </a>
         )}
 
-        {communityVoting && (
-          <ItemVoteButtons
-            itemId={item.id}
-            initial={{ like_count: item.like_count, dislike_count: item.dislike_count, my_vote: item.my_vote }}
-          />
-        )}
-
-        {rateable && <ActionLinks rateHref={rateHref} battleHref={battleHref} className="flex gap-2 lg:hidden" />}
+        <ItemVoteButtons
+          itemId={item.id}
+          pending={pending}
+          initial={{ like_count: item.like_count, dislike_count: item.dislike_count, my_vote: item.my_vote }}
+          trailing={
+            battleable && (
+              <Link
+                href={battleHref}
+                className="flex h-11 min-w-0 flex-1 items-center justify-center rounded-[10px] border border-violet-strong/60 text-[13px] text-violet-light transition-[border-color,color] duration-[160ms] hover:border-violet-light"
+              >
+                نبرد
+              </Link>
+            )
+          }
+        />
       </div>
 
-      {(rateable || score != null) && (
-        <div className="hidden w-[118px] shrink-0 flex-col justify-between gap-4 border-r border-border-soft pr-5 lg:flex">
-          {score != null ? (
-            <div className="flex flex-col gap-1">
-              <MonoLabel size="text-[10px]" className="text-dim">
-                SCORE
-              </MonoLabel>
-              <span className="num text-right text-4xl font-extrabold leading-tight text-ink">{formatScore(score)}</span>
-              <span className="text-xs text-muted">امتیاز ترکیبی</span>
-            </div>
-          ) : (
-            <span />
-          )}
-          {rateable && <ActionLinks rateHref={rateHref} battleHref={battleHref} className="flex flex-col gap-2" />}
+      {score != null && (
+        <div className="hidden w-[118px] shrink-0 flex-col items-start gap-1 border-r border-border-soft pr-5 text-start lg:flex">
+          <MonoLabel size="text-[10px]" className="text-dim">
+            SCORE
+          </MonoLabel>
+          <span className="num text-4xl font-extrabold leading-tight text-ink">{formatScore(score)}</span>
+          <span className="text-xs text-muted">امتیاز ترکیبی</span>
         </div>
       )}
     </article>

@@ -1,4 +1,4 @@
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser, ListItem, ListCandidate } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -415,8 +415,20 @@ export async function addListItem(
   token: string,
   slug: string,
   payload: { entity_id: string; note?: string }
-) {
-  return authFetch(`/lists/${slug}/items`, token, { method: "POST", body: payload });
+): Promise<ListItem> {
+  return authFetch<ListItem>(`/lists/${slug}/items`, token, { method: "POST", body: payload });
+}
+
+/** Add-item form results: title matches for q, graph suggestions when q is empty. */
+export async function getListCandidates(
+  token: string,
+  slug: string,
+  type: "movie" | "tv_series",
+  q: string,
+  limit: number = 12
+): Promise<ListCandidate[]> {
+  const qs = new URLSearchParams({ type, q, limit: String(limit) });
+  return authFetch<ListCandidate[]>(`/lists/${slug}/candidates?${qs.toString()}`, token);
 }
 
 export async function removeListItem(token: string, slug: string, itemId: string) {

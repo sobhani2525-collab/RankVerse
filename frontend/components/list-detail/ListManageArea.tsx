@@ -3,17 +3,19 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import ListItemsManager from "@/components/ListItemsManager";
-import AddListItem from "@/components/AddListItem";
 import { useListViewer } from "./ListViewerContext";
+import ConstellationSpine from "./ConstellationSpine";
+import AddItemNode from "./AddItemNode";
 import { SectionHeading } from "./ui";
+import { PlusIcon } from "./icons";
 
 /**
- * The "NODES" section: shows the server-rendered spine (children), and
- * for viewers who can edit, swaps it for the existing ListItemsManager
- * (reorder/remove) and opens AddListItem. Leaving edit mode or adding an
- * item refreshes the page so the spine's edges are recomputed.
+ * The "NODES" section: the constellation spine with the add-item node at
+ * its end, and -- for viewers who can edit -- the existing
+ * ListItemsManager (reorder/remove) in place of the spine. Leaving edit
+ * mode refreshes the page so the spine's edges are recomputed.
  */
-export default function ListManageArea({ children }: { children: React.ReactNode }) {
+export default function ListManageArea() {
   const { token } = useAuth();
   const { requireAuth } = useAuthGate();
   const { slug, detail, following, refresh } = useListViewer();
@@ -29,14 +31,25 @@ export default function ListManageArea({ children }: { children: React.ReactNode
   // don't pre-validate it -- show the button for anything but owner_only and
   // let the backend's permission check surface the real answer post-login.
   const showAdd = token ? canAddAuthed : detail.contribution_mode !== "owner_only";
+  // An item still being saved has no real id yet to reorder or remove.
+  const savingItem = detail.items.some((i) => i.id.startsWith("temp-"));
 
   function toggleManaging() {
     if (managing) refresh();
     setManaging((v) => !v);
   }
 
-  const toolButton =
-    "flex h-11 items-center rounded-xl border px-3.5 text-[13px] transition lg:h-10";
+  function openAdd() {
+    requireAuth(() => {
+      if (managing) {
+        setManaging(false);
+        refresh();
+      }
+      setAdding(true);
+    });
+  }
+
+  const toolButton = "flex h-11 items-center gap-1.5 rounded-xl border px-3.5 text-[13px] font-bold transition";
 
   return (
     <section aria-labelledby="list-nodes-heading" className="flex flex-col">
@@ -47,23 +60,25 @@ export default function ListManageArea({ children }: { children: React.ReactNode
           aside={
             (canManage || showAdd) && (
               <div className="flex gap-2">
-                {showAdd && !adding && (
-                  <button
-                    type="button"
-                    onClick={() => requireAuth(() => setAdding(true))}
-                    className={`${toolButton} border-gold/40 text-gold hover:border-gold/70`}
-                  >
-                    + افزودن آیتم
-                  </button>
-                )}
                 {canManage && detail.items.length > 0 && (
                   <button
                     type="button"
                     onClick={toggleManaging}
+                    disabled={savingItem}
                     aria-pressed={managing}
-                    className={`${toolButton} border-border text-muted hover:border-teal/40 hover:text-teal`}
+                    className={`${toolButton} border-border font-normal text-muted hover:border-teal/40 hover:text-teal disabled:opacity-50`}
                   >
                     {managing ? "پایان ویرایش" : "مدیریت آیتم‌ها"}
+                  </button>
+                )}
+                {showAdd && (
+                  <button
+                    type="button"
+                    onClick={openAdd}
+                    className={`${toolButton} border-dashed border-[#4CC9A6] bg-[rgba(76,201,166,0.08)] text-[#4CC9A6] hover:bg-[rgba(76,201,166,0.14)]`}
+                  >
+                    <PlusIcon size={16} />
+                    افزودن آیتم
                   </button>
                 )}
               </div>
@@ -71,21 +86,6 @@ export default function ListManageArea({ children }: { children: React.ReactNode
           }
         />
       </div>
-
-      {adding && (
-        <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 p-4">
-          <AddListItem
-            slug={slug}
-            listId={detail.id}
-            itemCount={detail.items.length}
-            entityType={detail.entity_type}
-            onAdded={refresh}
-          />
-          <button type="button" onClick={() => setAdding(false)} className="self-start text-sm text-muted hover:text-ink">
-            بستن
-          </button>
-        </div>
-      )}
 
       {managing ? (
         <ListItemsManager
@@ -96,12 +96,10 @@ export default function ListManageArea({ children }: { children: React.ReactNode
           isOwner={detail.is_owner}
           initialItems={detail.items}
         />
-      ) : detail.items.length > 0 ? (
-        children
       ) : (
-        <div className="rounded-2xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-          این لیست هنوز آیتمی ندارد.
-        </div>
+        <ConstellationSpine
+          addSlot={showAdd && <AddItemNode open={adding} onOpen={openAdd} onClose={() => setAdding(false)} />}
+        />
       )}
     </section>
   );

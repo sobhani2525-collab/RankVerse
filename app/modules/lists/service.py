@@ -16,8 +16,9 @@ from app.modules.lists.graph import (
 from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
     ListItemPublic, EntityMini, EntityRef, CommentCreate, CommentPublic, ListItemVoteResult,
-    ListItemSuggestion, RelatedListSummary,
+    ListItemSuggestion, RelatedListSummary, ListCandidate,
 )
+from app.modules.search.router import find_entities_by_title
 from app.modules.taste.compute import ContributionStatsComputer
 
 # Relation types the list-detail constellation reads (see graph.py).
@@ -67,6 +68,32 @@ def _build_graph_items(entities: list, edges: list[tuple]) -> list[GraphItem]:
             genres=[_entity_ref(t) for _, t in genres],
         ))
     return items
+
+
+def _item_graph_fields(entity, node: GraphItem) -> dict:
+    """The per-item graph fields shown on a list card (and on an add-item
+    candidate): a series' creator when it has one, else the (first)
+    director; the top-billed actor; genres; the synopsis."""
+    if entity.entity_type == "tv_series":
+        director = (node.creators or node.directors or [None])[0]
+    else:
+        director = (node.directors or node.creators or [None])[0]
+    return {
+        "year": node.year,
+        "director": director,
+        "lead_actor": node.cast[0] if node.cast else None,
+        "genres": node.genres,
+        "overview": (entity.attributes or {}).get("overview") or None,
+    }
+
+
+def _shares_director_or_lead(a: dict, b: dict) -> bool:
+    """Same rule as the add form's reason line (lib/list-constellation.ts):
+    same director, or same lead actor."""
+    return any(
+        a[key] is not None and b[key] is not None and a[key].id == b[key].id
+        for key in ("director", "lead_actor")
+    )
 
 
 class ListService:
@@ -157,10 +184,6 @@ class ListService:
 
         items = []
         for item, node in zip(ordered, graph_items):
-            if item.entity.entity_type == "tv_series":
-                director = (node.creators or node.directors or [None])[0]
-            else:
-                director = (node.directors or node.creators or [None])[0]
             ranking = item.entity.ranking
             items.append(ListItemPublic(
                 id=item.id,
@@ -175,10 +198,7 @@ class ListService:
                 can_remove=is_owner or (current_user_id == item.added_by_user_id if current_user_id else False),
                 my_vote=my_votes.get(item.id),
                 entity=_entity_mini(item.entity),
-                year=node.year,
-                director=director,
-                lead_actor=node.cast[0] if node.cast else None,
-                genres=node.genres,
+                **_item_graph_fields(item.entity, node),
                 composite_score=ranking.computed_score if ranking else None,
             ))
 
@@ -309,6 +329,54 @@ class ListService:
             can_remove=True,
             entity=_entity_mini(entity),
         )
+
+    async def _to_candidates(self, entities: list) -> list[ListCandidate]:
+        rows = await self.repo.graph_edges_for_entities([e.id for e in entities], GRAPH_RELATION_TYPES)
+        nodes = _build_graph_items(entities, rows)
+        return [
+            ListCandidate(entity=_entity_mini(e), **_item_graph_fields(e, node))
+            for e, node in zip(entities, nodes)
+        ]
+
+    async def get_candidates(
+        self, user_id: uuid.UUID, slug: str, entity_type: str, q: str, limit: int
+    ) -> list[ListCandidate]:
+        """What the add-item form offers: title matches for `q`, or -- with
+        an empty query -- graph suggestions: entities of `entity_type` whose
+        director or lead actor is also one of a list item's, most-connected
+        first. Items already in the list are never offered."""
+        lst = await self.repo.get_by_slug(slug)
+        if not lst:
+            raise NotFoundError(f"List '{slug}' not found")
+        is_following = False
+        if user_id != lst.user_id and lst.contribution_mode == ContributionMode.FOLLOWERS_ONLY:
+            is_following = (await self.repo.get_follow(lst.id, user_id)) is not None
+        if not self._can_add_item(lst, user_id, is_following):
+            raise UnauthorizedError("You don't have permission to add items to this list")
+
+        in_list = set(await self.repo.list_item_entity_ids(lst.id))
+        if q.strip():
+            found = await find_entities_by_title(self.db, q, entity_type, limit + len(in_list))
+            return await self._to_candidates([e for e in found if e.id not in in_list][:limit])
+
+        list_fields = [
+            {"director": c.director, "lead_actor": c.lead_actor}
+            for c in await self._to_candidates(await self.repo.entities_by_ids(list(in_list)))
+        ]
+        people = {
+            ref.id for f in list_fields for ref in (f["director"], f["lead_actor"]) if ref is not None
+        }
+        pool = await self.repo.entities_linked_to_people(
+            people, entity_type, in_list, settings.list_candidate_pool_size
+        )
+        scored = []
+        for candidate in await self._to_candidates(pool):
+            fields = {"director": candidate.director, "lead_actor": candidate.lead_actor}
+            connected = sum(1 for f in list_fields if _shares_director_or_lead(fields, f))
+            if connected:
+                scored.append((connected, candidate))
+        scored.sort(key=lambda pair: (-pair[0], pair[1].entity.title))
+        return [candidate for _, candidate in scored[:limit]]
 
     async def remove_item(self, user_id: uuid.UUID, slug: str, item_id: uuid.UUID) -> None:
         lst = await self.repo.get_by_slug(slug)

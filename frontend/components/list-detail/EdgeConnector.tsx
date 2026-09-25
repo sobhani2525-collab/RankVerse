@@ -7,11 +7,11 @@ import { Chip, MonoLabel } from "./ui";
  * The gap between two spine items: a ring node sitting on the spine line
  * (colored by the edge kind) with why the two items are connected.
  */
-export default function EdgeConnector({ edge }: { edge: ListEdge }) {
+export default function EdgeConnector({ edge, className = "" }: { edge: ListEdge; className?: string }) {
   const style = EDGE_STYLES[edge.kind];
 
   return (
-    <div className="flex gap-3 lg:gap-6">
+    <div className={`flex gap-3 lg:gap-6 ${className}`}>
       <div className="flex w-9 shrink-0 flex-col items-center lg:w-[52px]" aria-hidden="true">
         <div className={`w-0 flex-1 border-r-2 ${style.line}`} />
         <span

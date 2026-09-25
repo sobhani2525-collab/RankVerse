@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,6 +112,22 @@ async def add_item(
     service = ListService(db)
     item = await service.add_item(current_user.id, slug, payload)
     return envelope(data=item.model_dump())
+
+
+@router.get("/lists/{slug}/candidates")
+async def get_item_candidates(
+    slug: str,
+    type: Literal["movie", "tv_series"] = Query("movie"),
+    q: str = Query("", max_length=200),
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add-item form results: title matches for q, or graph suggestions when
+    q is empty (see ListService.get_candidates)."""
+    service = ListService(db)
+    candidates = await service.get_candidates(current_user.id, slug, type, q, limit)
+    return envelope(data=[c.model_dump() for c in candidates])
 
 
 @router.delete("/lists/{slug}/items/{item_id}")

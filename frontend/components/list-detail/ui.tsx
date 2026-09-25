@@ -36,7 +36,7 @@ export function SectionHeading({
 }) {
   return (
     <div className="flex items-end justify-between gap-3">
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col items-start gap-1 text-start">
         <MonoLabel className={tone}>{en}</MonoLabel>
         <h2 className="text-lg font-extrabold text-ink lg:text-[22px]">{fa}</h2>
       </div>

@@ -42,6 +42,35 @@ def _escape_like(s: str) -> str:
     return s.replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
 
 
+async def find_entities_by_title(
+    db: AsyncSession, q: str, entity_type: str | None, limit: int
+) -> list[Entity]:
+    """ILIKE on the entity's English title and its Persian title
+    (attributes.title_fa), prefix matches first -- shared by /search and the
+    list add-item candidates (ListService.get_candidates)."""
+    term = _escape_like(" ".join(q.translate(_FOLD_TABLE).split()))
+    if not term:
+        return []
+
+    title = _fold_sql(Entity.title)
+    title_fa = _fold_sql(_title_fa_sql())
+
+    stmt = select(Entity).where(
+        or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%"))
+    )
+    if entity_type:
+        stmt = stmt.where(Entity.entity_type == entity_type)
+    stmt = stmt.order_by(
+        case(
+            (or_(title.ilike(f"{term}%"), title_fa.ilike(f"{term}%")), 0),
+            else_=1,
+        ),
+        func.length(Entity.title),
+    ).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
 @router.get("/search")
 async def search(
     q: str = Query(min_length=1),
@@ -60,27 +89,7 @@ async def search(
     an item to a movie-only list) -- omitting it searches across every
     entity_type, which is what the global site search box does.
     """
-    term = _escape_like(" ".join(q.translate(_FOLD_TABLE).split()))
-    if not term:
-        return envelope(data=[])
-
-    title = _fold_sql(Entity.title)
-    title_fa = _fold_sql(_title_fa_sql())
-
-    stmt = select(Entity).where(
-        or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%"))
-    )
-    if type:
-        stmt = stmt.where(Entity.entity_type == type)
-    stmt = stmt.order_by(
-        case(
-            (or_(title.ilike(f"{term}%"), title_fa.ilike(f"{term}%")), 0),
-            else_=1,
-        ),
-        func.length(Entity.title),
-    ).limit(limit)
-    result = await db.execute(stmt)
-    entities = result.scalars().all()
+    entities = await find_entities_by_title(db, q, type, limit)
 
     return envelope(
         data=[

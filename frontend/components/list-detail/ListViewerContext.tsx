@@ -13,6 +13,10 @@ import type { ListDetail } from "@/lib/types";
  *
  * The follower/like counts live here too, so the hero buttons and the
  * DNA's follower stat move together on an optimistic toggle.
+ *
+ * The spine and the hero's graph line render from `detail` here, so an
+ * item added from the add form appears (and animates in) immediately via
+ * setItemsDetail; the next refetch swaps in the server's edges/backlinks.
  */
 interface ListViewerState {
   slug: string;
@@ -25,7 +29,15 @@ interface ListViewerState {
   setFollow: (following: boolean, followerCount: number) => void;
   /** Re-render the server components (after an edit) and refetch. */
   refresh: () => void;
+  /** Replace the items/edges/backlinks locally (optimistic add, or its rollback). */
+  setItemsDetail: React.Dispatch<React.SetStateAction<ListDetail>>;
+  /** Entity id of the item that just joined the spine, while its entrance animates. */
+  justAddedEntityId: string | null;
+  markJustAdded: (entityId: string) => void;
 }
+
+// Long enough for the whole entrance (the edge fade is 420ms + 120ms delay).
+const JUST_ADDED_MS = 700;
 
 const ListViewerContext = createContext<ListViewerState | null>(null);
 
@@ -47,6 +59,19 @@ export function ListViewerProvider({
     following: initialDetail.is_following,
     followerCount: initialDetail.follower_count,
   });
+
+  const [justAddedEntityId, setJustAddedEntityId] = useState<string | null>(null);
+  const justAddedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (justAddedTimer.current) clearTimeout(justAddedTimer.current);
+  }, []);
+
+  const markJustAdded = useCallback((entityId: string) => {
+    if (justAddedTimer.current) clearTimeout(justAddedTimer.current);
+    setJustAddedEntityId(entityId);
+    // Drop the animation classes once they've run so nothing replays.
+    justAddedTimer.current = setTimeout(() => setJustAddedEntityId(null), JUST_ADDED_MS);
+  }, []);
 
   const applyDetail = useCallback((next: ListDetail) => {
     setDetail(next);
@@ -93,6 +118,9 @@ export function ListViewerProvider({
     setLike: (liked, likeCount) => setSocial((s) => ({ ...s, liked, likeCount })),
     setFollow: (following, followerCount) => setSocial((s) => ({ ...s, following, followerCount })),
     refresh: () => router.refresh(),
+    setItemsDetail: setDetail,
+    justAddedEntityId,
+    markJustAdded,
   };
 
   return <ListViewerContext.Provider value={value}>{children}</ListViewerContext.Provider>;
