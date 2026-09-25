@@ -1,6 +1,7 @@
 import type { EntityRef, ListBacklink, ListCandidate, ListDetail, ListEdge, ListItem } from "./types";
 import { toFaDigits } from "./format-number";
 import { detailPathFor } from "./entity-routes";
+import { genreLabel } from "./genre-labels";
 
 /**
  * Shared helpers for the list detail "constellation" page
@@ -70,29 +71,47 @@ export function connectionCount(detail: ListDetail): number {
   return linked + (detail.backlinks ?? []).length;
 }
 
+/** Entity types /battles/vote accepts. Mirrors BATTLE_TYPES in app/modules/lists/graph.py. */
+export function isBattleable(entityType: string): boolean {
+  return entityType === "movie" || entityType === "tv_series";
+}
+
+export interface BattleOpponent {
+  /** Index into the list's items. */
+  index: number;
+  kind: EdgeKind;
+  reason: string;
+}
+
 /**
- * /battles link for one item's "نبرد" button: against the item it's
- * linked to on the spine (next, then previous), else the nearest other
- * item of the same type. Falls back to a plain category battle when the
- * list has nothing of the same type to pair it with.
+ * Opponents for an in-page battle anchored on items[anchor], closest in
+ * the graph first: shared director, then shared lead actor, then shared
+ * genres, then no direct link -- ties keep list order. Only same-type
+ * movie/tv_series items qualify, since /battles/vote rejects anything else.
  */
-export function battleHrefFor(items: ListItem[], edges: ListEdge[], index: number): string {
-  const item = items[index];
-  const type = item.entity.entity_type;
-  const sameType = (i: number) => i >= 0 && i < items.length && i !== index && items[i].entity.entity_type === type;
+export function battleOpponents(items: ListItem[], anchor: number): BattleOpponent[] {
+  const a = items[anchor];
+  if (!a || !isBattleable(a.entity.entity_type)) return [];
+  const anchorGenres = new Map((a.genres ?? []).map((g) => [g.id, g]));
 
-  const candidates: number[] = [];
-  if (edges[index] && edges[index].kind !== "none") candidates.push(index + 1);
-  if (edges[index - 1] && edges[index - 1].kind !== "none") candidates.push(index - 1);
-  for (let d = 1; d < items.length; d++) candidates.push(index + d, index - d);
+  const ranked = items.flatMap((item, index): (BattleOpponent & { tier: number })[] => {
+    if (index === anchor || item.entity.entity_type !== a.entity.entity_type) return [];
+    if (a.director && item.director?.id === a.director.id) {
+      return [{ tier: 0, index, kind: "people", reason: `هر دو ساخته ${a.director.title}` }];
+    }
+    if (a.lead_actor && item.lead_actor?.id === a.lead_actor.id) {
+      return [{ tier: 1, index, kind: "people", reason: `${a.lead_actor.title} در هر دو` }];
+    }
+    const shared = (item.genres ?? []).filter((g) => anchorGenres.has(g.id));
+    if (shared.length > 0) {
+      const names = shared.map((g) => genreLabel(g.title)).join("، ");
+      return [{ tier: 2, index, kind: "genre", reason: `ژانر مشترک: ${names}` }];
+    }
+    return [{ tier: 3, index, kind: "none", reason: "بدون اتصال مستقیم" }];
+  });
 
-  const opponent = candidates.find(sameType);
-  const params = new URLSearchParams({ category: type });
-  if (opponent !== undefined) {
-    params.set("left_id", item.entity.id);
-    params.set("right_id", items[opponent].entity.id);
-  }
-  return `/battles?${params.toString()}`;
+  ranked.sort((x, y) => x.tier - y.tier || x.index - y.index);
+  return ranked.map(({ index, kind, reason }) => ({ index, kind, reason }));
 }
 
 /** True when `iso` falls on today's date in Tehran. */

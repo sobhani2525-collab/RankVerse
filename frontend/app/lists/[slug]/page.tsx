@@ -7,6 +7,7 @@ import ListHero from "@/components/list-detail/ListHero";
 import ListDNA from "@/components/list-detail/ListDNA";
 import ListManageArea from "@/components/list-detail/ListManageArea";
 import ListBattlePreview from "@/components/list-detail/ListBattlePreview";
+import { ListBattleProvider } from "@/components/list-detail/ListBattleContext";
 import { getListBySlug, getListComments } from "@/lib/api";
 import type { ListComment, ListDetail } from "@/lib/types";
 
@@ -32,6 +33,7 @@ export default async function ListDetailPage({
 
   return (
     <ListViewerProvider slug={slug} initialDetail={detail}>
+      <ListBattleProvider>
       <main className="mx-auto max-w-[1440px] px-4 pb-8 lg:px-20">
         <div className="flex flex-col gap-8 pb-9 pt-8 lg:flex-row lg:items-start lg:gap-14 lg:pb-14 lg:pt-[72px]">
           <ListHero detail={detail} />
@@ -44,9 +46,7 @@ export default async function ListDetailPage({
           </div>
 
           <aside className="flex shrink-0 flex-col gap-10 lg:w-[380px] lg:gap-7">
-            {detail.items.length >= 2 && (
-              <ListBattlePreview items={detail.items} />
-            )}
+            <ListBattlePreview />
             <RelatedLists slug={slug} />
             <ListComments slug={slug} initialComments={comments} />
           </aside>
@@ -64,6 +64,7 @@ export default async function ListDetailPage({
           </Link>
         </footer>
       </main>
+      </ListBattleProvider>
     </ListViewerProvider>
   );
 }

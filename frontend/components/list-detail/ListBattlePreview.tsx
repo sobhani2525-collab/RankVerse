@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -8,186 +8,169 @@ import { castBattleVote } from "@/lib/api";
 import type { ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { entityHref, posterUrl } from "@/lib/list-constellation";
-import ProgressBar from "@/components/ProgressBar";
+import { battleOpponents, entityHref, posterUrl, type EdgeKind } from "@/lib/list-constellation";
 import { SectionHeading } from "./ui";
+import { LIST_BATTLE_ID, nextAnchor, useListBattle } from "./ListBattleContext";
+import { useListViewer } from "./ListViewerContext";
 
 type Side = "left" | "right";
 
-/** Mirrors BATTLE_TYPES in app/modules/lists/graph.py. */
-const BATTLE_TYPES = new Set(["movie", "tv_series"]);
+const REASON_TONE: Record<EdgeKind, { text: string; dot: string }> = {
+  people: { text: "text-violet-light", dot: "bg-violet-light" },
+  genre: { text: "text-teal", dot: "bg-teal" },
+  none: { text: "text-muted", dot: "bg-dim/60" },
+};
+
+const shortTitle = (item: ListItem) => item.entity.title_fa || item.entity.title;
 
 /**
- * Step-by-step "winner stays" battle through the whole list: #1 vs #2,
- * the pick then faces #3, that pick faces #4, ... and whoever survives
- * the last round is the list's winner. The progress bar tracks rounds
- * played out of items - 1.
- *
- * Each round is also cast as a normal /battles vote -- but only for
- * same-type movie/tv_series pairs, since the backend rejects cross-type
- * matchups. Other rounds still count toward this local run.
+ * The list page's BATTLE section: one item (the anchor) stays as poster A
+ * and faces every same-type item of the list in turn, closest in the graph
+ * first (see battleOpponents). Each tap is cast as a normal /battles vote;
+ * the run itself is page state (ListBattleContext), and any item's "نبرد"
+ * button restarts it anchored on that item.
  */
-export default function ListBattlePreview({ items }: { items: ListItem[] }) {
+export default function ListBattlePreview() {
+  const { items } = useListViewer().detail;
+  const { anchor, runId, start } = useListBattle();
+  if (items.length < 2 || anchor >= items.length) return null;
+  return (
+    <section id={LIST_BATTLE_ID} aria-labelledby="list-battle-heading" className="flex scroll-mt-24 flex-col gap-4">
+      {/* Keyed by run so a new anchor (or the same one again) starts from pair 1. */}
+      <BattleRun key={runId} items={items} anchor={anchor} onNext={() => start(nextAnchor(items, anchor))} />
+    </section>
+  );
+}
+
+function BattleRun({ items, anchor, onNext }: { items: ListItem[]; anchor: number; onNext: () => void }) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
-  // Index (into items) of the current champion, and of the next challenger.
-  const [champion, setChampion] = useState(0);
-  const [challenger, setChallenger] = useState(1);
-  const [beaten, setBeaten] = useState(0);
+  const opponents = useMemo(() => battleOpponents(items, anchor), [items, anchor]);
+  const [step, setStep] = useState(0);
+  const [voted, setVoted] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const totalRounds = items.length - 1;
-  const round = challenger - 1; // rounds already played
-  const done = challenger >= items.length;
-  const progress = totalRounds > 0 ? (round / totalRounds) * 100 : 0;
-
-  function recordVote(left: ListItem, right: ListItem, winner: Side) {
-    const token = getToken();
-    const type = left.entity.entity_type;
-    if (!token || type !== right.entity.entity_type || !BATTLE_TYPES.has(type)) return;
-    castBattleVote(token, {
-      category: type,
-      left_item: left.entity.id,
-      right_item: right.entity.id,
-      winner,
-    }).catch((err) => setError(err instanceof Error ? err.message : "خطا در ثبت رأی"));
-  }
+  const anchorItem = items[anchor];
+  const total = opponents.length;
+  const done = step >= total;
+  const current = opponents[Math.min(step, total - 1)];
 
   function pick(winner: Side) {
     if (done) return;
-    setError(null);
-    recordVote(items[champion], items[challenger], winner);
-    if (winner === "left") {
-      setBeaten((n) => n + 1);
-    } else {
-      setChampion(challenger);
-      setBeaten(1);
+    const token = getToken();
+    if (token) {
+      castBattleVote(token, {
+        category: anchorItem.entity.entity_type,
+        left_item: anchorItem.entity.id,
+        right_item: items[current.index].entity.id,
+        winner,
+      }).catch((err) => setError(err instanceof Error ? err.message : "خطا در ثبت رأی"));
     }
-    setChallenger((c) => c + 1);
-  }
-
-  function restart() {
-    setChampion(0);
-    setChallenger(1);
-    setBeaten(0);
-    setError(null);
+    setVoted((n) => n + 1);
+    setStep((s) => s + 1);
   }
 
   const heading = (
-    <SectionHeading
-      en="BATTLE"
-      fa={done ? "برنده‌ی این لیست" : "کدام بهتر است؟"}
-      tone="text-violet-light"
-      aside={
-        <span className="pb-1 text-xs text-dim">
-          مرحله <span className="num">{toFaDigits(Math.min(round + 1, totalRounds))}</span> از{" "}
-          <span className="num">{toFaDigits(totalRounds)}</span>
-        </span>
-      }
-    />
-  );
-
-  const progressBar = (
-    <div className="flex flex-col gap-1.5">
-      <ProgressBar
-        value={progress}
-        trackClassName="bg-surface-2"
-        fillClassName="bg-gradient-brand transition-[width] duration-500 ease-out"
-      />
-      <div className="flex justify-between text-[11px] text-dim">
-        <span>
-          <span className="num">{toFaDigits(round)}</span> نبرد انجام شد
-        </span>
-        <span className="num" dir="ltr">
-          {toFaDigits(Math.round(progress))}٪
-        </span>
-      </div>
+    <div id="list-battle-heading" className="flex flex-col gap-1.5">
+      <SectionHeading en="BATTLE" fa={done ? "نبرد تمام شد" : "کدام بهتر است؟"} tone="text-violet-light" />
+      {total > 0 && (
+        <p className="text-xs text-dim">
+          نبرد از #{toFaDigits(anchor + 1)} · <span className="text-ink-dim">{shortTitle(anchorItem)}</span>
+          {!done && (
+            <>
+              {" "}— جفت <span className="num">{toFaDigits(step + 1)}</span> از <span className="num">{toFaDigits(total)}</span>
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 
-  if (done) {
-    const winner = items[champion];
-    const href = entityHref(winner.entity.entity_type, winner.entity.slug);
-    const poster = posterUrl(winner.entity.poster_path, "w500");
+  const progressBar = (
+    <div className="relative h-[3px] w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+      <div
+        className="absolute inset-y-0 start-0 rounded-full bg-violet-light transition-[width] duration-300 ease-out motion-reduce:transition-none"
+        style={{ width: `${total > 0 ? (Math.min(step, total) / total) * 100 : 0}%` }}
+      />
+    </div>
+  );
+
+  const nextButton = (
+    <button
+      type="button"
+      onClick={onNext}
+      className="flex min-h-[44px] items-center self-start rounded-[10px] border border-violet-strong/60 px-4 text-sm font-bold text-violet-light transition hover:border-violet-light"
+    >
+      نبرد با آیتم دیگر
+    </button>
+  );
+
+  if (total === 0) {
     return (
-      <section aria-labelledby="list-battle-heading" className="flex flex-col gap-4">
-        <div id="list-battle-heading">{heading}</div>
-        {progressBar}
-
-        <div className="flex items-center gap-4" aria-live="polite">
-          <div className="relative aspect-[2/3] w-28 shrink-0 animate-pop-in overflow-hidden rounded-xl border border-gold bg-surface-2 shadow-[0_0_0_3px_rgba(232,179,74,0.35)]">
-            {poster ? (
-              <Image src={poster} alt="" fill sizes="112px" className="object-cover" />
-            ) : (
-              <span dir="ltr" className="absolute inset-0 flex items-end bg-gradient-to-br from-surface-2 to-bg p-2 text-left font-mono text-[11px] text-muted">
-                {winner.entity.title}
-              </span>
-            )}
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-xs font-bold text-gold">🏆 قهرمان</span>
-            {href ? (
-              <Link href={href} className="text-lg font-extrabold leading-snug text-ink hover:text-gold">
-                {winner.entity.title_fa || winner.entity.title}
-              </Link>
-            ) : (
-              <span className="text-lg font-extrabold leading-snug text-ink">
-                {winner.entity.title_fa || winner.entity.title}
-              </span>
-            )}
-            <span className="text-xs text-dim">
-              #{toFaDigits(champion + 1)} در لیست · <span className="num">{toFaDigits(beaten)}</span> پیروزی پیاپی
-            </span>
-          </div>
-        </div>
-
-        {error && <p className="text-xs text-gold">{error}</p>}
-
-        <button
-          type="button"
-          onClick={restart}
-          className="flex min-h-[44px] items-center self-start text-sm font-bold text-violet-light hover:text-ink"
-        >
-          ↻ دوباره از اول
-        </button>
-      </section>
+      <>
+        {heading}
+        <p className="text-[13px] leading-[1.8] text-muted">
+          «{shortTitle(anchorItem)}» در این لیست هم‌نوعی برای نبرد ندارد.
+        </p>
+        {nextAnchor(items, anchor) !== anchor && nextButton}
+      </>
     );
   }
 
-  const sides: [Side, number][] = [
-    ["left", champion],
-    ["right", challenger],
+  if (done) {
+    return (
+      <>
+        {heading}
+        {progressBar}
+        <div className="flex flex-col gap-1 text-[13px] leading-[1.8] battle-swap" aria-live="polite">
+          <p className="font-bold text-ink">نبرد «{shortTitle(anchorItem)}» با همه آیتم‌های لیست تمام شد.</p>
+          {voted > 0 && !error && <p className="text-muted">رأی‌هایت در رتبه‌بندی عمومی ثبت شد.</p>}
+        </div>
+        {error && <p className="text-xs text-gold">{error}</p>}
+        {nextButton}
+      </>
+    );
+  }
+
+  const opponent = items[current.index];
+  const tone = REASON_TONE[current.kind];
+  const sides: [Side, ListItem, number][] = [
+    ["left", anchorItem, anchor],
+    ["right", opponent, current.index],
   ];
 
   return (
-    <section aria-labelledby="list-battle-heading" className="flex flex-col gap-4">
-      <div id="list-battle-heading">{heading}</div>
-      {progressBar}
+    <>
+      {heading}
 
+      <p key={`reason-${step}`} className={`flex items-center gap-2 text-[13px] battle-swap ${tone.text}`} aria-live="polite">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`} aria-hidden="true" />
+        {current.reason}
+      </p>
+
+      {/* RTL grid: the anchor (poster A, the vote's left_item) sits on the right.
+          The opponent re-mounts each pair (keyed by step) to replay the swap-in. */}
       <div className="relative grid grid-cols-2 gap-2.5">
-        {sides.map(([side, index]) => {
-          const item = items[index];
-          const title = displayTitle(item.entity);
+        {sides.map(([side, item]) => {
+          const isAnchor = side === "left";
           const poster = posterUrl(item.entity.poster_path, "w500");
           return (
             <button
-              // Keyed by item so a new challenger (or a new champion) pops in.
-              key={`${side}-${item.id}`}
+              key={isAnchor ? "anchor" : `opponent-${step}`}
               type="button"
               onClick={() => requireAuth(() => pick(side))}
-              aria-label={`انتخاب ${title}`}
-              className="relative aspect-[2/3] w-full animate-pop-in overflow-hidden rounded-xl border border-border bg-surface-2 transition hover:border-violet-light"
+              aria-label={`انتخاب ${displayTitle(item.entity)}`}
+              className={`relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-surface-2 transition ${
+                isAnchor
+                  ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)] hover:shadow-[0_0_0_4px_rgba(232,179,74,0.32)]"
+                  : "battle-swap border border-border hover:border-violet-light"
+              }`}
             >
               {poster ? (
                 <Image src={poster} alt="" fill sizes="(max-width: 1024px) 45vw, 185px" className="object-cover" />
               ) : (
                 <span dir="ltr" className="absolute inset-0 flex items-end bg-gradient-to-br from-surface-2 to-bg p-2.5 text-left font-mono text-xs text-muted">
                   {item.entity.title}
-                </span>
-              )}
-              {side === "left" && beaten > 0 && (
-                <span className="absolute start-2 top-2 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
-                  <span className="num">{toFaDigits(beaten)}</span> برد
                 </span>
               )}
             </button>
@@ -202,17 +185,16 @@ export default function ListBattlePreview({ items }: { items: ListItem[] }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        {sides.map(([side, index]) => {
-          const item = items[index];
+        {sides.map(([side, item, index]) => {
           const href = entityHref(item.entity.entity_type, item.entity.slug);
           return (
-            <div key={side} className="flex flex-col gap-0.5">
+            <div key={side === "left" ? "anchor" : `opponent-${step}`} className={`flex flex-col gap-0.5 ${side === "right" ? "battle-swap" : ""}`}>
               {href ? (
                 <Link href={href} className="text-[15px] font-extrabold leading-snug text-ink hover:text-gold">
-                  {item.entity.title_fa || item.entity.title}
+                  {shortTitle(item)}
                 </Link>
               ) : (
-                <span className="text-[15px] font-extrabold text-ink">{item.entity.title_fa || item.entity.title}</span>
+                <span className="text-[15px] font-extrabold leading-snug text-ink">{shortTitle(item)}</span>
               )}
               <span className="text-xs text-dim">
                 #{toFaDigits(index + 1)} در لیست
@@ -223,17 +205,18 @@ export default function ListBattlePreview({ items }: { items: ListItem[] }) {
         })}
       </div>
 
-      <p className="text-[13px] leading-[1.8] text-muted" aria-live="polite">
-        روی پوستر محبوب‌ترت بزن — برنده می‌ماند و با گزینه‌ی بعدی لیست روبه‌رو می‌شود
-        {challenger + 1 < items.length && (
-          <>
-            {" "}
-            (بعدی: <span className="text-ink-dim">{items[challenger + 1].entity.title_fa || items[challenger + 1].entity.title}</span>)
-          </>
-        )}
-        .
-      </p>
+      <div className="flex items-center gap-4">
+        <div className="flex-1">{progressBar}</div>
+        <button
+          type="button"
+          onClick={() => setStep((s) => s + 1)}
+          className="flex min-h-[44px] shrink-0 items-center text-[13px] text-dim transition hover:text-ink"
+        >
+          رد کردن
+        </button>
+      </div>
+
       {error && <p className="text-xs text-gold">{error}</p>}
-    </section>
+    </>
   );
 }

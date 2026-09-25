@@ -5,10 +5,11 @@ import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { genreLabel } from "@/lib/genre-labels";
 import {
-  entityHref, GENRE_CHIP, isRateable, PEOPLE_CHIP, posterUrl, typeLabel,
+  entityHref, GENRE_CHIP, PEOPLE_CHIP, posterUrl, typeLabel,
 } from "@/lib/list-constellation";
 import { Chip, MonoLabel, RowLabel } from "./ui";
 import ItemVoteButtons from "./ItemVoteButtons";
+import ItemBattleButton from "./ItemBattleButton";
 
 function formatScore(score: number): string {
   return toFaDigits(score.toFixed(1));
@@ -32,13 +33,14 @@ function PosterFallback({ title }: { title: string }) {
 export default function ListNodeItem({
   item,
   backlink,
-  battleHref,
+  battleIndex,
   pending = false,
   className = "",
 }: {
   item: ListItem;
   backlink?: ListBacklink;
-  battleHref: string;
+  /** This item's index when it has someone to battle on this page, else null. */
+  battleIndex: number | null;
   /** Added optimistically and not saved yet. */
   pending?: boolean;
   className?: string;
@@ -53,7 +55,6 @@ export default function ListNodeItem({
   );
   const genres = item.genres ?? [];
   const score = item.composite_score;
-  const battleable = isRateable(entity.entity_type);
   const overview = item.overview?.trim();
 
   const posterBox = (
@@ -173,13 +174,12 @@ export default function ListNodeItem({
           pending={pending}
           initial={{ like_count: item.like_count, dislike_count: item.dislike_count, my_vote: item.my_vote }}
           trailing={
-            battleable && (
-              <Link
-                href={battleHref}
-                className="flex h-11 min-w-0 flex-1 items-center justify-center rounded-[10px] border border-violet-strong/60 text-[13px] text-violet-light transition-[border-color,color] duration-[160ms] hover:border-violet-light"
-              >
-                نبرد
-              </Link>
+            battleIndex !== null &&
+            !pending && (
+              <ItemBattleButton
+                index={battleIndex}
+                className="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-violet-strong/60 text-[13px] text-violet-light transition-[border-color,color] duration-[160ms] hover:border-violet-light"
+              />
             )
           }
         />
