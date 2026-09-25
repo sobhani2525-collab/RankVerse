@@ -31,10 +31,6 @@ export default async function ListDetailPage({
     notFound();
   }
 
-  const pair = detail.battle_pair;
-  const battleLeft = pair ? detail.items[pair.left_rank - 1] : undefined;
-  const battleRight = pair ? detail.items[pair.right_rank - 1] : undefined;
-
   return (
     <ListViewerProvider slug={slug} initialDetail={detail}>
       <main className="mx-auto max-w-[1440px] px-4 pb-8 lg:px-20">
@@ -51,8 +47,8 @@ export default async function ListDetailPage({
           </div>
 
           <aside className="flex shrink-0 flex-col gap-10 lg:w-[380px] lg:gap-7">
-            {pair && battleLeft && battleRight && (
-              <ListBattlePreview pair={pair} left={battleLeft} right={battleRight} />
+            {detail.items.length >= 2 && (
+              <ListBattlePreview items={detail.items} pair={detail.battle_pair ?? null} />
             )}
             <RelatedLists slug={slug} />
             <ListComments slug={slug} initialComments={comments} />
