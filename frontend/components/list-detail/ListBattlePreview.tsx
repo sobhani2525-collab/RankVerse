@@ -8,7 +8,7 @@ import { castBattleVote } from "@/lib/api";
 import type { ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { entityHref, posterUrl } from "@/lib/list-constellation";
+import { BATTLE_SECTION_ID, entityHref, posterUrl } from "@/lib/list-constellation";
 import ProgressBar from "@/components/ProgressBar";
 import { SectionHeading } from "./ui";
 
@@ -110,7 +110,7 @@ export default function ListBattlePreview({ items }: { items: ListItem[] }) {
     const href = entityHref(winner.entity.entity_type, winner.entity.slug);
     const poster = posterUrl(winner.entity.poster_path, "w500");
     return (
-      <section aria-labelledby="list-battle-heading" className="flex flex-col gap-4">
+      <section id={BATTLE_SECTION_ID} aria-labelledby="list-battle-heading" className="flex scroll-mt-20 flex-col gap-4">
         <div id="list-battle-heading">{heading}</div>
         {progressBar}
 
@@ -160,7 +160,7 @@ export default function ListBattlePreview({ items }: { items: ListItem[] }) {
   ];
 
   return (
-    <section aria-labelledby="list-battle-heading" className="flex flex-col gap-4">
+    <section id={BATTLE_SECTION_ID} aria-labelledby="list-battle-heading" className="flex scroll-mt-20 flex-col gap-4">
       <div id="list-battle-heading">{heading}</div>
       {progressBar}
 

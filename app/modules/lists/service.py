@@ -136,6 +136,8 @@ class ListService:
             list_type=payload.list_type,
             contribution_mode=contribution_mode,
         )
+        # Creators follow their own list by default (they can unfollow).
+        await self.repo.add_follow(lst.id, user_id)
         await self.db.commit()
         return lst
 

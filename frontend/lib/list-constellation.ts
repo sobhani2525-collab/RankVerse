@@ -64,36 +64,8 @@ export function entityHref(entityType: string, slug: string): string | null {
   return detailPathFor(entityType, slug);
 }
 
-/** Connections shown in the hero: linked edges plus backlinks. */
-export function connectionCount(detail: ListDetail): number {
-  const linked = (detail.edges ?? []).filter((e) => e.kind !== "none").length;
-  return linked + (detail.backlinks ?? []).length;
-}
-
-/**
- * /battles link for one item's "نبرد" button: against the item it's
- * linked to on the spine (next, then previous), else the nearest other
- * item of the same type. Falls back to a plain category battle when the
- * list has nothing of the same type to pair it with.
- */
-export function battleHrefFor(items: ListItem[], edges: ListEdge[], index: number): string {
-  const item = items[index];
-  const type = item.entity.entity_type;
-  const sameType = (i: number) => i >= 0 && i < items.length && i !== index && items[i].entity.entity_type === type;
-
-  const candidates: number[] = [];
-  if (edges[index] && edges[index].kind !== "none") candidates.push(index + 1);
-  if (edges[index - 1] && edges[index - 1].kind !== "none") candidates.push(index - 1);
-  for (let d = 1; d < items.length; d++) candidates.push(index + d, index - d);
-
-  const opponent = candidates.find(sameType);
-  const params = new URLSearchParams({ category: type });
-  if (opponent !== undefined) {
-    params.set("left_id", item.entity.id);
-    params.set("right_id", items[opponent].entity.id);
-  }
-  return `/battles?${params.toString()}`;
-}
+/** The in-page battle section (ListBattlePreview) that each item's "نبرد" button scrolls to. */
+export const BATTLE_SECTION_ID = "list-battle";
 
 /** True when `iso` falls on today's date in Tehran. */
 export function isUpdatedToday(iso: string, now: Date = new Date()): boolean {
@@ -171,6 +143,31 @@ export function withAppendedItem(detail: ListDetail, item: ListItem): ListDetail
   const backlinks = [...(detail.backlinks ?? [])];
   const backlink = backlinkFor(items, index);
   if (backlink) backlinks.push(backlink);
+  return { ...detail, items, edges, backlinks };
+}
+
+/**
+ * `detail` without one item. Pairs that stay adjacent keep the server's
+ * edge; the new pair that closes the gap gets one computed here, and
+ * backlinks drop the removed item and shift up past it.
+ */
+export function withoutItem(detail: ListDetail, itemId: string): ListDetail {
+  const removed = detail.items.findIndex((i) => i.id === itemId);
+  if (removed < 0) return detail;
+  const items = detail.items.filter((_, i) => i !== removed);
+  const old = detail.edges ?? [];
+  const edges: ListEdge[] = [];
+  for (let i = 0; i < items.length - 1; i++) {
+    const kept = i < removed - 1 ? old[i] : i >= removed ? old[i + 1] : undefined;
+    edges.push(kept ? { ...kept, from_rank: i + 1 } : edgeBetween(items[i], items[i + 1], i + 1, items));
+  }
+  const removedRank = removed + 1;
+  const shift = (rank: number) => (rank > removedRank ? rank - 1 : rank);
+  const backlinks = (detail.backlinks ?? [])
+    .filter((b) => b.rank !== removedRank && b.target_position !== removedRank)
+    .map((b) => ({ ...b, rank: shift(b.rank), target_position: shift(b.target_position) }))
+    // A link to what is now the item right before it is covered by the edge.
+    .filter((b) => b.rank - b.target_position > 1);
   return { ...detail, items, edges, backlinks };
 }
 

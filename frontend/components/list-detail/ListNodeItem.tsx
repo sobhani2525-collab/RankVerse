@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { ListBacklink, ListItem } from "@/lib/types";
@@ -9,6 +11,7 @@ import {
 } from "@/lib/list-constellation";
 import { Chip, MonoLabel, RowLabel } from "./ui";
 import ItemVoteButtons from "./ItemVoteButtons";
+import { BattleJumpButton, RemoveItemButton } from "./ItemRowActions";
 
 function formatScore(score: number): string {
   return toFaDigits(score.toFixed(1));
@@ -32,13 +35,14 @@ function PosterFallback({ title }: { title: string }) {
 export default function ListNodeItem({
   item,
   backlink,
-  battleHref,
+  canBattle,
   pending = false,
   className = "",
 }: {
   item: ListItem;
   backlink?: ListBacklink;
-  battleHref: string;
+  /** The page has a battle section to jump to (2+ items). */
+  canBattle: boolean;
   /** Added optimistically and not saved yet. */
   pending?: boolean;
   className?: string;
@@ -53,7 +57,8 @@ export default function ListNodeItem({
   );
   const genres = item.genres ?? [];
   const score = item.composite_score;
-  const battleable = isRateable(entity.entity_type);
+  const battleable = canBattle && isRateable(entity.entity_type);
+  const [removing, setRemoving] = useState(false);
   const overview = item.overview?.trim();
 
   const posterBox = (
@@ -67,7 +72,10 @@ export default function ListNodeItem({
   );
 
   return (
-    <article className={`overflow-hidden rounded-2xl border border-border-soft bg-surface lg:flex lg:gap-6 lg:rounded-[18px] lg:p-[22px] ${className}`}>
+    <article
+      aria-busy={removing}
+      className={`overflow-hidden rounded-2xl border border-border-soft bg-surface transition-opacity duration-200 lg:flex lg:gap-6 lg:rounded-[18px] lg:p-[22px] ${removing ? "pointer-events-none opacity-40" : ""} ${className}`}
+    >
       {href ? (
         <Link href={href} aria-label={title} className="block lg:shrink-0">
           {posterBox}
@@ -173,14 +181,12 @@ export default function ListNodeItem({
           pending={pending}
           initial={{ like_count: item.like_count, dislike_count: item.dislike_count, my_vote: item.my_vote }}
           trailing={
-            battleable && (
-              <Link
-                href={battleHref}
-                className="flex h-11 min-w-0 flex-1 items-center justify-center rounded-[10px] border border-violet-strong/60 text-[13px] text-violet-light transition-[border-color,color] duration-[160ms] hover:border-violet-light"
-              >
-                نبرد
-              </Link>
-            )
+            <>
+              {battleable && <BattleJumpButton />}
+              {item.can_remove && !pending && (
+                <RemoveItemButton itemId={item.id} title={title} onRemoving={setRemoving} />
+              )}
+            </>
           }
         />
       </div>

@@ -45,7 +45,9 @@ export default async function ListDetailPage({
 
           <aside className="flex shrink-0 flex-col gap-10 lg:w-[380px] lg:gap-7">
             {detail.items.length >= 2 && (
-              <ListBattlePreview items={detail.items} />
+              // Keyed by the items so an added/removed item restarts the run
+              // instead of leaving its indices pointing past the list.
+              <ListBattlePreview key={detail.items.map((i) => i.id).join(",")} items={detail.items} />
             )}
             <RelatedLists slug={slug} />
             <ListComments slug={slug} initialComments={comments} />

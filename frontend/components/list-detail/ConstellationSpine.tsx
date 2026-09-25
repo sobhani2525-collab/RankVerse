@@ -1,6 +1,6 @@
 "use client";
 import { toFaDigits } from "@/lib/format-number";
-import { battleHrefFor, EDGE_STYLES } from "@/lib/list-constellation";
+import { EDGE_STYLES } from "@/lib/list-constellation";
 import ListNodeItem from "./ListNodeItem";
 import EdgeConnector from "./EdgeConnector";
 import { useListViewer } from "./ListViewerContext";
@@ -82,7 +82,7 @@ export default function ConstellationSpine({ addSlot }: { addSlot?: React.ReactN
                   <ListNodeItem
                     item={item}
                     backlink={backlinks.get(rank)}
-                    battleHref={battleHrefFor(items, edges, index)}
+                    canBattle={items.length >= 2}
                     pending={item.id.startsWith("temp-")}
                     className={isNew ? "rv-card-in" : ""}
                   />
