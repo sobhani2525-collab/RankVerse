@@ -81,19 +81,3 @@ export function Chip({
     </span>
   );
 }
-
-/** Gold ring-and-dot glyph (hero kicker). */
-export function RingDot({ className = "border-gold", dot = "bg-gold", size = "h-[22px] w-[22px]" }: {
-  className?: string;
-  dot?: string;
-  size?: string;
-}) {
-  return (
-    <span
-      className={`flex shrink-0 items-center justify-center rounded-full border-[1.5px] ${size} ${className}`}
-      aria-hidden="true"
-    >
-      <span className={`h-[7px] w-[7px] rounded-full ${dot}`} />
-    </span>
-  );
-}

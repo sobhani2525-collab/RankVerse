@@ -48,21 +48,34 @@ async def test_toggle_like_flips_state_and_persists(client, auth_headers):
     assert unliked.json()["data"]["liked"] is False
 
 
+async def test_creator_follows_a_new_list_by_default(client, auth_headers):
+    created = await client.post(
+        "/api/v1/lists", headers=auth_headers, json={"title": "Auto Followed"}
+    )
+    slug = created.json()["data"]["slug"]
+
+    detail = (await client.get(f"/api/v1/lists/{slug}", headers=auth_headers)).json()["data"]
+    assert detail["is_following"] is True
+    assert detail["follower_count"] == 1
+
+
 async def test_toggle_follow_flips_state_and_persists(client, auth_headers):
     created = await client.post(
         "/api/v1/lists", headers=auth_headers, json={"title": "Followable List"}
     )
     slug = created.json()["data"]["slug"]
 
-    followed = await client.post(f"/api/v1/lists/{slug}/follow", headers=auth_headers)
-    assert followed.status_code == 200
-    assert followed.json()["data"]["following"] is True
+    # The creator starts out following their own list.
+    unfollowed = await client.post(f"/api/v1/lists/{slug}/follow", headers=auth_headers)
+    assert unfollowed.status_code == 200
+    assert unfollowed.json()["data"]["following"] is False
 
     detail = await client.get(f"/api/v1/lists/{slug}", headers=auth_headers)
-    assert detail.json()["data"]["is_following"] is True
+    assert detail.json()["data"]["is_following"] is False
+    assert detail.json()["data"]["follower_count"] == 0
 
-    unfollowed = await client.post(f"/api/v1/lists/{slug}/follow", headers=auth_headers)
-    assert unfollowed.json()["data"]["following"] is False
+    followed = await client.post(f"/api/v1/lists/{slug}/follow", headers=auth_headers)
+    assert followed.json()["data"]["following"] is True
 
 
 async def test_only_owner_can_update_list(client, auth_headers, db_session):

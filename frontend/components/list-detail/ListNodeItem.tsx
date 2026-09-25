@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { ListBacklink, ListItem } from "@/lib/types";
@@ -9,7 +11,7 @@ import {
 } from "@/lib/list-constellation";
 import { Chip, MonoLabel, RowLabel } from "./ui";
 import ItemVoteButtons from "./ItemVoteButtons";
-import ItemBattleButton from "./ItemBattleButton";
+import { BattleJumpButton, RemoveItemButton } from "./ItemRowActions";
 
 function formatScore(score: number): string {
   return toFaDigits(score.toFixed(1));
@@ -55,6 +57,7 @@ export default function ListNodeItem({
   );
   const genres = item.genres ?? [];
   const score = item.composite_score;
+  const [removing, setRemoving] = useState(false);
   const overview = item.overview?.trim();
 
   const posterBox = (
@@ -68,7 +71,10 @@ export default function ListNodeItem({
   );
 
   return (
-    <article className={`overflow-hidden rounded-2xl border border-border-soft bg-surface lg:flex lg:gap-6 lg:rounded-[18px] lg:p-[22px] ${className}`}>
+    <article
+      aria-busy={removing}
+      className={`overflow-hidden rounded-2xl border border-border-soft bg-surface transition-opacity duration-200 lg:flex lg:gap-6 lg:rounded-[18px] lg:p-[22px] ${removing ? "pointer-events-none opacity-40" : ""} ${className}`}
+    >
       {href ? (
         <Link href={href} aria-label={title} className="block lg:shrink-0">
           {posterBox}
@@ -174,13 +180,12 @@ export default function ListNodeItem({
           pending={pending}
           initial={{ like_count: item.like_count, dislike_count: item.dislike_count, my_vote: item.my_vote }}
           trailing={
-            battleIndex !== null &&
-            !pending && (
-              <ItemBattleButton
-                index={battleIndex}
-                className="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-violet-strong/60 text-[13px] text-violet-light transition-[border-color,color] duration-[160ms] hover:border-violet-light"
-              />
-            )
+            <>
+              {battleIndex !== null && !pending && <BattleJumpButton index={battleIndex} />}
+              {item.can_remove && !pending && (
+                <RemoveItemButton itemId={item.id} title={title} onRemoving={setRemoving} />
+              )}
+            </>
           }
         />
       </div>

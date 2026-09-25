@@ -8,9 +8,9 @@ import { castBattleVote } from "@/lib/api";
 import type { ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { battleOpponents, entityHref, posterUrl, type EdgeKind } from "@/lib/list-constellation";
+import { BATTLE_SECTION_ID, battleOpponents, entityHref, posterUrl, type EdgeKind } from "@/lib/list-constellation";
 import { SectionHeading } from "./ui";
-import { LIST_BATTLE_ID, nextAnchor, useListBattle } from "./ListBattleContext";
+import { nextAnchor, useListBattle } from "./ListBattleContext";
 import { useListViewer } from "./ListViewerContext";
 
 type Side = "left" | "right";
@@ -35,9 +35,10 @@ export default function ListBattlePreview() {
   const { anchor, runId, start } = useListBattle();
   if (items.length < 2 || anchor >= items.length) return null;
   return (
-    <section id={LIST_BATTLE_ID} aria-labelledby="list-battle-heading" className="flex scroll-mt-24 flex-col gap-4">
-      {/* Keyed by run so a new anchor (or the same one again) starts from pair 1. */}
-      <BattleRun key={runId} items={items} anchor={anchor} onNext={() => start(nextAnchor(items, anchor))} />
+    <section id={BATTLE_SECTION_ID} aria-labelledby="list-battle-heading" className="flex scroll-mt-24 flex-col gap-4">
+      {/* Keyed by run and by the items, so a new anchor (or the same one
+          again) or an added/removed item starts over from pair 1. */}
+      <BattleRun key={`${runId}:${items.map((i) => i.id).join(",")}`} items={items} anchor={anchor} onNext={() => start(nextAnchor(items, anchor))} />
     </section>
   );
 }

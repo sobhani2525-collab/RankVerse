@@ -65,11 +65,8 @@ export function entityHref(entityType: string, slug: string): string | null {
   return detailPathFor(entityType, slug);
 }
 
-/** Connections shown in the hero: linked edges plus backlinks. */
-export function connectionCount(detail: ListDetail): number {
-  const linked = (detail.edges ?? []).filter((e) => e.kind !== "none").length;
-  return linked + (detail.backlinks ?? []).length;
-}
+/** The in-page battle section (ListBattlePreview) that each item's "نبرد" button scrolls to. */
+export const BATTLE_SECTION_ID = "list-battle";
 
 /** Entity types /battles/vote accepts. Mirrors BATTLE_TYPES in app/modules/lists/graph.py. */
 export function isBattleable(entityType: string): boolean {
@@ -190,6 +187,31 @@ export function withAppendedItem(detail: ListDetail, item: ListItem): ListDetail
   const backlinks = [...(detail.backlinks ?? [])];
   const backlink = backlinkFor(items, index);
   if (backlink) backlinks.push(backlink);
+  return { ...detail, items, edges, backlinks };
+}
+
+/**
+ * `detail` without one item. Pairs that stay adjacent keep the server's
+ * edge; the new pair that closes the gap gets one computed here, and
+ * backlinks drop the removed item and shift up past it.
+ */
+export function withoutItem(detail: ListDetail, itemId: string): ListDetail {
+  const removed = detail.items.findIndex((i) => i.id === itemId);
+  if (removed < 0) return detail;
+  const items = detail.items.filter((_, i) => i !== removed);
+  const old = detail.edges ?? [];
+  const edges: ListEdge[] = [];
+  for (let i = 0; i < items.length - 1; i++) {
+    const kept = i < removed - 1 ? old[i] : i >= removed ? old[i + 1] : undefined;
+    edges.push(kept ? { ...kept, from_rank: i + 1 } : edgeBetween(items[i], items[i + 1], i + 1, items));
+  }
+  const removedRank = removed + 1;
+  const shift = (rank: number) => (rank > removedRank ? rank - 1 : rank);
+  const backlinks = (detail.backlinks ?? [])
+    .filter((b) => b.rank !== removedRank && b.target_position !== removedRank)
+    .map((b) => ({ ...b, rank: shift(b.rank), target_position: shift(b.target_position) }))
+    // A link to what is now the item right before it is covered by the edge.
+    .filter((b) => b.rank - b.target_position > 1);
   return { ...detail, items, edges, backlinks };
 }
 
