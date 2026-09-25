@@ -198,6 +198,34 @@ class ListRepository:
         result = await self.db.execute(stmt)
         return [row[0] for row in result.all()]
 
+    async def entities_by_ids(self, entity_ids: list[uuid.UUID]) -> list[Entity]:
+        if not entity_ids:
+            return []
+        result = await self.db.execute(select(Entity).where(Entity.id.in_(entity_ids)))
+        return list(result.scalars().all())
+
+    async def entities_linked_to_people(
+        self,
+        person_ids: set[uuid.UUID],
+        entity_type: str,
+        exclude_ids: set[uuid.UUID],
+        limit: int,
+    ) -> list[Entity]:
+        """Entities of `entity_type` that a person in `person_ids` directed,
+        created or acted in -- a loose pool; the caller keeps only the ones
+        whose director/lead actor actually matches."""
+        if not person_ids:
+            return []
+        linked = select(RelationshipEdge.from_entity_id).where(
+            RelationshipEdge.to_entity_id.in_(person_ids),
+            RelationshipEdge.relation_type.in_(["directed_by", "creator", "acted_in"]),
+        )
+        stmt = select(Entity).where(Entity.id.in_(linked), Entity.entity_type == entity_type)
+        if exclude_ids:
+            stmt = stmt.where(Entity.id.not_in(exclude_ids))
+        result = await self.db.execute(stmt.limit(limit))
+        return list(result.scalars().all())
+
     async def item_exists(self, list_id: uuid.UUID, entity_id: uuid.UUID) -> bool:
         stmt = select(func.count()).select_from(UserListItem).where(
             UserListItem.list_id == list_id, UserListItem.entity_id == entity_id

@@ -147,6 +147,9 @@ class Settings(BaseSettings):
     list_graph_max_genres_per_edge: int = 2
     list_graph_hub_limit: int = 3
     list_graph_hub_min_items: int = 2
+    # Add-item graph suggestions: how many entities linked to the list's
+    # people to consider before keeping the director/lead-actor matches.
+    list_candidate_pool_size: int = 300
     # Related lists (ListService.get_related_lists): how many to return.
     list_related_limit: int = 6
 

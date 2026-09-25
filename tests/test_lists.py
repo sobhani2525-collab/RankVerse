@@ -106,7 +106,10 @@ async def _graph_fixture(db_session):
     pearce = await make("person", "Guy Pearce")
     scifi = await make("genre", "Science Fiction")
     drama = await make("genre", "Drama")
-    inception = await make("movie", "Inception", {"year": 2010, "title_fa": "تلقین", "poster_path": "/i.jpg"})
+    inception = await make(
+        "movie", "Inception",
+        {"year": 2010, "title_fa": "تلقین", "poster_path": "/i.jpg", "overview": "دزدی در رؤیا."},
+    )
     memento = await make("movie", "Memento", {"year": 2000})
     shutter = await make("movie", "Shutter Island", {"year": 2010})
     await db_session.commit()
@@ -143,6 +146,8 @@ async def test_list_detail_returns_constellation(client, auth_headers, db_sessio
     assert first["lead_actor"]["title"] == "Leonardo DiCaprio"
     assert [g["title"] for g in first["genres"]] == ["Science Fiction"]
     assert first["composite_score"] == 8.8
+    assert first["overview"] == "دزدی در رؤیا."
+    assert data["items"][1]["overview"] is None
     # No ranking row -> no score, not a placeholder.
     assert data["items"][1]["composite_score"] is None
 
@@ -190,3 +195,71 @@ async def test_related_lists_carry_a_reason_and_skip_unrelated(client, auth_head
     assert by_slug[sharing_items]["shared_item_count"] == 2
     assert by_slug[sharing_tag]["shared_tag"] == "nolan"
     assert related[0]["slug"] == sharing_items
+
+
+async def _list_with(client, auth_headers, title, entities):
+    created = await client.post("/api/v1/lists", headers=auth_headers, json={"title": title})
+    slug = created.json()["data"]["slug"]
+    for entity in entities:
+        res = await client.post(
+            f"/api/v1/lists/{slug}/items", headers=auth_headers, json={"entity_id": str(entity.id)}
+        )
+        assert res.status_code == 200
+    return slug
+
+
+async def test_candidates_search_skips_items_already_in_the_list(client, auth_headers, db_session):
+    inception, memento, shutter = await _graph_fixture(db_session)
+    slug = await _list_with(client, auth_headers, "Candidates Search", [inception])
+
+    res = await client.get(f"/api/v1/lists/{slug}/candidates?q=i", headers=auth_headers)
+    assert res.status_code == 200
+    titles = [c["entity"]["title"] for c in res.json()["data"]]
+    assert "Inception" not in titles
+    assert "Shutter Island" in titles
+    shutter_row = next(c for c in res.json()["data"] if c["entity"]["title"] == "Shutter Island")
+    # Same graph fields as a list item, so the client can explain the link.
+    assert shutter_row["director"]["title"] == "Martin Scorsese"
+    assert shutter_row["lead_actor"]["title"] == "Leonardo DiCaprio"
+    assert [g["title"] for g in shutter_row["genres"]] == ["Drama"]
+
+
+async def test_candidates_without_query_suggest_shared_director_or_lead(client, auth_headers, db_session):
+    from app.modules.entities.repository import EntityRepository
+
+    inception, memento, shutter = await _graph_fixture(db_session)
+    repo = EntityRepository(db_session)
+    stranger = await repo.create_entity(
+        entity_type="movie", external_id=None, external_source=None,
+        title="Unrelated Film", slug="unrelated-film", attributes={},
+    )
+    await db_session.commit()
+
+    slug = await _list_with(client, auth_headers, "Candidates Graph", [inception])
+    res = await client.get(f"/api/v1/lists/{slug}/candidates", headers=auth_headers)
+    assert res.status_code == 200
+    titles = [c["entity"]["title"] for c in res.json()["data"]]
+    # Memento shares Nolan, Shutter Island shares DiCaprio; the unrelated
+    # film and Inception itself (already listed) are never suggested.
+    assert set(titles) == {"Memento", "Shutter Island"}
+    assert stranger.title not in titles
+
+
+async def test_candidates_respect_add_permission(client, auth_headers, db_session):
+    from app.core.security import create_access_token, hash_password
+    from app.modules.users.repository import UserRepository
+
+    created = await client.post(
+        "/api/v1/lists", headers=auth_headers,
+        json={"title": "Private Picks", "visibility": "private"},
+    )
+    slug = created.json()["data"]["slug"]
+    other_user = await UserRepository(db_session).create(
+        email="cand@example.com", username="canduser", hashed_password=hash_password("Sup3rSecret!1")
+    )
+    await db_session.commit()
+    other_headers = {"Authorization": f"Bearer {create_access_token(str(other_user.id))}"}
+
+    assert (await client.get(f"/api/v1/lists/{slug}/candidates")).status_code == 401
+    res = await client.get(f"/api/v1/lists/{slug}/candidates?q=a", headers=other_headers)
+    assert res.status_code == 401
