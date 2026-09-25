@@ -112,13 +112,13 @@ async def test_rate_tv_series_via_service(db_session, test_user):
     assert await UserRepository(db_session).get_rating(test_user.id, tv.id) is None
 
 
-async def test_get_tv_series_detail_route(client, db_session):
+async def test_get_tv_series_detail_route(client, db_session, monkeypatch):
     """GET /tv-series/{slug} -- the previously-missing detail endpoint the
     frontend page needs (overview/creators/cast/genres/networks)."""
-    async def fake_get_tv_series(self, tmdb_id):
+    async def fake_get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
         return BREAKING_BAD
 
-    TMDbClient.get_tv_series = fake_get_tv_series
+    monkeypatch.setattr(TMDbClient, "get_tv_series", fake_get_tv_series)
     service = SyncService(db_session)
     result = await service.sync_tv_series(1396)
 
@@ -286,16 +286,16 @@ async def test_shared_creator_alone_is_not_enough_but_creator_plus_genre_is(db_s
     assert edge.weight == pytest.approx(0.55 + 0.08)  # creator + has_genre
 
 
-async def test_breaking_bad_and_better_call_saul_get_similar_to_edge(db_session):
+async def test_breaking_bad_and_better_call_saul_get_similar_to_edge(db_session, monkeypatch):
     """
     End-to-end: sync the real BB/BCS fixtures (shared creator Vince Gilligan,
     shared genres Crime+Drama, shared cast Jonathan Banks), then confirm
     build_similarity_graph.py links them -- the concrete case reported live.
     """
-    async def fake_get_tv_series(self, tmdb_id):
+    async def fake_get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
         return {1396: BREAKING_BAD, 60059: BETTER_CALL_SAUL}[tmdb_id]
 
-    TMDbClient.get_tv_series = fake_get_tv_series
+    monkeypatch.setattr(TMDbClient, "get_tv_series", fake_get_tv_series)
 
     service = SyncService(db_session)
     bb = await service.sync_tv_series(1396)
@@ -400,7 +400,7 @@ async def test_person_detail_includes_created_tv_series(db_session, monkeypatch)
     though he correctly shows up in Breaking Bad/Better Call Saul's own
     'creator' edges and in the NotableRankings "creator" highlight.
     """
-    async def fake_get_tv_series(self, tmdb_id):
+    async def fake_get_tv_series(self, tmdb_id: int, language: str = "en-US") -> dict:
         return {1396: BREAKING_BAD, 60059: BETTER_CALL_SAUL}[tmdb_id]
 
     monkeypatch.setattr(TMDbClient, "get_tv_series", fake_get_tv_series)
