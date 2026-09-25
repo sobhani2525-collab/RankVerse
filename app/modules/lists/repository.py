@@ -105,13 +105,24 @@ class ListRepository:
         await self.db.delete(lst)
 
     async def list_by_user(self, user_id: uuid.UUID) -> list[UserList]:
+        """The user's manually-created lists -- excludes the system
+        watch-later list, which has its own dedicated toggle UI."""
         stmt = (
             select(UserList)
-            .where(UserList.user_id == user_id)
+            .where(UserList.user_id == user_id, UserList.is_watch_later.is_(False))
             .order_by(UserList.created_at.desc())
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_watch_later_list(self, user_id: uuid.UUID) -> UserList | None:
+        stmt = (
+            select(UserList)
+            .where(UserList.user_id == user_id, UserList.is_watch_later.is_(True))
+            .options(selectinload(UserList.items))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def list_by_user_public(self, user_id: uuid.UUID) -> list[UserList]:
         """Like list_by_user, but scoped to a public profile page: only
@@ -231,6 +242,13 @@ class ListRepository:
             UserListItem.list_id == list_id, UserListItem.entity_id == entity_id
         )
         return (await self.db.execute(stmt)).scalar_one() > 0
+
+    async def get_item_by_entity(self, list_id: uuid.UUID, entity_id: uuid.UUID) -> UserListItem | None:
+        stmt = select(UserListItem).where(
+            UserListItem.list_id == list_id, UserListItem.entity_id == entity_id
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def max_position(self, list_id: uuid.UUID) -> int:
         stmt = select(func.max(UserListItem.position)).where(UserListItem.list_id == list_id)

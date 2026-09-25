@@ -48,18 +48,6 @@
     stroke-width: 1;
   }
 
-  /* Poster grid slots pop in only on first mount (new list item), since
-     React keeps the DOM node -- and its keyframe never replays -- for
-     items that were already in the grid. See ListPreviewCard.tsx. */
-  @keyframes pop-in {
-    0% { transform: scale(0.55); opacity: 0; }
-    65% { transform: scale(1.08); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-  .animate-pop-in {
-    animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  }
-
   /* List page battle: the next opponent fades and slides up into place. */
   @keyframes battle-swap {
     from { opacity: 0; transform: translateY(10px); }
@@ -70,18 +58,6 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .battle-swap { animation: none; }
-  }
-
-  /* Title-to-preview connector (NewListForm, desktop only): drawn once via
-     stroke-dashoffset, then left in its drawn state -- see the `--len`
-     custom property set inline to the path's real length. */
-  .connector-draw {
-    stroke-dasharray: var(--len, 260);
-    stroke-dashoffset: var(--len, 260);
-    transition: stroke-dashoffset 0.7s ease;
-  }
-  .connector-draw.is-drawn {
-    stroke-dashoffset: 0;
   }
 }
 

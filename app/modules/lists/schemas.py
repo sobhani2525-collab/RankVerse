@@ -8,14 +8,19 @@ from app.modules.lists.models import ListType, ContributionMode
 
 
 class ListCreate(BaseModel):
+    """Every manually-created list is public, open to anyone's contributions,
+    and ordered by community vote -- there's no per-list choice for any of
+    that anymore (see ListService.create_list). The one exception, the
+    private per-user "will watch" list, is never created through this
+    endpoint at all -- see ListService.get_or_create_watch_later_list."""
     title: str = Field(min_length=1, max_length=200)
     description: str | None = None
     entity_type: str | None = None
-    is_ranked: bool = True
-    visibility: str = Field(default="public", pattern="^(public|unlisted|private)$")
     tags: list[str] = []
-    list_type: ListType = ListType.RANKED
-    contribution_mode: ContributionMode | None = None
+
+
+class WatchLaterToggle(BaseModel):
+    entity_id: uuid.UUID
 
 
 class ListUpdate(BaseModel):

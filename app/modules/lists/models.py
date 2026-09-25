@@ -6,7 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     String, Text, Boolean, Integer, Float, ForeignKey, DateTime, Enum, func,
-    UniqueConstraint, Index
+    UniqueConstraint, Index, text
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -30,6 +30,13 @@ class UserList(Base):
     __table_args__ = (
         Index("ix_user_lists_user_visibility", "user_id", "visibility"),
         Index("ix_user_lists_entity_type", "entity_type"),
+        # Partial unique index: at most one "will watch" system list per user.
+        Index(
+            "uq_user_lists_one_watch_later",
+            "user_id",
+            unique=True,
+            postgresql_where=text("is_watch_later"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -46,6 +53,10 @@ class UserList(Base):
     visibility: Mapped[str] = mapped_column(String(20), default="public", nullable=False)
     cover_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     tags: Mapped[list] = mapped_column(JSONB, default=list)
+    # The one system "تماشا خواهم کرد" (will-watch) list every user gets --
+    # private, owner-only, created lazily on first bookmark toggle. See
+    # ListService.get_or_create_watch_later_list.
+    is_watch_later: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
 
     list_type: Mapped[ListType] = mapped_column(
         Enum(

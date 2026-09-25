@@ -258,15 +258,31 @@ async def test_candidates_without_query_suggest_shared_director_or_lead(client, 
     assert stranger.title not in titles
 
 
-async def test_candidates_respect_add_permission(client, auth_headers, db_session):
+async def test_candidates_respect_add_permission(client, auth_headers, db_session, test_user):
     from app.core.security import create_access_token, hash_password
     from app.modules.users.repository import UserRepository
+    from app.modules.lists.repository import ListRepository
+    from app.modules.lists.models import ContributionMode, ListType
 
-    created = await client.post(
-        "/api/v1/lists", headers=auth_headers,
-        json={"title": "Private Picks", "visibility": "private"},
+    # Every list made through POST /lists is public + open to anyone now (see
+    # ListService.create_list) -- a private, owner-only list only exists as
+    # the system watch-later list, so build one directly to test the
+    # permission check itself.
+    lst = await ListRepository(db_session).create_list(
+        user_id=test_user.id,
+        title="Private Picks",
+        slug="private-picks",
+        description=None,
+        entity_type=None,
+        is_ranked=True,
+        visibility="private",
+        tags=[],
+        list_type=ListType.RANKED,
+        contribution_mode=ContributionMode.OWNER_ONLY,
     )
-    slug = created.json()["data"]["slug"]
+    await db_session.commit()
+    slug = lst.slug
+
     other_user = await UserRepository(db_session).create(
         email="cand@example.com", username="canduser", hashed_password=hash_password("Sup3rSecret!1")
     )

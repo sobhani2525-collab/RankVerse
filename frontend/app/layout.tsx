@@ -3,6 +3,7 @@ import AuthGateModal from "@/components/AuthGateModal";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { WatchLaterProvider } from "@/contexts/WatchLaterContext";
 import type { Metadata } from "next";
 import { vazirmatn, jetbrainsMono, lalezar } from "./fonts";
 import "./globals.css";
@@ -28,9 +29,11 @@ export default function RootLayout({
         <AuthProvider>
           <AuthGateProvider>
             <FavoritesProvider>
-              <ConditionalHeader />
-              {children}
-              <AuthGateModal />
+              <WatchLaterProvider>
+                <ConditionalHeader />
+                {children}
+                <AuthGateModal />
+              </WatchLaterProvider>
             </FavoritesProvider>
           </AuthGateProvider>
         </AuthProvider>

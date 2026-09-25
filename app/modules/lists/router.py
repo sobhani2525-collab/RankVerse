@@ -12,6 +12,7 @@ from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListItemReorder, ListItemLikeCreate, CommentCreate,
+    WatchLaterToggle,
 )
 from app.modules.lists.service import ListService
 
@@ -88,6 +89,29 @@ async def my_lists(
     service = ListService(db)
     lists = await service.list_user_lists(current_user.id)
     return envelope(data=[l.model_dump() for l in lists])
+
+
+@router.get("/users/me/watch-later")
+async def get_watch_later(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The caller's "تماشا خواهم کرد" list (created on first use) -- just
+    the entity ids, for the bookmark button's initial on/off state."""
+    service = ListService(db)
+    entity_ids = await service.get_watch_later_entity_ids(current_user.id)
+    return envelope(data={"entity_ids": [str(i) for i in entity_ids]})
+
+
+@router.post("/users/me/watch-later/toggle")
+async def toggle_watch_later(
+    payload: WatchLaterToggle,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ListService(db)
+    watching = await service.toggle_watch_later(current_user.id, payload.entity_id)
+    return envelope(data={"watching": watching})
 
 
 @router.get("/users/{username}/lists")

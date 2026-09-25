@@ -3,8 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { updateList, deleteList } from "@/lib/api";
-import { ListDetail, ListType, ListContributionMode } from "@/lib/types";
-import ListSettings from "./ListSettings";
+import { ListDetail } from "@/lib/types";
 
 export default function ListEditPanel({
   slug,
@@ -21,8 +20,6 @@ export default function ListEditPanel({
   const { getToken } = useAuth();
   const [title, setTitle] = useState(detail.title);
   const [description, setDescription] = useState(detail.description ?? "");
-  const [listType, setListType] = useState<ListType>(detail.list_type);
-  const [contributionMode, setContributionMode] = useState<ListContributionMode>(detail.contribution_mode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +32,6 @@ export default function ListEditPanel({
       await updateList(token, slug, {
         title: title.trim(),
         description: description.trim() || undefined,
-        list_type: listType,
-        contribution_mode: contributionMode,
       });
       onSaved();
     } catch (err) {
@@ -49,8 +44,6 @@ export default function ListEditPanel({
   function handleCancel() {
     setTitle(detail.title);
     setDescription(detail.description ?? "");
-    setListType(detail.list_type);
-    setContributionMode(detail.contribution_mode);
     setError(null);
     onCancel();
   }
@@ -88,13 +81,6 @@ export default function ListEditPanel({
           className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-gold/50"
         />
       </div>
-
-      <ListSettings
-        listType={listType}
-        contributionMode={contributionMode}
-        onListTypeChange={setListType}
-        onContributionModeChange={setContributionMode}
-      />
 
       {error && <p className="text-sm text-gold">{error}</p>}
 

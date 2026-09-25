@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useWatchLater } from "@/contexts/WatchLaterContext";
 import { createList, addListItem, getMyLists } from "@/lib/api";
 
 export interface AddToListEntity {
@@ -31,6 +32,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { isWatchLater, toggleWatchLater } = useWatchLater();
 
   const [open, setOpen] = useState(false);
   const [lists, setLists] = useState<MyListRow[] | null>(null);
@@ -109,6 +111,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
   }
 
   const favorited = isFavorite(entity.id);
+  const watchingLater = isWatchLater(entity.id);
 
   return (
     <div ref={containerRef} className="relative">
@@ -128,8 +131,19 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
         <div className="absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
           <button
             type="button"
-            onClick={() => toggleFavorite(entity)}
+            onClick={() => toggleWatchLater(entity.id)}
             className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-right text-sm text-ink transition hover:bg-surface2"
+          >
+            <span>بعدا تماشا خواهم کرد</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill={watchingLater ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={watchingLater ? "text-teal" : "text-muted"}>
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => toggleFavorite(entity)}
+            className="flex w-full items-center justify-between gap-2 border-t border-border px-3.5 py-2.5 text-right text-sm text-ink transition hover:bg-surface2"
           >
             <span>مورد علاقه‌ها</span>
             <svg width="15" height="15" viewBox="0 0 24 24" fill={favorited ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={favorited ? "text-gold" : "text-muted"}>

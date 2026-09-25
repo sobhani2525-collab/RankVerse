@@ -377,11 +377,7 @@ export async function createList(
     title: string;
     description?: string;
     entity_type?: string;
-    is_ranked?: boolean;
-    visibility?: string;
     tags?: string[];
-    list_type?: ListType;
-    contribution_mode?: ListContributionMode;
   }
 ): Promise<{ id: string; slug: string }> {
   return authFetch(`/lists`, token, { method: "POST", body: payload });
@@ -409,6 +405,14 @@ export async function deleteList(token: string, slug: string): Promise<{ deleted
 
 export async function getMyLists(token: string): Promise<ListSummary[]> {
   return authFetch(`/users/me/lists`, token);
+}
+
+export async function getWatchLaterEntityIds(token: string): Promise<string[]> {
+  return authFetch<{ entity_ids: string[] }>(`/users/me/watch-later`, token).then((d) => d.entity_ids);
+}
+
+export async function toggleWatchLater(token: string, entityId: string): Promise<{ watching: boolean }> {
+  return authFetch(`/users/me/watch-later/toggle`, token, { method: "POST", body: { entity_id: entityId } });
 }
 
 export async function addListItem(

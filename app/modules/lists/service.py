@@ -24,6 +24,10 @@ from app.modules.taste.compute import ContributionStatsComputer
 # Relation types the list-detail constellation reads (see graph.py).
 GRAPH_RELATION_TYPES = ["directed_by", "creator", "acted_in", "has_genre"]
 
+# Title of the one private, owner-only "will watch" list every user gets --
+# see ListService.get_or_create_watch_later_list.
+WATCH_LATER_TITLE = "تماشا خواهم کرد"
+
 
 def _entity_mini(entity) -> EntityMini:
     attributes = entity.attributes or {}
@@ -112,34 +116,77 @@ class ListService:
         return slug
 
     async def create_list(self, user_id: uuid.UUID, payload: ListCreate) -> UserList:
+        """Every manually-created list is public, open to anyone's
+        contributions, and ordered by community vote -- see ListCreate's
+        docstring for why those aren't payload fields anymore."""
         slug = await self._unique_slug(payload.title)
-        contribution_mode = payload.contribution_mode
-        if contribution_mode is None:
-            # Every list is open to contributions unless it's private, where
-            # only the owner can even see it -- so default accordingly instead
-            # of the model's OWNER_ONLY default, which would silently lock
-            # public/unlisted lists down until someone visits list settings.
-            contribution_mode = (
-                ContributionMode.OWNER_ONLY
-                if payload.visibility == "private"
-                else ContributionMode.ANYONE
-            )
         lst = await self.repo.create_list(
             user_id=user_id,
             title=payload.title,
             slug=slug,
             description=payload.description,
             entity_type=payload.entity_type,
-            is_ranked=payload.is_ranked,
-            visibility=payload.visibility,
+            is_ranked=True,
+            visibility="public",
             tags=payload.tags,
-            list_type=payload.list_type,
-            contribution_mode=contribution_mode,
+            list_type=ListType.COMMUNITY_ORDERED,
+            contribution_mode=ContributionMode.ANYONE,
         )
         # Creators follow their own list by default (they can unfollow).
         await self.repo.add_follow(lst.id, user_id)
         await self.db.commit()
         return lst
+
+    async def get_or_create_watch_later_list(self, user_id: uuid.UUID) -> UserList:
+        """The one private, owner-only "will watch" list every user gets,
+        created lazily the first time they bookmark something."""
+        lst = await self.repo.get_watch_later_list(user_id)
+        if lst:
+            return lst
+        slug = await self._unique_slug(WATCH_LATER_TITLE)
+        lst = await self.repo.create_list(
+            user_id=user_id,
+            title=WATCH_LATER_TITLE,
+            slug=slug,
+            description=None,
+            entity_type=None,
+            is_ranked=True,
+            visibility="private",
+            tags=[],
+            list_type=ListType.RANKED,
+            contribution_mode=ContributionMode.OWNER_ONLY,
+            is_watch_later=True,
+        )
+        await self.db.commit()
+        return lst
+
+    async def get_watch_later_entity_ids(self, user_id: uuid.UUID) -> list[uuid.UUID]:
+        lst = await self.get_or_create_watch_later_list(user_id)
+        return [item.entity_id for item in lst.items]
+
+    async def toggle_watch_later(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> bool:
+        """Adds/removes entity_id from the caller's watch-later list;
+        returns whether it's in the list afterwards."""
+        lst = await self.get_or_create_watch_later_list(user_id)
+
+        existing = await self.repo.get_item_by_entity(lst.id, entity_id)
+        if existing:
+            await self.repo.remove_item(existing)
+            await self.repo.touch(lst.id)
+            await self.db.commit()
+            return False
+
+        entity = await self.entity_repo.get_by_id(entity_id)
+        if not entity:
+            raise NotFoundError("Entity not found")
+
+        position = await self.repo.max_position(lst.id) + 1
+        await self.repo.add_item(
+            lst.id, entity.id, entity.entity_type, None, position, added_by_user_id=user_id
+        )
+        await self.repo.touch(lst.id)
+        await self.db.commit()
+        return True
 
     def _can_add_item(self, lst: UserList, user_id: uuid.UUID, is_following: bool) -> bool:
         if user_id == lst.user_id:
