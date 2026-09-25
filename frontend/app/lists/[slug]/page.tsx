@@ -48,7 +48,7 @@ export default async function ListDetailPage({
 
           <aside className="flex shrink-0 flex-col gap-10 lg:w-[380px] lg:gap-7">
             {detail.items.length >= 2 && (
-              <ListBattlePreview items={detail.items} pair={detail.battle_pair ?? null} />
+              <ListBattlePreview items={detail.items} />
             )}
             <RelatedLists slug={slug} />
             <ListComments slug={slug} initialComments={comments} />

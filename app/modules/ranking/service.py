@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.config import settings
+from app.modules.battles.models import EntityEloScore
 from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.ranking.schemas import RankingGroupRef, RankingHighlight
 from app.modules.users.models import UserRating
@@ -18,14 +19,23 @@ RANKING_DIMENSIONS: dict[str, str] = {
 }
 
 
+# Elo's starting rating (see battles/models.py EntityEloScore) and the
+# distance from it that counts as the strongest possible battle record.
+ELO_BASELINE = 1200.0
+ELO_SPREAD = 400.0
+
+
 class RankingService:
     """
     Computes the RankVerse score for each entity using a Bayesian-average
     blend of user ratings, regularized by the platform average, plus a
-    weighted contribution from the external (TMDb) score.
+    weighted contribution from the external (TMDb) score, nudged by how the
+    entity has done in pairwise battles.
 
         bayesian_score = (v / (v + m)) * R + (m / (v + m)) * C
-        final_score    = alpha * bayesian_score + beta * external_score
+        blended        = alpha * bayesian_score + beta * external_score
+        battle_adj     = w * (n / (n + k)) * clamp((elo - 1200) / 400, -1, 1)
+        final_score    = blended + battle_adj
 
     Where:
         R = average user rating for the entity (1-5)
@@ -33,6 +43,12 @@ class RankingService:
         m = minimum votes threshold for full confidence (config)
         C = platform-wide average user rating
         alpha, beta = configurable weights (alpha + beta should be 1.0)
+        elo, n = the entity's Elo rating and battles played in its category
+        w = ranking_battle_weight (max points battles can add or remove)
+        k = ranking_battle_min_matches (battles before half of w applies)
+
+    battle_adj is additive and 0 for an entity with no battles, so enabling
+    it leaves every never-battled entity's score exactly where it was.
     """
 
     def __init__(self, db: AsyncSession):
@@ -40,6 +56,8 @@ class RankingService:
         self.m = settings.ranking_min_votes
         self.alpha = settings.ranking_user_weight
         self.beta = settings.ranking_external_weight
+        self.battle_weight = settings.ranking_battle_weight
+        self.battle_k = settings.ranking_battle_min_matches
 
     async def get_platform_average(self) -> float:
         stmt = select(func.avg(UserRating.score))
@@ -64,6 +82,25 @@ class RankingService:
         external = external_0_10 if external_0_10 is not None else C
         return round(self.alpha * bayesian + self.beta * external, 2)
 
+    def battle_adjustment(self, elo: float | None, matches: int) -> float:
+        """Points added to (or taken from) the blended score for battle
+        results: Elo's distance from the 1200 start, capped at +/-400,
+        scaled by a v/(v+k) confidence on battles played."""
+        if elo is None or matches <= 0:
+            return 0.0
+        strength = max(-1.0, min(1.0, (elo - ELO_BASELINE) / ELO_SPREAD))
+        confidence = matches / (matches + self.battle_k)
+        return self.battle_weight * confidence * strength
+
+    async def get_battle_stats(self, entity: Entity) -> tuple[float | None, int]:
+        # Battle category == entity_type (battles are same-type only).
+        stmt = select(EntityEloScore.elo_score, EntityEloScore.matches_played).where(
+            EntityEloScore.entity_id == entity.id,
+            EntityEloScore.category == entity.entity_type,
+        )
+        row = (await self.db.execute(stmt)).one_or_none()
+        return (row[0], row[1]) if row else (None, 0)
+
     async def recompute_entity(self, entity: Entity) -> EntityRanking:
         """Recompute and persist the score for a single entity."""
         C = await self.get_platform_average()
@@ -72,7 +109,11 @@ class RankingService:
 
         # TMDb rating is 0-10 already; stored in attributes at ingest time
         external_score = entity.attributes.get("external_rating")
-        final = self.blend_with_external(bayesian, external_score, C)
+        elo, matches = await self.get_battle_stats(entity)
+        final = round(
+            self.blend_with_external(bayesian, external_score, C) + self.battle_adjustment(elo, matches),
+            2,
+        )
 
         stmt = select(EntityRanking).where(EntityRanking.entity_id == entity.id)
         result = await self.db.execute(stmt)

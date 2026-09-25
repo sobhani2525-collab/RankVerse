@@ -3,7 +3,9 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 
+from app.modules.entities.models import Entity
 from app.modules.entities.repository import EntityRepository
+from app.modules.ranking.service import RankingService
 from app.modules.taste.compute import ContributionStatsComputer
 
 from .elo import update_ratings
@@ -95,6 +97,12 @@ class BattleService:
             left_score_before=left_before,
             right_score_before=right_before,
         )
+        if payload.winner.value != "skip":
+            # Battle results feed the ranking score, so refresh both sides.
+            ranking = RankingService(self.repo.db)
+            for entity_id in (payload.left_item, payload.right_item):
+                entity = await self.repo.db.get(Entity, entity_id)
+                await ranking.recompute_entity(entity)
         await ContributionStatsComputer(self.repo.db).compute_contribution_stats(user_id)
         await self.repo.commit()
 

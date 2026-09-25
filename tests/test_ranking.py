@@ -9,6 +9,8 @@ class FakeSettings:
     ranking_min_votes = 50
     ranking_user_weight = 0.7
     ranking_external_weight = 0.3
+    ranking_battle_weight = 0.5
+    ranking_battle_min_matches = 20
 
 
 def make_service():
@@ -16,6 +18,8 @@ def make_service():
     svc.m = FakeSettings.ranking_min_votes
     svc.alpha = FakeSettings.ranking_user_weight
     svc.beta = FakeSettings.ranking_external_weight
+    svc.battle_weight = FakeSettings.ranking_battle_weight
+    svc.battle_k = FakeSettings.ranking_battle_min_matches
     return svc
 
 
@@ -46,3 +50,33 @@ def test_blend_with_external_score():
     final = svc.blend_with_external(bayesian=4.0, external_0_10=7.0, C=3.0)
     # 0.7*4 + 0.3*7 = 4.9
     assert final == 4.9
+
+
+def test_no_battles_leaves_score_unchanged():
+    svc = make_service()
+    assert svc.battle_adjustment(elo=None, matches=0) == 0.0
+    # an Elo row with no decided battles (only skips) doesn't count either
+    assert svc.battle_adjustment(elo=1200.0, matches=0) == 0.0
+
+
+def test_battle_wins_raise_and_losses_lower_the_score():
+    svc = make_service()
+    assert svc.battle_adjustment(elo=1300.0, matches=10) > 0
+    assert svc.battle_adjustment(elo=1100.0, matches=10) < 0
+    assert svc.battle_adjustment(elo=1200.0, matches=10) == 0.0
+
+
+def test_battle_adjustment_grows_with_matches_played():
+    svc = make_service()
+    few = svc.battle_adjustment(elo=1400.0, matches=2)
+    many = svc.battle_adjustment(elo=1400.0, matches=200)
+    assert 0 < few < many
+
+
+def test_battle_adjustment_is_capped_at_battle_weight():
+    svc = make_service()
+    # 20 matches = k -> half confidence; +400 Elo = full strength
+    assert svc.battle_adjustment(elo=1600.0, matches=20) == 0.25
+    # far past the +/-400 spread and the k threshold, still never beyond w
+    assert svc.battle_adjustment(elo=3000.0, matches=100_000) <= 0.5
+    assert svc.battle_adjustment(elo=0.0, matches=100_000) >= -0.5
