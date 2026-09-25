@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     ranking_user_weight: float = 0.7
     ranking_external_weight: float = 0.3
     ranking_group_min_size: int = 5
+    # Battle results' pull on the ranking score (see RankingService): the
+    # most points a battle record can add to or remove from an entity's
+    # score, and the battles played before half of that weight applies.
+    ranking_battle_weight: float = 0.5
+    ranking_battle_min_matches: int = 20
 
     # Taste DNA dimension scoring (see app/modules/taste/compute.py). The
     # confidence shrinkage is the same v/(v+k) family as ranking_min_votes

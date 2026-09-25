@@ -4,6 +4,8 @@ Run with: pytest tests/test_battles_elo.py
 """
 import uuid
 
+from sqlalchemy import select
+
 from app.modules.battles.elo import expected_score, update_ratings
 from app.modules.entities.repository import EntityRepository
 
@@ -111,6 +113,38 @@ async def test_cast_vote_updates_and_persists_elo(client, db_session, auth_heade
     body2 = res2.json()
     assert body2["left_score_before"] == body["left_score_after"]
     assert body2["right_score_before"] == body["right_score_after"]
+
+
+async def test_cast_vote_moves_ranking_scores(client, db_session, auth_headers):
+    from app.modules.entities.models import EntityRanking
+
+    winner = await _create_movie(db_session, "Winner Movie")
+    loser = await _create_movie(db_session, "Loser Movie")
+
+    # One battle barely moves a score (confidence is n/(n+k)); a run of
+    # them should show up even after rounding to 2 decimals.
+    for _ in range(10):
+        res = await client.post(
+            "/api/v1/battles/vote",
+            headers=auth_headers,
+            json={
+                "category": "movie",
+                "left_item": str(winner.id),
+                "right_item": str(loser.id),
+                "winner": "left",
+            },
+        )
+        assert res.status_code == 201
+
+    rankings = {}
+    for entity in (winner, loser):
+        ranking = await db_session.scalar(
+            select(EntityRanking).where(EntityRanking.entity_id == entity.id)
+        )
+        await db_session.refresh(ranking)
+        rankings[entity.id] = ranking.computed_score
+    # same ratings/external score on both, so only the battle separates them
+    assert rankings[winner.id] > rankings[loser.id]
 
 
 async def test_cast_vote_rejects_identical_items(client, db_session, auth_headers):
