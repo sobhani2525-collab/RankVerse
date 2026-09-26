@@ -1,177 +1,194 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useAuth } from "@/lib/auth-context";
-import { searchEntities, addListItem, SearchResult } from "@/lib/api";
-import SmartSuggestionChips from "./SmartSuggestionChips";
-import { entityTypeLabel } from "@/lib/constants";
+import { searchEntities, SearchResult } from "@/lib/api";
 import { displayTitle } from "@/lib/title";
+import { typeLabel } from "@/lib/list-constellation";
+import { toFaDigits } from "@/lib/format-number";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { MonoLabel } from "@/components/list-detail/ui";
+import { PlusIcon, CloseIcon, SearchIcon } from "@/components/list-detail/icons";
 
-const SEARCHABLE_TYPES = ["movie", "tv_series", "person"];
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
+/**
+ * The "add item" node for a list still being composed (NewListForm) --
+ * styled and behaved like the real list detail page's AddItemNode (closed
+ * dashed "+" row, opening into a search card), but searching across every
+ * entity type at once since a list is no longer locked to one category.
+ */
 export default function AddListItem({
-  slug,
-  listId,
-  itemCount,
-  entityType,
-  onAdded,
-  onSelectPending,
+  nextRank,
+  onSelect,
   selectedIds,
 }: {
-  slug?: string;
-  listId?: string;
-  itemCount?: number;
-  entityType: string | null;
-  onAdded?: () => void;
-  /**
-   * When set, picking a result adds it to the caller's own local
-   * (unsaved) list instead of calling addListItem -- used by NewListForm,
-   * where there's no slug/listId yet because the list doesn't exist.
-   */
-  onSelectPending?: (result: SearchResult) => void;
-  /** Ids already picked in pending mode, so they render disabled instead of re-addable. */
-  selectedIds?: string[];
+  /** 1-based position this item would take -- shown as "افزودن آیتم #N". */
+  nextRank: number;
+  onSelect: (result: SearchResult) => void;
+  /** Ids already picked, filtered out of results so they can't be re-added. */
+  selectedIds: string[];
 }) {
-  const { token } = useAuth();
-  const isPending = !!onSelectPending;
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [adding, setAdding] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [activeType, setActiveType] = useState(entityType || "movie");
-  const debouncedQuery = useDebouncedValue(query, 350);
+  const debouncedQuery = useDebouncedValue(query.trim(), 350);
+  const [results, setResults] = useState<SearchResult[] | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      setResults([]);
+    if (open) {
+      rootRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !debouncedQuery) {
+      setResults(null);
       return;
     }
     let cancelled = false;
-    setSearching(true);
-    searchEntities(debouncedQuery, activeType)
+    searchEntities(debouncedQuery)
       .then((items) => {
         if (!cancelled) setResults(items);
       })
       .catch(() => {
         if (!cancelled) setResults([]);
-      })
-      .finally(() => {
-        if (!cancelled) setSearching(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, activeType]);
+  }, [open, debouncedQuery]);
 
-  function handleSelect(result: SearchResult) {
-    if (isPending) {
-      onSelectPending?.(result);
-      setQuery("");
-      setResults([]);
-      return;
-    }
-    handleAdd(result.id);
+  function close() {
+    setQuery("");
+    setResults(null);
+    setOpen(false);
   }
 
-  async function handleAdd(entityId: string) {
-    if (!token || !slug) return;
-    setAdding(entityId);
-    setError(null);
-    try {
-      await addListItem(token, slug, { entity_id: entityId });
-      setQuery("");
-      setResults([]);
-      onAdded?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "خطا در افزودن آیتم");
-    } finally {
-      setAdding(null);
-    }
+  function handleSelect(result: SearchResult) {
+    onSelect(result);
+    setQuery("");
+    setResults(null);
+  }
+
+  const rows = (results ?? []).filter((r) => !selectedIds.includes(r.id));
+
+  const ring = (
+    <div className="flex w-9 shrink-0 justify-center lg:w-[52px]" aria-hidden="true">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full border-[1.5px] border-dashed border-[#4CC9A6] bg-bg text-[#4CC9A6] lg:h-12 lg:w-12">
+        <PlusIcon size={16} />
+      </div>
+    </div>
+  );
+
+  if (!open) {
+    return (
+      <div className="flex scroll-mt-20 gap-3 lg:gap-6">
+        {ring}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex min-h-16 w-full flex-1 flex-col items-start gap-0.5 rounded-2xl border border-dashed border-[#2C4A48] bg-transparent px-4 py-3.5 text-start transition-[border-color,background-color] duration-[160ms] hover:border-[#4CC9A6] hover:bg-[rgba(76,201,166,0.05)] lg:rounded-[18px]"
+        >
+          <MonoLabel size="text-[10px]" className="text-[#4CC9A6]">
+            ADD NODE
+          </MonoLabel>
+          <span className="text-[15px] font-extrabold text-ink">افزودن آیتم به لیست</span>
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="mb-6 rounded-xl border border-border bg-surface/60 p-4">
-      <label className="mb-2 block text-sm text-muted">افزودن آیتم به لیست</label>
+    <div ref={rootRef} className="flex scroll-mt-20 gap-3 lg:gap-6">
+      {ring}
 
-      {!isPending && listId && slug && itemCount !== undefined && (
-        <SmartSuggestionChips listId={listId} slug={slug} itemCount={itemCount} onAdded={onAdded!} />
-      )}
-
-      {!entityType && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {SEARCHABLE_TYPES.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                setActiveType(key);
-                setResults([]);
-              }}
-              className={`rounded-full border px-3 py-1 text-xs transition ${
-                activeType === key
-                  ? "border-gold/50 bg-gold/10 text-gold"
-                  : "border-border text-muted"
-              }`}
-            >
-              {entityTypeLabel(key)}
-            </button>
-          ))}
+      <div className="rv-card-in flex min-w-0 flex-1 flex-col gap-3.5 rounded-2xl border border-dashed border-[#2C4A48] bg-[#0C1119] p-4 lg:rounded-[18px] lg:p-[22px]">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col items-start gap-0.5 text-start">
+            <MonoLabel size="text-[10px]" className="text-[#4CC9A6]">
+              ADD NODE
+            </MonoLabel>
+            <span className="text-base font-extrabold text-ink">
+              افزودن آیتم #<span className="num">{toFaDigits(nextRank)}</span>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="بستن"
+            className="-me-2 -mt-2 flex h-11 w-11 items-center justify-center rounded-xl text-muted transition hover:text-ink"
+          >
+            <CloseIcon size={18} />
+          </button>
         </div>
-      )}
 
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={`جستجوی ${entityTypeLabel(activeType)}...`}
-        className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-ink outline-none focus:border-gold/50"
-      />
+        <label className="flex h-[46px] items-center gap-2.5 rounded-xl border border-border bg-surface px-3.5 text-dim focus-within:border-[#4CC9A6]/60">
+          <SearchIcon size={18} />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="عنوان فیلم، سریال یا شخص"
+            aria-label="جستجوی عنوان"
+            autoFocus
+            className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-dim"
+          />
+        </label>
 
-      {error && <p className="mt-2 text-sm text-gold">{error}</p>}
+        {debouncedQuery && (
+          <>
+            <div className="flex items-center gap-2">
+              <MonoLabel size="text-[10px]" className="text-dim">
+                RESULTS
+              </MonoLabel>
+              <span className="text-xs text-muted">نتایج</span>
+            </div>
 
-      {searching && <p className="mt-2 text-sm text-muted">در حال جستجو...</p>}
-
-      {!searching && query.trim() && results.length === 0 && (
-        <p className="mt-2 text-sm text-muted">نتیجه‌ای پیدا نشد.</p>
-      )}
-
-      {results.length > 0 && (
-        <div className="mt-2 flex flex-col gap-1.5">
-          {results.map((r) => {
-            const alreadySelected = !!selectedIds?.includes(r.id);
-            return (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => handleSelect(r)}
-                disabled={adding === r.id || alreadySelected}
-                className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-ink transition hover:border-gold/40 hover:bg-surface2 disabled:opacity-50"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="relative h-10 w-7 shrink-0 overflow-hidden rounded bg-surface2">
-                    {r.image_url ? (
-                      <Image src={r.image_url} alt="" fill sizes="28px" className="object-cover" />
-                    ) : (
-                      <span className="absolute inset-0 bg-gradient-brand" />
-                    )}
-                  </span>
-                  <span>{displayTitle(r)}</span>
-                  <span className="text-xs text-muted">{entityTypeLabel(r.type)}</span>
-                </span>
-                <span className="num text-xs text-gold">
-                  {adding === r.id
-                    ? "در حال افزودن..."
-                    : alreadySelected
-                      ? "افزوده شد"
-                      : "+ افزودن"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+            {results === null ? (
+              <p className="text-[13px] text-dim">در حال جستجو…</p>
+            ) : rows.length === 0 ? (
+              <p className="text-[13px] text-dim">نتیجه‌ای پیدا نشد.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {rows.map((r) => {
+                  const title = displayTitle(r);
+                  const label = typeLabel(r.type);
+                  return (
+                    <li
+                      key={r.id}
+                      className="flex items-center gap-3 rounded-xl border border-border-soft bg-surface p-2.5"
+                    >
+                      <div className="relative h-[66px] w-11 shrink-0 overflow-hidden rounded-md border border-border bg-surface-2">
+                        {r.image_url ? (
+                          <Image src={r.image_url} alt="" fill sizes="44px" className="object-cover" />
+                        ) : (
+                          <span className="absolute inset-0 bg-gradient-brand" />
+                        )}
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col items-start gap-1 text-start">
+                        <span className="text-sm font-extrabold leading-[1.5] text-ink">{title}</span>
+                        <MonoLabel size="text-[9px]" className="text-gold">
+                          {label.en}
+                        </MonoLabel>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSelect(r)}
+                        aria-label={`افزودن ${title}`}
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#4CC9A6] bg-[rgba(76,201,166,0.1)] text-[#4CC9A6] transition-[background-color] duration-[160ms] hover:bg-[rgba(76,201,166,0.2)]"
+                      >
+                        <PlusIcon size={18} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

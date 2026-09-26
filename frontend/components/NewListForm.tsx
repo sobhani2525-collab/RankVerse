@@ -5,9 +5,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { createList, addListItem, SearchResult } from "@/lib/api";
 import AddListItem from "@/components/AddListItem";
+import TagComposer from "@/components/TagComposer";
 import EntityCard from "@/components/entities/entity-card";
 import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
-import { entityTypeLabel } from "@/lib/constants";
 
 interface PendingItem {
   id: string;
@@ -17,19 +17,13 @@ interface PendingItem {
   posterUrl: string | null;
 }
 
-const CATEGORY_TABS: { value: string; label: string }[] = [
-  { value: "movie", label: entityTypeLabel("movie") },
-  { value: "tv_series", label: entityTypeLabel("tv_series") },
-  { value: "person", label: entityTypeLabel("person") },
-  { value: "", label: "ترکیبی" },
-];
-
 /**
  * Styled like the list detail page itself (hero title/description, then a
  * NODES section) rather than a generic form, so composing a list already
  * looks like the page it becomes. Every manually-created list is public,
- * open to anyone's contributions and community-ordered -- there's no
- * per-list choice for any of that (see ListService.create_list).
+ * open to anyone's contributions, community-ordered, and open to every
+ * entity type -- there's no per-list choice for any of that (see
+ * ListService.create_list).
  */
 export default function NewListForm() {
   const router = useRouter();
@@ -38,7 +32,7 @@ export default function NewListForm() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [entityType, setEntityType] = useState("movie");
+  const [tags, setTags] = useState<string[]>([]);
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -64,7 +58,7 @@ export default function NewListForm() {
       const result = await createList(token, {
         title,
         description: description || undefined,
-        entity_type: entityType || undefined,
+        tags,
       });
 
       for (const item of pendingItems) {
@@ -101,7 +95,7 @@ export default function NewListForm() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="عنوان لیست، مثلاً «۱۰ بهترین فیلم اکشن»"
-            className="w-full bg-transparent text-[30px] font-black leading-[1.35] text-ink outline-none placeholder:text-dim lg:text-[56px] lg:leading-[1.2]"
+            className="w-full bg-transparent text-lg font-extrabold leading-snug text-ink outline-none placeholder:text-dim lg:text-xl"
           />
 
           <textarea
@@ -109,27 +103,11 @@ export default function NewListForm() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="توضیح کوتاه لیست (اختیاری)"
             rows={2}
-            className="max-w-[720px] resize-none bg-transparent text-[15px] leading-[1.9] text-ink-dim outline-none placeholder:text-dim lg:text-lg"
+            className="max-w-[720px] resize-none bg-transparent text-sm leading-relaxed text-ink-dim outline-none placeholder:text-dim lg:text-[15px]"
           />
 
-          <div
-            className="flex w-fit gap-1 rounded-[10px] border border-border bg-[#0E121C] p-[3px]"
-            role="group"
-            aria-label="دسته‌بندی"
-          >
-            {CATEGORY_TABS.map((tab) => (
-              <button
-                key={tab.value || "mixed"}
-                type="button"
-                onClick={() => setEntityType(tab.value)}
-                aria-pressed={entityType === tab.value}
-                className={`h-[38px] flex-1 rounded-lg px-4 text-[13px] font-bold transition-[background-color,color] duration-[160ms] ${
-                  entityType === tab.value ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="max-w-[420px]">
+            <TagComposer tags={tags} onChange={setTags} />
           </div>
         </div>
 
@@ -138,13 +116,11 @@ export default function NewListForm() {
             <SectionHeading en="NODES" fa="آیتم‌های لیست" />
           </div>
 
-          <div className="rounded-2xl border border-dashed border-[#2C4A48] bg-[#0C1119] p-4 lg:rounded-[18px] lg:p-[22px]">
-            <AddListItem
-              entityType={entityType || null}
-              onSelectPending={handleSelectPending}
-              selectedIds={pendingItems.map((item) => item.id)}
-            />
-          </div>
+          <AddListItem
+            nextRank={pendingItems.length + 1}
+            onSelect={handleSelectPending}
+            selectedIds={pendingItems.map((item) => item.id)}
+          />
 
           {pendingItems.length > 0 && (
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
