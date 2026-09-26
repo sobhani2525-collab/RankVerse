@@ -6,6 +6,8 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useWatchLater } from "@/contexts/WatchLaterContext";
 import { createList, addListItem, getMyLists } from "@/lib/api";
+import { MonoLabel } from "@/components/list-detail/ui";
+import { PlusIcon } from "@/components/list-detail/icons";
 
 export interface AddToListEntity {
   id: string;
@@ -21,11 +23,46 @@ interface MyListRow {
   title: string;
 }
 
+/** A 44px checkbox-style row shared by the favorites/watch-later shortcuts
+ *  and each of the user's lists -- teal check when active/added. */
+function CheckRow({
+  label,
+  checked,
+  disabled = false,
+  onClick,
+}: {
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex min-h-[44px] w-full items-center justify-between gap-2 px-3.5 text-start text-sm text-ink transition hover:bg-surface-2 disabled:cursor-default"
+    >
+      <span className="truncate">{label}</span>
+      <span
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] transition ${
+          checked ? "border-teal bg-teal/15 text-teal" : "border-border text-transparent"
+        }`}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      </span>
+    </button>
+  );
+}
+
 /**
- * "افزودن به لیست ..." -- opens a menu with the ♥ favorites shortcut first,
- * the user's own lists in the middle (lazy-loaded on open), and an inline
- * quick-create row last. Mirrors SearchBox's dropdown shell (relative
- * container, absolute panel, click-outside-to-close).
+ * "+ افزودن به لیست…" -- opens a "MY LISTS" popover: the ♥ favorites and
+ * "بعداً تماشا می‌کنم" shortcuts first, the user's own lists as checkbox
+ * rows (lazy-loaded on open), and an inline quick-create row last. Mirrors
+ * SearchBox's dropdown shell (relative container, absolute panel,
+ * click-outside-to-close).
  */
 export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
   const router = useRouter();
@@ -118,66 +155,47 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
       <button
         type="button"
         onClick={handleToggleOpen}
-        className="flex items-center gap-1.5 rounded-full border border-violet/40 bg-violet/10 px-3.5 py-2 text-xs font-semibold text-violet-soft transition hover:border-violet/60 hover:bg-violet/20"
+        className="flex h-11 items-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-extrabold text-bg transition hover:bg-ink/90"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        افزودن به لیست ...
+        <PlusIcon size={16} />
+        افزودن به لیست…
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
-          <button
-            type="button"
-            onClick={() => toggleWatchLater(entity.id)}
-            className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-right text-sm text-ink transition hover:bg-surface2"
-          >
-            <span>بعدا تماشا خواهم کرد</span>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill={watchingLater ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={watchingLater ? "text-teal" : "text-muted"}>
-              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-            </svg>
-          </button>
+        <div className="absolute left-0 top-full z-20 mt-1.5 w-72 overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
+          <div className="flex items-center gap-2 border-b border-border-soft px-3.5 py-2.5">
+            <MonoLabel size="text-[10px]" className="text-dim">
+              MY LISTS
+            </MonoLabel>
+            <span className="text-xs text-muted">لیست‌های من</span>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => toggleFavorite(entity)}
-            className="flex w-full items-center justify-between gap-2 border-t border-border px-3.5 py-2.5 text-right text-sm text-ink transition hover:bg-surface2"
-          >
-            <span>مورد علاقه‌ها</span>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill={favorited ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={favorited ? "text-gold" : "text-muted"}>
-              <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
-            </svg>
-          </button>
+          <CheckRow label="بعداً تماشا می‌کنم" checked={watchingLater} onClick={() => toggleWatchLater(entity.id)} />
+          <div className="border-t border-border-soft">
+            <CheckRow label="مورد علاقه‌ها" checked={favorited} onClick={() => toggleFavorite(entity)} />
+          </div>
 
-          <div className="border-t border-border">
+          <div className="border-t border-border-soft">
             {loadingLists ? (
               <p className="px-3.5 py-2.5 text-xs text-muted">در حال بارگذاری...</p>
             ) : lists && lists.length > 0 ? (
               <div className="max-h-48 overflow-y-auto">
-                {lists.map((list) => {
-                  const added = addedListIds.has(list.id);
-                  return (
-                    <button
-                      key={list.id}
-                      type="button"
-                      onClick={() => handleAddToList(list)}
-                      disabled={added}
-                      className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-right text-sm text-ink transition hover:bg-surface2 disabled:cursor-default"
-                    >
-                      <span className="truncate">{list.title}</span>
-                      <span className="shrink-0 text-xs text-teal">{added ? "✓ افزوده شد" : ""}</span>
-                    </button>
-                  );
-                })}
+                {lists.map((list) => (
+                  <CheckRow
+                    key={list.id}
+                    label={list.title}
+                    checked={addedListIds.has(list.id)}
+                    disabled={addedListIds.has(list.id)}
+                    onClick={() => handleAddToList(list)}
+                  />
+                ))}
               </div>
             ) : (
               <p className="px-3.5 py-2.5 text-xs text-muted">هنوز لیستی نساخته‌اید</p>
             )}
           </div>
 
-          <div className="border-t border-border p-2.5">
+          <div className="border-t border-border-soft p-2.5">
             <div className="flex items-center gap-1.5">
               <input
                 type="text"
@@ -189,15 +207,15 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
                     handleCreateList();
                   }
                 }}
-                placeholder="لیست جدید"
+                placeholder="+ لیست جدید"
                 disabled={creating}
-                className="w-full min-w-0 rounded-lg border border-border bg-bg px-2.5 py-1.5 text-sm text-ink placeholder:text-muted outline-none focus:border-gold/50"
+                className="h-11 w-full min-w-0 rounded-xl border border-border bg-bg px-3 text-sm text-ink placeholder:text-muted outline-none focus:border-teal/50"
               />
               <button
                 type="button"
                 onClick={handleCreateList}
                 disabled={creating || !newTitle.trim()}
-                className="shrink-0 rounded-lg bg-gold px-3 py-1.5 text-xs font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
+                className="h-11 shrink-0 rounded-xl bg-gold px-3.5 text-xs font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
               >
                 {creating ? "..." : "ایجاد"}
               </button>

@@ -3,14 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import DetailShareButton from "@/components/entities/detail-share-button";
+import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
-import ScoreBadge from "@/components/ScoreBadge";
-import ImdbBadge from "@/components/ImdbBadge";
-import StarRating from "@/components/rating/StarRating";
+import EntityScoreRow from "@/components/EntityScoreRow";
+import { MonoLabel, Chip } from "@/components/list-detail/ui";
+import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
-import BattleAndRankings from "@/components/BattleAndRankings";
-import EntityLists from "@/components/EntityLists";
+import BattleSection from "@/components/BattleSection";
+import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, getPersonBySlug, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
@@ -54,7 +55,14 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
     rankingsPromise,
     mainDirector
       ? getPersonBySlug(mainDirector.slug)
-          .then((director) => [...director.directed, ...director.created].filter((m) => m.id !== movieId))
+          .then((director) => {
+            // A person can appear in both `directed` and `created` (e.g. a
+            // director who also created a show) -- dedupe by id so
+            // DirectorWorks' key={item.id} never collides.
+            const combined = [...director.directed, ...director.created];
+            const unique = [...new Map(combined.map((m) => [m.id, m])).values()];
+            return unique.filter((m) => m.id !== movieId);
+          })
           .catch((): MovieListItem[] => [])
       : Promise.resolve<MovieListItem[]>([]),
   ]);
@@ -87,6 +95,8 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : null;
 
+  const peopleRows = movie.directors.length > 0 ? [{ label: "کارگردان", people: movie.directors }] : [];
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
       <Link href="/" className="text-sm text-muted hover:text-gold">
@@ -97,13 +107,13 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         {/* Deliberately bigger than any related-entity card (max ~227px wide
             at the lg:grid-cols-5 breakpoint of a max-w-7xl page) so the
             movie's own poster always reads as the primary image on the page. */}
-        <div className="h-96 w-64 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
+        <div className="h-[480px] w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
           {posterUrl ? (
             <Image
               src={posterUrl}
               alt={displayTitle(movie)}
-              width={256}
-              height={384}
+              width={320}
+              height={480}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -115,89 +125,114 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="font-display text-2xl text-ink">{displayTitle(movie)}</h1>
-              <p className="mt-1 text-sm text-muted">
-                <span className="num">{toFaDigits(movie.year ?? "-")}</span>
-                {movie.runtime != null && (
-                  <>
-                    {" - "}
-                    <span className="num">{toFaDigits(movie.runtime)}</span> دقیقه
-                  </>
-                )}
-              </p>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-gold">
+                  <span className="h-2 w-2 rounded-full bg-gold" />
+                </span>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <MonoLabel size="text-[10px]" className="text-gold">
+                    MOVIE
+                  </MonoLabel>
+                  <span className="text-xs text-muted">فیلم</span>
+                </div>
+              </div>
+
+              <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
+                {movie.title_fa ?? movie.title}.
+              </h1>
+              {movie.title_fa && (
+                <p dir="ltr" className="inline-block text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
+                  {movie.title}.
+                </p>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <DetailFavoriteButton entity={movie} size={44} />
-              <DetailShareButton entity={movie} title={displayTitle(movie)} size={44} />
+              <DetailFavoriteButton entity={movie} size={48} shape="square" />
+              <DetailShareButton entity={movie} title={displayTitle(movie)} size={48} shape="square" />
             </div>
-          </div>
-
-          {/* #rate: the list page's "امتیاز بده" links land here. */}
-          <div id="rate" className="mt-4 scroll-mt-24">
-            <StarRating entity={movie} />
-          </div>
-
-          <div className="mt-3 flex justify-end">
-            <AddToListMenu entity={movie} />
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <ScoreBadge score={movie.computed_score} />
-            <ImdbBadge imdbId={movie.imdb_id} rating={movie.imdb_rating} votes={movie.imdb_votes} />
+            <Chip tone="border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
+              <span className="num">{toFaDigits(movie.year ?? "-")}</span>
+            </Chip>
+            {movie.runtime != null && (
+              <Chip tone="border-border bg-surface-2 text-ink">
+                <span className="num">{toFaDigits(movie.runtime)}</span> دقیقه
+              </Chip>
+            )}
+            {movie.genres.map((g) => (
+              <Chip key={g.id} href={entityHref("genre", g.slug)} tone={GENRE_CHIP}>
+                {genreLabel(g.title)}
+              </Chip>
+            ))}
+          </div>
+
+          <EntityScoreRow
+            score={movie.computed_score}
+            imdbId={movie.imdb_id}
+            imdbRating={movie.imdb_rating}
+            imdbVotes={movie.imdb_votes}
+            ratingEntity={movie}
+          />
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <AddToListMenu entity={movie} />
+            <BattleJumpButton />
           </div>
 
           {movie.overview && (
-            <p className="mt-5 text-sm leading-relaxed text-ink/90">{movie.overview}</p>
+            <div className="mt-6">
+              <div className="flex items-center gap-2">
+                <MonoLabel size="text-[10px]" className="text-dim">
+                  OVERVIEW
+                </MonoLabel>
+                <span className="text-xs text-muted">خلاصه</span>
+              </div>
+              <p className="mt-2 text-[17px] leading-[2] text-ink/90 lg:text-[17px]">{movie.overview}</p>
+            </div>
           )}
-
-          <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
-            {movie.directors.length > 0 && (
-              <div>
-                <dt className="text-xs text-muted">کارگردان</dt>
-                <dd className="mt-1 text-ink">
-                  {movie.directors.map((d) => d.title).join("، ")}
-                </dd>
-              </div>
-            )}
-            {movie.genres.length > 0 && (
-              <div>
-                <dt className="text-xs text-muted">ژانر</dt>
-                <dd className="mt-1 text-ink">
-                  {movie.genres.map((g) => genreLabel(g.title)).join("، ")}
-                </dd>
-              </div>
-            )}
-            {movie.cast.length > 0 && (
-              <div className="col-span-2">
-                <dt className="text-xs text-muted">بازیگران</dt>
-                <dd className="mt-1 text-ink">{movie.cast.map((c) => c.title).join("، ")}</dd>
-              </div>
-            )}
-          </dl>
         </div>
       </div>
 
       <div className="mt-10">
-        <RelatedEntities items={related} />
+        <EntityGraphWithSidebar
+          entityType="movie"
+          peopleRows={peopleRows}
+          cast={movie.cast}
+          genres={movie.genres}
+          year={movie.year}
+          rankingHighlights={rankingHighlights}
+          entityId={movie.id}
+        />
+      </div>
+
+      <div className="mt-10">
+        <BattleSection
+          entityType="movie"
+          slug={movie.slug}
+          fallbackBattle={fallbackBattle}
+          directorName={mainDirector?.title ?? null}
+        />
       </div>
 
       {mainDirector && (
         <div className="mt-10">
-          <DirectorWorks directorName={mainDirector.title} items={directorWorks} />
+          <DirectorWorks directorName={mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />
         </div>
       )}
 
       <div className="mt-10">
-        <BattleAndRankings
-          entityType="movie"
-          slug={movie.slug}
-          rankingHighlights={rankingHighlights}
-          fallbackBattle={fallbackBattle}
-        />
+        <RelatedEntities items={related} excludeIds={directorWorks.map((w) => w.id)} />
       </div>
 
-      <EntityLists entityId={movie.id} />
+      <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
+        <span>امتیاز ترکیبی از رأی جامعه (میانگین بیزی)، روند محبوبیت و نتایج نبردها محاسبه می‌شود.</span>
+        <Link href="/rankings" className="flex min-h-[44px] shrink-0 items-center text-violet-light hover:text-ink">
+          روش امتیازدهی
+        </Link>
+      </footer>
     </main>
   );
 }

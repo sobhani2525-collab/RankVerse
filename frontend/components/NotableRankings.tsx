@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RankingHighlight } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
+import { SectionHeading } from "@/components/list-detail/ui";
 
 function highlightLabel(highlight: RankingHighlight): string {
   const title = highlight.group.title;
@@ -75,10 +76,11 @@ export default function NotableRankings({ items }: NotableRankingsProps) {
           When it's paired with the battle card in a half-width flex column,
           that column is already narrower than max-w-2xl, so mx-auto has
           nothing to center against and is a no-op there. */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-ink">رتبه‌های قابل‌توجه</h2>
-        <span className="text-xs text-muted">بر اساس امتیاز محاسبه‌شده</span>
-      </div>
+      <SectionHeading
+        en="NOTABLE RANKINGS"
+        fa="جایگاه‌های برجسته"
+        aside={<span className="text-xs text-muted">بر اساس امتیاز محاسبه‌شده</span>}
+      />
 
       <div className="mt-4 flex flex-col gap-3">
         {items.map((h) => {
@@ -114,6 +116,10 @@ export default function NotableRankings({ items }: NotableRankingsProps) {
                   #{h.rank}
                 </span>
               )}
+
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-dim transition group-hover:text-gold">
+                <path d="m15 6-6 6 6 6" />
+              </svg>
             </Link>
           );
         })}

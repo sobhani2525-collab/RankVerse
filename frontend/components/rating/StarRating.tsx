@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { rateEntity, unrateEntity, getMyRatings } from "@/lib/api";
 import { Spinner } from "@/components/Loading";
+import { toFaDigits } from "@/lib/format-number";
 
 const STAR_COUNT = 5;
 
@@ -23,7 +24,7 @@ export interface RatableEntity {
   total_votes?: number;
 }
 
-export default function StarRating({ entity }: { entity: RatableEntity }) {
+export default function StarRating({ entity, bare = false }: { entity: RatableEntity; bare?: boolean }) {
   const { token, getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const [selected, setSelected] = useState<number | null>(null);
@@ -85,8 +86,10 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
   const displayValue = hovered ?? selected ?? 0;
   const filledCount = Math.max(0, Math.min(STAR_COUNT, displayValue));
 
+  const ratePrompt = entity.entity_type === "tv_series" ? "به این سریال امتیاز بده" : "به این فیلم امتیاز بده";
+
   return (
-    <div className="rounded-xl border border-border bg-surface/60 px-5 py-4">
+    <div className={bare ? "" : "rounded-xl border border-border bg-surface/60 px-5 py-4"}>
       <div
         className="relative inline-flex"
         style={{ width: STAR_COUNT * 44, height: 44 }}
@@ -141,9 +144,12 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
             {selected !== null ? "در حال ثبت امتیاز…" : "در حال حذف امتیاز…"}
           </>
         ) : selected !== null ? (
-          <span className="text-teal">امتیاز شما ثبت شد</span>
+          <span className="text-teal">
+            امتیاز شما ثبت شد · <span className="num">{toFaDigits(selected)}</span> از{" "}
+            <span className="num">{toFaDigits(STAR_COUNT)}</span>
+          </span>
         ) : (
-          "امتیاز خود را ثبت کنید"
+          ratePrompt
         )}
       </p>
 
@@ -154,7 +160,7 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
           disabled={busy}
           className="mt-1 text-xs text-muted underline hover:text-gold disabled:opacity-50"
         >
-          حذف رای
+          حذف رأی
         </button>
       )}
 

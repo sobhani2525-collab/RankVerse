@@ -3,19 +3,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import DetailShareButton from "@/components/entities/detail-share-button";
+import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
-import ScoreBadge from "@/components/ScoreBadge";
-import ImdbBadge from "@/components/ImdbBadge";
-import StarRating from "@/components/rating/StarRating";
+import EntityScoreRow from "@/components/EntityScoreRow";
+import { MonoLabel, Chip } from "@/components/list-detail/ui";
+import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
-import BattleAndRankings from "@/components/BattleAndRankings";
-import EntityLists from "@/components/EntityLists";
+import BattleSection from "@/components/BattleSection";
+import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { detailPathFor } from "@/lib/entity-routes";
 import { MovieListItem, PersonSummary, SuggestedBattle } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -32,69 +32,9 @@ export async function generateStaticParams() {
 const ONGOING_STATUSES = new Set(["Returning Series", "In Production", "Planned", "Pilot"]);
 
 /**
- * Returns JSX, not a string: the old version built one plain string ("8
- * فصل · 2011–2019") and rendered the WHOLE thing inside className="num"
- * (direction: ltr). That forced a Persian word ("فصل") and a dash-joined
- * year range into one LTR context together, and the bidi algorithm ended
- * up reordering the two numbers in the range too ("8 2019-2011 · فصل" as
- * rendered) -- same class of bug as the Taste DNA dimension-label mixup.
- *
- * The fix, verified with a screenshot: isolate each PURELY-numeric
- * fragment (the season count, the year-or-range) in its own .num span,
- * and leave the Persian words ("فصل", "در حال پخش") and the "·" separator
- * in plain, unforced flow -- don't wrap the whole compound in one
- * direction like the old version did.
- */
-function SeasonsAndYears({
-  tv,
-}: {
-  tv: {
-    number_of_seasons: number | null;
-    first_air_date: string | null;
-    last_air_date: string | null;
-    status: string | null;
-  };
-}) {
-  const startYear = tv.first_air_date ? tv.first_air_date.slice(0, 4) : null;
-  const isOngoing = tv.status ? ONGOING_STATUSES.has(tv.status) : false;
-  const endYear = !isOngoing && tv.last_air_date ? tv.last_air_date.slice(0, 4) : null;
-
-  const seasonsPart = tv.number_of_seasons ? (
-    <>
-      <span className="num">{toFaDigits(tv.number_of_seasons)}</span> فصل
-    </>
-  ) : null;
-
-  let yearsPart: React.ReactNode = null;
-  if (startYear) {
-    if (isOngoing) {
-      yearsPart = (
-        <>
-          <span className="num">{toFaDigits(startYear)}</span>–در حال پخش
-        </>
-      );
-    } else if (endYear && endYear !== startYear) {
-      yearsPart = <span className="num">{toFaDigits(startYear)}–{toFaDigits(endYear)}</span>;
-    } else {
-      yearsPart = <span className="num">{toFaDigits(startYear)}</span>;
-    }
-  }
-
-  if (!seasonsPart && !yearsPart) return null;
-
-  return (
-    <p className="mt-1 text-sm text-muted">
-      {seasonsPart}
-      {seasonsPart && yearsPart && " · "}
-      {yearsPart}
-    </p>
-  );
-}
-
-/**
- * Creators and directors as linked name lists, one row per role. Someone
- * who is both lands in a single "سازنده و کارگردان" row instead of being
- * listed twice.
+ * Creators and directors as PEOPLE rows for the GRAPH section, one row per
+ * role. Someone who is both lands in a single "سازنده و کارگردان" row
+ * instead of being listed twice.
  */
 function creditRows(creators: PersonSummary[], directors: PersonSummary[]) {
   const directorIds = new Set(directors.map((d) => d.id));
@@ -104,21 +44,6 @@ function creditRows(creators: PersonSummary[], directors: PersonSummary[]) {
     { label: "سازنده و کارگردان", people: creators.filter((c) => directorIds.has(c.id)) },
     { label: "کارگردان", people: directors.filter((d) => !creatorIds.has(d.id)) },
   ].filter((row) => row.people.length > 0);
-}
-
-function PersonLinks({ people }: { people: PersonSummary[] }) {
-  return (
-    <>
-      {people.map((p, i) => (
-        <span key={p.id}>
-          {i > 0 && "، "}
-          <Link href={detailPathFor("person", p.slug)!} className="hover:text-gold">
-            {p.title}
-          </Link>
-        </span>
-      ))}
-    </>
-  );
 }
 
 export default async function TvSeriesDetailPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -150,7 +75,14 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
     rankingsPromise,
     mainCreator
       ? getPersonBySlug(mainCreator.slug)
-          .then((creator) => [...creator.directed, ...creator.created].filter((m) => m.id !== tvId))
+          .then((creator) => {
+            // A person can appear in both `directed` and `created` (e.g. a
+            // director who also created a show) -- dedupe by id so
+            // DirectorWorks' key={item.id} never collides.
+            const combined = [...creator.directed, ...creator.created];
+            const unique = [...new Map(combined.map((m) => [m.id, m])).values()];
+            return unique.filter((m) => m.id !== tvId);
+          })
           .catch((): MovieListItem[] => [])
       : Promise.resolve<MovieListItem[]>([]),
   ]);
@@ -181,6 +113,11 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
   const posterUrl = tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null;
 
+  const startYear = tv.first_air_date ? tv.first_air_date.slice(0, 4) : null;
+  const isOngoing = tv.status ? ONGOING_STATUSES.has(tv.status) : false;
+  const endYear = !isOngoing && tv.last_air_date ? tv.last_air_date.slice(0, 4) : null;
+  const peopleRows = creditRows(tv.creators, tv.directors);
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
       <Link href="/" className="text-sm text-muted hover:text-gold">
@@ -191,13 +128,13 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         {/* Deliberately bigger than any related-entity card (max ~227px wide
             at the lg:grid-cols-5 breakpoint of a max-w-7xl page) so the
             show's own poster always reads as the primary image on the page. */}
-        <div className="h-96 w-64 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
+        <div className="h-[480px] w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
           {posterUrl ? (
             <Image
               src={posterUrl}
               alt={displayTitle(tv)}
-              width={256}
-              height={384}
+              width={320}
+              height={480}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -209,85 +146,141 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="font-display text-2xl text-ink">{displayTitle(tv)}</h1>
-              <SeasonsAndYears tv={tv} />
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-gold">
+                  <span className="h-2 w-2 rounded-full bg-gold" />
+                </span>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <MonoLabel size="text-[10px]" className="text-gold">
+                    SERIES
+                  </MonoLabel>
+                  <span className="text-xs text-muted">سریال</span>
+                </div>
+              </div>
+
+              <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
+                {tv.title_fa ?? tv.title}.
+              </h1>
+              {tv.title_fa && (
+                <p dir="ltr" className="inline-block text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
+                  {tv.title}.
+                </p>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <DetailFavoriteButton entity={tv} size={44} />
-              <DetailShareButton entity={tv} title={displayTitle(tv)} size={44} />
+              <DetailFavoriteButton entity={tv} size={48} shape="square" />
+              <DetailShareButton entity={tv} title={displayTitle(tv)} size={48} shape="square" />
             </div>
-          </div>
-
-          {/* #rate: the list page's "امتیاز بده" links land here. */}
-          <div id="rate" className="mt-4 scroll-mt-24">
-            <StarRating entity={tv} />
-          </div>
-
-          <div className="mt-3 flex justify-end">
-            <AddToListMenu entity={tv} />
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <ScoreBadge score={tv.computed_score} />
-            <ImdbBadge imdbId={tv.imdb_id} rating={tv.imdb_rating} votes={tv.imdb_votes} />
+            {tv.number_of_seasons != null && (
+              <Chip tone="border-border bg-surface-2 text-ink">
+                <span className="num">{toFaDigits(tv.number_of_seasons)}</span> فصل
+              </Chip>
+            )}
+            {startYear && (
+              <Chip tone="border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
+                {isOngoing ? (
+                  <>
+                    <span className="num">{toFaDigits(startYear)}</span>–در حال پخش
+                  </>
+                ) : endYear && endYear !== startYear ? (
+                  <span className="num">
+                    {toFaDigits(startYear)}–{toFaDigits(endYear)}
+                  </span>
+                ) : (
+                  <span className="num">{toFaDigits(startYear)}</span>
+                )}
+              </Chip>
+            )}
+            {tv.genres.map((g) => (
+              <Chip key={g.id} href={entityHref("genre", g.slug)} tone={GENRE_CHIP}>
+                {genreLabel(g.title)}
+              </Chip>
+            ))}
+          </div>
+
+          <EntityScoreRow
+            score={tv.computed_score}
+            imdbId={tv.imdb_id}
+            imdbRating={tv.imdb_rating}
+            imdbVotes={tv.imdb_votes}
+            ratingEntity={tv}
+          />
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <AddToListMenu entity={tv} />
+            <BattleJumpButton />
           </div>
 
           {tv.overview && (
-            <p className="mt-5 text-sm leading-relaxed text-ink/90">{tv.overview}</p>
+            <div className="mt-6">
+              <div className="flex items-center gap-2">
+                <MonoLabel size="text-[10px]" className="text-dim">
+                  OVERVIEW
+                </MonoLabel>
+                <span className="text-xs text-muted">خلاصه</span>
+              </div>
+              <p className="mt-2 text-[17px] leading-[2] text-ink/90 lg:text-[17px]">{tv.overview}</p>
+            </div>
           )}
 
-          <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
-            {creditRows(tv.creators, tv.directors).map((row) => (
-              <div key={row.label}>
-                <dt className="text-xs text-muted">{row.label}</dt>
-                <dd className="mt-1 text-ink">
-                  <PersonLinks people={row.people} />
-                </dd>
+          {tv.networks.length > 0 && (
+            <div className="mt-6 flex flex-col items-start gap-2">
+              <MonoLabel size="text-[10px]" className="text-dim">
+                NETWORKS · شبکه پخش
+              </MonoLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {tv.networks.map((n) => (
+                  <Chip key={n.id} tone="border-border bg-surface-2 text-ink">
+                    {n.title}
+                  </Chip>
+                ))}
               </div>
-            ))}
-            {tv.genres.length > 0 && (
-              <div>
-                <dt className="text-xs text-muted">ژانر</dt>
-                <dd className="mt-1 text-ink">{tv.genres.map((g) => genreLabel(g.title)).join("، ")}</dd>
-              </div>
-            )}
-            {tv.networks.length > 0 && (
-              <div>
-                <dt className="text-xs text-muted">شبکه پخش</dt>
-                <dd className="mt-1 text-ink">{tv.networks.map((n) => n.title).join("، ")}</dd>
-              </div>
-            )}
-            {tv.cast.length > 0 && (
-              <div className="col-span-2">
-                <dt className="text-xs text-muted">بازیگران</dt>
-                <dd className="mt-1 text-ink">{tv.cast.map((c) => c.title).join("، ")}</dd>
-              </div>
-            )}
-          </dl>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="mt-10">
-        <RelatedEntities items={related} />
+        <EntityGraphWithSidebar
+          entityType="tv_series"
+          peopleRows={peopleRows}
+          cast={tv.cast}
+          genres={tv.genres}
+          year={startYear ? Number(startYear) : null}
+          rankingHighlights={rankingHighlights}
+          entityId={tv.id}
+        />
+      </div>
+
+      <div className="mt-10">
+        <BattleSection
+          entityType="tv_series"
+          slug={tv.slug}
+          fallbackBattle={fallbackBattle}
+          directorName={mainCreator?.title ?? null}
+        />
       </div>
 
       {mainCreator && (
         <div className="mt-10">
-          <DirectorWorks directorName={mainCreator.title} items={creatorWorks} />
+          <DirectorWorks directorName={mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
         </div>
       )}
 
       <div className="mt-10">
-        <BattleAndRankings
-          entityType="tv_series"
-          slug={tv.slug}
-          rankingHighlights={rankingHighlights}
-          fallbackBattle={fallbackBattle}
-        />
+        <RelatedEntities items={related} excludeIds={creatorWorks.map((w) => w.id)} />
       </div>
 
-      <EntityLists entityId={tv.id} />
+      <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
+        <span>امتیاز ترکیبی از رأی جامعه (میانگین بیزی)، روند محبوبیت و نتایج نبردها محاسبه می‌شود.</span>
+        <Link href="/rankings" className="flex min-h-[44px] shrink-0 items-center text-violet-light hover:text-ink">
+          روش امتیازدهی
+        </Link>
+      </footer>
     </main>
   );
 }

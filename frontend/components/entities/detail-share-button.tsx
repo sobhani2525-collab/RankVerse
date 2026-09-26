@@ -16,10 +16,13 @@ export default function DetailShareButton({
   entity,
   title,
   size = 44,
+  shape = "circle",
 }: {
   entity: DetailShareEntity;
   title: string;
   size?: number;
+  /** "square" = the Constellation-style hero's rounded-square action buttons. */
+  shape?: "circle" | "square";
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -51,7 +54,9 @@ export default function DetailShareButton({
       aria-label="اشتراک‌گذاری"
       onClick={handleShare}
       style={{ width: size, height: size }}
-      className="relative flex shrink-0 items-center justify-center rounded-full border border-border bg-surface/60 text-muted transition hover:border-teal/40 hover:text-teal"
+      className={`relative flex shrink-0 items-center justify-center border border-border transition hover:border-teal/40 hover:text-teal ${
+        shape === "square" ? "rounded-xl bg-surface text-ink" : "rounded-full bg-surface/60 text-muted"
+      }`}
     >
       <svg
         width={size * 0.4}

@@ -1,52 +1,44 @@
-"use client";
-
-import { useState } from "react";
+import PosterCard, { PosterCardWhyChip } from "@/components/entities/poster-card";
+import { SectionHeading } from "@/components/list-detail/ui";
 import { RelatedEntity } from "@/lib/api";
-import { relatedEntityToEntityCard } from "@/lib/entity-card-adapters";
-import { toFaDigits } from "@/lib/format-number";
-import FavoriteEntityCard from "@/components/entities/favorite-entity-card";
 
 interface RelatedEntitiesProps {
   items: RelatedEntity[];
+  /** Ids already shown in "ساخته‌های دیگر X" (DirectorWorks) -- filtered out
+   *  here so the two sections don't repeat the same title. */
+  excludeIds?: string[];
 }
 
-export default function RelatedEntities({ items }: RelatedEntitiesProps) {
-  const [openReasonId, setOpenReasonId] = useState<string | null>(null);
+// build_reason() (app/modules/recommendations/router.py) joins its parts
+// with " • ": a shared-director/shared-actor sentence (people, violet) and/
+// or a "ژانر مشترک: ..." sentence (genre, teal), or a generic fallback
+// sentence when nothing specific was found -- that fallback isn't worth a
+// chip of its own.
+const GENERIC_REASON = "بر اساس شباهت کلی در گراف دانش";
 
-  if (items.length === 0) return null;
+function whyChipsFor(reason: string | null): PosterCardWhyChip[] {
+  if (!reason || reason === GENERIC_REASON) return [];
+  return reason
+    .split(" • ")
+    .map((text): PosterCardWhyChip => ({ text, tone: text.startsWith("ژانر مشترک") ? "genre" : "people" }));
+}
+
+export default function RelatedEntities({ items, excludeIds = [] }: RelatedEntitiesProps) {
+  const excluded = new Set(excludeIds);
+  const shown = items.filter((item) => !excluded.has(item.id));
+  if (shown.length === 0) return null;
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-ink">اگر این را دوست داری...</h2>
-        <span className="text-xs text-muted">بر اساس گراف دانش</span>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6 lg:grid-cols-5">
-        {items.map((item) => {
-          const isOpen = openReasonId === item.id;
-
-          return (
-            <div key={item.id} className="flex flex-col gap-1.5">
-              <FavoriteEntityCard entity={relatedEntityToEntityCard(item)} />
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="num text-[10px] text-muted">{toFaDigits(Math.round(item.weight * 100))}% مشابهت</span>
-                {item.reason && (
-                  <button
-                    onClick={() => setOpenReasonId(isOpen ? null : item.id)}
-                    className="shrink-0 text-[10px] text-gold hover:underline"
-                  >
-                    {isOpen ? "بستن" : "چرا این پیشنهاد؟"}
-                  </button>
-                )}
-              </div>
-
-              {isOpen && item.reason && (
-                <p className="text-[11px] leading-snug text-muted">{item.reason}</p>
-              )}
-            </div>
-          );
-        })}
+      <SectionHeading
+        en="IF YOU LIKED"
+        fa="اگر این را دوست داشتی"
+        aside={<span className="text-xs text-dim">بر اساس اتصال‌های واقعی گراف، نه جعبه سیاه</span>}
+      />
+      <div className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
+        {shown.map((item) => (
+          <PosterCard key={item.id} entity={item} why={whyChipsFor(item.reason)} />
+        ))}
       </div>
     </div>
   );
