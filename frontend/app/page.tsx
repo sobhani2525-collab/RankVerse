@@ -13,12 +13,13 @@ import GenreUniverse from "@/components/home/GenreUniverse";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import FinalCta from "@/components/home/FinalCta";
 import SectionHeading from "@/components/home/SectionHeading";
-import { getRankingsPage, getMovieBySlug, getMovieRankings, discoverLists, RankingHighlight } from "@/lib/api";
+import { getRankingsPage, getMovieBySlug, getMovieRankings, discoverLists, RankingHighlight, RANKING_TTL } from "@/lib/api";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 import { clusterByGenre, toHomeTitle } from "@/lib/home-data";
+import { rethrowOutsideBuild } from "@/lib/isr";
 import { MovieDetail, MovieListItem } from "@/lib/types";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 // Backend load per home render is kept small and bounded: 3 list reads in
 // parallel; as soon as the movie list lands, detail fetches for only the
@@ -63,12 +64,15 @@ export default async function HomePage() {
     getRankingsPage("tv_series", { page_size: 10 }),
     // آخرین لیست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
     // این بخش بی‌سروصدا مخفی می‌شه و مانع لود بقیهٔ صفحه نمی‌شه.
-    discoverLists({ sort: "newest", page_size: 6 }),
+    // Cached as long as the rest of the page, so this read doesn't pull the
+    // whole home page down to the lists TTL.
+    discoverLists({ sort: "newest", page_size: 6 }, RANKING_TTL),
     moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
   ]);
 
   const movies: MovieListItem[] = movieRes.status === "fulfilled" ? movieRes.value.items : [];
   const movieTotal = movieRes.status === "fulfilled" ? movieRes.value.total : null;
+  if (movieRes.status === "rejected") rethrowOutsideBuild(movieRes.reason);
   const loadError =
     movieRes.status === "rejected"
       ? movieRes.reason instanceof Error

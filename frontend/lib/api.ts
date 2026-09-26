@@ -73,13 +73,36 @@ async function fetchWithTimeout(path: string, init: RequestInit): Promise<Respon
   }
 }
 
-async function fetchEnvelope<T>(path: string, revalidateSeconds = 300): Promise<T> {
-  const res = await fetchWithTimeout(path, {
-    next: { revalidate: revalidateSeconds },
-  });
+// How long server-side reads stay in Next's fetch cache. In production that
+// cache lives in Workers KV (open-next.config.ts), whose free plan allows
+// only 1000 writes/day -- every refresh of a page or fetch entry is one --
+// so these are deliberately coarse. Page-level `revalidate` exports match
+// them (Next uses the smaller of the two). User-specific state (own rating,
+// favorites, votes) is read client-side and isn't affected.
+const DETAIL_TTL = 3600; // entity pages and their sections
+export const RANKING_TTL = 1800; // ranking tables, home page
+const COMMUNITY_TTL = 600; // lists and public profiles
+
+/** A non-2xx backend response; `status` lets pages tell "missing" (404) apart from "backend unreachable". */
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export function isNotFoundError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404;
+}
+
+async function fetchEnvelope<T>(path: string, revalidateSeconds = RANKING_TTL): Promise<T> {
+  const res = await fetchWithTimeout(
+    path,
+    revalidateSeconds > 0 ? { next: { revalidate: revalidateSeconds } } : { cache: "no-store" }
+  );
 
   if (!res.ok) {
-    throw new Error(`RankVerse API error (${res.status}) on ${path}`);
+    throw new ApiError(res.status, `RankVerse API error (${res.status}) on ${path}`);
   }
 
   const json: Envelope<T> = await res.json();
@@ -103,7 +126,7 @@ export async function getTopMovies(params: {
 }
 
 export async function getMovieBySlug(slug: string): Promise<MovieDetail> {
-  return fetchEnvelope<MovieDetail>(`/movies/${slug}`, 60);
+  return fetchEnvelope<MovieDetail>(`/movies/${slug}`, DETAIL_TTL);
 }
 
 export async function getTopTvSeries(params: {
@@ -120,19 +143,19 @@ export async function getTopTvSeries(params: {
 }
 
 export async function getTvSeriesBySlug(slug: string): Promise<TvSeriesDetail> {
-  return fetchEnvelope<TvSeriesDetail>(`/tv-series/${slug}`, 60);
+  return fetchEnvelope<TvSeriesDetail>(`/tv-series/${slug}`, DETAIL_TTL);
 }
 
 export async function getPersonBySlug(slug: string): Promise<PersonDetail> {
-  return fetchEnvelope<PersonDetail>(`/people/${slug}`, 300);
+  return fetchEnvelope<PersonDetail>(`/people/${slug}`, DETAIL_TTL);
 }
 
 export async function getGenreBySlug(slug: string): Promise<GenreDetail> {
-  return fetchEnvelope<GenreDetail>(`/genres/${slug}`, 300);
+  return fetchEnvelope<GenreDetail>(`/genres/${slug}`, DETAIL_TTL);
 }
 
 export async function getTrackBySlug(slug: string): Promise<TrackDetail> {
-  return fetchEnvelope<TrackDetail>(`/tracks/${slug}`, 300);
+  return fetchEnvelope<TrackDetail>(`/tracks/${slug}`, DETAIL_TTL);
 }
 
 async function postEnvelope<T>(path: string, body: unknown): Promise<T> {
@@ -308,24 +331,24 @@ export async function discoverLists(params: {
   entity_type?: string;
   tag?: string;
   sort?: "newest" | "popular";
-} = {}): Promise<ListSummary[]> {
+} = {}, revalidateSeconds: number = COMMUNITY_TTL): Promise<ListSummary[]> {
   const qs = new URLSearchParams();
   if (params.page) qs.set("page", String(params.page));
   if (params.page_size) qs.set("page_size", String(params.page_size));
   if (params.entity_type) qs.set("entity_type", params.entity_type);
   if (params.tag) qs.set("tag", params.tag);
   if (params.sort) qs.set("sort", params.sort);
-  return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, 60);
+  return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, revalidateSeconds);
 }
 
 // --- Public user profiles ---
 
 export async function getPublicUser(username: string): Promise<PublicUser> {
-  return fetchEnvelope<PublicUser>(`/users/${encodeURIComponent(username)}`, 120);
+  return fetchEnvelope<PublicUser>(`/users/${encodeURIComponent(username)}`, COMMUNITY_TTL);
 }
 
 export async function getPublicUserLists(username: string): Promise<ListSummary[]> {
-  return fetchEnvelope<ListSummary[]>(`/users/${encodeURIComponent(username)}/lists`, 60);
+  return fetchEnvelope<ListSummary[]>(`/users/${encodeURIComponent(username)}/lists`, COMMUNITY_TTL);
 }
 
 export async function getListBySlug(slug: string, token?: string | null): Promise<ListDetail> {
@@ -341,15 +364,19 @@ export async function getListBySlug(slug: string, token?: string | null): Promis
 }
 
 export async function getListComments(slug: string): Promise<ListComment[]> {
-  return fetchEnvelope<ListComment[]>(`/lists/${slug}/comments`, 30);
+  // Uncached: the list page is rendered per request anyway (its list read is
+  // no-store), and a freshly posted comment should show on the next load.
+  return fetchEnvelope<ListComment[]>(`/lists/${slug}/comments`, 0);
 }
 
 export async function getRelatedLists(slug: string): Promise<RelatedListSummary[]> {
-  return fetchEnvelope<RelatedListSummary[]>(`/lists/${slug}/related`, 120);
+  return fetchEnvelope<RelatedListSummary[]>(`/lists/${slug}/related`, COMMUNITY_TTL);
 }
 
 export async function getListsContainingEntity(entityId: string): Promise<ListSummary[]> {
-  return fetchEnvelope<ListSummary[]>(`/lists/for-entity/${entityId}`, 120);
+  // A section of the movie/series pages, so it shares their TTL instead of
+  // pulling the whole page down to the lists one.
+  return fetchEnvelope<ListSummary[]>(`/lists/for-entity/${entityId}`, DETAIL_TTL);
 }
 
 export interface SmartSuggestion {
@@ -585,7 +612,7 @@ export interface RelatedEntity {
 }
 
 export async function getRelatedEntities(entityId: string, limit: number = 6): Promise<RelatedEntity[]> {
-  return fetchEnvelope<RelatedEntity[]>(`/entities/${entityId}/related?limit=${limit}`, 300);
+  return fetchEnvelope<RelatedEntity[]>(`/entities/${entityId}/related?limit=${limit}`, DETAIL_TTL);
 }
 
 export interface RankingHighlight {
@@ -596,11 +623,11 @@ export interface RankingHighlight {
 }
 
 export async function getMovieRankings(slug: string): Promise<RankingHighlight[]> {
-  return fetchEnvelope<RankingHighlight[]>(`/movies/${slug}/rankings`, 300);
+  return fetchEnvelope<RankingHighlight[]>(`/movies/${slug}/rankings`, DETAIL_TTL);
 }
 
 export async function getTvSeriesRankings(slug: string): Promise<RankingHighlight[]> {
-  return fetchEnvelope<RankingHighlight[]>(`/tv-series/${slug}/rankings`, 300);
+  return fetchEnvelope<RankingHighlight[]>(`/tv-series/${slug}/rankings`, DETAIL_TTL);
 }
 
 
@@ -631,10 +658,10 @@ export async function getRankingsPage(
 
   const res = await fetchWithTimeout(
     path,
-    options.fresh ? { cache: "no-store" } : { next: { revalidate: 300 } }
+    options.fresh ? { cache: "no-store" } : { next: { revalidate: RANKING_TTL } }
   );
   if (!res.ok) {
-    throw new Error(`RankVerse API error (${res.status}) on ${path}`);
+    throw new ApiError(res.status, `RankVerse API error (${res.status}) on ${path}`);
   }
   const json: Envelope<MovieListItem[]> = await res.json();
   if (json.error) {

@@ -2,8 +2,9 @@ import Link from "next/link";
 import ListCard from "@/components/lists/list-card";
 import { discoverLists } from "@/lib/api";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
+import { rethrowOutsideBuild } from "@/lib/isr";
 
-export const revalidate = 60;
+export const revalidate = 600;
 
 export default async function ListsPage() {
   let lists: Awaited<ReturnType<typeof discoverLists>> = [];
@@ -12,6 +13,7 @@ export default async function ListsPage() {
   try {
     lists = await discoverLists({ page_size: 30, sort: "newest" });
   } catch (err) {
+    rethrowOutsideBuild(err);
     loadError = err instanceof Error ? err.message : "خطا در دریافت اطلاعات";
   }
 

@@ -11,14 +11,21 @@ import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
 import BattleAndRankings from "@/components/BattleAndRankings";
 import EntityLists from "@/components/EntityLists";
-import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, RelatedEntity, RankingHighlight } from "@/lib/api";
+import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { detailPathFor } from "@/lib/entity-routes";
 import { MovieListItem, PersonSummary, SuggestedBattle } from "@/lib/types";
 
-export const revalidate = 60;
+export const revalidate = 3600;
+
+// No paths are prerendered at build; each one is rendered on its first
+// visit and then served from the ISR cache. Without this export the route
+// is fully dynamic and `revalidate` above only affects the fetch cache.
+export async function generateStaticParams() {
+  return [];
+}
 
 // Statuses TMDb still considers "not finished" -- everything else (Ended,
 // Canceled) gets its actual end year shown instead.
@@ -123,8 +130,11 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   let tv;
   try {
     tv = await getTvSeriesBySlug(slug);
-  } catch {
-    notFound();
+  } catch (err) {
+    // Only a real 404 is a 404: a timeout or 5xx rethrows, so ISR keeps
+    // the last good page instead of caching "not found" for an hour.
+    if (isNotFoundError(err)) notFound();
+    throw err;
   }
 
   // Powers both the "ساخته‌های دیگر X" section and, when there's no

@@ -10,6 +10,20 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // ISR/fetch cache store for OpenNext (open-next.config.ts).
+  "kv_namespaces": [
+    {
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "d37ed7aa4a3c4c61b2117ca35097f90a"
+    }
+  ],
+  // Lets the Worker call itself to regenerate stale ISR pages in the background.
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "rankverse-frontend"
+    }
+  ],
   "observability": {
     "enabled": true
   },

@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ListCard, { AuthorAvatar } from "@/components/lists/list-card";
-import { getPublicUser, getPublicUserLists } from "@/lib/api";
+import { getPublicUser, getPublicUserLists, isNotFoundError } from "@/lib/api";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 
-export const revalidate = 120;
+export const revalidate = 600;
+
+// No paths are prerendered at build; each one is rendered on its first
+// visit and then served from the ISR cache. Without this export the route
+// is fully dynamic and `revalidate` above only affects the fetch cache.
+export async function generateStaticParams() {
+  return [];
+}
 
 export default async function PublicProfilePage({
   params,
@@ -20,8 +27,11 @@ export default async function PublicProfilePage({
   let user;
   try {
     user = await getPublicUser(username);
-  } catch {
-    notFound();
+  } catch (err) {
+    // Only a real 404 is a 404: a timeout or 5xx rethrows, so ISR keeps
+    // the last good page instead of caching "not found" for an hour.
+    if (isNotFoundError(err)) notFound();
+    throw err;
   }
   const lists = await listsPromise;
 

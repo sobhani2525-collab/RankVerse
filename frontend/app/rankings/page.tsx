@@ -4,7 +4,7 @@ import { getRankingsPage, RankingsPage } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 const PAGE_SIZE = 25;
 
