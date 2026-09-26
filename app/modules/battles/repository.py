@@ -16,20 +16,6 @@ class BattleRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_or_create_elo(self, entity_id: uuid.UUID, category: str) -> EntityEloScore:
-        result = await self.db.execute(
-            select(EntityEloScore).where(
-                EntityEloScore.entity_id == entity_id,
-                EntityEloScore.category == category,
-            )
-        )
-        row = result.scalar_one_or_none()
-        if row is None:
-            row = EntityEloScore(entity_id=entity_id, category=category, elo_score=DEFAULT_ELO)
-            self.db.add(row)
-            await self.db.flush()
-        return row
-
     async def get_elo_map(self, entity_ids: list[uuid.UUID], category: str) -> dict[uuid.UUID, EntityEloScore]:
         result = await self.db.execute(
             select(EntityEloScore).where(
@@ -39,20 +25,31 @@ class BattleRepository:
         )
         return {row.entity_id: row for row in result.scalars().all()}
 
-    async def get_entity_types(self, entity_ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
-        result = await self.db.execute(
-            select(Entity.id, Entity.entity_type).where(Entity.id.in_(entity_ids))
-        )
-        return {row[0]: row[1] for row in result.all()}
+    def default_elo(self, entity_id: uuid.UUID, category: str) -> EntityEloScore:
+        """A never-battled entity's Elo row, not added to the session: reads
+        (showing a pair) don't need it written, and the first vote on the
+        entity adds it (BattleService.get_elo_rows)."""
+        return EntityEloScore(entity_id=entity_id, category=category, elo_score=DEFAULT_ELO, matches_played=0)
 
-    async def get_random_entity(self, category: str) -> Entity | None:
+    async def get_entities(self, entity_ids: list[uuid.UUID]) -> dict[uuid.UUID, Entity]:
+        result = await self.db.execute(select(Entity).where(Entity.id.in_(entity_ids)))
+        return {entity.id: entity for entity in result.scalars().all()}
+
+    async def get_random_entity(self, category: str) -> tuple[Entity, EntityEloScore | None] | None:
+        """A random entity of the category plus its Elo row (None if it has
+        never been in a battle), in one round trip."""
         result = await self.db.execute(
-            select(Entity)
+            select(Entity, EntityEloScore)
+            .outerjoin(
+                EntityEloScore,
+                (EntityEloScore.entity_id == Entity.id) & (EntityEloScore.category == category),
+            )
             .where(Entity.entity_type == category)
             .order_by(func.random())
             .limit(1)
         )
-        return result.scalar_one_or_none()
+        row = result.first()
+        return (row[0], row[1]) if row else None
 
     async def get_closest_opponent(
         self,
@@ -62,7 +59,9 @@ class BattleRepository:
         exclude_ids: list[uuid.UUID],
         user_id: uuid.UUID,
         recent_days: int = 3,
-    ) -> Entity | None:
+    ) -> tuple[Entity, EntityEloScore | None] | None:
+        """The closest-Elo opponent for the anchor, plus the opponent's Elo
+        row (None if it has never been in a battle)."""
         recent_cutoff = datetime.now(timezone.utc) - timedelta(days=recent_days)
 
         recent_pairs_subq = (
@@ -90,7 +89,7 @@ class BattleRepository:
 
         if candidate_ids:
             query = (
-                select(Entity, elo_expr.label("elo"))
+                select(Entity, EntityEloScore)
                 .outerjoin(
                     EntityEloScore,
                     (EntityEloScore.entity_id == Entity.id)
@@ -103,10 +102,10 @@ class BattleRepository:
             result = await self.db.execute(query)
             row = result.first()
             if row:
-                return row[0]
+                return row[0], row[1]
 
         query = (
-            select(Entity, elo_expr.label("elo"))
+            select(Entity, EntityEloScore)
             .outerjoin(
                 EntityEloScore,
                 (EntityEloScore.entity_id == Entity.id)
@@ -118,7 +117,7 @@ class BattleRepository:
         )
         result = await self.db.execute(query)
         row = result.first()
-        return row[0] if row else None
+        return (row[0], row[1]) if row else None
 
     async def create_vote(
         self,

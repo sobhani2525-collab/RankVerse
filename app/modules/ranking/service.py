@@ -59,20 +59,6 @@ class RankingService:
         self.battle_weight = settings.ranking_battle_weight
         self.battle_k = settings.ranking_battle_min_matches
 
-    async def get_platform_average(self) -> float:
-        stmt = select(func.avg(UserRating.score))
-        result = await self.db.execute(stmt)
-        avg = result.scalar_one_or_none()
-        return float(avg) if avg is not None else 3.0  # neutral midpoint of the 1-5 scale
-
-    async def get_entity_stats(self, entity_id) -> tuple[float | None, int]:
-        stmt = select(func.avg(UserRating.score), func.count(UserRating.id)).where(
-            UserRating.entity_id == entity_id
-        )
-        result = await self.db.execute(stmt)
-        avg, count = result.one()
-        return (float(avg) if avg is not None else None, count or 0)
-
     def bayesian_score(self, v: int, R: float | None, C: float) -> float:
         if v == 0 or R is None:
             return C
@@ -92,43 +78,83 @@ class RankingService:
         confidence = matches / (matches + self.battle_k)
         return self.battle_weight * confidence * strength
 
-    async def get_battle_stats(self, entity: Entity) -> tuple[float | None, int]:
-        # Battle category == entity_type (battles are same-type only).
-        stmt = select(EntityEloScore.elo_score, EntityEloScore.matches_played).where(
-            EntityEloScore.entity_id == entity.id,
-            EntityEloScore.category == entity.entity_type,
-        )
-        row = (await self.db.execute(stmt)).one_or_none()
-        return (row[0], row[1]) if row else (None, 0)
-
     async def recompute_entity(self, entity: Entity) -> EntityRanking:
         """Recompute and persist the score for a single entity."""
-        C = await self.get_platform_average()
-        R, v = await self.get_entity_stats(entity.id)
-        bayesian = self.bayesian_score(v, R, C)
+        return (await self.recompute_entities([entity]))[entity.id]
 
-        # TMDb rating is 0-10 already; stored in attributes at ingest time
-        external_score = entity.attributes.get("external_rating")
-        elo, matches = await self.get_battle_stats(entity)
-        final = round(
-            self.blend_with_external(bayesian, external_score, C) + self.battle_adjustment(elo, matches),
-            2,
+    async def recompute_entities(self, entities: list[Entity]) -> dict:
+        """
+        Recompute and persist the scores of several entities (e.g. both
+        sides of a battle) -- same formula as the per-entity helpers above,
+        but the platform average, each entity's rating stats and battle
+        stats come back in one query and the ranking rows in a second,
+        instead of ~6 sequential round trips per entity. Returns entity id
+        -> EntityRanking.
+        """
+        if not entities:
+            return {}
+        ids = [e.id for e in entities]
+
+        rating_stats = (
+            select(
+                UserRating.entity_id.label("entity_id"),
+                func.avg(UserRating.score).label("avg"),
+                func.count(UserRating.id).label("votes"),
+            )
+            .where(UserRating.entity_id.in_(ids))
+            .group_by(UserRating.entity_id)
+            .subquery()
         )
+        stats_stmt = (
+            select(
+                Entity.id,
+                select(func.avg(UserRating.score)).scalar_subquery(),
+                rating_stats.c.avg,
+                rating_stats.c.votes,
+                EntityEloScore.elo_score,
+                EntityEloScore.matches_played,
+            )
+            .outerjoin(rating_stats, rating_stats.c.entity_id == Entity.id)
+            # Battle category == entity_type (battles are same-type only).
+            .outerjoin(
+                EntityEloScore,
+                (EntityEloScore.entity_id == Entity.id) & (EntityEloScore.category == Entity.entity_type),
+            )
+            .where(Entity.id.in_(ids))
+        )
+        stats = {row[0]: row[1:] for row in (await self.db.execute(stats_stmt)).all()}
 
-        stmt = select(EntityRanking).where(EntityRanking.entity_id == entity.id)
-        result = await self.db.execute(stmt)
-        ranking = result.scalar_one_or_none()
+        existing = await self.db.execute(select(EntityRanking).where(EntityRanking.entity_id.in_(ids)))
+        rankings = {r.entity_id: r for r in existing.scalars().all()}
 
-        if ranking is None:
-            ranking = EntityRanking(entity_id=entity.id)
-            self.db.add(ranking)
+        for entity in entities:
+            platform_avg, avg, votes, elo, matches = stats[entity.id]
+            C = float(platform_avg) if platform_avg is not None else 3.0  # neutral midpoint of the 1-5 scale
+            R = float(avg) if avg is not None else None
+            v = votes or 0
+            bayesian = self.bayesian_score(v, R, C)
 
-        ranking.avg_user_score = R
-        ranking.total_votes = v
-        ranking.external_score = external_score
-        ranking.computed_score = final
+            # TMDb rating is 0-10 already; stored in attributes at ingest time
+            external_score = entity.attributes.get("external_rating")
+            final = round(
+                self.blend_with_external(bayesian, external_score, C)
+                + self.battle_adjustment(elo, matches or 0),
+                2,
+            )
+
+            ranking = rankings.get(entity.id)
+            if ranking is None:
+                ranking = EntityRanking(entity_id=entity.id)
+                self.db.add(ranking)
+                rankings[entity.id] = ranking
+
+            ranking.avg_user_score = R
+            ranking.total_votes = v
+            ranking.external_score = external_score
+            ranking.computed_score = final
+
         await self.db.flush()
-        return ranking
+        return rankings
 
     async def get_entity_highlights(
         self, entity: Entity, min_group_size: int | None = None

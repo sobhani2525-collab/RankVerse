@@ -193,7 +193,7 @@ class TasteDimensionComputer:
         if user_avg is None:
             # A favorites-only user has no explicit ratings to establish a
             # baseline -- fall back to the scale midpoint, same convention
-            # as RankingService.get_platform_average's neutral default.
+            # as RankingService.recompute_entities' platform-average default.
             user_avg = (RATING_SCALE_MIN + RATING_SCALE_MAX) / 2
 
         by_genre: dict[str, list[int]] = {}
@@ -571,21 +571,26 @@ class ContributionStatsComputer:
         self.repo = TasteRepository(db)
 
     async def compute_contribution_stats(self, user_id: uuid.UUID) -> None:
-        votes_count = await self._count(select(func.count()).select_from(UserRating).where(
-            UserRating.user_id == user_id
-        ))
-        # Skips are shown to the user but aren't a comparison they actually
-        # made a call on, so they don't count as a contribution.
-        battles_count = await self._count(select(func.count()).select_from(PairVote).where(
-            PairVote.user_id == user_id,
-            PairVote.winner != VoteOutcome.SKIP,
-        ))
-        comments_count = await self._count(select(func.count()).select_from(ListComment).where(
-            ListComment.user_id == user_id
-        ))
-        favorites_count = await self._count(select(func.count()).select_from(UserFavorite).where(
-            UserFavorite.user_id == user_id
-        ))
+        # All four counts in one round trip (this runs on every rating,
+        # battle vote, comment and favorite toggle).
+        counts = select(
+            select(func.count()).select_from(UserRating).where(
+                UserRating.user_id == user_id
+            ).scalar_subquery(),
+            # Skips are shown to the user but aren't a comparison they actually
+            # made a call on, so they don't count as a contribution.
+            select(func.count()).select_from(PairVote).where(
+                PairVote.user_id == user_id,
+                PairVote.winner != VoteOutcome.SKIP,
+            ).scalar_subquery(),
+            select(func.count()).select_from(ListComment).where(
+                ListComment.user_id == user_id
+            ).scalar_subquery(),
+            select(func.count()).select_from(UserFavorite).where(
+                UserFavorite.user_id == user_id
+            ).scalar_subquery(),
+        )
+        votes_count, battles_count, comments_count, favorites_count = (await self.db.execute(counts)).one()
 
         contribution_score = (
             votes_count * settings.taste_contribution_vote_weight
@@ -604,7 +609,3 @@ class ContributionStatsComputer:
                 "contribution_score": contribution_score,
             },
         )
-
-    async def _count(self, stmt) -> int:
-        result = await self.db.execute(stmt)
-        return result.scalar_one()

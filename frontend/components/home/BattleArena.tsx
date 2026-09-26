@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SectionHeading from "./SectionHeading";
@@ -35,6 +35,10 @@ export default function BattleArena({ preview }: { preview: [HomeTitle, HomeTitl
   const [reveal, setReveal] = useState<Reveal>(null);
   const [outcomes, setOutcomes] = useState<{ left?: "win" | "lose"; right?: "win" | "lose" }>({});
 
+  // The next pair, requested while the current vote is being saved (see
+  // vote) so "نبرد بعدی" usually shows it without waiting.
+  const prefetched = useRef<Promise<NextBattleResponse | null> | null>(null);
+
   const loadBattle = useCallback(async () => {
     const token = getToken();
     if (!token) return;
@@ -42,8 +46,10 @@ export default function BattleArena({ preview }: { preview: [HomeTitle, HomeTitl
     setError(null);
     setReveal(null);
     setOutcomes({});
+    const pending = prefetched.current;
+    prefetched.current = null;
     try {
-      setBattle(await getNextBattle(token, "movie"));
+      setBattle((pending && (await pending)) ?? (await getNextBattle(token, "movie")));
     } catch (e) {
       setError(e instanceof Error ? e.message : "دریافت نبرد ممکن نشد");
       setBattle(null);
@@ -64,6 +70,8 @@ export default function BattleArena({ preview }: { preview: [HomeTitle, HomeTitl
     setError(null);
     if (winner === "left") setOutcomes({ left: "win", right: "lose" });
     if (winner === "right") setOutcomes({ left: "lose", right: "win" });
+    // A failed prefetch just falls back to a normal fetch in loadBattle.
+    prefetched.current = getNextBattle(token, "movie").catch(() => null);
     try {
       const result = await castBattleVote(token, {
         category: battle.category,

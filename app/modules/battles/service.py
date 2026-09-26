@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 
 from app.modules.entities.models import Entity
-from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
 from app.modules.taste.compute import ContributionStatsComputer
 
@@ -20,29 +19,35 @@ class BattleService:
     def __init__(self, repo: BattleRepository):
         self.repo = repo
 
+    # Every DB round trip here is ~130ms (backend and DB are in different
+    # regions), so these flows batch their reads and skip writes a read
+    # doesn't need: showing a pair no longer creates Elo rows -- the first
+    # vote on an entity does (get_elo_rows).
+
     async def get_next_battle(self, category: str, user_id: uuid.UUID):
-        anchor = await self.repo.get_random_entity(category)
-        if anchor is None:
+        picked = await self.repo.get_random_entity(category)
+        if picked is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No entities found for category '{category}'",
             )
-        anchor_elo = await self.repo.get_or_create_elo(anchor.id, category)
+        anchor, anchor_elo = picked
+        anchor_elo = anchor_elo or self.repo.default_elo(anchor.id, category)
 
-        opponent = await self.repo.get_closest_opponent(
+        closest = await self.repo.get_closest_opponent(
             category=category,
             anchor_entity_id=anchor.id,
             anchor_elo=anchor_elo.elo_score,
             exclude_ids=[],
             user_id=user_id,
         )
-        if opponent is None:
+        if closest is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Not enough entities in this category to form a battle",
             )
-        opponent_elo = await self.repo.get_or_create_elo(opponent.id, category)
-        await self.repo.commit()
+        opponent, opponent_elo = closest
+        opponent_elo = opponent_elo or self.repo.default_elo(opponent.id, category)
 
         return anchor, anchor_elo, opponent, opponent_elo
 
@@ -53,24 +58,32 @@ class BattleService:
         above -- same same-type validation, same Elo lookup, just skips
         the selection step since the caller already chose both sides.
         """
-        await self._validate_matchup(left_id, right_id, category)
+        entities = await self._validate_matchup(left_id, right_id, category)
+        elos = await self.repo.get_elo_map([left_id, right_id], category)
 
-        entity_repo = EntityRepository(self.repo.db)
-        left = await entity_repo.get_by_id(left_id)
-        right = await entity_repo.get_by_id(right_id)
+        return (
+            entities[left_id],
+            elos.get(left_id) or self.repo.default_elo(left_id, category),
+            entities[right_id],
+            elos.get(right_id) or self.repo.default_elo(right_id, category),
+        )
 
-        left_elo = await self.repo.get_or_create_elo(left.id, category)
-        right_elo = await self.repo.get_or_create_elo(right.id, category)
-        await self.repo.commit()
-
-        return left, left_elo, right, right_elo
+    async def get_elo_rows(self, entity_ids: list[uuid.UUID], category: str) -> dict:
+        """Both sides' Elo rows in one query, adding (unflushed) default rows
+        for entities that have never battled -- they're written with the vote."""
+        elos = await self.repo.get_elo_map(entity_ids, category)
+        for entity_id in entity_ids:
+            if entity_id not in elos:
+                elos[entity_id] = self.repo.default_elo(entity_id, category)
+                self.repo.db.add(elos[entity_id])
+        return elos
 
     async def cast_vote(self, user_id: uuid.UUID, payload: CastVoteRequest) -> CastVoteResponse:
         await self._enforce_rate_limit(user_id)
-        await self._validate_matchup(payload.left_item, payload.right_item, payload.category)
+        entities = await self._validate_matchup(payload.left_item, payload.right_item, payload.category)
 
-        left_elo = await self.repo.get_or_create_elo(payload.left_item, payload.category)
-        right_elo = await self.repo.get_or_create_elo(payload.right_item, payload.category)
+        elos = await self.get_elo_rows([payload.left_item, payload.right_item], payload.category)
+        left_elo, right_elo = elos[payload.left_item], elos[payload.right_item]
 
         left_before, right_before = left_elo.elo_score, right_elo.elo_score
 
@@ -99,10 +112,9 @@ class BattleService:
         )
         if payload.winner.value != "skip":
             # Battle results feed the ranking score, so refresh both sides.
-            ranking = RankingService(self.repo.db)
-            for entity_id in (payload.left_item, payload.right_item):
-                entity = await self.repo.db.get(Entity, entity_id)
-                await ranking.recompute_entity(entity)
+            await RankingService(self.repo.db).recompute_entities(
+                [entities[payload.left_item], entities[payload.right_item]]
+            )
         await ContributionStatsComputer(self.repo.db).compute_contribution_stats(user_id)
         await self.repo.commit()
 
@@ -117,7 +129,9 @@ class BattleService:
             created_at=vote.created_at,
         )
 
-    async def _validate_matchup(self, left_item: uuid.UUID, right_item: uuid.UUID, category: str) -> None:
+    async def _validate_matchup(
+        self, left_item: uuid.UUID, right_item: uuid.UUID, category: str
+    ) -> dict[uuid.UUID, Entity]:
         """
         Battles are same-type only (a movie battle stays movie-vs-movie, a
         tv_series battle stays tv_series-vs-tv_series) -- comparing a movie
@@ -126,22 +140,26 @@ class BattleService:
         not an incidental limitation. category doubles as the entity_type
         filter everywhere else in this module (see BattleRepository), so
         both items must actually be of that type, not just match each other.
+
+        Returns both entities, so callers don't fetch them again.
         """
-        types = await self.repo.get_entity_types([left_item, right_item])
+        entities = await self.repo.get_entities([left_item, right_item])
         for item_id in (left_item, right_item):
-            if item_id not in types:
+            if item_id not in entities:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Entity '{item_id}' not found",
                 )
-        if types[left_item] != category or types[right_item] != category:
+        left_type, right_type = entities[left_item].entity_type, entities[right_item].entity_type
+        if left_type != category or right_type != category:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
                     f"Both items must be of type '{category}' to match the battle category "
-                    f"(got '{types[left_item]}' and '{types[right_item]}')"
+                    f"(got '{left_type}' and '{right_type}')"
                 ),
             )
+        return entities
 
     async def _enforce_rate_limit(self, user_id: uuid.UUID):
         since = datetime.now(timezone.utc) - timedelta(days=1)

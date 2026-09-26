@@ -52,6 +52,11 @@ function BattlesPageInner() {
   const [reveal, setReveal] = useState<RevealState>(null);
   const [outcomes, setOutcomes] = useState<{ left?: "win" | "lose"; right?: "win" | "lose" }>({});
 
+  // The next random pair, requested while the current vote is still being
+  // saved (see handleVote) so it's usually ready by the time the reveal
+  // animation ends. Tagged with its category so a tab switch discards it.
+  const prefetched = useRef<{ category: string; pair: Promise<NextBattleResponse | null> } | null>(null);
+
   const loadNextBattle = useCallback(async () => {
     const token = getToken();
     if (!token) return;
@@ -59,8 +64,12 @@ function BattlesPageInner() {
     setError(null);
     setReveal(null);
     setOutcomes({});
+    const pending = prefetched.current?.category === category ? prefetched.current.pair : null;
+    prefetched.current = null;
     try {
-      const next = await getNextBattle(token, category, preselected.current ?? undefined);
+      const next =
+        (pending && (await pending)) ??
+        (await getNextBattle(token, category, preselected.current ?? undefined));
       preselected.current = null;
       setBattle(next);
     } catch (e) {
@@ -84,6 +93,8 @@ function BattlesPageInner() {
     setError(null);
     if (winner === "left") setOutcomes({ left: "win", right: "lose" });
     else if (winner === "right") setOutcomes({ left: "lose", right: "win" });
+    // A failed prefetch just falls back to a normal fetch in loadNextBattle.
+    prefetched.current = { category, pair: getNextBattle(token, category).catch(() => null) };
     try {
       const result = await castBattleVote(token, {
         category: battle.category,
