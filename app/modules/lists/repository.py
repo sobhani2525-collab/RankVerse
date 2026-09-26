@@ -218,20 +218,23 @@ class ListRepository:
     async def entities_linked_to_people(
         self,
         person_ids: set[uuid.UUID],
-        entity_type: str,
+        entity_type: str | None,
         exclude_ids: set[uuid.UUID],
         limit: int,
     ) -> list[Entity]:
-        """Entities of `entity_type` that a person in `person_ids` directed,
-        created or acted in -- a loose pool; the caller keeps only the ones
-        whose director/lead actor actually matches."""
+        """Entities (of `entity_type`, or any type when omitted) that a
+        person in `person_ids` directed, created or acted in -- a loose
+        pool; the caller keeps only the ones whose director/lead actor
+        actually matches."""
         if not person_ids:
             return []
         linked = select(RelationshipEdge.from_entity_id).where(
             RelationshipEdge.to_entity_id.in_(person_ids),
             RelationshipEdge.relation_type.in_(["directed_by", "creator", "acted_in"]),
         )
-        stmt = select(Entity).where(Entity.id.in_(linked), Entity.entity_type == entity_type)
+        stmt = select(Entity).where(Entity.id.in_(linked))
+        if entity_type:
+            stmt = stmt.where(Entity.entity_type == entity_type)
         if exclude_ids:
             stmt = stmt.where(Entity.id.not_in(exclude_ids))
         result = await self.db.execute(stmt.limit(limit))

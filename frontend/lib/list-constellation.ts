@@ -78,9 +78,11 @@ export function entityHref(entityType: string, slug: string): string | null {
 /** The in-page battle section (ListBattlePreview) that each item's "نبرد" button scrolls to. */
 export const BATTLE_SECTION_ID = "list-battle";
 
-/** Entity types /battles/vote accepts. Mirrors BATTLE_TYPES in app/modules/lists/graph.py. */
+/** Entity types the in-list battle can run for. /battles/vote itself
+ * accepts any type -- category is just entity_type (see
+ * app/modules/battles/service.py's _validate_matchup). */
 export function isBattleable(entityType: string): boolean {
-  return entityType === "movie" || entityType === "tv_series";
+  return entityType === "movie" || entityType === "tv_series" || entityType === "person";
 }
 
 /** Why two items belong in the same battle round, closest link first (tier 0 = shared director). */

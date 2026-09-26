@@ -12,13 +12,6 @@ import { useListViewer } from "./ListViewerContext";
 import { MonoLabel } from "./ui";
 import { CloseIcon, PlusIcon, SearchIcon } from "./icons";
 
-type CandidateType = "movie" | "tv_series";
-
-const TYPE_TABS: { value: CandidateType; label: string }[] = [
-  { value: "movie", label: "فیلم" },
-  { value: "tv_series", label: "سریال" },
-];
-
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -64,8 +57,8 @@ function Poster({ candidate }: { candidate: ListCandidate }) {
 
 /**
  * The add-item node at the end of the spine. Closed: a dashed "+" ring and
- * a button card. Open: a card with a movie/series switch, a debounced
- * search and the candidates (GET /lists/{slug}/candidates) -- graph
+ * a button card. Open: a card with a debounced search across every entity
+ * type and the candidates (GET /lists/{slug}/candidates) -- graph
  * suggestions while the query is empty -- each saying how it would connect
  * to the list. Adding inserts the item at the end right away (the spine
  * animates it in), then saves it; a failed save rolls it back.
@@ -81,9 +74,6 @@ export default function AddItemNode({
 }) {
   const { getToken } = useAuth();
   const { slug, detail, setItemsDetail, markJustAdded, refresh } = useListViewer();
-  const lockedType: CandidateType | null =
-    detail.entity_type === "movie" || detail.entity_type === "tv_series" ? detail.entity_type : null;
-  const [type, setType] = useState<CandidateType>(lockedType ?? "movie");
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query.trim(), 350);
   const [candidates, setCandidates] = useState<ListCandidate[] | null>(null);
@@ -103,7 +93,7 @@ export default function AddItemNode({
     if (!token) return;
     let cancelled = false;
     setCandidates(null);
-    getListCandidates(token, slug, type, debouncedQuery)
+    getListCandidates(token, slug, debouncedQuery)
       .then((rows) => {
         if (!cancelled) setCandidates(rows);
       })
@@ -113,7 +103,7 @@ export default function AddItemNode({
     return () => {
       cancelled = true;
     };
-  }, [open, type, debouncedQuery, slug, getToken]);
+  }, [open, debouncedQuery, slug, getToken]);
 
   const rows = useMemo(() => {
     const inList = new Set(detail.items.map((i) => i.entity.id));
@@ -207,31 +197,13 @@ export default function AddItemNode({
             </button>
           </div>
 
-          {!lockedType && (
-            <div className="flex gap-1 rounded-[10px] border border-border bg-[#0E121C] p-[3px]" role="group" aria-label="نوع آیتم">
-              {TYPE_TABS.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setType(tab.value)}
-                  aria-pressed={type === tab.value}
-                  className={`h-[38px] flex-1 rounded-lg text-[13px] font-bold transition-[background-color,color] duration-[160ms] ${
-                    type === tab.value ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           <label className="flex h-[46px] items-center gap-2.5 rounded-xl border border-border bg-surface px-3.5 text-dim focus-within:border-[#4CC9A6]/60">
             <SearchIcon size={18} />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="نام فیلم یا سریال…"
+              placeholder="عنوان فیلم، سریال یا شخص"
               aria-label="جستجوی عنوان"
               className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-dim"
             />

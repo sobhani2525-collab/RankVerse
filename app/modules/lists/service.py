@@ -394,12 +394,13 @@ class ListService:
         ]
 
     async def get_candidates(
-        self, user_id: uuid.UUID, slug: str, entity_type: str, q: str, limit: int
+        self, user_id: uuid.UUID, slug: str, entity_type: str | None, q: str, limit: int
     ) -> list[ListCandidate]:
         """What the add-item form offers: title matches for `q`, or -- with
-        an empty query -- graph suggestions: entities of `entity_type` whose
-        director or lead actor is also one of a list item's, most-connected
-        first. Items already in the list are never offered."""
+        an empty query -- graph suggestions: entities whose director or lead
+        actor is also one of a list item's, most-connected first. `entity_type`
+        narrows either to one type; omitting it searches/suggests across all
+        of them. Items already in the list are never offered."""
         lst = await self.repo.get_by_slug(slug)
         if not lst:
             raise NotFoundError(f"List '{slug}' not found")

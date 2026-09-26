@@ -61,19 +61,20 @@ export default function NewListForm() {
         tags,
       });
 
-      for (const item of pendingItems) {
-        try {
-          await addListItem(token, result.slug, { entity_id: item.id });
-        } catch {
-          // list is already created -- keep going so one bad item doesn't
-          // block the rest; the user can retry failed adds from the list page.
-        }
-      }
+      // In parallel, not one at a time -- with several pending items the old
+      // sequential loop was most of the wait between clicking "ساخت لیست"
+      // and landing on the new list. A failed add is swallowed (the list is
+      // already created either way; the user can retry from its page).
+      await Promise.allSettled(
+        pendingItems.map((item) => addListItem(token, result.slug, { entity_id: item.id }))
+      );
 
+      // submitting deliberately stays true here -- the button keeps showing
+      // its loading state through the navigation instead of flashing back to
+      // "ساخت لیست" while the new page is still fetching.
       router.push(`/lists/${result.slug}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در ساخت لیست");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -167,8 +168,14 @@ export default function NewListForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-10 h-12 self-stretch rounded-xl bg-gold text-[15px] font-extrabold text-bg transition hover:bg-gold/90 disabled:opacity-50 lg:self-start lg:px-10"
+          className="mt-10 flex h-12 items-center justify-center gap-2 self-stretch rounded-xl bg-gold text-[15px] font-extrabold text-bg transition hover:bg-gold/90 disabled:cursor-not-allowed disabled:hover:bg-gold lg:self-start lg:px-10"
         >
+          {submitting && (
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
           {submitting ? "در حال ساخت..." : "ساخت لیست"}
         </button>
       </form>

@@ -454,11 +454,10 @@ export async function addListItem(
 export async function getListCandidates(
   token: string,
   slug: string,
-  type: "movie" | "tv_series",
   q: string,
   limit: number = 12
 ): Promise<ListCandidate[]> {
-  const qs = new URLSearchParams({ type, q, limit: String(limit) });
+  const qs = new URLSearchParams({ q, limit: String(limit) });
   return authFetch<ListCandidate[]>(`/lists/${slug}/candidates?${qs.toString()}`, token);
 }
 
