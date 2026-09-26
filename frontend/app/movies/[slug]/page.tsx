@@ -21,25 +21,15 @@ export const revalidate = 60;
 
 export default async function MovieDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  // Each backend read costs ~1.5s (DB round trips), so reads are issued as
+  // soon as their input is known instead of one after another: rankings
+  // only need the URL slug, related/director only need the movie.
+  const rankingsPromise = getMovieRankings(slug).catch((): RankingHighlight[] => []);
   let movie;
   try {
     movie = await getMovieBySlug(slug);
   } catch {
     notFound();
-  }
-
-  let related: RelatedEntity[] = [];
-  try {
-    related = await getRelatedEntities(movie.id);
-  } catch {
-    related = [];
-  }
-
-  let rankingHighlights: RankingHighlight[] = [];
-  try {
-    rankingHighlights = await getMovieRankings(movie.slug);
-  } catch {
-    rankingHighlights = [];
   }
 
   // Powers both the "ساخته‌های دیگر X" section and, when there's no
@@ -48,15 +38,16 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   // the director's own next-best-scored other film, so the card has
   // something to show instead of nothing.
   const mainDirector = movie.directors[0] ?? null;
-  let directorWorks: MovieListItem[] = [];
-  if (mainDirector) {
-    try {
-      const director = await getPersonBySlug(mainDirector.slug);
-      directorWorks = [...director.directed, ...director.created].filter((m) => m.id !== movie.id);
-    } catch {
-      directorWorks = [];
-    }
-  }
+  const movieId = movie.id;
+  const [related, rankingHighlights, directorWorks] = await Promise.all([
+    getRelatedEntities(movieId).catch((): RelatedEntity[] => []),
+    rankingsPromise,
+    mainDirector
+      ? getPersonBySlug(mainDirector.slug)
+          .then((director) => [...director.directed, ...director.created].filter((m) => m.id !== movieId))
+          .catch((): MovieListItem[] => [])
+      : Promise.resolve<MovieListItem[]>([]),
+  ]);
   const fallbackBattle: SuggestedBattle | null =
     mainDirector && directorWorks.length > 0
       ? {

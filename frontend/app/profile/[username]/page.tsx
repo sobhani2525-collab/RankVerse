@@ -13,19 +13,17 @@ export default async function PublicProfilePage({
 }) {
   const { username } = await params;
 
+  // Both reads only need the username, so they run together.
+  const listsPromise = getPublicUserLists(username).catch(
+    (): Awaited<ReturnType<typeof getPublicUserLists>> => [],
+  );
   let user;
   try {
     user = await getPublicUser(username);
   } catch {
     notFound();
   }
-
-  let lists: Awaited<ReturnType<typeof getPublicUserLists>> = [];
-  try {
-    lists = await getPublicUserLists(username);
-  } catch {
-    lists = [];
-  }
+  const lists = await listsPromise;
 
   const joinedAt = new Date(user.created_at).toLocaleDateString("fa-IR");
 

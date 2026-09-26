@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "image.tmdb.org" },
-    ],
-    unoptimized: process.env.NODE_ENV === "development",
+    // Every next/image src is a TMDb poster; the loader picks TMDb's own
+    // pre-sized file per srcset width instead of going through /_next/image.
+    loader: "custom",
+    loaderFile: "./lib/tmdb-image-loader.ts",
   },
 };
 export default nextConfig;

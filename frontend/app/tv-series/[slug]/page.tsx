@@ -116,25 +116,15 @@ function PersonLinks({ people }: { people: PersonSummary[] }) {
 
 export default async function TvSeriesDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  // Each backend read costs ~1.5s (DB round trips), so reads are issued as
+  // soon as their input is known instead of one after another: rankings
+  // only need the URL slug, related/creator only need the show.
+  const rankingsPromise = getTvSeriesRankings(slug).catch((): RankingHighlight[] => []);
   let tv;
   try {
     tv = await getTvSeriesBySlug(slug);
   } catch {
     notFound();
-  }
-
-  let related: RelatedEntity[] = [];
-  try {
-    related = await getRelatedEntities(tv.id);
-  } catch {
-    related = [];
-  }
-
-  let rankingHighlights: RankingHighlight[] = [];
-  try {
-    rankingHighlights = await getTvSeriesRankings(tv.slug);
-  } catch {
-    rankingHighlights = [];
   }
 
   // Powers both the "ساخته‌های دیگر X" section and, when there's no
@@ -144,15 +134,16 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   // something to show instead of nothing. Shows without a TMDb created_by
   // (common for Iranian series) fall back to their main director.
   const mainCreator = tv.creators[0] ?? tv.directors[0] ?? null;
-  let creatorWorks: MovieListItem[] = [];
-  if (mainCreator) {
-    try {
-      const creator = await getPersonBySlug(mainCreator.slug);
-      creatorWorks = [...creator.directed, ...creator.created].filter((m) => m.id !== tv.id);
-    } catch {
-      creatorWorks = [];
-    }
-  }
+  const tvId = tv.id;
+  const [related, rankingHighlights, creatorWorks] = await Promise.all([
+    getRelatedEntities(tvId).catch((): RelatedEntity[] => []),
+    rankingsPromise,
+    mainCreator
+      ? getPersonBySlug(mainCreator.slug)
+          .then((creator) => [...creator.directed, ...creator.created].filter((m) => m.id !== tvId))
+          .catch((): MovieListItem[] => [])
+      : Promise.resolve<MovieListItem[]>([]),
+  ]);
   const fallbackBattle: SuggestedBattle | null =
     mainCreator && creatorWorks.length > 0
       ? {

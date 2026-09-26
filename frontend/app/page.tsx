@@ -21,40 +21,50 @@ import { MovieDetail, MovieListItem } from "@/lib/types";
 export const revalidate = 300;
 
 // Backend load per home render is kept small and bounded: 3 list reads in
-// parallel, then detail fetches for only the top DETAILED movies, at most
-// DETAIL_CONCURRENCY at a time, then the #1's ranking highlights. Details
-// feed the hero constellation's edges, hover cards, ranking-row metadata
-// and genre clusters; titles past DETAILED simply render without them.
+// parallel; as soon as the movie list lands, detail fetches for only the
+// top DETAILED movies, at most DETAIL_CONCURRENCY at a time, with the #1's
+// ranking highlights riding alongside the second batch. Details feed the
+// hero constellation's edges, hover cards, ranking-row metadata and genre
+// clusters; titles past DETAILED simply render without them.
 const DETAILED = 6;
 const DETAIL_CONCURRENCY = 3;
 const HERO_NODES = 12;
 const MOVIE_WINDOW = 24; // top 10 + "beyond the top 10"
 
 /**
- * Fetches movie details in small sequential batches. If an entire batch
- * fails (e.g. every request timed out), the backend is struggling, so the
- * remaining batches are skipped rather than piling more requests onto it.
+ * Fetches movie details in small sequential batches, plus the ranking
+ * highlights of slugs[0] (the #1), started once the first batch shows the
+ * backend is answering. If an entire batch fails (e.g. every request timed
+ * out), the backend is struggling, so the remaining batches -- and the
+ * highlights, if not started yet -- are skipped rather than piling more
+ * requests onto it.
  */
-async function fetchDetails(slugs: string[]): Promise<MovieDetail[]> {
-  const out: MovieDetail[] = [];
+async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[]; highlights: RankingHighlight[] }> {
+  const details: MovieDetail[] = [];
+  let highlights: Promise<RankingHighlight[]> = Promise.resolve([]);
   for (let i = 0; i < slugs.length; i += DETAIL_CONCURRENCY) {
     const batch = await Promise.allSettled(slugs.slice(i, i + DETAIL_CONCURRENCY).map((slug) => getMovieBySlug(slug)));
     const ok = batch.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
-    out.push(...ok);
+    details.push(...ok);
     if (ok.length === 0) break;
+    if (i === 0) highlights = getMovieRankings(slugs[0]).catch((): RankingHighlight[] => []);
   }
-  return out;
+  return { details, highlights: await highlights };
 }
 
 export default async function HomePage() {
   // Independent reads, fetched together; each failure only hides its own
-  // section (movies failing shows the error state below).
-  const [movieRes, tvRes, listsRes] = await Promise.allSettled([
-    getRankingsPage("movie", { page_size: MOVIE_WINDOW }),
+  // section (movies failing shows the error state below). The movie
+  // details chain off the movie list alone, so they don't wait for the
+  // other two reads.
+  const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
+  const [movieRes, tvRes, listsRes, extrasRes] = await Promise.allSettled([
+    moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
     // آخرین لیست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
     // این بخش بی‌سروصدا مخفی می‌شه و مانع لود بقیهٔ صفحه نمی‌شه.
     discoverLists({ sort: "newest", page_size: 6 }),
+    moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
   ]);
 
   const movies: MovieListItem[] = movieRes.status === "fulfilled" ? movieRes.value.items : [];
@@ -69,24 +79,16 @@ export default async function HomePage() {
   const tvTotal = tvRes.status === "fulfilled" ? tvRes.value.total : null;
   const latestLists = listsRes.status === "fulfilled" ? listsRes.value : [];
 
+  const extras = extrasRes.status === "fulfilled" ? extrasRes.value : { details: [], highlights: [] };
   const detailById = new Map<string, MovieDetail>();
-  (await fetchDetails(movies.slice(0, DETAILED).map((m) => m.slug))).forEach((d) => detailById.set(d.id, d));
+  extras.details.forEach((d) => detailById.set(d.id, d));
+  const highlights = extras.highlights;
 
   const titles = movies.map((m, i) => toHomeTitle(m, i + 1, detailById.get(m.id)));
   const top10 = titles.slice(0, 10);
   const detailed = titles.filter((t) => t.hasDetail);
   const tvTitles = tvSeries.map((m, i) => toHomeTitle(m, i + 1));
   const leader = titles[0] ?? null;
-
-  let highlights: RankingHighlight[] = [];
-  // Skipped when no detail call succeeded -- the backend is likely down.
-  if (leader?.hasDetail) {
-    try {
-      highlights = await getMovieRankings(leader.slug);
-    } catch {
-      highlights = [];
-    }
-  }
 
   const searchSuggestions = leader
     ? [leader.title_fa ?? leader.title, leader.directors[0]?.title, leader.genres[0]?.title].filter((s): s is string => !!s)
