@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
 from app.modules.auth.dependencies import get_current_user_optional
 from app.modules.battles.schemas import SuggestedBattleResponse, SuggestedBattleEntity
@@ -38,7 +38,7 @@ async def list_movies(
     year_from: int | None = None,
     year_to: int | None = None,
     sort: str = Query("score", pattern="^(score|newest)$"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
     items, total = await service.list_movies(page, page_size, genre, year_from, year_to, sort)
@@ -49,7 +49,7 @@ async def list_movies(
 
 
 @router.get("/movies/{slug}")
-async def get_movie(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_movie(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = EntityService(db)
     movie = await service.get_movie_detail(slug)
     return envelope(data=movie.model_dump())
@@ -70,7 +70,7 @@ async def get_movie_suggested_battle(
 
 
 @router.get("/tv-series/{slug}")
-async def get_tv_series(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_tv_series(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = EntityService(db)
     tv_series = await service.get_tv_series_detail(slug)
     return envelope(data=tv_series.model_dump())
@@ -86,21 +86,21 @@ async def get_tv_series_suggested_battle(
 
 
 @router.get("/people/{slug}")
-async def get_person(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_person(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = EntityService(db)
     person = await service.get_person_detail(slug)
     return envelope(data=person.model_dump())
 
 
 @router.get("/genres/{slug}")
-async def get_genre(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_genre(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = EntityService(db)
     genre = await service.get_genre_detail(slug)
     return envelope(data=genre.model_dump())
 
 
 @router.get("/tracks/{slug}")
-async def get_track(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_track(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = EntityService(db)
     track = await service.get_track_detail(slug)
     return envelope(data=track.model_dump())

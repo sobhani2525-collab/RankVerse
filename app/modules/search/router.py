@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Text, case, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_read_db
 from app.core.schemas import envelope
 from app.modules.entities.models import Entity
 from app.modules.entities.service import _extract_media
@@ -76,7 +76,7 @@ async def search(
     q: str = Query(min_length=1),
     type: str | None = Query(None, alias="type"),
     limit: int = Query(20, le=50),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ):
     """
     MVP search: ILIKE on the entity's English title and its Persian title

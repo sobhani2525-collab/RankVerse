@@ -5,9 +5,27 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
-engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True)
+# The backend (Liara) and the DB (Supabase eu-west-1) are ~120-150ms apart
+# and query execution itself is usually <1ms, so request latency is almost
+# entirely round trips. Two things here cut them:
+#
+# - Pooled connections default to AUTOCOMMIT. For asyncpg, SQLAlchemy's
+#   pre-ping outside autocommit is BEGIN + ";" + ROLLBACK (three round trips,
+#   see its asyncpg dialect's _async_ping); in autocommit it's just ";".
+# - AsyncSessionLocal / get_db opt back into READ COMMITTED (the Postgres
+#   default), so every existing writer keeps normal transactions -- setting
+#   the level on an asyncpg connection is client-side only, no round trip.
+#   Public read-only endpoints use get_read_db instead, which stays in
+#   autocommit and so skips the per-request BEGIN and ROLLBACK too.
+engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True, isolation_level="AUTOCOMMIT")
 
 AsyncSessionLocal = async_sessionmaker(
+    bind=engine.execution_options(isolation_level="READ COMMITTED"),
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+ReadSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
@@ -55,4 +73,16 @@ class Base(DeclarativeBase):
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency that yields a DB session per-request."""
     async with AsyncSessionLocal() as session:
+        yield session
+
+
+async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Session for endpoints that only read: no transaction, so no BEGIN or
+    ROLLBACK round trips. Each statement sees its own snapshot, which is
+    fine for independent reads (a page plus its total count may disagree by
+    a row mid-write) -- anything that writes, or needs one consistent
+    snapshot across statements, keeps using get_db.
+    """
+    async with ReadSessionLocal() as session:
         yield session

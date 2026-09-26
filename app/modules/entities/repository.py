@@ -1,8 +1,8 @@
 import uuid
 
-from sqlalchemy import bindparam, delete, func, select, update
+from sqlalchemy import and_, bindparam, delete, func, select, update
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, contains_eager, joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity, RelationshipEdge, EntityRanking
@@ -13,7 +13,9 @@ class EntityRepository:
         self.db = db
 
     async def get_by_slug(self, slug: str, entity_type: str | None = None) -> Entity | None:
-        stmt = select(Entity).options(selectinload(Entity.ranking)).where(Entity.slug == slug)
+        # joinedload, not selectinload: the one-to-one ranking comes back in
+        # the same query instead of costing a second DB round trip.
+        stmt = select(Entity).options(joinedload(Entity.ranking)).where(Entity.slug == slug)
         if entity_type:
             stmt = stmt.where(Entity.entity_type == entity_type)
         result = await self.db.execute(stmt)
@@ -47,7 +49,7 @@ class EntityRepository:
         sort_by: str = "score",
         entity_type: str = "movie",
     ) -> tuple[list[Entity], int]:
-        stmt = select(Entity).options(selectinload(Entity.ranking)).where(Entity.entity_type == entity_type)
+        stmt = select(Entity).where(Entity.entity_type == entity_type)
 
         if genre_slug:
             # Filter entities that have a has_genre edge pointing to the genre entity with this slug
@@ -59,7 +61,7 @@ class EntityRepository:
                     Entity.slug == genre_slug,
                 )
             )
-            stmt = select(Entity).options(selectinload(Entity.ranking)).where(
+            stmt = select(Entity).where(
                     Entity.entity_type == entity_type,
                     Entity.id.in_(genre_subq),
             )
@@ -69,18 +71,27 @@ class EntityRepository:
         if year_to:
             stmt = stmt.where(Entity.attributes["year"].as_integer() <= year_to)
 
+        # The total rides along as an uncorrelated scalar subquery (Postgres
+        # evaluates it once), and the ranking comes from the join already
+        # needed for ordering -- one round trip instead of count + page +
+        # ranking load.
         count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = (await self.db.execute(count_stmt)).scalar_one()
-
-        stmt = stmt.outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
+        page_stmt = (
+            stmt.outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
+            .options(contains_eager(Entity.ranking))
+            .add_columns(count_stmt.scalar_subquery().label("total"))
+        )
         if sort_by == "score":
-            stmt = stmt.order_by(EntityRanking.computed_score.desc().nulls_last())
+            page_stmt = page_stmt.order_by(EntityRanking.computed_score.desc().nulls_last())
         elif sort_by == "newest":
-            stmt = stmt.order_by(Entity.created_at.desc())
+            page_stmt = page_stmt.order_by(Entity.created_at.desc())
 
-        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all()), total
+        page_stmt = page_stmt.offset((page - 1) * page_size).limit(page_size)
+        rows = (await self.db.execute(page_stmt)).all()
+        if rows:
+            return [row[0] for row in rows], rows[0][1]
+        # Past the last page there's no row to carry the total.
+        return [], (await self.db.execute(count_stmt)).scalar_one()
 
     async def get_relationships(
         self, entity_id: uuid.UUID, relation_type: str
@@ -93,6 +104,43 @@ class EntityRepository:
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_relationships_by_type(
+        self, entity_id: uuid.UUID, relation_types: list[str]
+    ) -> dict[str, list[RelationshipEdge]]:
+        """Outgoing edges of several relation types in one round trip (the
+        target entity joined in), grouped by type; types with no edges map
+        to an empty list."""
+        stmt = (
+            select(RelationshipEdge)
+            .options(joinedload(RelationshipEdge.to_entity))
+            .where(
+                RelationshipEdge.from_entity_id == entity_id,
+                RelationshipEdge.relation_type.in_(relation_types),
+            )
+        )
+        grouped: dict[str, list[RelationshipEdge]] = {t: [] for t in relation_types}
+        for edge in (await self.db.execute(stmt)).scalars().all():
+            grouped[edge.relation_type].append(edge)
+        return grouped
+
+    async def get_incoming_relationships_by_type(
+        self, entity_id: uuid.UUID, relation_types: list[str]
+    ) -> dict[str, list[RelationshipEdge]]:
+        """Incoming counterpart of get_relationships_by_type -- e.g. all of a
+        person's credits -- with each source entity and its ranking joined in."""
+        stmt = (
+            select(RelationshipEdge)
+            .options(joinedload(RelationshipEdge.from_entity).joinedload(Entity.ranking))
+            .where(
+                RelationshipEdge.to_entity_id == entity_id,
+                RelationshipEdge.relation_type.in_(relation_types),
+            )
+        )
+        grouped: dict[str, list[RelationshipEdge]] = {t: [] for t in relation_types}
+        for edge in (await self.db.execute(stmt)).scalars().all():
+            grouped[edge.relation_type].append(edge)
+        return grouped
 
     async def get_incoming_relationships(
         self, entity_id: uuid.UUID, relation_type: str
@@ -110,7 +158,7 @@ class EntityRepository:
     async def get_related(self, entity_id: uuid.UUID, relation_type: str | None = None, limit: int = 12):
         stmt = (
             select(RelationshipEdge)
-            .options(selectinload(RelationshipEdge.to_entity))
+            .options(joinedload(RelationshipEdge.to_entity))
             .where(RelationshipEdge.from_entity_id == entity_id)
             .order_by(RelationshipEdge.weight.desc())
             .limit(limit)
@@ -135,6 +183,34 @@ class EntityRepository:
         """)
         result = await self.db.execute(stmt, {"e1": str(entity1_id), "e2": str(entity2_id)})
         return result.all()
+
+    async def get_shared_connections_many(
+        self, entity_id: uuid.UUID, other_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, list[tuple[str, str]]]:
+        """get_shared_connections for several entities at once: other_id ->
+        [(relation_type, shared target's title), ...], one round trip instead
+        of one per entity. Entities with nothing shared map to []."""
+        shared: dict[uuid.UUID, list[tuple[str, str]]] = {other_id: [] for other_id in other_ids}
+        if not other_ids:
+            return shared
+        own = aliased(RelationshipEdge)
+        other = aliased(RelationshipEdge)
+        stmt = (
+            select(other.from_entity_id, own.relation_type, Entity.title)
+            .join(
+                other,
+                and_(other.to_entity_id == own.to_entity_id, other.relation_type == own.relation_type),
+            )
+            .join(Entity, Entity.id == own.to_entity_id)
+            .where(
+                own.from_entity_id == entity_id,
+                other.from_entity_id.in_(other_ids),
+                own.relation_type.in_(("directed_by", "has_genre", "acted_in")),
+            )
+        )
+        for other_id, relation_type, title in (await self.db.execute(stmt)).all():
+            shared[other_id].append((relation_type, title))
+        return shared
 
     async def find_top_shared_relation(
         self, entity_ids: list[uuid.UUID], min_shared: int

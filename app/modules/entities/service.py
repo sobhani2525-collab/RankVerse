@@ -106,9 +106,10 @@ class EntityService:
     async def get_movie_detail(self, slug: str) -> MovieDetail:
         entity = await self.get_movie_entity(slug)
 
-        director_edges = await self.repo.get_relationships(entity.id, "directed_by")
-        cast_edges = await self.repo.get_relationships(entity.id, "acted_in")
-        genre_edges = await self.repo.get_relationships(entity.id, "has_genre")
+        edges = await self.repo.get_relationships_by_type(entity.id, ["directed_by", "acted_in", "has_genre"])
+        director_edges = edges["directed_by"]
+        cast_edges = edges["acted_in"]
+        genre_edges = edges["has_genre"]
 
         directors = [
             PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, role="director")
@@ -155,11 +156,14 @@ class EntityService:
         sync/normalizer.py) and 'aired_on' (networks) which movies don't have."""
         entity = await self.get_tv_series_entity(slug)
 
-        creator_edges = await self.repo.get_relationships(entity.id, "creator")
-        director_edges = await self.repo.get_relationships(entity.id, "directed_by")
-        cast_edges = await self.repo.get_relationships(entity.id, "acted_in")
-        genre_edges = await self.repo.get_relationships(entity.id, "has_genre")
-        network_edges = await self.repo.get_relationships(entity.id, "aired_on")
+        edges = await self.repo.get_relationships_by_type(
+            entity.id, ["creator", "directed_by", "acted_in", "has_genre", "aired_on"]
+        )
+        creator_edges = edges["creator"]
+        director_edges = edges["directed_by"]
+        cast_edges = edges["acted_in"]
+        genre_edges = edges["has_genre"]
+        network_edges = edges["aired_on"]
 
         creators = [
             PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, role="creator")
@@ -219,14 +223,17 @@ class EntityService:
         if not entity:
             raise NotFoundError(f"Person '{slug}' not found")
 
-        directed_edges = await self.repo.get_incoming_relationships(entity.id, "directed_by")
+        edges = await self.repo.get_incoming_relationships_by_type(
+            entity.id, ["directed_by", "creator", "acted_in", "performed_by"]
+        )
+        directed_edges = edges["directed_by"]
         # 'creator' is tv_series' equivalent of directed_by (see sync/normalizer.py's
         # created_by handling) -- kept as its own field rather than merged into
         # `directed` since "directed" and "created" are different roles and a person
         # could plausibly have both (a movie director who also created a show).
-        created_edges = await self.repo.get_incoming_relationships(entity.id, "creator")
-        acted_in_edges = await self.repo.get_incoming_relationships(entity.id, "acted_in")
-        performed_by_edges = await self.repo.get_incoming_relationships(entity.id, "performed_by")
+        created_edges = edges["creator"]
+        acted_in_edges = edges["acted_in"]
+        performed_by_edges = edges["performed_by"]
 
         return PersonDetail(
             id=entity.id,

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope
 from app.modules.auth.dependencies import get_current_user
@@ -14,7 +14,7 @@ router = APIRouter(tags=["users"])
 
 
 @router.get("/users/{username}")
-async def get_public_user(username: str, db: AsyncSession = Depends(get_db)):
+async def get_public_user(username: str, db: AsyncSession = Depends(get_read_db)):
     user = await UserRepository(db).get_by_username(username)
     if not user:
         raise NotFoundError(f"User '{username}' not found")

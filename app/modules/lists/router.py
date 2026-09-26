@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope, Meta
 from app.modules.auth.dependencies import get_current_user, get_current_user_optional
@@ -37,7 +37,7 @@ async def discover_lists(
     entity_type: str | None = None,
     tag: str | None = None,
     sort: str = Query("newest", pattern="^(newest|popular)$"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ):
     service = ListService(db)
     items, total = await service.discover(page, page_size, entity_type, tag, sort)
@@ -115,7 +115,7 @@ async def toggle_watch_later(
 
 
 @router.get("/users/{username}/lists")
-async def user_public_lists(username: str, db: AsyncSession = Depends(get_db)):
+async def user_public_lists(username: str, db: AsyncSession = Depends(get_read_db)):
     user = await UserRepository(db).get_by_username(username)
     if not user:
         raise NotFoundError(f"User '{username}' not found")
@@ -240,21 +240,21 @@ async def add_comment(
 
 
 @router.get("/lists/{slug}/comments")
-async def list_comments(slug: str, db: AsyncSession = Depends(get_db)):
+async def list_comments(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = ListService(db)
     comments = await service.list_comments(slug)
     return envelope(data=[c.model_dump() for c in comments])
 
 
 @router.get("/lists/{slug}/related")
-async def get_related_lists(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_related_lists(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = ListService(db)
     related = await service.get_related_lists(slug)
     return envelope(data=[r.model_dump() for r in related])
 
 
 @router.get("/lists/for-entity/{entity_id}")
-async def get_lists_containing_entity(entity_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_lists_containing_entity(entity_id: uuid.UUID, db: AsyncSession = Depends(get_read_db)):
     service = ListService(db)
     lists = await service.get_lists_containing_entity(entity_id)
     return envelope(data=[l.model_dump() for l in lists])
@@ -264,7 +264,7 @@ async def get_lists_containing_entity(entity_id: uuid.UUID, db: AsyncSession = D
 async def get_list_suggestions(
     list_id: uuid.UUID,
     limit: int = Query(6, ge=1, le=20),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ):
     service = ListService(db)
     suggestions = await service.get_smart_suggestions(list_id, limit)

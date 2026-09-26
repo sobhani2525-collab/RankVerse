@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
 from app.modules.entities.service import EntityService
 from app.modules.ranking.service import RankingService
@@ -15,7 +15,7 @@ async def top_movies(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     genre: str | None = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
     items, total = await service.list_movies(page, page_size, genre_slug=genre, sort_by="score")
@@ -26,7 +26,7 @@ async def top_movies(
 
 
 @router.get("/movies/{slug}/rankings")
-async def movie_ranking_highlights(slug: str, db: AsyncSession = Depends(get_db)):
+async def movie_ranking_highlights(slug: str, db: AsyncSession = Depends(get_read_db)):
     """Where this movie ranks within each automatic ranking group it belongs to (genre, director, ...)."""
     entity_service = EntityService(db)
     entity = await entity_service.get_movie_entity(slug)
@@ -41,7 +41,7 @@ async def top_tv_series(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     genre: str | None = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
     items, total = await service.list_tv_series(page, page_size, genre_slug=genre, sort_by="score")
@@ -52,7 +52,7 @@ async def top_tv_series(
 
 
 @router.get("/tv-series/{slug}/rankings")
-async def tv_series_ranking_highlights(slug: str, db: AsyncSession = Depends(get_db)):
+async def tv_series_ranking_highlights(slug: str, db: AsyncSession = Depends(get_read_db)):
     """Where this tv_series ranks within each automatic ranking group it belongs to (genre, creator, ...)."""
     entity_service = EntityService(db)
     entity = await entity_service.get_tv_series_entity(slug)

@@ -1,4 +1,4 @@
-from sqlalchemy import select, func
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -141,49 +141,68 @@ class RankingService:
         min_group_size = min_group_size if min_group_size is not None else settings.ranking_group_min_size
         member_entity = aliased(Entity)
         group_entity = aliased(Entity)
+        own_edge = aliased(RelationshipEdge)
+        relation_types = list(RANKING_DIMENSIONS)
 
-        highlights: list[RankingHighlight] = []
-        for relation_type, dimension in RANKING_DIMENSIONS.items():
-            ranked = (
-                select(
-                    RelationshipEdge.from_entity_id.label("member_id"),
-                    RelationshipEdge.to_entity_id.label("group_id"),
-                    func.rank()
-                    .over(
-                        partition_by=RelationshipEdge.to_entity_id,
-                        order_by=EntityRanking.computed_score.desc().nulls_last(),
-                    )
-                    .label("rank"),
-                    func.count()
-                    .over(partition_by=RelationshipEdge.to_entity_id)
-                    .label("group_size"),
+        # All dimensions in one query, and ranks computed only inside the
+        # groups this entity belongs to (its own genres, director, ...)
+        # rather than across every group of the type -- the per-dimension
+        # version cost 3 round trips plus ~350ms of window over all genres.
+        own_groups = select(own_edge.relation_type, own_edge.to_entity_id).where(
+            own_edge.from_entity_id == entity.id,
+            own_edge.relation_type.in_(relation_types),
+        )
+        ranked = (
+            select(
+                RelationshipEdge.relation_type.label("relation_type"),
+                RelationshipEdge.from_entity_id.label("member_id"),
+                RelationshipEdge.to_entity_id.label("group_id"),
+                func.rank()
+                .over(
+                    partition_by=(RelationshipEdge.relation_type, RelationshipEdge.to_entity_id),
+                    order_by=EntityRanking.computed_score.desc().nulls_last(),
                 )
-                .join(member_entity, member_entity.id == RelationshipEdge.from_entity_id)
-                .outerjoin(EntityRanking, EntityRanking.entity_id == RelationshipEdge.from_entity_id)
-                .where(
-                    RelationshipEdge.relation_type == relation_type,
-                    member_entity.entity_type == entity.entity_type,
-                )
-                .subquery()
+                .label("rank"),
+                func.count()
+                .over(partition_by=(RelationshipEdge.relation_type, RelationshipEdge.to_entity_id))
+                .label("group_size"),
             )
-
-            stmt = (
-                select(ranked.c.rank, ranked.c.group_size, group_entity.id, group_entity.slug, group_entity.title)
-                .join(group_entity, group_entity.id == ranked.c.group_id)
-                .where(ranked.c.member_id == entity.id, ranked.c.group_size >= min_group_size)
+            .join(member_entity, member_entity.id == RelationshipEdge.from_entity_id)
+            .outerjoin(EntityRanking, EntityRanking.entity_id == RelationshipEdge.from_entity_id)
+            .where(
+                tuple_(RelationshipEdge.relation_type, RelationshipEdge.to_entity_id).in_(own_groups),
+                member_entity.entity_type == entity.entity_type,
             )
-            result = await self.db.execute(stmt)
-            for rank, group_size, group_id, group_slug, group_title in result.all():
-                highlights.append(
-                    RankingHighlight(
-                        dimension=dimension,
-                        group=RankingGroupRef(id=group_id, slug=group_slug, title=group_title),
-                        rank=rank,
-                        group_size=group_size,
-                    )
-                )
+            .subquery()
+        )
 
-        highlights.sort(key=lambda h: h.rank)
+        stmt = (
+            select(
+                ranked.c.relation_type,
+                ranked.c.rank,
+                ranked.c.group_size,
+                group_entity.id,
+                group_entity.slug,
+                group_entity.title,
+            )
+            .join(group_entity, group_entity.id == ranked.c.group_id)
+            .where(ranked.c.member_id == entity.id, ranked.c.group_size >= min_group_size)
+        )
+        result = await self.db.execute(stmt)
+        highlights: list[RankingHighlight] = [
+            RankingHighlight(
+                dimension=RANKING_DIMENSIONS[relation_type],
+                group=RankingGroupRef(id=group_id, slug=group_slug, title=group_title),
+                rank=rank,
+                group_size=group_size,
+            )
+            for relation_type, rank, group_size, group_id, group_slug, group_title in result.all()
+        ]
+
+        # Ties keep RANKING_DIMENSIONS order (genre, director, creator), as
+        # when each dimension was queried and appended in turn.
+        dimension_order = list(RANKING_DIMENSIONS.values())
+        highlights.sort(key=lambda h: (h.rank, dimension_order.index(h.dimension)))
         return highlights
 
     async def recompute_all(self, entity_type: str = "movie") -> int:

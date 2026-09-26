@@ -97,17 +97,21 @@ async def db_session(test_engine):
 @pytest_asyncio.fixture
 async def client(db_session):
     """An httpx client wired to the FastAPI app, sharing db_session's transaction."""
-    from app.core.database import get_db
+    from app.core.database import get_db, get_read_db
     from app.main import app
 
     async def _override_get_db():
         yield db_session
 
+    # Read-only endpoints use get_read_db; both share the test transaction
+    # so reads see what the test wrote.
     app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_read_db] = _override_get_db
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(get_read_db, None)
 
 
 @pytest_asyncio.fixture
