@@ -7,7 +7,7 @@ import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { genreLabel } from "@/lib/genre-labels";
 import {
-  entityHref, GENRE_CHIP, PEOPLE_CHIP, posterUrl, typeLabel,
+  entityHref, entityPosterUrl, GENRE_CHIP, PEOPLE_CHIP, typeLabel,
 } from "@/lib/list-constellation";
 import { Chip, MonoLabel, RowLabel } from "./ui";
 import ItemVoteButtons from "./ItemVoteButtons";
@@ -51,7 +51,7 @@ export default function ListNodeItem({
   const href = entityHref(entity.entity_type, entity.slug);
   const title = displayTitle(entity);
   const type = typeLabel(entity.entity_type);
-  const poster = posterUrl(entity.poster_path, "w500");
+  const poster = entityPosterUrl(entity, "w500");
   const people = [item.director, item.lead_actor].filter(
     (p, i, all): p is NonNullable<typeof p> => !!p && all.findIndex((q) => q?.id === p.id) === i
   );
@@ -61,9 +61,9 @@ export default function ListNodeItem({
   const overview = item.overview?.trim();
 
   const posterBox = (
-    <div className="relative aspect-[2/3] w-full overflow-hidden border-b border-border-soft bg-surface-2 lg:w-[104px] lg:shrink-0 lg:self-start lg:rounded-[10px] lg:border lg:border-border">
+    <div className="relative aspect-[2/3] w-full overflow-hidden border-b border-border-soft bg-surface-2 lg:w-[132px] lg:shrink-0 lg:self-start lg:rounded-[10px] lg:border lg:border-border">
       {poster ? (
-        <Image src={poster} alt={title} fill sizes="(max-width: 1024px) 90vw, 104px" className="object-cover" />
+        <Image src={poster} alt={title} fill sizes="(max-width: 1024px) 90vw, 132px" className="object-cover" />
       ) : (
         <PosterFallback title={entity.title} />
       )}
@@ -112,7 +112,7 @@ export default function ListNodeItem({
         </div>
 
         {(people.length > 0 || genres.length > 0 || item.year) && (
-          <div className="flex flex-col gap-3.5 lg:flex-row lg:flex-wrap lg:gap-7 lg:pt-0.5">
+          <div className="flex flex-col gap-3.5 pt-1 lg:flex-row lg:flex-wrap lg:gap-7 lg:pt-3">
             {people.length > 0 && (
               <div className="flex flex-col items-start gap-2">
                 <RowLabel dot="bg-violet-light" en="PEOPLE" fa="آدم‌ها" />

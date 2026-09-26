@@ -8,7 +8,7 @@ import { castBattleVote } from "@/lib/api";
 import type { ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { BATTLE_SECTION_ID, battleLink, battleOpponents, entityHref, posterUrl, type EdgeKind } from "@/lib/list-constellation";
+import { BATTLE_SECTION_ID, battleLink, battleOpponents, entityHref, entityPosterUrl, type EdgeKind } from "@/lib/list-constellation";
 import { SectionHeading } from "./ui";
 import { nextAnchor, useListBattle } from "./ListBattleContext";
 import { useListViewer } from "./ListViewerContext";
@@ -131,19 +131,33 @@ function BattleRun({ items, anchor, onNext }: { items: ListItem[]; anchor: numbe
   }
 
   if (done) {
+    const championPoster = entityPosterUrl(championItem.entity, "w342");
     return (
       <>
         {heading}
         {progressBar}
-        <div className="flex flex-col gap-1 text-[13px] leading-[1.8] battle-swap" aria-live="polite">
-          <p className="font-bold text-ink">نبرد «{shortTitle(anchorItem)}» با همه آیتم‌های لیست تمام شد.</p>
+        <div className="flex items-center gap-4 battle-swap" aria-live="polite">
           {streak > 0 && (
-            <p className="text-ink-dim">
-              🏆 برنده: <span className="font-bold text-gold">{shortTitle(championItem)}</span> ·{" "}
-              <span className="num">{toFaDigits(streak)}</span> برد پیاپی
-            </p>
+            <div className="relative aspect-[2/3] w-20 shrink-0 overflow-hidden rounded-xl border-[1.5px] border-gold bg-surface-2 shadow-[0_0_0_4px_rgba(232,179,74,0.18)]">
+              {championPoster ? (
+                <Image src={championPoster} alt="" fill sizes="80px" className="object-cover" />
+              ) : (
+                <span dir="ltr" className="absolute inset-0 flex items-end bg-gradient-to-br from-surface-2 to-bg p-1.5 text-left font-mono text-[9px] text-muted">
+                  {championItem.entity.title}
+                </span>
+              )}
+            </div>
           )}
-          {voted > 0 && !error && <p className="text-muted">رأی‌هایت در رتبه‌بندی عمومی ثبت شد.</p>}
+          <div className="flex flex-col gap-1 text-[13px] leading-[1.8]">
+            <p className="font-bold text-ink">نبرد «{shortTitle(anchorItem)}» با همه آیتم‌های لیست تمام شد.</p>
+            {streak > 0 && (
+              <p className="text-ink-dim">
+                🏆 برنده: <span className="font-bold text-gold">{shortTitle(championItem)}</span> ·{" "}
+                <span className="num">{toFaDigits(streak)}</span> برد پیاپی
+              </p>
+            )}
+            {voted > 0 && !error && <p className="text-muted">رأی‌هایت در رتبه‌بندی عمومی ثبت شد.</p>}
+          </div>
         </div>
         {error && <p className="text-xs text-gold">{error}</p>}
         {nextButton}
@@ -173,7 +187,7 @@ function BattleRun({ items, anchor, onNext }: { items: ListItem[]; anchor: numbe
       <div className="relative grid grid-cols-2 gap-2.5">
         {sides.map(([side, item]) => {
           const isChampion = side === "left";
-          const poster = posterUrl(item.entity.poster_path, "w500");
+          const poster = entityPosterUrl(item.entity, "w500");
           return (
             <button
               key={isChampion ? `champion-${champion}` : `challenger-${step}`}

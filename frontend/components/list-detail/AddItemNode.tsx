@@ -6,7 +6,7 @@ import { addListItem, getListCandidates } from "@/lib/api";
 import type { ListCandidate, ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { candidateReason, posterUrl, typeLabel, withAppendedItem } from "@/lib/list-constellation";
+import { candidateReason, entityPosterUrl, typeLabel, withAppendedItem } from "@/lib/list-constellation";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useListViewer } from "./ListViewerContext";
 import { MonoLabel } from "./ui";
@@ -48,7 +48,7 @@ function optimisticItem(candidate: ListCandidate, items: ListItem[]): ListItem {
 }
 
 function Poster({ candidate }: { candidate: ListCandidate }) {
-  const src = posterUrl(candidate.entity.poster_path, "w92");
+  const src = entityPosterUrl(candidate.entity, "w92");
   return (
     <div className="relative h-[66px] w-11 shrink-0 overflow-hidden rounded-md border border-border bg-surface-2">
       {src ? (

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedError
 from app.modules.entities.repository import EntityRepository
+from app.modules.entities.service import _extract_media
 from app.modules.lists.repository import ListRepository
 from app.modules.lists.scoring import compute_like_score, community_order_key
 from app.modules.lists.graph import (
@@ -38,6 +39,7 @@ def _entity_mini(entity) -> EntityMini:
         entity_type=entity.entity_type,
         poster_path=attributes.get("poster_path"),
         title_fa=attributes.get("title_fa"),
+        media=_extract_media(attributes),
     )
 
 
@@ -87,7 +89,11 @@ def _item_graph_fields(entity, node: GraphItem) -> dict:
         "director": director,
         "lead_actor": node.cast[0] if node.cast else None,
         "genres": node.genres,
-        "overview": (entity.attributes or {}).get("overview") or None,
+        # A person has no overview -- its synopsis-equivalent is its
+        # biography (see sync/normalizer.person_biography_attrs).
+        "overview": (entity.attributes or {}).get("overview")
+        or (entity.attributes or {}).get("biography")
+        or None,
     }
 
 

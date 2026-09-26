@@ -18,7 +18,7 @@ function nextState(state: VoteState, isLike: boolean): VoteState {
 }
 
 const BUTTON =
-  "num flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] border text-sm font-bold transition-[background-color,border-color,color] duration-[160ms] disabled:cursor-default";
+  "num flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border px-4 text-sm font-bold transition-[background-color,border-color,color] duration-[160ms] disabled:cursor-default";
 const IDLE = "border-[#2A3247] bg-transparent text-[#C9CFDC] hover:border-[#3A4560]";
 const LIKED = "border-[#4CC9A6] bg-[rgba(76,201,166,0.14)] text-[#4CC9A6]";
 const DISLIKED = "border-[#F07178] bg-[rgba(240,113,120,0.14)] text-[#F07178]";

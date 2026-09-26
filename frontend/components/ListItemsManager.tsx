@@ -7,6 +7,7 @@ import { removeListItem, reorderListItems, voteListItem, removeListItemVote } fr
 import { ListItem, ListType } from "@/lib/types";
 import { entityTypeLabel } from "@/lib/constants";
 import { detailPathFor } from "@/lib/entity-routes";
+import { entityPosterUrl } from "@/lib/list-constellation";
 import EntityMedia from "@/components/entities/entity-media";
 import { toFaDigits } from "@/lib/format-number";
 import { ThumbsDownIcon, ThumbsUpIcon } from "@/components/list-detail/icons";
@@ -27,10 +28,6 @@ function compareCommunityOrder(a: ListItem, b: ListItem): number {
   if (sa !== sb) return sa - sb;
   if (da !== db) return da < db ? -1 : 1;
   return ia < ib ? -1 : ia > ib ? 1 : 0;
-}
-
-function posterUrlFor(posterPath: string | null): string | null {
-  return posterPath ? `https://image.tmdb.org/t/p/w300${posterPath}` : null;
 }
 
 export default function ListItemsManager({
@@ -174,7 +171,7 @@ export default function ListItemsManager({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {items.map((item, idx) => {
-          const posterUrl = posterUrlFor(item.entity.poster_path);
+          const posterUrl = entityPosterUrl(item.entity, "w300");
           const href = detailPathFor(item.entity.entity_type, item.entity.slug) ?? "#";
           const canReorder = isOwner && isRanked && !isCommunityOrdered;
           const canRemove = isOwner || item.can_remove;

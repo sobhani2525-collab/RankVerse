@@ -14,7 +14,7 @@ export function BattleJumpButton({ index }: { index: number }) {
     <button
       type="button"
       onClick={() => start(index)}
-      className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] border border-violet-strong/60 text-[13px] font-bold text-violet-light transition-[border-color,color] duration-[160ms] hover:border-violet-light"
+      className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-violet-strong/60 px-4 text-[13px] font-bold text-violet-light transition-[border-color,color] duration-[160ms] hover:border-violet-light"
     >
       <SwordsIcon size={18} />
       نبرد

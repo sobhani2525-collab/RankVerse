@@ -1,4 +1,4 @@
-import type { EntityRef, ListBacklink, ListCandidate, ListDetail, ListEdge, ListItem } from "./types";
+import type { EntityMini, EntityRef, ListBacklink, ListCandidate, ListDetail, ListEdge, ListItem } from "./types";
 import { toFaDigits } from "./format-number";
 import { detailPathFor } from "./entity-routes";
 import { genreLabel } from "./genre-labels";
@@ -59,6 +59,16 @@ export function isRateable(entityType: string): boolean {
 
 export function posterUrl(posterPath: string | null | undefined, size = "w342"): string | null {
   return posterPath ? `https://image.tmdb.org/t/p/${size}${posterPath}` : null;
+}
+
+/**
+ * An EntityMini's image, at `size`. Prefers media.image_url -- the only
+ * field that resolves a person's photo, since people store it under
+ * attributes["profile_path"], not poster_path -- and falls back to building
+ * a sized URL from poster_path for movies/tv synced before that existed.
+ */
+export function entityPosterUrl(entity: Pick<EntityMini, "poster_path" | "media">, size = "w500"): string | null {
+  return entity.media?.image_url ?? posterUrl(entity.poster_path, size);
 }
 
 export function entityHref(entityType: string, slug: string): string | null {

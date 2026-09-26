@@ -127,6 +127,11 @@ export interface EntityMini {
   entity_type: string;
   poster_path: string | null;
   title_fa?: string | null;
+  // The only field that resolves a person's photo -- people store it under
+  // attributes["profile_path"], not poster_path. Prefer media.image_url
+  // over building a URL from poster_path (see lib/list-constellation's
+  // entityPosterUrl).
+  media?: MediaInfo;
 }
 
 /** A graph neighbour (person/genre) linked from a list item. */

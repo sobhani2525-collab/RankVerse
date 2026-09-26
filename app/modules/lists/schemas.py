@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.entities.schemas import MediaInfo
 from app.modules.lists.models import ListType, ContributionMode
 
 
@@ -52,10 +53,18 @@ class EntityMini(BaseModel):
     slug: str
     title: str
     entity_type: str
+    # Raw TMDb path -- movies/tv only, and only ones synced before the
+    # standard `media` shape below existed. Prefer media.image_url; this
+    # stays for frontend call sites still building their own sized URL from
+    # it (see _extract_media's own poster_path fallback).
     poster_path: str | None = None
     # Persian title when TMDb has one (see sync/normalizer._persian_title);
     # the frontend's displayTitle() composes "title_fa (title)".
     title_fa: str | None = None
+    # Standard media shape (see _extract_media) -- the only field that
+    # resolves a person's photo, since people store it under
+    # attributes["profile_path"], not poster_path.
+    media: MediaInfo = Field(default_factory=MediaInfo)
 
 
 class EntityRef(BaseModel):

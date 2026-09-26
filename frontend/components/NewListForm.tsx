@@ -89,22 +89,26 @@ export default function NewListForm() {
         <div className="flex min-w-0 flex-col gap-[18px] pb-9 pt-8 lg:gap-6 lg:pb-14 lg:pt-[72px]">
           <MonoLabel className="text-violet-light">NEW LIST</MonoLabel>
 
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="عنوان لیست، مثلاً «۱۰ بهترین فیلم اکشن»"
-            className="w-full bg-transparent text-lg font-extrabold leading-snug text-ink outline-none placeholder:text-dim lg:text-xl"
-          />
+          <div className="rounded-xl border border-border bg-surface px-3 py-2.5 transition focus-within:border-teal/50">
+            <input
+              type="text"
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="عنوان لیست، مثلاً «۱۰ بهترین فیلم اکشن»"
+              className="w-full bg-transparent text-xl font-extrabold leading-snug text-ink outline-none placeholder:text-dim lg:text-2xl"
+            />
+          </div>
 
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="توضیح کوتاه لیست (اختیاری)"
-            rows={2}
-            className="max-w-[720px] resize-none bg-transparent text-sm leading-relaxed text-ink-dim outline-none placeholder:text-dim lg:text-[15px]"
-          />
+          <div className="max-w-[720px] rounded-xl border border-border bg-surface px-3 py-2.5 transition focus-within:border-teal/50">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="توضیح کوتاه لیست (اختیاری)"
+              rows={2}
+              className="w-full resize-none bg-transparent text-sm leading-relaxed text-ink-dim outline-none placeholder:text-dim lg:text-[15px]"
+            />
+          </div>
 
           <div className="max-w-[420px]">
             <TagComposer tags={tags} onChange={setTags} />
