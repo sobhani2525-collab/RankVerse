@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { rateEntity, unrateEntity, getMyRatings } from "@/lib/api";
+import { Spinner } from "@/components/Loading";
 
 const STAR_COUNT = 5;
 
@@ -133,11 +134,20 @@ export default function StarRating({ entity }: { entity: RatableEntity }) {
         </div>
       </div>
 
-      <p className="mt-2 font-sans text-sm text-muted">
-        {selected !== null ? <span className="text-teal">امتیاز شما ثبت شد</span> : "امتیاز خود را ثبت کنید"}
+      <p className="mt-2 flex items-center gap-2 font-sans text-sm text-muted">
+        {busy ? (
+          <>
+            <Spinner className="h-4 w-4" />
+            {selected !== null ? "در حال ثبت امتیاز…" : "در حال حذف امتیاز…"}
+          </>
+        ) : selected !== null ? (
+          <span className="text-teal">امتیاز شما ثبت شد</span>
+        ) : (
+          "امتیاز خود را ثبت کنید"
+        )}
       </p>
 
-      {selected !== null && (
+      {selected !== null && !busy && (
         <button
           type="button"
           onClick={doRemove}

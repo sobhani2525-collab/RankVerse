@@ -82,6 +82,17 @@ def test_engine():
     asyncio.run(_drop_schema())
 
 
+@pytest.fixture(autouse=True)
+def _inline_taste_refresh(monkeypatch):
+    """Taste DNA normally refreshes in a background task on its own session
+    (app/modules/taste/refresh.py), which would open real DATABASE_URL
+    connections and race the assertions -- tests run it inline in the
+    request's own session instead."""
+    from app.modules.taste import refresh
+
+    monkeypatch.setattr(refresh, "refresh", refresh.refresh_now)
+
+
 @pytest_asyncio.fixture
 async def db_session(test_engine):
     """A session bound to a transaction that's rolled back after each test."""

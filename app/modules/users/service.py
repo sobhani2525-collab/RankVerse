@@ -15,13 +15,8 @@ from app.core.security import (
 )
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import RankingService
-from app.modules.taste.compute import (
-    ContributionStatsComputer,
-    TasteAnchorComputer,
-    TasteDimensionComputer,
-    TasteInsightComputer,
-    TasteSnapshotComputer,
-)
+from app.modules.taste.compute import ContributionStatsComputer
+from app.modules.taste import refresh as taste_refresh
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserLogin, TokenPair
 
@@ -88,18 +83,15 @@ class UserService:
         await self.repo.update_password(user, hash_password(new_password))
         await self.db.commit()
 
-    async def _recompute_taste_dna(self, user_id: uuid.UUID) -> None:
+    async def _update_contribution_stats(self, user_id: uuid.UUID) -> None:
         """
-        Shared by every action that changes a signal Taste DNA reads from
-        (a rating, a favorite toggle): recomputes on-demand for
-        responsiveness. The nightly batch equivalents still run to catch
-        anyone who acts outside the app (sync/import, etc). Snapshot/
-        insight read the dimensions row(s), so they must run after them.
+        Shared by every action that changes a signal Taste DNA reads from (a
+        rating, a favorite toggle), before the commit. The rest of Taste DNA
+        (dimensions, snapshot, insight, anchors) is refreshed in the
+        background once the change is committed -- see taste/refresh.py. The
+        nightly batch equivalents still run to catch anyone who acts outside
+        the app (sync/import, etc).
         """
-        await TasteDimensionComputer(self.db).compute_genre_dimensions(user_id)
-        await TasteSnapshotComputer(self.db).compute_snapshot(user_id)
-        await TasteInsightComputer(self.db).compute_insight(user_id)
-        await TasteAnchorComputer(self.db).compute_anchors(user_id)
         await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
 
     async def rate_entity(self, user_id: uuid.UUID, entity_slug: str, score: int, entity_type: str = "movie"):
@@ -115,9 +107,10 @@ class UserService:
         ranking_service = RankingService(self.db)
         await ranking_service.recompute_entity(entity)
 
-        await self._recompute_taste_dna(user_id)
+        await self._update_contribution_stats(user_id)
 
         await self.db.commit()
+        await taste_refresh.refresh(self.db, user_id)
         return rating
 
     async def unrate_entity(self, user_id: uuid.UUID, entity_slug: str, entity_type: str = "movie"):
@@ -130,8 +123,9 @@ class UserService:
         if deleted:
             ranking_service = RankingService(self.db)
             await ranking_service.recompute_entity(entity)
-            await self._recompute_taste_dna(user_id)
+            await self._update_contribution_stats(user_id)
             await self.db.commit()
+            await taste_refresh.refresh(self.db, user_id)
         return deleted
 
     async def rate_movie(self, user_id: uuid.UUID, entity_slug: str, score: int):
@@ -161,8 +155,9 @@ class UserService:
             await self.repo.add_favorite(user_id, entity.id)
             favorited = True
 
-        await self._recompute_taste_dna(user_id)
+        await self._update_contribution_stats(user_id)
         await self.db.commit()
+        await taste_refresh.refresh(self.db, user_id)
         return favorited
 
     async def favorite_movie(self, user_id: uuid.UUID, entity_slug: str) -> bool:
