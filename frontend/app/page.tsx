@@ -7,7 +7,6 @@ import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
 import BattleArena from "@/components/home/BattleArena";
 import VoteShift from "@/components/home/VoteShift";
 import HomeSearch from "@/components/home/HomeSearch";
-import BeyondTopTen from "@/components/home/BeyondTopTen";
 import FeaturedList from "@/components/home/FeaturedList";
 import GenreUniverse from "@/components/home/GenreUniverse";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
@@ -133,7 +132,6 @@ export default async function HomePage() {
       <BattleArena preview={titles.length >= 2 ? [titles[0], titles[1]] : null} />
       <VoteShift guestPreview={top10} />
       <HomeSearch suggestions={searchSuggestions} />
-      <BeyondTopTen titles={titles.slice(10)} />
       {featuredList && <FeaturedList list={featuredList} />}
       <GenreUniverse clusters={clusterByGenre(detailed)} sampleSize={detailed.length} />
       <PersonalUniverse startHref={`/movies/${leader.slug}`} />
