@@ -1,7 +1,6 @@
 import Link from "next/link";
 import ListCard from "@/components/lists/list-card";
 import HomeHero from "@/components/home/HomeHero";
-import UniverseAnatomy from "@/components/home/UniverseAnatomy";
 import LiveRanking from "@/components/home/LiveRanking";
 import WhyNumberOne from "@/components/home/WhyNumberOne";
 import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
@@ -9,15 +8,16 @@ import BattleArena from "@/components/home/BattleArena";
 import VoteShift from "@/components/home/VoteShift";
 import HomeSearch from "@/components/home/HomeSearch";
 import BeyondTopTen from "@/components/home/BeyondTopTen";
+import FeaturedList from "@/components/home/FeaturedList";
 import GenreUniverse from "@/components/home/GenreUniverse";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import FinalCta from "@/components/home/FinalCta";
 import SectionHeading from "@/components/home/SectionHeading";
-import { getRankingsPage, getMovieBySlug, getMovieRankings, discoverLists, RankingHighlight, RANKING_TTL } from "@/lib/api";
+import { getRankingsPage, getMovieBySlug, getMovieRankings, discoverLists, getListBySlug, RankingHighlight, RANKING_TTL } from "@/lib/api";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 import { clusterByGenre, toHomeTitle } from "@/lib/home-data";
 import { rethrowOutsideBuild } from "@/lib/isr";
-import { MovieDetail, MovieListItem } from "@/lib/types";
+import { ListDetail, MovieDetail, MovieListItem } from "@/lib/types";
 
 export const revalidate = 1800;
 
@@ -59,7 +59,7 @@ export default async function HomePage() {
   // details chain off the movie list alone, so they don't wait for the
   // other two reads.
   const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
-  const [movieRes, tvRes, listsRes, extrasRes] = await Promise.allSettled([
+  const [movieRes, tvRes, listsRes, extrasRes, featuredListRes] = await Promise.allSettled([
     moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
     // آخرین لیست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
@@ -68,6 +68,10 @@ export default async function HomePage() {
     // whole home page down to the lists TTL.
     discoverLists({ sort: "newest", page_size: 6 }, RANKING_TTL),
     moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
+    // پرمشارکت‌ترین لیست کاربرها (بیشترین پسند)، برای بخش «Featured list».
+    discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL).then((lists) =>
+      lists[0] ? getListBySlug(lists[0].slug) : null
+    ),
   ]);
 
   const movies: MovieListItem[] = movieRes.status === "fulfilled" ? movieRes.value.items : [];
@@ -82,6 +86,7 @@ export default async function HomePage() {
   const tvSeries: MovieListItem[] = tvRes.status === "fulfilled" ? tvRes.value.items : [];
   const tvTotal = tvRes.status === "fulfilled" ? tvRes.value.total : null;
   const latestLists = listsRes.status === "fulfilled" ? listsRes.value : [];
+  const featuredList: ListDetail | null = featuredListRes.status === "fulfilled" ? featuredListRes.value : null;
 
   const extras = extrasRes.status === "fulfilled" ? extrasRes.value : { details: [], highlights: [] };
   const detailById = new Map<string, MovieDetail>();
@@ -122,14 +127,14 @@ export default async function HomePage() {
   return (
     <main>
       <HomeHero titles={titles.slice(0, HERO_NODES)} movieTotal={movieTotal} tvTotal={tvTotal} />
-      {leader.hasDetail && <UniverseAnatomy title={leader} />}
+      {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <LiveRanking movies={top10} tvSeries={tvTitles} />
       <WhyNumberOne leader={leader} rivals={titles.slice(1, 5)} highlights={highlights} />
-      {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <BattleArena preview={titles.length >= 2 ? [titles[0], titles[1]] : null} />
       <VoteShift guestPreview={top10} />
       <HomeSearch suggestions={searchSuggestions} />
       <BeyondTopTen titles={titles.slice(10)} />
+      {featuredList && <FeaturedList list={featuredList} />}
       <GenreUniverse clusters={clusterByGenre(detailed)} sampleSize={detailed.length} />
       <PersonalUniverse startHref={`/movies/${leader.slug}`} />
 
