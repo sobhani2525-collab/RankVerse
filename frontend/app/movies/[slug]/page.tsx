@@ -142,7 +142,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
                 {movie.title_fa ?? movie.title}.
               </h1>
               {movie.title_fa && (
-                <p dir="ltr" className="inline-block text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
+                <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
                   {movie.title}.
                 </p>
               )}
@@ -196,7 +196,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         </div>
       </div>
 
-      <div className="mt-10">
+      <div className="mt-16">
         <EntityGraphWithSidebar
           entityType="movie"
           peopleRows={peopleRows}
@@ -208,7 +208,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         />
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 border-t border-border-soft pt-10">
         <BattleSection
           entityType="movie"
           slug={movie.slug}

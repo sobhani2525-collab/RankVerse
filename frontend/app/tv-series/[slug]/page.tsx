@@ -163,7 +163,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
                 {tv.title_fa ?? tv.title}.
               </h1>
               {tv.title_fa && (
-                <p dir="ltr" className="inline-block text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
+                <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
                   {tv.title}.
                 </p>
               )}
@@ -244,7 +244,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      <div className="mt-10">
+      <div className="mt-16">
         <EntityGraphWithSidebar
           entityType="tv_series"
           peopleRows={peopleRows}
@@ -256,7 +256,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         />
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 border-t border-border-soft pt-10">
         <BattleSection
           entityType="tv_series"
           slug={tv.slug}
