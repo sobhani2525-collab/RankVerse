@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function TasteDnaEmptyState() {
   return (
-    <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center">
+    <div className="rounded-2xl border border-border-soft bg-surface/60 px-6 py-10 text-center">
       <p className="text-sm text-ink">هنوز داریم سلیقه‌ات رو می‌شناسیم</p>
       <p className="mt-2 text-xs text-muted">
         با چند رأی و نبرد بیشتر، Taste DNA‌ات شکل می‌گیرد.

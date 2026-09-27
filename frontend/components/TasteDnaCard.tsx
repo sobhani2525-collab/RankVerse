@@ -24,23 +24,23 @@ interface TasteDnaCardProps {
 
 export default function TasteDnaCard({ snapshot, dimensions }: TasteDnaCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-surface/60 p-5">
-      <div className="flex items-center gap-5">
-        <TasteDnaRing confidencePercent={snapshot.model_confidence * 100} />
+    <div className="rounded-2xl border border-border-soft bg-surface/60 p-6">
+      <div className="flex items-center gap-6">
+        <TasteDnaRing confidencePercent={snapshot.model_confidence * 100} size={132} />
         <div className="min-w-0">
           {/* snapshot.label is a " + "-joined archetype string, e.g.
               "کاوشگر علمی-تخیلی + داستان‌جو" (see compute.py's
               ARCHETYPE_MAP, now Persian) -- plain RTL text, so no dir
               override is needed here anymore. */}
-          <h3 className="text-lg font-bold text-ink">{snapshot.label}</h3>
+          <h3 className="text-xl font-bold text-ink">{snapshot.label}</h3>
           {dimensions.length > 0 && (
-            <p className="mt-1 text-xs text-muted">{topDimensionsSubtitle(dimensions)}</p>
+            <p className="mt-1.5 text-sm text-muted">{topDimensionsSubtitle(dimensions)}</p>
           )}
         </div>
       </div>
 
       {dimensions.length > 0 && (
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="mt-7 flex flex-col gap-3.5">
           {dimensions.map((d) => (
             <div key={d.dimension_key} className="flex items-center gap-3">
               <bdi className="w-28 shrink-0 truncate text-xs text-muted">

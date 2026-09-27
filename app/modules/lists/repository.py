@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import select, func, case, update, delete
 from sqlalchemy.dialects.postgresql import array as sa_array
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity, RelationshipEdge
@@ -148,15 +148,19 @@ class ListRepository:
         tag: str | None = None,
         sort_by: str = "newest",
     ) -> tuple[list[UserList], int]:
-        stmt = select(UserList).where(UserList.visibility == "public")
+        # A window-function count rides along with the page query instead of
+        # a separate round trip, and the owner (a single row per list) is
+        # joined in rather than fetched with its own selectinload query --
+        # together that cuts this from 5 sequential DB round trips to 3,
+        # which matters when backend<->DB latency is high (see database.py).
+        stmt = select(UserList, func.count().over().label("total")).where(
+            UserList.visibility == "public"
+        )
 
         if entity_type:
             stmt = stmt.where(UserList.entity_type == entity_type)
         if tag:
             stmt = stmt.where(UserList.tags.contains([tag]))
-
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = (await self.db.execute(count_stmt)).scalar_one()
 
         if sort_by == "popular":
             stmt = stmt.order_by(UserList.like_count.desc())
@@ -165,14 +169,20 @@ class ListRepository:
 
         stmt = (
             stmt.options(
-                selectinload(UserList.owner),
-                selectinload(UserList.items).selectinload(UserListItem.entity),
+                joinedload(UserList.owner),
+                # Only the first 3 items' entities become the poster preview
+                # (ListService._to_summary_with_preview), and only their id/
+                # slug/title/entity_type/attributes -- deferring the 384-dim
+                # embedding column keeps this round trip's payload small.
+                selectinload(UserList.items).selectinload(UserListItem.entity).defer(Entity.embedding),
             )
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all()), total
+        rows = result.unique().all()
+        total = rows[0].total if rows else 0
+        return [row.UserList for row in rows], total
 
     # --- Items ---
 

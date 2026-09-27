@@ -10,6 +10,11 @@ const STRENGTH_LABELS: Record<string, string> = {
   strong_signal: "سیگنال قوی",
 };
 
+/**
+ * Poster tile (not a list row) so a handful of anchors reads as a small
+ * gallery -- matches the poster-grid language used everywhere else an
+ * entity is shown (PosterCard/EntityCard), instead of a cramped list.
+ */
 export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
   const { entity } = anchor;
   // Unlike MovieListItem, TasteAnchorEntity (app/modules/taste/schemas.py)
@@ -23,40 +28,41 @@ export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
 
   const content = (
     <>
-      <div className="h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface2">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface2 transition group-hover:border-gold/40">
         {posterUrl ? (
           <Image
             src={posterUrl}
             alt={entity.title}
-            width={44}
-            height={64}
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 768px) 33vw, 160px"
+            className="object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-muted">
             بدون پوستر
           </div>
         )}
+
+        {/* match_score is already 0-100 (compute.py: round(100 * anchor_score)),
+            unlike model_confidence which is a 0-1 fraction -- verified live. */}
+        <div className="num absolute right-2 top-2 rounded-full border border-teal/40 bg-bg/80 px-2 py-0.5 text-[11px] font-bold text-teal backdrop-blur-sm">
+          {toFaDigits(Math.round(anchor.match_score))}٪
+        </div>
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="mt-2.5 min-w-0">
         <p className="truncate text-sm font-medium text-ink">{entity.title}</p>
-        <div className="mt-1 flex items-center gap-1.5">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</span>
           <span className="inline-block rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[10px] text-gold">
             {STRENGTH_LABELS[anchor.anchor_strength] ?? anchor.anchor_strength}
           </span>
         </div>
       </div>
-
-      {/* match_score is already 0-100 (compute.py: round(100 * anchor_score)),
-          unlike model_confidence which is a 0-1 fraction -- verified live. */}
-      <span className="num shrink-0 text-sm text-teal">{toFaDigits(Math.round(anchor.match_score))}٪</span>
     </>
   );
 
-  const className =
-    "flex items-center gap-3 rounded-xl border border-border bg-surface/60 px-4 py-3 transition hover:border-gold/40 hover:bg-surface2";
+  const className = "group flex flex-col";
 
   if (!href) {
     return <div className={className}>{content}</div>;

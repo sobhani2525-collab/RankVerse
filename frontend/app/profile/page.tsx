@@ -1,19 +1,44 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getMyRatings, getMyLists, getMyTasteDna, getMyPredictedPicks, UserRating } from "@/lib/api";
-import { TasteProfile, PredictedPick } from "@/lib/types";
+import { TasteProfile, PredictedPick, ListSummary } from "@/lib/types";
 import Loading from "@/components/Loading";
 import TasteDnaSection from "@/components/TasteDnaSection";
 import TasteDnaErrorState from "@/components/TasteDnaErrorState";
+import EntityMedia from "@/components/entities/entity-media";
+import ProgressBar from "@/components/ProgressBar";
+import ListCard, { AuthorAvatar } from "@/components/lists/list-card";
+import { listSummaryToListCard } from "@/lib/entity-card-adapters";
+import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
 import { toFaDigits } from "@/lib/format-number";
 
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
 const TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w185";
+
+function StatTile({
+  mono,
+  value,
+  label,
+  valueClassName = "text-ink",
+}: {
+  mono: string;
+  value: string;
+  label: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border-soft bg-surface/60 px-6 py-5">
+      <MonoLabel size="text-[10px]">{mono}</MonoLabel>
+      <div className={`num mt-2 text-3xl font-bold ${valueClassName}`}>{value}</div>
+      <div className="mt-1 text-xs text-muted">{label}</div>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { user, token, loading: authLoading } = useAuth();
@@ -23,7 +48,7 @@ export default function ProfilePage() {
   const [loadingRatings, setLoadingRatings] = useState(true);
   const [ratingsError, setRatingsError] = useState<string | null>(null);
 
-  const [lists, setLists] = useState<any[] | null>(null);
+  const [lists, setLists] = useState<ListSummary[] | null>(null);
   const [loadingLists, setLoadingLists] = useState(true);
   const [listsError, setListsError] = useState<string | null>(null);
 
@@ -130,13 +155,10 @@ export default function ProfilePage() {
     };
   }, [token]);
 
-  const { totalCount, avgScore } = useMemo(() => {
-    if (!ratings || ratings.length === 0) {
-      return { totalCount: 0, avgScore: null as number | null };
-    }
-    const sum = ratings.reduce((acc, r) => acc + r.score, 0);
-    return { totalCount: ratings.length, avgScore: sum / ratings.length };
-  }, [ratings]);
+  const totalCount = ratings?.length ?? 0;
+  const contribution = taste?.contribution_stats ?? null;
+  const contributionScorePercent =
+    contribution != null ? Math.max(0, Math.min(100, contribution.contribution_score)) : null;
 
   if (authLoading || !user) {
     return (
@@ -147,149 +169,167 @@ export default function ProfilePage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-bg pb-24 text-ink">
+    <main className="mx-auto max-w-[1440px] px-4 pb-24 pt-10 lg:px-20 lg:pt-16">
       {/* --- Hero --- */}
-      <section className="border-b border-border">
-        <div className="mx-auto flex max-w-2xl flex-col items-center px-6 pb-10 pt-16 text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-gold/40 bg-surface text-2xl font-bold text-gold">
-            {user.username.charAt(0).toUpperCase()}
-          </div>
-          <h1 className="mt-4 text-xl font-bold">{user.username}</h1>
-          <p className="mt-1 text-sm text-muted" dir="ltr">
+      <div className="flex items-center gap-5 border-b border-border-soft pb-10">
+        <AuthorAvatar
+          author={{ username: user.username }}
+          sizeClassName="h-20 w-20 md:h-24 md:w-24"
+          textClassName="text-2xl md:text-3xl"
+        />
+        <div>
+          <h1 className="font-display text-3xl text-ink md:text-4xl">{user.username}</h1>
+          <p className="num mt-1.5 text-sm text-muted" dir="ltr">
             {user.email}
           </p>
         </div>
-      </section>
+      </div>
 
-      {/* --- Stats --- */}
-      <section className="mx-auto mt-8 max-w-2xl px-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-lg border border-border bg-surface px-5 py-4">
-            <div className="text-2xl font-bold text-gold">
-              {loadingRatings ? "—" : toFaDigits(totalCount)}
-            </div>
-            <div className="mt-1 text-xs text-muted">رتبه‌بندی‌های ثبت‌شده</div>
-          </div>
-          <div className="rounded-lg border border-border bg-surface px-5 py-4">
-            <div className="text-2xl font-bold text-teal">
-              {loadingRatings ? "—" : avgScore != null ? toFaDigits(avgScore.toFixed(1)) : "—"}
-            </div>
-            <div className="mt-1 text-xs text-muted">میانگین امتیاز شما</div>
-          </div>
+      {/* --- Stats: ratings + activity/contribution merged into one strip -- */}
+      <div className="mt-10">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <StatTile
+            mono="RATINGS"
+            value={loadingRatings ? "—" : toFaDigits(totalCount)}
+            label="رتبه‌بندی‌های ثبت‌شده"
+            valueClassName="text-gold"
+          />
+          <StatTile
+            mono="LISTS"
+            value={loadingLists ? "—" : toFaDigits(lists?.length ?? 0)}
+            label="لیست‌های ساخته‌شده"
+            valueClassName="text-teal"
+          />
+          <StatTile
+            mono="BATTLES"
+            value={loadingTaste ? "—" : toFaDigits(contribution?.battles_count ?? 0)}
+            label="نبرد"
+            valueClassName="text-violet-light"
+          />
+          <StatTile
+            mono="COMMENTS"
+            value={loadingTaste ? "—" : toFaDigits(contribution?.comments_count ?? 0)}
+            label="نظر"
+          />
         </div>
-      </section>
+
+        {!loadingTaste && contributionScorePercent != null && (
+          <div className="mt-4 rounded-2xl border border-border-soft bg-surface/60 px-6 py-4">
+            <div className="mb-1.5 flex items-center justify-between text-xs text-muted">
+              <span>امتیاز مشارکت</span>
+              <span className="num text-ink">{toFaDigits(Math.round(contribution!.contribution_score))}</span>
+            </div>
+            <ProgressBar value={contributionScorePercent} fillClassName="bg-teal" />
+          </div>
+        )}
+      </div>
 
       {/* --- Taste DNA --- */}
-      <section className="mx-auto mt-10 max-w-2xl px-6">
-        <h2 className="mb-4 text-sm text-muted">Taste DNA</h2>
-        {loadingTaste && <Loading />}
-        {!loadingTaste && tasteError && (
-          <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
-        )}
-        {!loadingTaste && !tasteError && taste && (
-          <TasteDnaSection profile={taste} predictedPicks={predictedPicks} />
-        )}
+      <section className="mt-14">
+        <SectionHeading en="TASTE DNA" fa="دی‌ان‌ای سلیقه" />
+        <div className="mt-5">
+          {loadingTaste && <Loading />}
+          {!loadingTaste && tasteError && (
+            <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
+          )}
+          {!loadingTaste && !tasteError && taste && (
+            <TasteDnaSection profile={taste} predictedPicks={predictedPicks} />
+          )}
+        </div>
       </section>
 
       {/* --- Lists --- */}
-      <section className="mx-auto mt-10 max-w-2xl px-6">
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-sm text-muted">لیست‌های شما</h2>
-          <Link href="/lists/new" className="text-xs text-gold hover:underline">
-            لیست جدید
-          </Link>
-        </div>
-
-        {loadingLists && <Loading />}
-
-        {!loadingLists && listsError && (
-          <div className="rounded-lg border border-border bg-surface px-5 py-6 text-center text-sm text-muted">
-            {listsError}
-          </div>
-        )}
-
-        {!loadingLists && !listsError && lists && lists.length === 0 && (
-          <div className="rounded-lg border border-border bg-surface px-5 py-8 text-center">
-            <p className="text-sm text-muted">هنوز هیچ لیستی نساخته‌اید.</p>
-            <Link href="/lists/new" className="mt-4 inline-block text-sm text-gold hover:underline">
-              ساخت اولین لیست
+      <section className="mt-16">
+        <SectionHeading
+          en="YOUR LISTS"
+          fa="لیست‌های شما"
+          aside={
+            <Link href="/lists/new" className="text-xs font-semibold text-gold hover:underline">
+              + لیست جدید
             </Link>
-          </div>
-        )}
+          }
+        />
 
-        {!loadingLists && !listsError && lists && lists.length > 0 && (
-          <ul className="flex flex-col gap-3">
-            {lists.map((list) => (
-              <li key={list.id ?? list.slug}>
-                <Link
-                  href={`/lists/${list.slug}`}
-                  className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3 transition-colors hover:border-gold/30"
-                >
-                  <span className="truncate text-sm">{list.title}</span>
-                  {typeof list.item_count === "number" && (
-                    <span className="flex-shrink-0 text-xs text-muted">
-                      {toFaDigits(list.item_count)} مورد
-                    </span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="mt-5">
+          {loadingLists && <Loading />}
+
+          {!loadingLists && listsError && (
+            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-6 text-center text-sm text-muted">
+              {listsError}
+            </div>
+          )}
+
+          {!loadingLists && !listsError && lists && lists.length === 0 && (
+            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center">
+              <p className="text-sm text-muted">هنوز هیچ لیستی نساخته‌اید.</p>
+              <Link href="/lists/new" className="mt-4 inline-block text-sm text-gold hover:underline">
+                ساخت اولین لیست
+              </Link>
+            </div>
+          )}
+
+          {!loadingLists && !listsError && lists && lists.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+              {lists.map((list) => (
+                <ListCard key={list.id} list={listSummaryToListCard(list)} />
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
-      {/* --- Ratings list --- */}
-      <section className="mx-auto mt-10 max-w-2xl px-6">
-        <h2 className="mb-4 text-sm text-muted">رتبه‌بندی‌های شما</h2>
+      {/* --- Ratings --- */}
+      <section className="mt-16">
+        <SectionHeading en="YOUR RATINGS" fa="رتبه‌بندی‌های شما" />
 
-        {loadingRatings && <Loading />}
+        <div className="mt-5">
+          {loadingRatings && <Loading />}
 
-        {!loadingRatings && ratingsError && (
-          <div className="rounded-lg border border-border bg-surface px-5 py-6 text-center text-sm text-muted">
-            {ratingsError}
-          </div>
-        )}
+          {!loadingRatings && ratingsError && (
+            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-6 text-center text-sm text-muted">
+              {ratingsError}
+            </div>
+          )}
 
-        {!loadingRatings && !ratingsError && ratings && ratings.length === 0 && (
-          <div className="rounded-lg border border-border bg-surface px-5 py-10 text-center">
-            <p className="text-sm text-muted">هنوز هیچ فیلمی رتبه‌بندی نکرده‌اید.</p>
-            <Link href="/" className="mt-4 inline-block text-sm text-gold hover:underline">
-              رفتن به فهرست فیلم‌ها
-            </Link>
-          </div>
-        )}
+          {!loadingRatings && !ratingsError && ratings && ratings.length === 0 && (
+            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-10 text-center">
+              <p className="text-sm text-muted">هنوز هیچ فیلمی رتبه‌بندی نکرده‌اید.</p>
+              <Link href="/" className="mt-4 inline-block text-sm text-gold hover:underline">
+                رفتن به فهرست فیلم‌ها
+              </Link>
+            </div>
+          )}
 
-        {!loadingRatings && !ratingsError && ratings && ratings.length > 0 && (
-          <ul className="flex flex-col gap-3">
-            {ratings.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/movies/${r.movie_slug}`}
-                  className="flex items-center gap-4 rounded-lg border border-border bg-surface px-4 py-3 transition-colors hover:border-gold/30"
-                >
-                  <div className="h-16 w-11 flex-shrink-0 overflow-hidden rounded bg-bg">
-                    {r.movie_poster_path && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={`${TMDB_POSTER_BASE}${r.movie_poster_path}`}
-                        alt={r.movie_title}
-                        className="h-full w-full object-cover"
-                      />
-                    )}
+          {!loadingRatings && !ratingsError && ratings && ratings.length > 0 && (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 lg:gap-5">
+              {ratings.map((r) => (
+                <Link key={r.id} href={`/movies/${r.movie_slug}`} className="group flex flex-col gap-2">
+                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border-soft bg-surface2">
+                    <EntityMedia
+                      src={r.movie_poster_path ? `${TMDB_POSTER_BASE}${r.movie_poster_path}` : null}
+                      alt={r.movie_title}
+                      mediaKind="image"
+                    />
+                    <div
+                      className="pointer-events-none absolute right-2 top-2 h-9 w-9 rounded-full p-[1.5px]"
+                      style={{ background: "linear-gradient(135deg, #9163f5, #4FB8A6)" }}
+                    >
+                      <div
+                        className="num flex h-full w-full items-center justify-center rounded-full text-xs font-bold text-ink backdrop-blur-sm"
+                        style={{ background: "rgba(7,11,22,.85)" }}
+                      >
+                        {toFaDigits(r.score.toFixed(1))}
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">{r.movie_title}</p>
-                  </div>
-
-                  <div className="flex-shrink-0 rounded-full border border-teal/30 px-3 py-1 text-sm text-teal">
-                    {toFaDigits(r.score.toFixed(1))}
-                  </div>
+                  <span className="truncate text-sm font-bold text-ink transition group-hover:text-teal">
+                    {r.movie_title}
+                  </span>
                 </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

@@ -5,6 +5,10 @@ import { detailPathFor } from "@/lib/entity-routes";
 import { entityTypeLabel } from "@/lib/constants";
 import { toFaDigits } from "@/lib/format-number";
 
+/**
+ * Poster tile (not a list row) -- same gallery treatment as TasteAnchorRow
+ * so predicted picks read as a small poster wall, not a squeezed list.
+ */
 export default function TastePredictedPickRow({ pick }: { pick: PredictedPick }) {
   const { entity } = pick;
   const posterUrl = entity.poster_path
@@ -14,35 +18,36 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
 
   const content = (
     <>
-      <div className="h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface2">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface2 transition group-hover:border-gold/40">
         {posterUrl ? (
           <Image
             src={posterUrl}
             alt={entity.title}
-            width={44}
-            height={64}
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 768px) 33vw, 160px"
+            className="object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-muted">
             بدون پوستر
           </div>
         )}
+
+        {/* match_score is already 0-100 (see PredictedPicksService's docstring) --
+            same convention as anchor.match_score in TasteAnchorRow. */}
+        <div className="num absolute right-2 top-2 rounded-full border border-teal/40 bg-bg/80 px-2 py-0.5 text-[11px] font-bold text-teal backdrop-blur-sm">
+          {toFaDigits(Math.round(pick.match_score))}٪
+        </div>
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="mt-2.5 min-w-0">
         <p className="truncate text-sm font-medium text-ink">{entity.title}</p>
-        <p className="text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</p>
+        <p className="mt-1 text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</p>
       </div>
-
-      {/* match_score is already 0-100 (see PredictedPicksService's docstring) --
-          same convention as anchor.match_score in TasteAnchorRow. */}
-      <span className="num shrink-0 text-sm text-teal">{toFaDigits(Math.round(pick.match_score))}٪</span>
     </>
   );
 
-  const className =
-    "flex items-center gap-3 rounded-xl border border-border bg-surface/60 px-4 py-3 transition hover:border-gold/40 hover:bg-surface2";
+  const className = "group flex flex-col";
 
   if (!href) {
     return <div className={className}>{content}</div>;
