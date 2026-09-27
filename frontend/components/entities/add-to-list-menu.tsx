@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useFavorites } from "@/contexts/FavoritesContext";
 import { useWatchLater } from "@/contexts/WatchLaterContext";
 import { createList, addListItem, getMyLists } from "@/lib/api";
 import { MonoLabel } from "@/components/list-detail/ui";
@@ -58,17 +57,18 @@ function CheckRow({
 }
 
 /**
- * "+ افزودن به لیست…" -- opens a "MY LISTS" popover: the ♥ favorites and
- * "بعداً تماشا می‌کنم" shortcuts first, the user's own lists as checkbox
- * rows (lazy-loaded on open), and an inline quick-create row last. Mirrors
- * SearchBox's dropdown shell (relative container, absolute panel,
- * click-outside-to-close).
+ * "+ افزودن به لیست…" -- opens a "MY LISTS" popover, anchored to the
+ * trigger's right edge and expanding leftward (matching RTL reading
+ * direction): the "بعداً تماشا می‌کنم" shortcut first (favoriting already
+ * has its own heart button in the action row, so it isn't duplicated
+ * here), the user's own lists as checkbox rows (lazy-loaded on open), and
+ * an inline quick-create row last. Mirrors SearchBox's dropdown shell
+ * (relative container, absolute panel, click-outside-to-close).
  */
 export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
   const router = useRouter();
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
-  const { isFavorite, toggleFavorite } = useFavorites();
   const { isWatchLater, toggleWatchLater } = useWatchLater();
 
   const [open, setOpen] = useState(false);
@@ -147,7 +147,6 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
     }
   }
 
-  const favorited = isFavorite(entity.id);
   const watchingLater = isWatchLater(entity.id);
 
   return (
@@ -162,7 +161,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1.5 w-72 overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
+        <div className="absolute right-0 top-full z-20 mt-1.5 w-72 overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
           <div className="flex items-center gap-2 border-b border-border-soft px-3.5 py-2.5">
             <MonoLabel size="text-[10px]" className="text-dim">
               MY LISTS
@@ -171,9 +170,6 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
           </div>
 
           <CheckRow label="بعداً تماشا می‌کنم" checked={watchingLater} onClick={() => toggleWatchLater(entity.id)} />
-          <div className="border-t border-border-soft">
-            <CheckRow label="مورد علاقه‌ها" checked={favorited} onClick={() => toggleFavorite(entity)} />
-          </div>
 
           <div className="border-t border-border-soft">
             {loadingLists ? (

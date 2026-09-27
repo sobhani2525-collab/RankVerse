@@ -101,18 +101,18 @@ export default function StarRating({ entity, bare = false }: { entity: RatableEn
             spans mounting/unmounting) and can't nudge the card's layout. */}
         <div className="pointer-events-none absolute inset-0 flex text-muted/50" aria-hidden="true">
           {Array.from({ length: STAR_COUNT }, (_, i) => (
-            <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none">
+            <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-[32px] leading-none">
               ★
             </span>
           ))}
         </div>
         <div
-          className="pointer-events-none absolute inset-0 flex bg-gradient-to-r from-gold to-teal bg-clip-text text-transparent"
+          className="pointer-events-none absolute inset-0 flex text-gold"
           aria-hidden="true"
           style={{ clipPath: `inset(0 0 0 ${(STAR_COUNT - filledCount) * 44}px)` }}
         >
           {Array.from({ length: STAR_COUNT }, (_, i) => (
-            <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl leading-none">
+            <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-[32px] leading-none">
               ★
             </span>
           ))}
@@ -137,32 +137,31 @@ export default function StarRating({ entity, bare = false }: { entity: RatableEn
         </div>
       </div>
 
-      <p className="mt-2 flex items-center gap-2 font-sans text-sm text-muted">
+      <div className="mt-2 flex flex-wrap items-center gap-2 font-sans text-sm text-muted">
         {busy ? (
           <>
             <Spinner className="h-4 w-4" />
             {selected !== null ? "در حال ثبت امتیاز…" : "در حال حذف امتیاز…"}
           </>
         ) : selected !== null ? (
-          <span className="text-teal">
-            امتیاز شما ثبت شد · <span className="num">{toFaDigits(selected)}</span> از{" "}
-            <span className="num">{toFaDigits(STAR_COUNT)}</span>
-          </span>
+          <>
+            <span className="text-teal">
+              امتیاز شما ثبت شد · <span className="num">{toFaDigits(selected)}</span> از{" "}
+              <span className="num">{toFaDigits(STAR_COUNT)}</span>
+            </span>
+            <button
+              type="button"
+              onClick={doRemove}
+              disabled={busy}
+              className="rounded-lg border border-border-soft px-2 py-0.5 text-xs text-muted transition hover:border-gold hover:text-gold disabled:opacity-50"
+            >
+              حذف رأی
+            </button>
+          </>
         ) : (
           ratePrompt
         )}
-      </p>
-
-      {selected !== null && !busy && (
-        <button
-          type="button"
-          onClick={doRemove}
-          disabled={busy}
-          className="mt-1 text-xs text-muted underline hover:text-gold disabled:opacity-50"
-        >
-          حذف رأی
-        </button>
-      )}
+      </div>
 
       {hasError && (
         <p className="mt-2 text-xs text-gold">

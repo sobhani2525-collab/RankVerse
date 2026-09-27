@@ -28,25 +28,30 @@ export default async function EntityLists({
   if (variant === "sidebar") {
     const shown = lists.slice(0, 2);
     return (
-      <div className="rounded-2xl border border-border-soft bg-surface/40 p-5">
+      <div>
         <SectionHeading en="IN LISTS" fa={`در ${toFaDigits(lists.length)} لیست کاربران`} />
-        <div className="mt-4 flex flex-col gap-3">
-          {shown.map((list) => (
+        <div className="mt-2 flex flex-col">
+          {shown.map((list, i) => (
             <Link
               key={list.id}
               href={`/lists/${list.slug}`}
-              className="flex flex-col gap-0.5 rounded-xl border border-border-soft bg-surface p-3 transition hover:border-teal/40"
+              className={`group flex items-center gap-4 py-4 transition hover:opacity-80 ${i > 0 ? "border-t border-border-soft" : ""}`}
             >
-              <span className="truncate text-sm font-bold text-ink">{list.title}</span>
-              {list.owner_username && (
-                <span dir="ltr" className="text-xs text-muted">
-                  @{list.owner_username}
-                </span>
-              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-bold text-ink">{list.title}</p>
+                {list.owner_username && (
+                  <p dir="ltr" className="mt-0.5 text-xs text-muted">
+                    @{list.owner_username}
+                  </p>
+                )}
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-dim transition group-hover:text-gold">
+                <path d="m15 6-6 6 6 6" />
+              </svg>
             </Link>
           ))}
         </div>
-        <Link href="/lists" className="mt-3 flex min-h-[32px] items-center text-xs text-violet-light hover:text-ink">
+        <Link href="/lists" className="mt-2 flex min-h-[32px] items-center text-xs text-violet-light hover:text-ink">
           همه لیست‌ها ←
         </Link>
       </div>

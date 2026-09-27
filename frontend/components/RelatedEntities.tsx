@@ -30,11 +30,7 @@ export default function RelatedEntities({ items, excludeIds = [] }: RelatedEntit
 
   return (
     <div>
-      <SectionHeading
-        en="IF YOU LIKED"
-        fa="اگر این را دوست داشتی"
-        aside={<span className="text-xs text-dim">بر اساس اتصال‌های واقعی گراف، نه جعبه سیاه</span>}
-      />
+      <SectionHeading en="IF YOU LIKED" fa="اگر این را دوست داشتی" />
       <div className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
         {shown.map((item) => (
           <PosterCard key={item.id} entity={item} why={whyChipsFor(item.reason)} />
