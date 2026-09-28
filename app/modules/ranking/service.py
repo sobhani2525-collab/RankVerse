@@ -33,12 +33,13 @@ class RankingService:
     entity has done in pairwise battles.
 
         bayesian_score = (v / (v + m)) * R + (m / (v + m)) * C
-        blended        = alpha * bayesian_score + beta * external_score
+        blended        = alpha * (bayesian_score * 2) + beta * external_score
         battle_adj     = w * (n / (n + k)) * clamp((elo - 1200) / 400, -1, 1)
         final_score    = blended + battle_adj
 
     Where:
-        R = average user rating for the entity (1-5)
+        R = average user rating for the entity (1-5, rescaled to 0-10 --
+            same range as external_score -- before blending)
         v = number of user votes for the entity
         m = minimum votes threshold for full confidence (config)
         C = platform-wide average user rating
@@ -65,8 +66,12 @@ class RankingService:
         return (v / (v + self.m)) * R + (self.m / (v + self.m)) * C
 
     def blend_with_external(self, bayesian: float, external_0_10: float | None, C: float) -> float:
-        external = external_0_10 if external_0_10 is not None else C
-        return round(self.alpha * bayesian + self.beta * external, 2)
+        # bayesian/C are on the 1-5 star scale; external_0_10 (and the
+        # score this function returns) is 0-10, so rescale before mixing --
+        # otherwise a perfect 5-star average tops out at half of a perfect
+        # external score and every blended score is compressed/deflated.
+        external = external_0_10 if external_0_10 is not None else C * 2
+        return round(self.alpha * (bayesian * 2) + self.beta * external, 2)
 
     def battle_adjustment(self, elo: float | None, matches: int) -> float:
         """Points added to (or taken from) the blended score for battle

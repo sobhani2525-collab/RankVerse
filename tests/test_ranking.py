@@ -45,11 +45,11 @@ def test_no_votes_falls_back_to_platform_average():
 
 def test_blend_with_external_score():
     svc = make_service()
-    # external_0_10 stays on the TMDb 0-10 scale -- only the user-facing
-    # UserRating.score moved to 1-5, the external blend input is untouched.
+    # external_0_10 stays on the TMDb 0-10 scale; bayesian is 1-5 stars, so
+    # it must be rescaled to 0-10 before blending with the external score.
     final = svc.blend_with_external(bayesian=4.0, external_0_10=7.0, C=3.0)
-    # 0.7*4 + 0.3*7 = 4.9
-    assert final == 4.9
+    # 0.7*(4*2) + 0.3*7 = 5.6 + 2.1 = 7.7
+    assert final == 7.7
 
 
 def test_no_battles_leaves_score_unchanged():
