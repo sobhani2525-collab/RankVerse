@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRankingsPage, discoverLists, getMovieBySlug, getMovieRankings, RANKING_TTL } from "@/lib/api";
+import HomePage from "@/app/page";
 
 // Temporary diagnostic route: the home page throws a bare, message-less 500
 // from the App Router when it does its full parallel fetch fan-out (movie
@@ -30,6 +31,10 @@ export async function GET() {
   await run("discoverListsPopular", () => discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL));
   await run("movieBySlug", () => getMovieBySlug("white-scratch-2025"));
   await run("movieRankingHighlights", () => getMovieRankings("white-scratch-2025"));
+  await run("homePageDataAndConstruction", async () => {
+    const element = await HomePage();
+    return { constructed: !!element };
+  });
 
   return NextResponse.json(results);
 }
