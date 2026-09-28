@@ -1,41 +1,35 @@
 import { NextResponse } from "next/server";
+import { getRankingsPage, discoverLists, getMovieBySlug, getMovieRankings, RANKING_TTL } from "@/lib/api";
 
-// Temporary diagnostic route: isolates whether the home page's "backend
-// unreachable" failures come from Next's fetch-cache interception (the
-// `next: { revalidate }` + AbortSignal.timeout combo in lib/api.ts) or from
-// something about the Worker/zone environment itself. Calls the backend
-// three ways and reports each outcome. Delete once the cause is found.
+// Temporary diagnostic route: the home page throws a bare, message-less 500
+// from the App Router when it does its full parallel fetch fan-out (movie
+// rankings, tv rankings, discoverLists x2, movie detail batch, ranking
+// highlights) -- but every individual backend endpoint answers 200 via
+// curl/browser. This calls each of the home page's real data-layer
+// functions one at a time and reports which one throws, and what. Remove
+// once the cause is found.
 export async function GET() {
-  const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/rankings/movies?page_size=1`;
-  const results: Record<string, unknown> = { url };
+  const results: Record<string, unknown> = {};
 
-  try {
-    const res = await fetch(url);
-    results.plain = { status: res.status, ok: res.ok };
-  } catch (e) {
-    results.plain = { error: String(e) };
+  async function run(name: string, fn: () => Promise<unknown>) {
+    try {
+      const value = await fn();
+      results[name] = { ok: true, sample: JSON.stringify(value)?.slice(0, 300) };
+    } catch (e) {
+      results[name] = {
+        ok: false,
+        error: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+        stack: e instanceof Error ? e.stack?.slice(0, 500) : undefined,
+      };
+    }
   }
 
-  try {
-    const res = await fetch(url, { next: { revalidate: 1800 } });
-    results.withRevalidate = { status: res.status, ok: res.ok };
-  } catch (e) {
-    results.withRevalidate = { error: String(e) };
-  }
-
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    results.withAbortSignal = { status: res.status, ok: res.ok };
-  } catch (e) {
-    results.withAbortSignal = { error: String(e) };
-  }
-
-  try {
-    const res = await fetch(url, { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) });
-    results.withBoth = { status: res.status, ok: res.ok };
-  } catch (e) {
-    results.withBoth = { error: String(e) };
-  }
+  await run("movieRankings", () => getRankingsPage("movie", { page_size: 24 }));
+  await run("tvRankings", () => getRankingsPage("tv_series", { page_size: 10 }));
+  await run("discoverListsNewest", () => discoverLists({ sort: "newest", page_size: 6 }, RANKING_TTL));
+  await run("discoverListsPopular", () => discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL));
+  await run("movieBySlug", () => getMovieBySlug("white-scratch-2025"));
+  await run("movieRankingHighlights", () => getMovieRankings("white-scratch-2025"));
 
   return NextResponse.json(results);
 }
