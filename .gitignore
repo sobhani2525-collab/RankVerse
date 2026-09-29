@@ -24,3 +24,7 @@ frontend/out/
 frontend/tsconfig.tsbuildinfo
 frontend/.open-next/
 frontend/.wrangler/
+
+# Local env / Cloudflare state
+frontend/.env.local
+.wrangler/
