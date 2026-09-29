@@ -649,9 +649,40 @@ export interface RankingsPage {
   total: number | null;
 }
 
+export interface PersonListItem {
+  id: string;
+  slug: string;
+  title: string;
+  media: { image_url: string | null };
+  works_count: number;
+  avg_score: number | null;
+}
+
+export async function getPeoplePage(
+  params: { page?: number; page_size?: number; role?: string; sort?: string; origin?: string } = {}
+): Promise<{ items: PersonListItem[]; total: number | null }> {
+  const qs = new URLSearchParams();
+  if (params.page) qs.set("page", String(params.page));
+  if (params.page_size) qs.set("page_size", String(params.page_size));
+  if (params.role) qs.set("role", params.role);
+  if (params.origin) qs.set("origin", params.origin);
+  if (params.sort) qs.set("sort", params.sort);
+  const path = `/rankings/people?${qs.toString()}`;
+
+  const res = await fetchWithTimeout(path, { next: { revalidate: RANKING_TTL } });
+  if (!res.ok) {
+    throw new ApiError(res.status, `RankVerse API error (${res.status}) on ${path}`);
+  }
+  const json: Envelope<PersonListItem[]> = await res.json();
+  if (json.error) {
+    throw new Error(json.error.message);
+  }
+  return { items: json.data, total: json.meta?.total ?? null };
+}
+
 export async function getRankingsPage(
   entityType: "movie" | "tv_series",
-  params: { page?: number; page_size?: number; genre?: string; sort?: string; year_from?: number; year_to?: number } = {},
+  params: { page?: number; page_size?: number; genre?: string; sort?: string; year_from?: number; year_to?: number; origin?: string } = {},
   options: { fresh?: boolean } = {}
 ): Promise<RankingsPage> {
   const qs = new URLSearchParams();
@@ -659,6 +690,7 @@ export async function getRankingsPage(
   if (params.page_size) qs.set("page_size", String(params.page_size));
   if (params.genre) qs.set("genre", params.genre);
   if (params.sort) qs.set("sort", params.sort);
+  if (params.origin) qs.set("origin", params.origin);
   if (params.year_from) qs.set("year_from", String(params.year_from));
   if (params.year_to) qs.set("year_to", String(params.year_to));
   const path = `/rankings/${entityType === "tv_series" ? "tv-series" : "movies"}?${qs.toString()}`;

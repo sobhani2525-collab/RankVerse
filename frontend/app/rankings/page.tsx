@@ -18,6 +18,12 @@ const SORT_OPTIONS = [
   ["year_asc", "قدیمی‌ترین"],
 ] as const;
 
+const ORIGIN_OPTIONS = [
+  ["all", "همه"],
+  ["persian", "فارسی‌زبان"],
+  ["foreign", "خارجی"],
+] as const;
+
 const GENRES = [
   "action", "adventure", "animation", "comedy", "crime", "documentary", "drama", "family",
   "fantasy", "history", "horror", "music", "mystery", "romance", "science-fiction", "thriller", "war", "western",
@@ -30,6 +36,7 @@ interface Filters {
   genre?: string;
   sort?: string;
   decade?: number;
+  origin?: string;
 }
 
 function buildHref(type: RankingType, page: number, f: Filters = {}): string {
@@ -37,6 +44,7 @@ function buildHref(type: RankingType, page: number, f: Filters = {}): string {
   if (type === "tv_series") qs.set("type", "tv_series");
   if (f.genre) qs.set("genre", f.genre);
   if (f.decade) qs.set("decade", String(f.decade));
+  if (f.origin && f.origin !== "all") qs.set("origin", f.origin);
   if (f.sort && f.sort !== "score") qs.set("sort", f.sort);
   if (page > 1) qs.set("page", String(page));
   const s = qs.toString();
@@ -46,7 +54,7 @@ function buildHref(type: RankingType, page: number, f: Filters = {}): string {
 export default async function RankingsPageRoute({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; page?: string; genre?: string; sort?: string; decade?: string }>;
+  searchParams: Promise<{ type?: string; page?: string; genre?: string; sort?: string; decade?: string; origin?: string }>;
 }) {
   const params = await searchParams;
   const type: RankingType = params.type === "tv_series" ? "tv_series" : "movie";
@@ -55,13 +63,15 @@ export default async function RankingsPageRoute({
   const sort = SORT_OPTIONS.some(([v]) => v === params.sort) ? params.sort! : "score";
   const decadeParam = Number.parseInt(params.decade ?? "", 10);
   const decade = DECADES.includes(decadeParam) ? decadeParam : undefined;
-  const filters: Filters = { genre, sort, decade };
+  const origin = ORIGIN_OPTIONS.some(([v]) => v === params.origin) ? params.origin! : "all";
+  const filters: Filters = { genre, sort, decade, origin };
 
   let result: RankingsPage = { items: [], total: null };
   let loadError: string | null = null;
   try {
     result = await getRankingsPage(type, { page, page_size: PAGE_SIZE, genre,
       sort,
+      origin,
       year_from: decade,
       year_to: decade ? decade + 9 : undefined,
     });
@@ -111,6 +121,12 @@ export default async function RankingsPageRoute({
                   : []),
                 ...GENRES.map((g) => [g, genreLabel(g), buildHref(type, 1, { ...filters, genre: g })] as const),
               ],
+            },
+            {
+              label: "زبان:",
+              en: "LANGUAGE",
+              value: origin,
+              options: ORIGIN_OPTIONS.map(([v, l]) => [v, l, buildHref(type, 1, { ...filters, origin: v })] as const),
             },
             {
               label: "دهه:",

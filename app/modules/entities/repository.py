@@ -1,11 +1,31 @@
 import uuid
 
-from sqlalchemy import and_, bindparam, delete, func, select, update
+from sqlalchemy import and_, bindparam, delete, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import aliased, contains_eager, joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity, RelationshipEdge, EntityRanking
+
+
+def _persian_work(entity):
+    """Persian-language title: TMDb original_language "fa" or Iranian origin
+    (the same definition the catalog import uses, see sync/catalog.py)."""
+    return func.coalesce(
+        or_(
+            entity.attributes["original_language"].as_string() == "fa",
+            entity.attributes["country"].as_string() == "IR",
+        ),
+        false(),
+    )
+
+
+def _apply_origin(stmt, entity, origin: str):
+    if origin == "persian":
+        return stmt.where(_persian_work(entity))
+    if origin == "foreign":
+        return stmt.where(~_persian_work(entity))
+    return stmt
 
 
 class EntityRepository:
@@ -48,6 +68,7 @@ class EntityRepository:
         year_to: int | None = None,
         sort_by: str = "score",
         entity_type: str = "movie",
+        origin: str = "all",
     ) -> tuple[list[Entity], int]:
         stmt = select(Entity).where(Entity.entity_type == entity_type)
 
@@ -65,6 +86,8 @@ class EntityRepository:
                     Entity.entity_type == entity_type,
                     Entity.id.in_(genre_subq),
             )
+
+        stmt = _apply_origin(stmt, Entity, origin)
 
         if year_from:
             stmt = stmt.where(Entity.attributes["year"].as_integer() >= year_from)
@@ -98,6 +121,52 @@ class EntityRepository:
             return [row[0] for row in rows], rows[0][1]
         # Past the last page there's no row to carry the total.
         return [], (await self.db.execute(count_stmt)).scalar_one()
+
+    async def list_people(
+        self, page: int, page_size: int, role: str, sort_by: str, origin: str = "all"
+    ) -> tuple[list[tuple[Entity, int, float | None]], int]:
+        """People ranked by their credits. `role` narrows which credit edges
+        count (director/actor/creator, or all); works_count is the number of
+        such credits and avg_score the mean computed_score of the credited
+        titles that have one. sort_by "score" only admits people with at
+        least 3 scored titles so a single hit doesn't top the list."""
+        role_types = {
+            "director": ["directed_by"],
+            "actor": ["acted_in"],
+            "creator": ["creator"],
+        }.get(role, ["directed_by", "acted_in", "creator"])
+
+        work = aliased(Entity)
+        credits_q = (
+            select(
+                RelationshipEdge.to_entity_id.label("person_id"),
+                func.count(RelationshipEdge.id).label("works"),
+                func.avg(EntityRanking.computed_score).label("avg_score"),
+                func.count(EntityRanking.computed_score).label("scored"),
+            )
+            .outerjoin(EntityRanking, EntityRanking.entity_id == RelationshipEdge.from_entity_id)
+            .where(RelationshipEdge.relation_type.in_(role_types))
+        )
+        if origin != "all":
+            # Only credits on titles of the requested origin count.
+            credits_q = credits_q.join(work, work.id == RelationshipEdge.from_entity_id)
+            credits_q = _apply_origin(credits_q, work, origin)
+        credits = credits_q.group_by(RelationshipEdge.to_entity_id).subquery()
+        stmt = select(Entity, credits.c.works, credits.c.avg_score, func.count().over().label("total")).join(
+            credits, credits.c.person_id == Entity.id
+        ).where(Entity.entity_type == "person")
+
+        if sort_by == "score":
+            stmt = stmt.where(credits.c.scored >= 3).order_by(
+                credits.c.avg_score.desc().nulls_last(), Entity.id
+            )
+        else:
+            stmt = stmt.order_by(credits.c.works.desc(), Entity.title, Entity.id)
+
+        rows = (await self.db.execute(stmt.offset((page - 1) * page_size).limit(page_size))).all()
+        if not rows:
+            return [], 0
+        return [(e, int(w), float(a) if a is not None else None) for e, w, a, _ in rows], rows[0][3]
 
     async def get_relationships(
         self, entity_id: uuid.UUID, relation_type: str

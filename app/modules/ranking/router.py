@@ -20,10 +20,28 @@ async def top_movies(
     year_from: int | None = Query(None, ge=1800, le=2100),
     year_to: int | None = Query(None, ge=1800, le=2100),
     sort: Literal["score", "votes", "year_desc", "year_asc"] = "score",
+    origin: Literal["all", "persian", "foreign"] = "all",
     db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
-    items, total = await service.list_movies(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort)
+    items, total = await service.list_movies(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin)
+    return envelope(
+        data=[i.model_dump() for i in items],
+        meta=Meta(page=page, page_size=page_size, total=total),
+    )
+
+
+@router.get("/rankings/people")
+async def top_people(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    role: Literal["all", "director", "actor", "creator"] = "all",
+    sort: Literal["works", "score"] = "works",
+    origin: Literal["all", "persian", "foreign"] = "all",
+    db: AsyncSession = Depends(get_read_db),
+):
+    service = EntityService(db)
+    items, total = await service.list_people(page, page_size, role=role, sort_by=sort, origin=origin)
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),
@@ -49,10 +67,11 @@ async def top_tv_series(
     year_from: int | None = Query(None, ge=1800, le=2100),
     year_to: int | None = Query(None, ge=1800, le=2100),
     sort: Literal["score", "votes", "year_desc", "year_asc"] = "score",
+    origin: Literal["all", "persian", "foreign"] = "all",
     db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
-    items, total = await service.list_tv_series(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort)
+    items, total = await service.list_tv_series(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin)
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),

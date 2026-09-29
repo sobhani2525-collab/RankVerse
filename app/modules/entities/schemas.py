@@ -82,6 +82,15 @@ class MovieListResponse(BaseModel):
     items: list[MovieListItem]
 
 
+class PersonListItem(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    media: MediaInfo = MediaInfo()
+    works_count: int = 0
+    avg_score: float | None = None
+
+
 class PersonDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

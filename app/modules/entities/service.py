@@ -8,6 +8,7 @@ from app.modules.entities.schemas import (
     MovieDetail,
     MovieListItem,
     PersonDetail,
+    PersonListItem,
     PersonSummary,
     GenreDetail,
     GenreSummary,
@@ -71,11 +72,28 @@ class EntityService:
         year_to: int | None = None,
         sort_by: str = "score",
         entity_type: str = "movie",
+        origin: str = "all",
     ) -> tuple[list[MovieListItem], int]:
         entities, total = await self.repo.list_movies(
-            page, page_size, genre_slug, year_from, year_to, sort_by, entity_type
+            page, page_size, genre_slug, year_from, year_to, sort_by, entity_type, origin
         )
         return [_movie_list_item(e) for e in entities], total
+
+    async def list_people(
+        self, page: int = 1, page_size: int = 24, role: str = "all", sort_by: str = "works", origin: str = "all"
+    ) -> tuple[list[PersonListItem], int]:
+        rows, total = await self.repo.list_people(page, page_size, role, sort_by, origin)
+        return [
+            PersonListItem(
+                id=e.id,
+                slug=e.slug,
+                title=e.title,
+                media=_extract_media(e.attributes),
+                works_count=works,
+                avg_score=avg,
+            )
+            for e, works, avg in rows
+        ], total
 
     async def list_tv_series(
         self,
@@ -85,11 +103,12 @@ class EntityService:
         year_from: int | None = None,
         year_to: int | None = None,
         sort_by: str = "score",
+        origin: str = "all",
     ) -> tuple[list[MovieListItem], int]:
         """Mirrors list_movies for entity_type='tv_series' -- MovieListItem's
         fields (title/poster/year/score/votes/media) are generic enough to
         reuse as-is rather than duplicating the shape under a new name."""
-        return await self.list_movies(page, page_size, genre_slug, year_from, year_to, sort_by, "tv_series")
+        return await self.list_movies(page, page_size, genre_slug, year_from, year_to, sort_by, "tv_series", origin)
 
     async def get_movie_entity(self, slug: str):
         entity = await self.repo.get_by_slug(slug, entity_type="movie")
