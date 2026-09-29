@@ -4,6 +4,7 @@ import { TasteAnchor } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
 import { entityTypeLabel } from "@/lib/constants";
 import { toFaDigits } from "@/lib/format-number";
+import { displayTitle } from "@/lib/title";
 
 const STRENGTH_LABELS: Record<string, string> = {
   primary: "محور اصلی",
@@ -25,6 +26,7 @@ export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
     ? `https://image.tmdb.org/t/p/w200${entity.poster_path}`
     : null;
   const href = detailPathFor(entity.entity_type, entity.slug);
+  const title = displayTitle(entity);
 
   const content = (
     <>
@@ -32,7 +34,7 @@ export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
         {posterUrl ? (
           <Image
             src={posterUrl}
-            alt={entity.title}
+            alt={title}
             fill
             sizes="(max-width: 768px) 33vw, 160px"
             className="object-cover"
@@ -51,7 +53,7 @@ export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
       </div>
 
       <div className="mt-2.5 min-w-0">
-        <p className="truncate text-sm font-medium text-ink">{entity.title}</p>
+        <p className="truncate text-sm font-medium text-ink">{title}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</span>
           <span className="inline-block rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[10px] text-gold">

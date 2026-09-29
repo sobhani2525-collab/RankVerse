@@ -78,6 +78,13 @@ class Settings(BaseSettings):
     # uses that rating instead, never both.
     taste_favorite_rating_equivalent: int = 4
 
+    # A battle win (PairVote) is the same kind of weaker, implicit signal
+    # as a ♥ favorite above -- see TasteDimensionComputer's
+    # _battle_won_unrated_genre_slugs_for_user. When the movie the user
+    # picked as the winner hasn't also been rated, its genres get one
+    # extra data point worth this many stars rather than a real score.
+    taste_battle_win_rating_equivalent: int = 4
+
     # Taste DNA anchor scoring (see TasteAnchorComputer in the same file).
     # taste_anchor_min_rating is expressed in raw UserRating.score units
     # (RATING_SCALE_MIN..RATING_SCALE_MAX in taste/compute.py), so it was

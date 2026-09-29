@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from app.modules.entities.models import Entity
 from app.modules.ranking.service import RankingService
 from app.modules.taste.compute import ContributionStatsComputer
+from app.modules.taste import refresh as taste_refresh
 
 from .elo import update_ratings
 from .models import VoteOutcome
@@ -117,6 +118,13 @@ class BattleService:
             )
         await ContributionStatsComputer(self.repo.db).compute_contribution_stats(user_id)
         await self.repo.commit()
+
+        if payload.winner.value != "skip":
+            # A skip carries no genre preference -- see
+            # TasteDimensionComputer._battle_won_unrated_genre_slugs_for_user,
+            # which already excludes SKIP votes, so refreshing for one would
+            # be a wasted background recompute.
+            await taste_refresh.refresh(self.repo.db, user_id)
 
         return CastVoteResponse(
             vote_id=vote.id,

@@ -212,6 +212,7 @@ export interface UserRating {
   score: number;
   movie_slug: string;
   movie_title: string;
+  movie_title_fa: string | null;
   movie_poster_path: string | null;
 }
 
@@ -436,6 +437,10 @@ export async function getMyLists(token: string): Promise<ListSummary[]> {
 
 export async function getWatchLaterEntityIds(token: string): Promise<string[]> {
   return authFetch<{ entity_ids: string[] }>(`/users/me/watch-later`, token).then((d) => d.entity_ids);
+}
+
+export async function getWatchLaterItems(token: string): Promise<EntityMini[]> {
+  return authFetch(`/users/me/watch-later/items`, token);
 }
 
 export async function toggleWatchLater(token: string, entityId: string): Promise<{ watching: boolean }> {

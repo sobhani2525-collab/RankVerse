@@ -1,6 +1,6 @@
 """
 Taste DNA refresh after a user action that changes its inputs (a rating,
-a favorite toggle).
+a favorite toggle, a non-skip battle vote).
 
 The genre dimensions, snapshot, insight and anchors take ~14 sequential
 queries (~2s from the backend to the DB), so they run after the response

@@ -58,6 +58,7 @@ class RatingPublic(BaseModel):
     score: int
     movie_slug: str | None = None
     movie_title: str | None = None
+    movie_title_fa: str | None = None
     movie_poster_path: str | None = None
 
 

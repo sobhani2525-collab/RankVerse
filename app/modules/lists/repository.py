@@ -116,10 +116,13 @@ class ListRepository:
         return list(result.scalars().all())
 
     async def get_watch_later_list(self, user_id: uuid.UUID) -> UserList | None:
+        # Eager-loads each item's entity too (not just the item rows) --
+        # the profile page's "watch later" gallery needs poster/title/slug,
+        # not just entity ids like the bookmark button's on/off state does.
         stmt = (
             select(UserList)
             .where(UserList.user_id == user_id, UserList.is_watch_later.is_(True))
-            .options(selectinload(UserList.items))
+            .options(selectinload(UserList.items).selectinload(UserListItem.entity))
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

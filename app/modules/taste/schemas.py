@@ -29,6 +29,10 @@ class TasteAnchorEntity(BaseModel):
     title: str
     entity_type: str
     poster_path: str | None = None
+    # Persian title when TMDb has one (see sync/normalizer._persian_title);
+    # the frontend's displayTitle() composes "title_fa (title)" from it,
+    # same as EntityMini elsewhere.
+    title_fa: str | None = None
 
 
 class TasteAnchorPublic(BaseModel):

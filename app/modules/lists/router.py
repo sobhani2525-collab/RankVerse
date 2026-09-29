@@ -102,6 +102,18 @@ async def get_watch_later(
     return envelope(data={"entity_ids": [str(i) for i in entity_ids]})
 
 
+@router.get("/users/me/watch-later/items")
+async def get_watch_later_items(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Full entity data (poster/title/slug) for the caller's watch-later
+    list -- the profile page's "بعداً خواهم دید" gallery."""
+    service = ListService(db)
+    items = await service.get_watch_later_items(current_user.id)
+    return envelope(data=[i.model_dump() for i in items])
+
+
 @router.post("/users/me/watch-later/toggle")
 async def toggle_watch_later(
     payload: WatchLaterToggle,

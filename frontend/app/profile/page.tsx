@@ -4,17 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getMyRatings, getMyLists, getMyTasteDna, getMyPredictedPicks, UserRating } from "@/lib/api";
-import { TasteProfile, PredictedPick, ListSummary } from "@/lib/types";
+import { useWatchLater } from "@/contexts/WatchLaterContext";
+import { getMyRatings, getMyLists, getMyTasteDna, getMyPredictedPicks, getWatchLaterItems, UserRating } from "@/lib/api";
+import { TasteProfile, PredictedPick, ListSummary, EntityMini } from "@/lib/types";
 import Loading from "@/components/Loading";
 import TasteDnaSection from "@/components/TasteDnaSection";
 import TasteDnaErrorState from "@/components/TasteDnaErrorState";
 import EntityMedia from "@/components/entities/entity-media";
+import PosterCard from "@/components/entities/poster-card";
 import ProgressBar from "@/components/ProgressBar";
 import ListCard, { AuthorAvatar } from "@/components/lists/list-card";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
+import { StarIcon, ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { toFaDigits } from "@/lib/format-number";
+import { displayTitle } from "@/lib/title";
 
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
@@ -24,17 +28,33 @@ function StatTile({
   mono,
   value,
   label,
+  icon,
+  accent = "#8A93A6",
   valueClassName = "text-ink",
 }: {
   mono: string;
   value: string;
   label: string;
+  icon: React.ReactNode;
+  accent?: string;
   valueClassName?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border-soft bg-surface/60 px-6 py-5">
-      <MonoLabel size="text-[10px]">{mono}</MonoLabel>
-      <div className={`num mt-2 text-3xl font-bold ${valueClassName}`}>{value}</div>
+    <div className="relative overflow-hidden rounded-2xl border border-border-soft bg-surface/60 px-6 py-5">
+      <div
+        className="absolute inset-x-0 top-0 h-[3px]"
+        style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
+      />
+      <div className="flex items-center justify-between">
+        <div
+          className="flex h-11 w-11 items-center justify-center rounded-xl"
+          style={{ background: `${accent}1f`, color: accent }}
+        >
+          {icon}
+        </div>
+        <MonoLabel size="text-[10px]">{mono}</MonoLabel>
+      </div>
+      <div className={`num mt-4 text-right text-3xl font-bold ${valueClassName}`}>{value}</div>
       <div className="mt-1 text-xs text-muted">{label}</div>
     </div>
   );
@@ -43,6 +63,7 @@ function StatTile({
 export default function ProfilePage() {
   const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { toggleWatchLater } = useWatchLater();
 
   const [ratings, setRatings] = useState<UserRating[] | null>(null);
   const [loadingRatings, setLoadingRatings] = useState(true);
@@ -58,6 +79,10 @@ export default function ProfilePage() {
   const [tasteReloadKey, setTasteReloadKey] = useState(0);
 
   const [predictedPicks, setPredictedPicks] = useState<PredictedPick[]>([]);
+
+  const [watchLater, setWatchLater] = useState<EntityMini[] | null>(null);
+  const [loadingWatchLater, setLoadingWatchLater] = useState(true);
+  const [watchLaterError, setWatchLaterError] = useState<string | null>(null);
 
   // گارد احراز هویت
   useEffect(() => {
@@ -155,10 +180,73 @@ export default function ProfilePage() {
     };
   }, [token]);
 
+  // فیلم/سریال‌هایی که با گزینه «بعداً تماشا می‌کنم» ذخیره شده‌اند
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    getWatchLaterItems(token)
+      .then((data) => {
+        if (!cancelled) setWatchLater(data);
+      })
+      .catch(() => {
+        if (!cancelled) setWatchLaterError("دریافت لیست «بعداً می‌بینم» با مشکل مواجه شد.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingWatchLater(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const totalCount = ratings?.length ?? 0;
   const contribution = taste?.contribution_stats ?? null;
   const contributionScorePercent =
     contribution != null ? Math.max(0, Math.min(100, contribution.contribution_score)) : null;
+
+  // Styled like its new neighbors inside the Taste DNA section (NEXT PICK,
+  // TASTE ANCHORS): a bordered card with a mono kicker, sitting right
+  // after predicted picks -- see TasteDnaSection's afterPredictedPicks slot.
+  const watchLaterSection = (
+    <div className="rounded-2xl border border-border-soft bg-surface/60 p-6">
+      <MonoLabel size="text-[10px]">WATCH LATER</MonoLabel>
+      <h3 className="mt-1 text-base font-bold text-ink">تماشا خواهم کرد</h3>
+
+      <div className="mt-5">
+        {loadingWatchLater && <Loading />}
+
+        {!loadingWatchLater && watchLaterError && (
+          <p className="text-center text-sm text-muted">{watchLaterError}</p>
+        )}
+
+        {!loadingWatchLater && !watchLaterError && watchLater && watchLater.length === 0 && (
+          <div className="text-center">
+            <p className="text-sm text-muted">هنوز چیزی را برای تماشای بعدی ذخیره نکرده‌اید.</p>
+            <Link href="/" className="mt-3 inline-block text-sm text-gold hover:underline">
+              رفتن به فهرست فیلم‌ها
+            </Link>
+          </div>
+        )}
+
+        {!loadingWatchLater && !watchLaterError && watchLater && watchLater.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {watchLater.map((entity) => (
+              <PosterCard
+                key={entity.id}
+                entity={entity}
+                onRemove={(e) => {
+                  toggleWatchLater(e.id);
+                  setWatchLater((prev) => prev?.filter((x) => x.id !== e.id) ?? prev);
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   if (authLoading || !user) {
     return (
@@ -192,24 +280,32 @@ export default function ProfilePage() {
             mono="RATINGS"
             value={loadingRatings ? "—" : toFaDigits(totalCount)}
             label="رتبه‌بندی‌های ثبت‌شده"
+            icon={<StarIcon size={20} />}
+            accent="#E8B34A"
             valueClassName="text-gold"
           />
           <StatTile
             mono="LISTS"
             value={loadingLists ? "—" : toFaDigits(lists?.length ?? 0)}
             label="لیست‌های ساخته‌شده"
+            icon={<ListIcon size={20} />}
+            accent="#4FB8A6"
             valueClassName="text-teal"
           />
           <StatTile
             mono="BATTLES"
             value={loadingTaste ? "—" : toFaDigits(contribution?.battles_count ?? 0)}
             label="نبرد"
+            icon={<SwordsIcon size={20} />}
+            accent="#A99BFF"
             valueClassName="text-violet-light"
           />
           <StatTile
             mono="COMMENTS"
             value={loadingTaste ? "—" : toFaDigits(contribution?.comments_count ?? 0)}
             label="نظر"
+            icon={<MessageCircleIcon size={20} />}
+            accent="#8A93A6"
           />
         </div>
 
@@ -230,10 +326,13 @@ export default function ProfilePage() {
         <div className="mt-5">
           {loadingTaste && <Loading />}
           {!loadingTaste && tasteError && (
-            <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
+            <div className="flex flex-col gap-5">
+              <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
+              {watchLaterSection}
+            </div>
           )}
           {!loadingTaste && !tasteError && taste && (
-            <TasteDnaSection profile={taste} predictedPicks={predictedPicks} />
+            <TasteDnaSection profile={taste} predictedPicks={predictedPicks} afterPredictedPicks={watchLaterSection} />
           )}
         </div>
       </section>
@@ -302,12 +401,14 @@ export default function ProfilePage() {
 
           {!loadingRatings && !ratingsError && ratings && ratings.length > 0 && (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 lg:gap-5">
-              {ratings.map((r) => (
+              {ratings.map((r) => {
+                const title = displayTitle({ title: r.movie_title, title_fa: r.movie_title_fa });
+                return (
                 <Link key={r.id} href={`/movies/${r.movie_slug}`} className="group flex flex-col gap-2">
                   <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border-soft bg-surface2">
                     <EntityMedia
                       src={r.movie_poster_path ? `${TMDB_POSTER_BASE}${r.movie_poster_path}` : null}
-                      alt={r.movie_title}
+                      alt={title}
                       mediaKind="image"
                     />
                     <div
@@ -323,10 +424,11 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <span className="truncate text-sm font-bold text-ink transition group-hover:text-teal">
-                    {r.movie_title}
+                    {title}
                   </span>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

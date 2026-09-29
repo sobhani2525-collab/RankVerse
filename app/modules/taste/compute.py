@@ -33,7 +33,7 @@ import math
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -171,29 +171,66 @@ class TasteDimensionComputer:
         result = await self.db.execute(stmt)
         return [slug for (slug,) in result.all()]
 
+    async def _battle_won_unrated_genre_slugs_for_user(self, user_id: uuid.UUID) -> list[str]:
+        """
+        One row per (genre of a movie the user picked as the winner in a
+        battle, that they haven't separately rated) -- the battle-picks
+        counterpart of _favorited_unrated_genre_slugs_for_user above. An
+        explicit rating on the same movie is still strictly more
+        informative, so it's excluded here exactly like favorites are.
+        SKIP votes carry no preference and are excluded.
+        """
+        rated_entity_ids = select(UserRating.entity_id).where(UserRating.user_id == user_id)
+        won_entity_id = case(
+            (PairVote.winner == VoteOutcome.LEFT, PairVote.left_item),
+            (PairVote.winner == VoteOutcome.RIGHT, PairVote.right_item),
+        ).label("won_entity_id")
+        won_subq = (
+            select(won_entity_id)
+            .where(PairVote.user_id == user_id, PairVote.winner != VoteOutcome.SKIP)
+            .subquery()
+        )
+        stmt = (
+            select(Entity.slug)
+            .select_from(won_subq)
+            .join(
+                RelationshipEdge,
+                (RelationshipEdge.from_entity_id == won_subq.c.won_entity_id)
+                & (RelationshipEdge.relation_type == "has_genre"),
+            )
+            .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+            .where(won_subq.c.won_entity_id.not_in(rated_entity_ids))
+        )
+        result = await self.db.execute(stmt)
+        return [slug for (slug,) in result.all()]
+
     async def compute_genre_dimensions(self, user_id: uuid.UUID) -> int:
         """
         Recomputes dimension_type="genre" rows for one user from their
-        explicit movie ratings + has_genre relationships, plus a weaker
-        signal from ♥ favorites on movies they haven't rated (see
-        _favorited_unrated_genre_slugs_for_user). Flushes but does NOT
-        commit -- the caller (on-demand trigger or batch loop) owns the
-        transaction boundary, same convention as
+        explicit movie ratings + has_genre relationships, plus two weaker
+        implicit signals from movies they haven't rated: ♥ favorites (see
+        _favorited_unrated_genre_slugs_for_user) and battle picks (see
+        _battle_won_unrated_genre_slugs_for_user) -- a movie chosen as the
+        winner in a battle says as much about taste as a favorite does.
+        Flushes but does NOT commit -- the caller (on-demand trigger or
+        batch loop) owns the transaction boundary, same convention as
         RankingService.recompute_entity.
 
         Returns the number of dimension rows persisted (post-threshold).
         """
         votes = await self._genre_votes_for_user(user_id)
         favorite_genre_slugs = await self._favorited_unrated_genre_slugs_for_user(user_id)
-        if not votes and not favorite_genre_slugs:
+        battle_won_genre_slugs = await self._battle_won_unrated_genre_slugs_for_user(user_id)
+        if not votes and not favorite_genre_slugs and not battle_won_genre_slugs:
             await self.repo.bulk_upsert_dimensions(user_id, "genre", [])
             return 0
 
         user_avg = await _overall_avg_rating(self.db, user_id)
         if user_avg is None:
-            # A favorites-only user has no explicit ratings to establish a
-            # baseline -- fall back to the scale midpoint, same convention
-            # as RankingService.recompute_entities' platform-average default.
+            # A favorites/battles-only user has no explicit ratings to
+            # establish a baseline -- fall back to the scale midpoint, same
+            # convention as RankingService.recompute_entities' platform-average
+            # default.
             user_avg = (RATING_SCALE_MIN + RATING_SCALE_MAX) / 2
 
         by_genre: dict[str, list[int]] = {}
@@ -201,6 +238,8 @@ class TasteDimensionComputer:
             by_genre.setdefault(vote.genre_slug, []).append(vote.score)
         for genre_slug in favorite_genre_slugs:
             by_genre.setdefault(genre_slug, []).append(settings.taste_favorite_rating_equivalent)
+        for genre_slug in battle_won_genre_slugs:
+            by_genre.setdefault(genre_slug, []).append(settings.taste_battle_win_rating_equivalent)
 
         max_sample_size = max(len(scores) for scores in by_genre.values())
 
@@ -224,16 +263,19 @@ class TasteDimensionComputer:
     async def compute_genre_dimensions_batch(self, user_ids: list[uuid.UUID] | None = None) -> int:
         """
         Nightly/batch entry point. Pass explicit user_ids for a partial
-        run (e.g. only users with new ratings/favorites since the last
-        run); omit to recompute every user with at least one rating OR
-        favorite (a favorites-only user still has genre signal to
-        compute, per _favorited_unrated_genre_slugs_for_user). Commits
-        once at the end, matching RankingService.recompute_all.
+        run (e.g. only users with new ratings/favorites/battle votes since
+        the last run); omit to recompute every user with at least one
+        rating, favorite, OR battle vote (a favorites/battles-only user
+        still has genre signal to compute, per
+        _favorited_unrated_genre_slugs_for_user and
+        _battle_won_unrated_genre_slugs_for_user). Commits once at the
+        end, matching RankingService.recompute_all.
         """
         if user_ids is None:
             rated_ids = select(UserRating.user_id)
             favorited_ids = select(UserFavorite.user_id)
-            stmt = rated_ids.union(favorited_ids)
+            voted_ids = select(PairVote.user_id)
+            stmt = rated_ids.union(favorited_ids).union(voted_ids)
             result = await self.db.execute(stmt)
             user_ids = [row[0] for row in result.all()]
 

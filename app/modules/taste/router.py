@@ -49,6 +49,7 @@ async def my_predicted_picks(
                     title=pick.entity.title,
                     entity_type=pick.entity.entity_type,
                     poster_path=pick.entity.attributes.get("poster_path"),
+                    title_fa=pick.entity.attributes.get("title_fa"),
                 ),
                 match_score=pick.match_score,
             ).model_dump()

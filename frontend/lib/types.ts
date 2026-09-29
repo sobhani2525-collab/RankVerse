@@ -353,6 +353,7 @@ export interface TasteAnchorEntity {
   title: string;
   entity_type: string;
   poster_path: string | null;
+  title_fa?: string | null;
 }
 
 export interface TasteAnchor {

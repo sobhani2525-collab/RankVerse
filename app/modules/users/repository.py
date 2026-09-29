@@ -76,6 +76,7 @@ class UserRepository:
                 "score": rating.score,
                 "movie_slug": entity.slug,
                 "movie_title": entity.title,
+                "movie_title_fa": entity.attributes.get("title_fa"),
                 "movie_poster_path": entity.attributes.get("poster_path"),
             }
             for rating, entity in rows

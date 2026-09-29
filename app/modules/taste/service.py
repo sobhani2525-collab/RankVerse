@@ -42,6 +42,7 @@ class TasteService:
                         title=entity.title,
                         entity_type=entity.entity_type,
                         poster_path=entity.attributes.get("poster_path"),
+                        title_fa=entity.attributes.get("title_fa"),
                     ),
                     anchor_strength=anchor.anchor_strength,
                     match_score=anchor.match_score,

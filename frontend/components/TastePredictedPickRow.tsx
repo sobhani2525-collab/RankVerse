@@ -4,6 +4,7 @@ import { PredictedPick } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
 import { entityTypeLabel } from "@/lib/constants";
 import { toFaDigits } from "@/lib/format-number";
+import { displayTitle } from "@/lib/title";
 
 /**
  * Poster tile (not a list row) -- same gallery treatment as TasteAnchorRow
@@ -15,6 +16,7 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
     ? `https://image.tmdb.org/t/p/w200${entity.poster_path}`
     : null;
   const href = detailPathFor(entity.entity_type, entity.slug);
+  const title = displayTitle(entity);
 
   const content = (
     <>
@@ -22,7 +24,7 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
         {posterUrl ? (
           <Image
             src={posterUrl}
-            alt={entity.title}
+            alt={title}
             fill
             sizes="(max-width: 768px) 33vw, 160px"
             className="object-cover"
@@ -41,7 +43,7 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
       </div>
 
       <div className="mt-2.5 min-w-0">
-        <p className="truncate text-sm font-medium text-ink">{entity.title}</p>
+        <p className="truncate text-sm font-medium text-ink">{title}</p>
         <p className="mt-1 text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</p>
       </div>
     </>

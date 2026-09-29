@@ -2,7 +2,11 @@
 Predicted picks: entities (movie or tv_series) a user hasn't rated yet,
 suggested because they share genres with the user's own qualifying Taste
 DNA dimensions AND already rank well platform-wide -- not just "more of
-the same genre" but "more of the same genre, and it's good".
+the same genre" but "more of the same genre, and it's good". Those
+qualifying dimensions (see TasteDimensionComputer.compute_genre_dimensions)
+are themselves built from explicit ratings plus the weaker ♥ favorite and
+battle-win signals, so a pick can be driven by any of the three without
+this module needing to know which.
 
 Unlike everything else in compute.py, this is never persisted: there's
 no user_predicted_picks table. It's a live query computed fresh on every

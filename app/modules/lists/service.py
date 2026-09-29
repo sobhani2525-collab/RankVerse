@@ -170,6 +170,13 @@ class ListService:
         lst = await self.get_or_create_watch_later_list(user_id)
         return [item.entity_id for item in lst.items]
 
+    async def get_watch_later_items(self, user_id: uuid.UUID) -> list[EntityMini]:
+        """Full entity data for the caller's watch-later list, newest-added
+        first -- for the profile page's "later" gallery (the bookmark
+        button only needs get_watch_later_entity_ids, above)."""
+        lst = await self.get_or_create_watch_later_list(user_id)
+        return [_entity_mini(item.entity) for item in reversed(lst.items)]
+
     async def toggle_watch_later(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> bool:
         """Adds/removes entity_id from the caller's watch-later list;
         returns whether it's in the list afterwards."""

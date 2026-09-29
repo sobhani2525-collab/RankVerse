@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import TasteDnaCard from "./TasteDnaCard";
 import TasteInsightCard from "./TasteInsightCard";
 import TasteAnchorsCard from "./TasteAnchorsCard";
@@ -8,6 +9,11 @@ import { TasteProfile, PredictedPick } from "@/lib/types";
 interface TasteDnaSectionProps {
   profile: TasteProfile;
   predictedPicks?: PredictedPick[];
+  /** Rendered right after the "NEXT PICK" gallery and before "TASTE
+   *  ANCHORS" -- the page's Watch Later card slots in here (see
+   *  app/profile/page.tsx) so it sits between those two, not because this
+   *  component owns watch-later data itself. */
+  afterPredictedPicks?: ReactNode;
 }
 
 /**
@@ -18,11 +24,16 @@ interface TasteDnaSectionProps {
  * rendered by the page itself, merged into its RATINGS stat strip, not
  * here.
  */
-export default function TasteDnaSection({ profile, predictedPicks = [] }: TasteDnaSectionProps) {
+export default function TasteDnaSection({ profile, predictedPicks = [], afterPredictedPicks }: TasteDnaSectionProps) {
   const hasSnapshot = profile.snapshot !== null;
 
   if (!hasSnapshot) {
-    return <TasteDnaEmptyState />;
+    return (
+      <div className="flex flex-col gap-5">
+        <TasteDnaEmptyState />
+        {afterPredictedPicks}
+      </div>
+    );
   }
 
   return (
@@ -38,6 +49,7 @@ export default function TasteDnaSection({ profile, predictedPicks = [] }: TasteD
       {/* Full-width galleries: posters need room to breathe, so these span
           the whole section instead of squeezing into a half column. */}
       {predictedPicks.length > 0 && <TastePredictedPicksCard picks={predictedPicks} />}
+      {afterPredictedPicks}
       {profile.anchors.length > 0 && <TasteAnchorsCard anchors={profile.anchors} />}
     </div>
   );
