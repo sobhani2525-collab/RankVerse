@@ -77,7 +77,7 @@ export default function SearchBox() {
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => query.trim() && setOpen(true)}
         placeholder="جستجو در RankVerse..."
-        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-gold/50 focus:outline-none"
+        className="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-gold/50 focus:outline-none"
       />
 
       {open && (

@@ -24,23 +24,43 @@ export interface PosterCardEntity {
 }
 
 /**
- * Shared poster card for "ساخته‌های دیگر X" (DirectorWorks) and "اگر این را
- * دوست داشتی" (RelatedEntities): 2:3 poster with an overlaid heart button
- * (top-left, blurred dark chip, filled red when active) + title + year pill
- * + optional WHY chips (violet for a shared person, teal for a shared
- * genre). Fixed 168px wide on mobile for a horizontal-scroll row, fills its
- * grid cell from sm: up.
+ * Shared poster card for "ساخته‌های دیگر X" (DirectorWorks), "اگر این را
+ * دوست داشتی" (RelatedEntities) and the profile page's "تماشا خواهم کرد"
+ * gallery: 2:3 poster with an overlaid top-left button (blurred dark chip)
+ * + title + year pill + optional WHY chips (violet for a shared person,
+ * teal for a shared genre). Fixed 168px wide on mobile for a
+ * horizontal-scroll row, fills its grid cell from sm: up.
+ *
+ * The top-left button is either the heart (favorite toggle, the default)
+ * or, when `onRemove` is given, an X for pulling the item out of whatever
+ * list is rendering it (watch-later) -- the two are mutually exclusive so
+ * the card never shows two overlapping buttons.
  */
-export default function PosterCard({ entity, why = [] }: { entity: PosterCardEntity; why?: PosterCardWhyChip[] }) {
+export default function PosterCard({
+  entity,
+  why = [],
+  onRemove,
+  fluid = false,
+  rank,
+}: {
+  entity: PosterCardEntity;
+  why?: PosterCardWhyChip[];
+  onRemove?: (entity: PosterCardEntity) => void;
+  // Fill the grid cell at every breakpoint instead of the fixed mobile width.
+  fluid?: boolean;
+  // Optional rank badge (top-right of the poster).
+  rank?: number;
+}) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const favorited = isFavorite(entity.id);
-  const favoritable = FAVORITABLE_ENTITY_TYPES.has(entity.entity_type);
+  const showRemove = onRemove != null;
+  const showFavorite = !showRemove && FAVORITABLE_ENTITY_TYPES.has(entity.entity_type);
   const href = entityHref(entity.entity_type, entity.slug) ?? `/${entity.entity_type}/${entity.slug}`;
   const posterUrl = entity.poster_path ? `https://image.tmdb.org/t/p/w342${entity.poster_path}` : null;
   const title = displayTitle(entity);
 
   return (
-    <div className="flex w-[168px] shrink-0 flex-col gap-2 sm:w-full">
+    <div className={`flex shrink-0 flex-col gap-2 ${fluid ? "w-full min-w-0" : "w-[168px] sm:w-full"}`}>
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface-2">
         <Link href={href} className="absolute inset-0" aria-label={title}>
           {posterUrl ? (
@@ -50,7 +70,43 @@ export default function PosterCard({ entity, why = [] }: { entity: PosterCardEnt
           )}
         </Link>
 
-        {favoritable && (
+        {rank != null && (
+          <span
+            className="num pointer-events-none absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-xs font-bold text-ink backdrop-blur-sm"
+            style={{ background: "rgba(10,13,20,0.72)" }}
+          >
+            {toFaDigits(rank)}
+          </span>
+        )}
+
+        {showRemove && (
+          <button
+            type="button"
+            aria-label="حذف از لیست"
+            onClick={(e) => {
+              e.preventDefault();
+              onRemove!(entity);
+            }}
+            className="absolute left-2 top-2 flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-sm transition hover:border-rose-400"
+            style={{ background: "rgba(10,13,20,0.72)", borderColor: "rgba(255,255,255,0.15)" }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#EDEFF5"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+        )}
+
+        {showFavorite && (
           <button
             type="button"
             aria-label={favorited ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}

@@ -646,13 +646,16 @@ export interface RankingsPage {
 
 export async function getRankingsPage(
   entityType: "movie" | "tv_series",
-  params: { page?: number; page_size?: number; genre?: string } = {},
+  params: { page?: number; page_size?: number; genre?: string; sort?: string; year_from?: number; year_to?: number } = {},
   options: { fresh?: boolean } = {}
 ): Promise<RankingsPage> {
   const qs = new URLSearchParams();
   if (params.page) qs.set("page", String(params.page));
   if (params.page_size) qs.set("page_size", String(params.page_size));
   if (params.genre) qs.set("genre", params.genre);
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.year_from) qs.set("year_from", String(params.year_from));
+  if (params.year_to) qs.set("year_to", String(params.year_to));
   const path = `/rankings/${entityType === "tv_series" ? "tv-series" : "movies"}?${qs.toString()}`;
 
   const res = await fetchWithTimeout(

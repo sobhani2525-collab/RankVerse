@@ -10,9 +10,10 @@ import UserMenu from "@/components/UserMenu";
 
 const NAV_LINKS = [
   { href: "/#universe", label: "کاوش", match: null },
-  { href: "/rankings", label: "رتبه‌بندی", match: "/rankings" },
-  { href: "/battles", label: "نبرد", match: "/battles" },
-  { href: "/lists", label: "لیست‌ها", match: "/lists" },
+  { href: "/rankings", label: "فیلم‌ها", match: null },
+  { href: "/rankings?type=tv_series", label: "سریال‌ها", match: null },
+  { href: "/#universe", label: "اشخاص", match: null },
+  { href: "/lists", label: "فهرست‌ها", match: "/lists" },
 ];
 
 export default function Header() {
@@ -33,7 +34,7 @@ export default function Header() {
   const isActive = (match: string | null) => !!match && !!pathname?.startsWith(match);
 
   return (
-    <header className="relative z-40 border-b border-border bg-surface px-4 py-4 sm:px-6">
+    <header className="relative z-40 border-b border-border bg-surface px-4 py-[16.5px] sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4">
         <Link href="/" className="shrink-0 font-display text-lg text-ink">
           RankVerse
@@ -42,7 +43,7 @@ export default function Header() {
         <nav aria-label="ناوبری اصلی" className="hidden shrink-0 items-center gap-1 md:flex">
           {NAV_LINKS.map((l) => (
             <Link
-              key={l.href}
+              key={l.label}
               href={l.href}
               aria-current={isActive(l.match) ? "page" : undefined}
               className={`rounded-lg px-3 py-1.5 text-sm transition ${isActive(l.match) ? "bg-gold/10 text-gold" : "text-muted hover:text-ink"}`}
@@ -88,7 +89,7 @@ export default function Header() {
         >
           <ul className="flex flex-col">
             {NAV_LINKS.map((l) => (
-              <li key={l.href}>
+              <li key={l.label}>
                 <Link
                   href={l.href}
                   onClick={() => setMenuOpen(false)}

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,10 +17,13 @@ async def top_movies(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     genre: str | None = None,
+    year_from: int | None = Query(None, ge=1800, le=2100),
+    year_to: int | None = Query(None, ge=1800, le=2100),
+    sort: Literal["score", "votes", "year_desc", "year_asc"] = "score",
     db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
-    items, total = await service.list_movies(page, page_size, genre_slug=genre, sort_by="score")
+    items, total = await service.list_movies(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort)
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),
@@ -41,10 +46,13 @@ async def top_tv_series(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     genre: str | None = None,
+    year_from: int | None = Query(None, ge=1800, le=2100),
+    year_to: int | None = Query(None, ge=1800, le=2100),
+    sort: Literal["score", "votes", "year_desc", "year_asc"] = "score",
     db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
-    items, total = await service.list_tv_series(page, page_size, genre_slug=genre, sort_by="score")
+    items, total = await service.list_tv_series(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort)
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),

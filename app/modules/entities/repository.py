@@ -85,6 +85,12 @@ class EntityRepository:
             page_stmt = page_stmt.order_by(EntityRanking.computed_score.desc().nulls_last())
         elif sort_by == "newest":
             page_stmt = page_stmt.order_by(Entity.created_at.desc())
+        elif sort_by == "votes":
+            page_stmt = page_stmt.order_by(EntityRanking.total_votes.desc().nulls_last(), Entity.id)
+        elif sort_by == "year_desc":
+            page_stmt = page_stmt.order_by(Entity.attributes["year"].as_integer().desc().nulls_last(), Entity.id)
+        elif sort_by == "year_asc":
+            page_stmt = page_stmt.order_by(Entity.attributes["year"].as_integer().asc().nulls_last(), Entity.id)
 
         page_stmt = page_stmt.offset((page - 1) * page_size).limit(page_size)
         rows = (await self.db.execute(page_stmt)).all()
