@@ -126,6 +126,9 @@ class Settings(BaseSettings):
     # votes it takes for an item's own ratio to outweigh the prior.
     list_item_score_k: float = 5.0
     list_item_score_global_avg: float = 0.5
+    # A list counts as "active" once this many distinct users have taken
+    # part (see ListRepository.count_contributors).
+    list_active_min_contributors: int = 3
 
     # Smart graph-based list-item suggestions (see
     # ListService.get_smart_suggestions): a real-time aggregate over the

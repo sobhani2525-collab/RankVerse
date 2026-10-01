@@ -253,6 +253,8 @@ export interface ListDetail extends ListSummary {
   edges?: ListEdge[];
   backlinks?: ListBacklink[];
   dna?: ListDna | null;
+  contributor_count?: number;
+  is_active?: boolean;
   battle_pair?: ListBattlePair | null;
 }
 

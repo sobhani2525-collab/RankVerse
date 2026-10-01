@@ -1,10 +1,31 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import ListsExplorer from "@/components/lists/lists-explorer";
 import MarqueeSign from "@/components/lists/marquee-sign";
 import { discoverLists } from "@/lib/api";
 import { rethrowOutsideBuild } from "@/lib/isr";
+import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 600;
+
+const TITLE = "لیست‌های کاربران — بهترین فیلم‌ها و سریال‌ها";
+const DESCRIPTION =
+  "لیست‌های ساخته‌ی کاربران سینماگزین: بهترین فیلم‌ها و سریال‌ها به انتخاب علاقه‌مندان سینما، از کلاسیک‌ها تا تازه‌ترین‌ها.";
+
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: "/lists" },
+  openGraph: {
+    type: "website",
+    url: "/lists",
+    siteName: SITE_NAME,
+    locale: SITE_LOCALE,
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/logo.png"],
+  },
+};
 
 export default async function ListsPage() {
   let lists: Awaited<ReturnType<typeof discoverLists>> = [];

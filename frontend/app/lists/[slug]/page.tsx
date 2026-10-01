@@ -189,7 +189,7 @@ export default async function ListDetailPage({
         )}
         <div className="flex flex-col gap-8 pb-9 pt-8 lg:flex-row lg:items-start lg:gap-14 lg:pb-14 lg:pt-[72px]">
           <ListHero detail={detail} />
-          {detail.dna && <ListDNA dna={detail.dna} itemCount={detail.items.length} />}
+          {detail.dna && <ListDNA dna={detail.dna} itemCount={detail.items.length} contributorCount={detail.contributor_count ?? 0} isActive={detail.is_active ?? false} />}
         </div>
 
         <div className="flex flex-col gap-12 lg:flex-row lg:items-start lg:gap-14">

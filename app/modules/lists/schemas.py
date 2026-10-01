@@ -197,6 +197,9 @@ class ListDetail(ListSummary):
     edges: list[ListEdge] = []
     backlinks: list[ListBacklink] = []
     dna: ListDna | None = None
+    # Distinct users who added / voted / liked / followed / commented.
+    contributor_count: int = 0
+    is_active: bool = False
     battle_pair: ListBattlePair | None = None
 
 class ListCandidate(BaseModel):

@@ -9,7 +9,7 @@ from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedE
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.service import _extract_media
 from app.modules.lists.repository import ListRepository
-from app.modules.lists.scoring import compute_like_score, community_order_key
+from app.modules.lists.scoring import compute_like_score, community_order_key, is_list_active
 from app.modules.lists.graph import (
     GraphItem, RELATION_LABELS_FA, RELATION_LABEL_FALLBACK_FA,
     compute_backlinks, compute_dna, compute_edges, pick_battle_pair,
@@ -269,6 +269,8 @@ class ListService:
         cast_depth = settings.list_graph_cast_depth
         priority = [p.strip() for p in settings.list_graph_edge_priority.split(",") if p.strip()]
 
+        contributor_count = await self.repo.count_contributors(lst.id)
+
         return ListDetail(
             id=lst.id,
             slug=lst.slug,
@@ -301,6 +303,8 @@ class ListService:
                 settings.list_graph_hub_limit, settings.list_graph_hub_min_items,
             ) if graph_items else None,
             battle_pair=pick_battle_pair(graph_items, cast_depth),
+            contributor_count=contributor_count,
+            is_active=is_list_active(contributor_count),
         )
 
     async def update_list(self, user_id: uuid.UUID, slug: str, payload: ListUpdate) -> UserList:

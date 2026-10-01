@@ -40,7 +40,20 @@ function TypeStat({ counts }: { counts: Record<string, number> }) {
   return null;
 }
 
-export default function ListDNA({ dna, itemCount }: { dna: ListDna; itemCount: number }) {
+// The contributors stat only appears once more than this many people took part.
+const MIN_CONTRIBUTORS = 2;
+
+export default function ListDNA({
+  dna,
+  itemCount,
+  contributorCount = 0,
+  isActive = false,
+}: {
+  dna: ListDna;
+  itemCount: number;
+  contributorCount?: number;
+  isActive?: boolean;
+}) {
   const genres = dna.genres.slice(0, MAX_GENRES);
   const maxDecade = Math.max(0, ...dna.decades.map((d) => d.count));
 
@@ -52,12 +65,16 @@ export default function ListDNA({ dna, itemCount }: { dna: ListDna; itemCount: n
       <div className="flex flex-col items-start gap-1 text-start">
         <MonoLabel size="text-[11px] lg:text-xs">LIST DNA</MonoLabel>
         <span className="text-[13px] text-muted lg:text-sm">شناسنامه لیست</span>
+        {isActive && (
+          <span className="mt-1 rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-bold text-teal">لیست فعال</span>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 lg:gap-3">
         <Stat value={toFaDigits(itemCount)} label="عنوان" />
         <TypeStat counts={dna.type_counts} />
         <FollowerStat />
+        {contributorCount > MIN_CONTRIBUTORS && <Stat value={toFaDigits(contributorCount)} label="مشارکت‌کننده" />}
       </div>
 
       {genres.length > 0 && (
