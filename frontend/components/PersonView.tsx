@@ -37,7 +37,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
           <div className="h-96 w-64 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
             <Image
               src={posterUrl}
-              alt={data.title}
+              alt={data.title_fa ?? data.title}
               width={256}
               height={384}
               className="h-full w-full object-cover"
@@ -50,7 +50,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
             <h1 className="font-display text-2xl text-ink">{displayTitle(data)}</h1>
             <div className="flex shrink-0 items-center gap-2">
               <DetailFavoriteButton entity={personEntity} size={44} />
-              <DetailShareButton entity={personEntity} title={data.title} size={44} />
+              <DetailShareButton entity={personEntity} title={data.title_fa ?? data.title} size={44} />
             </div>
           </div>
 

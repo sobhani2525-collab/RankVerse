@@ -16,9 +16,9 @@ export default function PersonCard({ person }: { person: PersonListItem }) {
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface-2">
-        <Link href={href} className="absolute inset-0" aria-label={person.title}>
+        <Link href={href} className="absolute inset-0" aria-label={person.title_fa ?? person.title}>
           {photo ? (
-            <Image src={photo} alt={person.title} fill sizes="(max-width: 768px) 50vw, 220px" className="object-cover" />
+            <Image src={photo} alt={person.title_fa ?? person.title} fill sizes="(max-width: 768px) 50vw, 220px" className="object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-muted">بدون تصویر</div>
           )}

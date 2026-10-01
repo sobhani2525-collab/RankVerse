@@ -55,7 +55,7 @@ export default function LiveRanking({ movies, tvSeries }: { movies: HomeTitle[];
         {rows.map((t, i) => {
           const meta = [
             t.year ? toFaDigits(t.year) : null,
-            t.directors[0]?.title ?? null,
+            t.directors[0] ? (t.directors[0].title_fa ?? t.directors[0].title) : null,
             t.genres.length > 0 ? t.genres.slice(0, 2).map((g) => genreLabel(g.title)).join("، ") : null,
           ].filter(Boolean);
           const barWidth = topScore && t.score !== null ? Math.max(4, (t.score / topScore) * 100) : 0;

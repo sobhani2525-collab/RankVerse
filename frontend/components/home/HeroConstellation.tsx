@@ -282,7 +282,7 @@ function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () =>
             {t.score !== null && <span className="num text-lg text-ink">{toFaDigits(t.score.toFixed(1))}</span>}
           </div>
           <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-ink">{displayTitle(t)}</p>
-          {t.directors[0] && <p className="truncate text-xs text-muted">{t.directors[0].title}</p>}
+          {t.directors[0] && <p className="truncate text-xs text-muted">{t.directors[0].title_fa ?? t.directors[0].title}</p>}
         </div>
       </div>
 

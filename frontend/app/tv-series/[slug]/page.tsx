@@ -261,13 +261,13 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           entityType="tv_series"
           slug={tv.slug}
           fallbackBattle={fallbackBattle}
-          directorName={mainCreator?.title ?? null}
+          directorName={mainCreator ? (mainCreator.title_fa ?? mainCreator.title) : null}
         />
       </div>
 
       {mainCreator && (
         <div className="mt-10">
-          <DirectorWorks directorName={mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
+          <DirectorWorks directorName={mainCreator.title_fa ?? mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
         </div>
       )}
 

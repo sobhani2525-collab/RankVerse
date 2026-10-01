@@ -88,10 +88,10 @@ export function isBattleable(entityType: string): boolean {
 /** Why two items belong in the same battle round, closest link first (tier 0 = shared director). */
 export function battleLink(a: ListItem, b: ListItem): { tier: number; kind: EdgeKind; reason: string } {
   if (a.director && b.director?.id === a.director.id) {
-    return { tier: 0, kind: "people", reason: `هر دو ساخته ${a.director.title}` };
+    return { tier: 0, kind: "people", reason: `هر دو ساخته ${a.director.title_fa ?? a.director.title}` };
   }
   if (a.lead_actor && b.lead_actor?.id === a.lead_actor.id) {
-    return { tier: 1, kind: "people", reason: `${a.lead_actor.title} در هر دو` };
+    return { tier: 1, kind: "people", reason: `${a.lead_actor.title_fa ?? a.lead_actor.title} در هر دو` };
   }
   const bGenres = new Set((b.genres ?? []).map((g) => g.id));
   const shared = (a.genres ?? []).filter((g) => bGenres.has(g.id));
@@ -146,13 +146,13 @@ export function edgeBetween(a: GraphFields, b: GraphFields, fromRank: number, it
     const creator = a.entity.entity_type === "tv_series" || b.entity.entity_type === "tv_series";
     return {
       from_rank: fromRank, kind: "people", label_fa: creator ? "سازنده مشترک" : "کارگردان مشترک",
-      value: a.director.title, targets: [a.director],
+      value: a.director.title_fa ?? a.director.title, targets: [a.director],
     };
   }
   if (a.lead_actor && b.lead_actor && a.lead_actor.id === b.lead_actor.id) {
     return {
       from_rank: fromRank, kind: "people", label_fa: "بازیگر مشترک",
-      value: a.lead_actor.title, targets: [a.lead_actor],
+      value: a.lead_actor.title_fa ?? a.lead_actor.title, targets: [a.lead_actor],
     };
   }
   const bGenres = new Set((b.genres ?? []).map((g) => g.id));
@@ -183,7 +183,7 @@ export function backlinkFor(items: GraphFields[], index: number): ListBacklink |
     const theirs = new Set(people(items[j]).map((p) => p.id));
     const person = mine.find((p) => theirs.has(p.id));
     if (person) {
-      return { rank: index + 1, target_position: j + 1, person_name: person.title, person_slug: person.slug };
+      return { rank: index + 1, target_position: j + 1, person_name: person.title, person_name_fa: person.title_fa, person_slug: person.slug };
     }
   }
   return null;

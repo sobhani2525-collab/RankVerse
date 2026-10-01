@@ -19,9 +19,9 @@ export interface HomeTitle {
   rank: number;
   posterUrl: string | null;
   hasDetail: boolean;
-  directors: { slug: string; title: string }[];
+  directors: { slug: string; title: string; title_fa?: string | null }[];
   genres: { slug: string; title: string }[];
-  cast: { slug: string; title: string }[];
+  cast: { slug: string; title: string; title_fa?: string | null }[];
 }
 
 // Same source/fallback order as entity-card-adapters.ts' resolvePosterUrl.
@@ -42,9 +42,9 @@ export function toHomeTitle(item: MovieListItem, rank: number, detail?: MovieDet
     rank,
     posterUrl: posterUrlFor(item),
     hasDetail: !!detail,
-    directors: detail?.directors.map(({ slug, title }) => ({ slug, title })) ?? [],
+    directors: detail?.directors.map(({ slug, title, title_fa }) => ({ slug, title, title_fa })) ?? [],
     genres: detail?.genres.map(({ slug, title }) => ({ slug, title })) ?? [],
-    cast: detail?.cast.slice(0, 6).map(({ slug, title }) => ({ slug, title })) ?? [],
+    cast: detail?.cast.slice(0, 6).map(({ slug, title, title_fa }) => ({ slug, title, title_fa })) ?? [],
   };
 }
 
