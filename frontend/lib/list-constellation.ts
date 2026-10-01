@@ -105,7 +105,9 @@ export function battleLink(a: ListItem, b: ListItem): { tier: number; kind: Edge
  * Indexes of the items an in-page battle started from items[anchor] runs
  * through, closest to the anchor in the graph first (see battleLink) --
  * ties keep list order. Only same-type movie/tv_series items qualify,
- * since /battles/vote rejects anything else.
+ * since /battles/vote rejects anything else. The last item is the
+ * exception: it faces the item just above it, then the one above that,
+ * and so on up the list.
  */
 export function battleOpponents(items: ListItem[], anchor: number): number[] {
   const a = items[anchor];
@@ -116,7 +118,7 @@ export function battleOpponents(items: ListItem[], anchor: number): number[] {
         ? []
         : [{ index, tier: battleLink(a, item).tier }]
     )
-    .sort((x, y) => x.tier - y.tier || x.index - y.index)
+    .sort((x, y) => (anchor === items.length - 1 ? y.index - x.index : x.tier - y.tier || x.index - y.index))
     .map((o) => o.index);
 }
 
