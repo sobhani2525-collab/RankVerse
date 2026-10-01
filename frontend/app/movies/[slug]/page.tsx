@@ -213,13 +213,13 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           entityType="movie"
           slug={movie.slug}
           fallbackBattle={fallbackBattle}
-          directorName={mainDirector?.title ?? null}
+          directorName={mainDirector ? (mainDirector.title_fa ?? mainDirector.title) : null}
         />
       </div>
 
       {mainDirector && (
         <div className="mt-10">
-          <DirectorWorks directorName={mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />
+          <DirectorWorks directorName={mainDirector.title_fa ?? mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />
         </div>
       )}
 

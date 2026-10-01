@@ -16,6 +16,7 @@ export interface PersonSummary {
   id: string;
   slug: string;
   title: string;
+  title_fa?: string | null;
   role: string | null;
 }
 
@@ -85,6 +86,7 @@ export interface PersonDetail {
   id: string;
   slug: string;
   title: string;
+  title_fa?: string | null;
   biography: string | null;
   media: MediaInfo;
   directed: MovieListItem[];

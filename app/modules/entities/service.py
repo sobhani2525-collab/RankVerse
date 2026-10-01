@@ -88,6 +88,7 @@ class EntityService:
                 id=e.id,
                 slug=e.slug,
                 title=e.title,
+                title_fa=(e.attributes or {}).get("title_fa"),
                 media=_extract_media(e.attributes),
                 works_count=works,
                 avg_score=avg,
@@ -131,7 +132,7 @@ class EntityService:
         genre_edges = edges["has_genre"]
 
         directors = [
-            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, role="director")
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), role="director")
             for e in director_edges
         ]
         cast = [
@@ -139,6 +140,7 @@ class EntityService:
                 id=e.to_entity.id,
                 slug=e.to_entity.slug,
                 title=e.to_entity.title,
+                title_fa=(e.to_entity.attributes or {}).get("title_fa"),
                 role=e.edge_metadata.get("character"),
             )
             for e in sorted(cast_edges, key=lambda e: e.edge_metadata.get("order", 99))
@@ -185,11 +187,11 @@ class EntityService:
         network_edges = edges["aired_on"]
 
         creators = [
-            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, role="creator")
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), role="creator")
             for e in creator_edges
         ]
         directors = [
-            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, role="director")
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), role="director")
             for e in director_edges
         ]
         cast = [
@@ -197,6 +199,7 @@ class EntityService:
                 id=e.to_entity.id,
                 slug=e.to_entity.slug,
                 title=e.to_entity.title,
+                title_fa=(e.to_entity.attributes or {}).get("title_fa"),
                 role=e.edge_metadata.get("character"),
             )
             for e in sorted(cast_edges, key=lambda e: e.edge_metadata.get("order", 99))
@@ -258,6 +261,7 @@ class EntityService:
             id=entity.id,
             slug=entity.slug,
             title=entity.title,
+            title_fa=entity.attributes.get("title_fa"),
             biography=entity.attributes.get("biography"),
             media=_extract_media(entity.attributes),
             directed=sorted(

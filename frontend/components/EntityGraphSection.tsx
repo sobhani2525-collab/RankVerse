@@ -48,7 +48,7 @@ export default function EntityGraphSection({
                 <div className="flex flex-wrap gap-1.5">
                   {row.people.map((p) => (
                     <Chip key={p.id} href={entityHref("person", p.slug)} tone={PEOPLE_CHIP} ltr>
-                      {p.title}
+                      {p.title_fa ?? p.title}
                     </Chip>
                   ))}
                 </div>
@@ -62,7 +62,7 @@ export default function EntityGraphSection({
             <div className="flex flex-wrap gap-1.5">
               {cast.map((p) => (
                 <Chip key={p.id} href={entityHref("person", p.slug)} tone={PEOPLE_CHIP} ltr>
-                  {p.title}
+                  {p.title_fa ?? p.title}
                 </Chip>
               ))}
             </div>

@@ -176,7 +176,7 @@ async def main(dry_run: bool, limit: int | None, workers: int, batch_size: int) 
         stats["bio"] += "biography" in attrs
         if dry_run:
             print(f"  {title}: photo={attrs.get('media', {}).get('image_url')} "
-                  f"bio={attrs.get('biography_source')} ({len(attrs.get('biography') or '')} chars)", flush=True)
+                  f"name_fa={attrs.get('title_fa')} bio={attrs.get('biography_source')} ({len(attrs.get('biography') or '')} chars)", flush=True)
             return
         results.put_nowait((entity_id, {**attrs, CHECKED_KEY: datetime.now(timezone.utc).isoformat()}))
 

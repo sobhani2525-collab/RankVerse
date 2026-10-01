@@ -659,6 +659,7 @@ export interface PersonListItem {
   id: string;
   slug: string;
   title: string;
+  title_fa?: string | null;
   media: { image_url: string | null };
   works_count: number;
   avg_score: number | null;

@@ -56,13 +56,44 @@ def person_biography_attrs(raw: dict) -> dict:
     }
 
 
+def _is_persian_script(name: str) -> bool:
+    letters = [c for c in name if c.isalpha()]
+    return bool(letters) and all("\u0600" <= c <= "\u06ff" for c in letters)
+
+
+def person_name_attrs(raw: dict) -> dict:
+    """
+    title_fa for an Iranian person: their name in Persian script, taken from
+    TMDb's fa translation name if there is one, else the first Persian-script
+    entry in also_known_as. Only set when TMDb says they were born in Iran
+    (or has an explicit fa translation name), so e.g. Arabic-script aliases
+    of non-Iranian people are never picked up. Empty otherwise.
+    """
+    name_en = (raw.get("name") or "").strip()
+    candidate = None
+    for t in (raw.get("translations") or {}).get("translations", []):
+        if t.get("iso_639_1") == "fa":
+            candidate = ((t.get("data") or {}).get("name") or "").strip() or None
+            break
+    if not candidate and "iran" in (raw.get("place_of_birth") or "").lower():
+        candidate = next(
+            (n.strip() for n in raw.get("also_known_as") or [] if n and _is_persian_script(n.strip())), None
+        )
+    title_fa = _persian_title(candidate, name_en)
+    return {"title_fa": title_fa} if title_fa and _is_persian_script(title_fa) else {}
+
+
 def person_backfill_attrs(raw: dict) -> dict:
     """
     What scripts/backfill_person_profiles.py merges into an existing
     person's attributes from a TMDb /person response: photo + biography,
     with None values dropped so a missing field never overwrites anything.
     """
-    attrs = {**person_attributes(raw.get("profile_path")), **person_biography_attrs(raw)}
+    attrs = {
+        **person_attributes(raw.get("profile_path")),
+        **person_biography_attrs(raw),
+        **person_name_attrs(raw),
+    }
     return {k: v for k, v in attrs.items() if v is not None}
 
 

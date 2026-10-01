@@ -10,6 +10,7 @@ import RelatedEntities from "@/components/RelatedEntities";
 import EntityLists from "@/components/EntityLists";
 import { getRelatedEntities, RelatedEntity } from "@/lib/api";
 import { PersonDetail } from "@/lib/types";
+import { displayTitle } from "@/lib/title";
 
 export default async function PersonView({ data }: { data: PersonDetail }) {
   let related: RelatedEntity[] = [];
@@ -46,7 +47,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
 
         <div className="max-w-3xl flex-1">
           <div className="flex items-start justify-between gap-4">
-            <h1 className="font-display text-2xl text-ink">{data.title}</h1>
+            <h1 className="font-display text-2xl text-ink">{displayTitle(data)}</h1>
             <div className="flex shrink-0 items-center gap-2">
               <DetailFavoriteButton entity={personEntity} size={44} />
               <DetailShareButton entity={personEntity} title={data.title} size={44} />

@@ -17,6 +17,7 @@ class PersonSummary(BaseModel):
     id: uuid.UUID
     slug: str
     title: str  # person's name, reuses Entity.title
+    title_fa: str | None = None  # Persian-script name (Iranian people), see normalizer.person_name_attrs
     role: str | None = None  # 'director' | 'actor' (from edge metadata)
 
 
@@ -86,6 +87,7 @@ class PersonListItem(BaseModel):
     id: uuid.UUID
     slug: str
     title: str
+    title_fa: str | None = None
     media: MediaInfo = MediaInfo()
     works_count: int = 0
     avg_score: float | None = None
@@ -96,6 +98,7 @@ class PersonDetail(BaseModel):
     id: uuid.UUID
     slug: str
     title: str
+    title_fa: str | None = None
     biography: str | None = None
     media: MediaInfo = MediaInfo()
     directed: list[MovieListItem] = []

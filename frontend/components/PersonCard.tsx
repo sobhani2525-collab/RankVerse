@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { toFaDigits } from "@/lib/format-number";
+import { displayTitle } from "@/lib/title";
 import type { PersonListItem } from "@/lib/api";
 
 /** Poster-card look for a person: 2:3 photo, name, credit-count pill. */
@@ -54,7 +55,7 @@ export default function PersonCard({ person }: { person: PersonListItem }) {
       </div>
 
       <Link href={href} className="truncate text-sm font-bold text-ink transition hover:text-gold">
-        {person.title}
+        {displayTitle(person)}
       </Link>
 
       <span className="w-fit rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
