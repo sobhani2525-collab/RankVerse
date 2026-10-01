@@ -106,11 +106,15 @@ class BattleService:
             left_score_before=left_before,
             right_score_before=right_before,
         )
+        left_computed: float | None = None
+        right_computed: float | None = None
         if payload.winner.value != "skip":
             # Battle results feed the ranking score, so refresh both sides.
-            await RankingService(self.repo.db).recompute_entities(
+            rankings = await RankingService(self.repo.db).recompute_entities(
                 [entities[payload.left_item], entities[payload.right_item]]
             )
+            left_computed = rankings[payload.left_item].computed_score
+            right_computed = rankings[payload.right_item].computed_score
         await ContributionStatsComputer(self.repo.db).compute_contribution_stats(user_id)
         await self.repo.commit()
 
@@ -129,6 +133,8 @@ class BattleService:
             right_score_before=right_before,
             left_score_after=new_left,
             right_score_after=new_right,
+            left_computed_score=left_computed,
+            right_computed_score=right_computed,
             created_at=vote.created_at,
         )
 

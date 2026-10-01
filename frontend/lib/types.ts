@@ -331,6 +331,8 @@ export interface CastVoteResponse {
   right_score_before: number;
   left_score_after: number;
   right_score_after: number;
+  left_computed_score?: number | null;
+  right_computed_score?: number | null;
   created_at: string;
 }
 

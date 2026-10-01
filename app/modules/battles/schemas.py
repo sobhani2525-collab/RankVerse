@@ -63,6 +63,9 @@ class CastVoteResponse(BaseModel):
     right_score_before: float
     left_score_after: float
     right_score_after: float
+    # Refreshed ranking ("امتیاز ترکیبی") of each side; None for a skip.
+    left_computed_score: float | None = None
+    right_computed_score: float | None = None
     created_at: datetime
 
 

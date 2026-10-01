@@ -208,6 +208,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
             imdbRating={tv.imdb_rating}
             imdbVotes={tv.imdb_votes}
             ratingEntity={tv}
+            entityId={tv.id}
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-2">

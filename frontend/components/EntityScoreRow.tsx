@@ -1,5 +1,6 @@
 import { MonoLabel } from "@/components/list-detail/ui";
 import { toFaDigits } from "@/lib/format-number";
+import LiveScore from "@/components/LiveScore";
 import StarRating, { RatableEntity } from "@/components/rating/StarRating";
 
 /**
@@ -16,7 +17,10 @@ export default function EntityScoreRow({
   imdbRating,
   imdbVotes,
   ratingEntity,
+  entityId,
 }: {
+  /** Lets the score follow battle votes cast on the same page (LiveScore). */
+  entityId?: string;
   score: number | null;
   imdbId: string | null;
   imdbRating: number | null;
@@ -34,7 +38,7 @@ export default function EntityScoreRow({
             SCORE
           </MonoLabel>
           <span className="num text-3xl font-extrabold leading-tight text-ink">
-            {toFaDigits(score.toFixed(1))}
+            {entityId ? <LiveScore entityId={entityId} score={score} /> : toFaDigits(score.toFixed(1))}
           </span>
           <span className="text-xs text-muted">امتیاز ترکیبی</span>
         </div>

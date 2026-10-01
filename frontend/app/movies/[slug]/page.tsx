@@ -175,6 +175,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             imdbRating={movie.imdb_rating}
             imdbVotes={movie.imdb_votes}
             ratingEntity={movie}
+            entityId={movie.id}
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
