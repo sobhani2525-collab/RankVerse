@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select, func, case, update, delete
+from sqlalchemy import select, func, case, update, delete, union
 from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -358,6 +358,21 @@ class ListRepository:
         )
         result = await self.db.execute(stmt)
         return {row[0]: row[1] for row in result.all()}
+
+    async def count_contributors(self, list_id: uuid.UUID) -> int:
+        """Distinct users who took part in the list: added an item, voted on
+        an item, liked / followed the list, or commented."""
+        users = union(
+            select(UserListItem.added_by_user_id.label("uid")).where(UserListItem.list_id == list_id),
+            select(ListItemLike.user_id.label("uid"))
+            .join(UserListItem, UserListItem.id == ListItemLike.list_item_id)
+            .where(UserListItem.list_id == list_id),
+            select(ListLike.user_id.label("uid")).where(ListLike.list_id == list_id),
+            select(ListFollow.user_id.label("uid")).where(ListFollow.list_id == list_id),
+            select(ListComment.user_id.label("uid")).where(ListComment.list_id == list_id),
+        ).subquery()
+        stmt = select(func.count()).select_from(users).where(users.c.uid.is_not(None))
+        return (await self.db.execute(stmt)).scalar_one()
 
     async def set_item_like_score(self, item_id: uuid.UUID, score: float) -> None:
         await self.db.execute(

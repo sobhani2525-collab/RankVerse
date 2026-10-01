@@ -40,7 +40,18 @@ function TypeStat({ counts }: { counts: Record<string, number> }) {
   return null;
 }
 
-export default function ListDNA({ dna, itemCount }: { dna: ListDna; itemCount: number }) {
+// The contributors stat only appears once more than this many people took part.
+const MIN_CONTRIBUTORS = 2;
+
+export default function ListDNA({
+  dna,
+  itemCount,
+  contributorCount = 0,
+}: {
+  dna: ListDna;
+  itemCount: number;
+  contributorCount?: number;
+}) {
   const genres = dna.genres.slice(0, MAX_GENRES);
   const maxDecade = Math.max(0, ...dna.decades.map((d) => d.count));
 
@@ -58,6 +69,7 @@ export default function ListDNA({ dna, itemCount }: { dna: ListDna; itemCount: n
         <Stat value={toFaDigits(itemCount)} label="عنوان" />
         <TypeStat counts={dna.type_counts} />
         <FollowerStat />
+        {contributorCount > MIN_CONTRIBUTORS && <Stat value={toFaDigits(contributorCount)} label="مشارکت‌کننده" />}
       </div>
 
       {genres.length > 0 && (

@@ -250,6 +250,7 @@ export interface ListDetail extends ListSummary {
   edges?: ListEdge[];
   backlinks?: ListBacklink[];
   dna?: ListDna | null;
+  contributor_count?: number;
   battle_pair?: ListBattlePair | null;
 }
 

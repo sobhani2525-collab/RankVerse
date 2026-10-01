@@ -299,6 +299,7 @@ class ListService:
                 settings.list_graph_hub_limit, settings.list_graph_hub_min_items,
             ) if graph_items else None,
             battle_pair=pick_battle_pair(graph_items, cast_depth),
+            contributor_count=await self.repo.count_contributors(lst.id),
         )
 
     async def update_list(self, user_id: uuid.UUID, slug: str, payload: ListUpdate) -> UserList:
