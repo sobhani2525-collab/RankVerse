@@ -204,6 +204,30 @@ class ListRepository:
         total = rows[0].total if rows else 0
         return [row.UserList for row in rows], total
 
+    async def person_role_counts(self, list_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, int]]:
+        """list id -> {"actor": n, "director": n}: how many people in each
+        list have an acted_in / directed_by credit."""
+        if not list_ids:
+            return {}
+        relation_to_role = {v: k for k, v in _PERSON_ROLE_RELATIONS.items()}
+        stmt = (
+            select(
+                UserListItem.list_id,
+                RelationshipEdge.relation_type,
+                func.count(func.distinct(UserListItem.entity_id)),
+            )
+            .join(RelationshipEdge, RelationshipEdge.to_entity_id == UserListItem.entity_id)
+            .where(
+                UserListItem.list_id.in_(list_ids),
+                RelationshipEdge.relation_type.in_(list(relation_to_role)),
+            )
+            .group_by(UserListItem.list_id, RelationshipEdge.relation_type)
+        )
+        counts: dict[uuid.UUID, dict[str, int]] = {}
+        for list_id, relation, n in (await self.db.execute(stmt)).all():
+            counts.setdefault(list_id, {})[relation_to_role[relation]] = n
+        return counts
+
     # --- Items ---
 
     async def add_item(

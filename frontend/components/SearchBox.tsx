@@ -73,6 +73,8 @@ export default function SearchBox() {
     <div ref={containerRef} className="relative min-w-0 flex-1">
       <input
         type="text"
+        // Form-autofill extensions inject attributes (fdprocessedid) before hydration.
+        suppressHydrationWarning
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => query.trim() && setOpen(true)}

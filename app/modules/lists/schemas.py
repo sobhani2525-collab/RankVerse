@@ -174,6 +174,10 @@ class ListSummary(BaseModel):
     # sites (list_by_user, related, for-entity) don't eager-load items/owner,
     # so this stays empty and owner_username stays None there.
     preview_items: list[EntityMini] = Field(default_factory=list)
+    # For person lists only (set by ListService.discover): "actor" or
+    # "director" when the people in it are predominantly credited as that,
+    # else None. Lets the UI label the list more precisely than "person".
+    person_role: Literal["actor", "director"] | None = None
 
 
 class RelatedListSummary(ListSummary):

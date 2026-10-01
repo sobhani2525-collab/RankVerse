@@ -53,7 +53,8 @@ export default function ListCard({ list }: { list: ListCardList }) {
   const href = `/lists/${list.slug}`;
   const items = list.items ?? [];
   const typeCounts = Object.entries(list.countsByType ?? {});
-  const displayedItems = items.slice(0, 4);
+  // /lists now sends up to 5 preview items; the collage and this line show 3.
+  const displayedItems = items.slice(0, COLLAGE_SLOTS);
   const hasMoreItems = items.length > displayedItems.length;
 
   const [liked, setLiked] = useState(false);

@@ -75,7 +75,7 @@ export function listSummaryToTicketCard(list: ListSummary): TicketCardList {
     slug: list.slug,
     title: list.title,
     description: list.description,
-    entityType: list.entity_type,
+    entityType: list.entity_type === "person" && list.person_role ? list.person_role : list.entity_type,
     posters: list.preview_items.slice(0, 5).map((entity) => ({
       id: entity.id,
       title: entity.title_fa || entity.title,

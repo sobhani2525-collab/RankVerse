@@ -1,29 +1,17 @@
 import Link from "next/link";
-import ListTicketCard from "@/components/lists/list-ticket-card";
-import ListsFilterBar, { parseSort, parseType } from "@/components/lists/lists-filter-bar";
+import ListsExplorer from "@/components/lists/lists-explorer";
 import MarqueeSign from "@/components/lists/marquee-sign";
 import { discoverLists } from "@/lib/api";
-import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import { rethrowOutsideBuild } from "@/lib/isr";
 
-export default async function ListsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string; type?: string }>;
-}) {
-  const params = await searchParams;
-  const sort = parseSort(params.sort);
-  const type = parseType(params.type);
+export const revalidate = 600;
 
+export default async function ListsPage() {
   let lists: Awaited<ReturnType<typeof discoverLists>> = [];
   let loadError: string | null = null;
 
   try {
-    lists = await discoverLists({
-      page_size: 30,
-      sort,
-      entity_type: type === "all" ? undefined : type,
-    });
+    lists = await discoverLists({ page_size: 30, sort: "newest" });
   } catch (err) {
     rethrowOutsideBuild(err);
     loadError = err instanceof Error ? err.message : "خطا در دریافت اطلاعات";
@@ -63,23 +51,13 @@ export default async function ListsPage({
         <MarqueeSign className="h-auto w-full max-w-[440px] shrink-0" />
       </section>
 
-      <ListsFilterBar sort={sort} type={type} />
-
       {loadError ? (
         <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
           اتصال به RankVerse Core Engine برقرار نشد.
           <span className="num mt-1 block text-xs text-gold/70">{loadError}</span>
         </div>
-      ) : lists.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-          {type === "all" ? "هنوز لیستی ساخته نشده. اولین نفر باشید!" : "لیستی با این فیلتر پیدا نشد."}
-        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-          {lists.map((list) => (
-            <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
-          ))}
-        </div>
+        <ListsExplorer initialLists={lists} />
       )}
     </main>
   );
