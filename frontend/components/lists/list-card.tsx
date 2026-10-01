@@ -33,7 +33,7 @@ export interface ListCardList {
   slug: string;
   title: string;
   /** First few items, used for the poster collage and the "شامل: " line.
-   *  Populated by /lists (ListSummary.preview_items, up to 3, position
+   *  Populated by /lists (ListSummary.preview_items, up to 5, position
    *  order); empty for callers that pass a ListSummary without eager-loaded
    *  items (see listSummaryToListCard's doc comment). */
   items?: ListCardItem[];

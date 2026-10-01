@@ -226,3 +226,29 @@
 @media (prefers-reduced-motion: reduce) {
   .rv-node-in, .rv-line-in, .rv-card-in, .rv-fade-in { animation: none; }
 }
+
+/* Lists page marquee sign (components/lists/marquee-sign.tsx).
+   8 phrases x 4.5s = 36s cycle; each slot is 12.5% of it. */
+@keyframes marquee-bulb {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes marquee-phrase {
+  0% { opacity: 0; transform: translateY(28px); }
+  3% { opacity: 1; transform: translateY(0); }
+  9.5% { opacity: 1; transform: translateY(0); }
+  12.5% { opacity: 0; transform: translateY(-28px); }
+  100% { opacity: 0; transform: translateY(-28px); }
+}
+.marquee-bulb {
+  animation: marquee-bulb 1.2s ease-in-out infinite;
+}
+.marquee-phrase {
+  opacity: 0;
+  animation: marquee-phrase 36s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-bulb { animation: none; }
+  .marquee-phrase { animation: none; }
+  .marquee-phrase[data-first] { opacity: 1; }
+}

@@ -1,6 +1,7 @@
 import { MovieListItem, ListSummary, EntityMini } from "./types";
 import { EntityCardEntity } from "@/components/entities/entity-card";
 import { ListCardItem, ListCardList } from "@/components/lists/list-card";
+import { TicketCardList } from "@/components/lists/list-ticket-card";
 
 // media.image_url is the standard source; poster_path is a fallback for
 // entities synced before that field existed (same convention EntityRow.tsx
@@ -35,7 +36,7 @@ export function movieListItemToEntityCard(item: MovieListItem): EntityCardEntity
 
 /**
  * Adapts a ListSummary (from /lists) into ListCardList. `items` comes from
- * `preview_items` (up to 3, position order -- see the backend's
+ * `preview_items` (up to 5, position order -- see the backend's
  * ListService._to_summary_with_preview), so the collage shows real posters
  * when the list has items and falls back to placeholders for the rest.
  * `countsByType` stays undefined -- no list summary endpoint returns a
@@ -64,5 +65,25 @@ export function listSummaryToListCard(list: ListSummary): ListCardList {
     author: list.owner_username
       ? { username: list.owner_username, profileHref: `/profile/${list.owner_username}` }
       : null,
+  };
+}
+
+/** Data the "cinema ticket" card (components/lists/list-ticket-card.tsx)
+ *  needs, straight off a ListSummary -- no extra requests. */
+export function listSummaryToTicketCard(list: ListSummary): TicketCardList {
+  return {
+    slug: list.slug,
+    title: list.title,
+    description: list.description,
+    entityType: list.entity_type,
+    posters: list.preview_items.slice(0, 5).map((entity) => ({
+      id: entity.id,
+      title: entity.title_fa || entity.title,
+      posterUrl: entity.media?.image_url ?? resolveEntityMiniPosterUrl(entity),
+    })),
+    username: list.owner_username,
+    likeCount: list.like_count,
+    commentCount: list.comment_count,
+    saveCount: list.follower_count,
   };
 }

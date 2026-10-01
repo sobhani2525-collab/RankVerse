@@ -347,11 +347,11 @@ class ListService:
 
     def _to_summary_with_preview(self, lst: UserList) -> ListSummary:
         """Like ListSummary.model_validate(lst), plus owner_username and a
-        3-item poster preview -- requires `owner` and `items.entity` to
+        5-item poster preview -- requires `owner` and `items.entity` to
         already be eager-loaded (see ListRepository.discover)."""
         summary = ListSummary.model_validate(lst)
         summary.owner_username = lst.owner.username if lst.owner else None
-        summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:3]]
+        summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:5]]
         return summary
 
     # --- Items ---

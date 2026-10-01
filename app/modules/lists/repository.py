@@ -16,6 +16,10 @@ from app.modules.lists.models import (
 # column to itself keeps it untouched; real edits go through touch().
 _KEEP_UPDATED_AT = {"updated_at": UserList.updated_at}
 
+# Pseudo entity types accepted by discover(): person lists narrowed by the
+# credit edge their people have (movie --acted_in/directed_by--> person).
+_PERSON_ROLE_RELATIONS = {"actor": "acted_in", "director": "directed_by"}
+
 
 class ListRepository:
     def __init__(self, db: AsyncSession):
@@ -160,7 +164,20 @@ class ListRepository:
             UserList.visibility == "public"
         )
 
-        if entity_type:
+        if entity_type in _PERSON_ROLE_RELATIONS:
+            # "actor" / "director" are views over person lists: keep those
+            # holding at least one person credited in that role.
+            credit = (
+                select(RelationshipEdge.id)
+                .join(UserListItem, UserListItem.entity_id == RelationshipEdge.to_entity_id)
+                .where(
+                    UserListItem.list_id == UserList.id,
+                    RelationshipEdge.relation_type == _PERSON_ROLE_RELATIONS[entity_type],
+                )
+                .exists()
+            )
+            stmt = stmt.where(UserList.entity_type == "person", credit)
+        elif entity_type:
             stmt = stmt.where(UserList.entity_type == entity_type)
         if tag:
             stmt = stmt.where(UserList.tags.contains([tag]))
@@ -173,7 +190,7 @@ class ListRepository:
         stmt = (
             stmt.options(
                 joinedload(UserList.owner),
-                # Only the first 3 items' entities become the poster preview
+                # Only the first 5 items' entities become the poster preview
                 # (ListService._to_summary_with_preview), and only their id/
                 # slug/title/entity_type/attributes -- deferring the 384-dim
                 # embedding column keeps this round trip's payload small.
