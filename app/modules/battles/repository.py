@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity
@@ -22,6 +23,28 @@ class BattleRepository:
                 EntityEloScore.entity_id.in_(entity_ids),
                 EntityEloScore.category == category,
             )
+        )
+        return {row.entity_id: row for row in result.scalars().all()}
+
+    async def lock_elo_rows(self, entity_ids: list[uuid.UUID], category: str) -> dict[uuid.UUID, EntityEloScore]:
+        """Both sides' Elo rows, created if missing and row-locked until the
+        transaction ends. Insert-if-missing (ON CONFLICT DO NOTHING) plus
+        SELECT ... FOR UPDATE makes concurrent votes on the same entity queue
+        up instead of racing to insert the same (entity_id, category) row."""
+        await self.db.execute(
+            pg_insert(EntityEloScore)
+            .values([
+                {"entity_id": i, "category": category, "elo_score": DEFAULT_ELO, "matches_played": 0}
+                for i in entity_ids
+            ])
+            .on_conflict_do_nothing(constraint="uq_entity_elo_entity_category")
+        )
+        result = await self.db.execute(
+            select(EntityEloScore)
+            .where(EntityEloScore.entity_id.in_(entity_ids), EntityEloScore.category == category)
+            .order_by(EntityEloScore.entity_id)  # fixed lock order, so no deadlocks
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         return {row.entity_id: row for row in result.scalars().all()}
 

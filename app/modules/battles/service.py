@@ -70,14 +70,9 @@ class BattleService:
         )
 
     async def get_elo_rows(self, entity_ids: list[uuid.UUID], category: str) -> dict:
-        """Both sides' Elo rows in one query, adding (unflushed) default rows
-        for entities that have never battled -- they're written with the vote."""
-        elos = await self.repo.get_elo_map(entity_ids, category)
-        for entity_id in entity_ids:
-            if entity_id not in elos:
-                elos[entity_id] = self.repo.default_elo(entity_id, category)
-                self.repo.db.add(elos[entity_id])
-        return elos
+        """Both sides' Elo rows, created if they've never battled and locked
+        for the rest of the transaction (see BattleRepository.lock_elo_rows)."""
+        return await self.repo.lock_elo_rows(entity_ids, category)
 
     async def cast_vote(self, user_id: uuid.UUID, payload: CastVoteRequest) -> CastVoteResponse:
         await self._enforce_rate_limit(user_id)
