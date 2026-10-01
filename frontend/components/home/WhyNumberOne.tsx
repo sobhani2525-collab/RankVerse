@@ -10,8 +10,8 @@ import { toFaDigits } from "@/lib/format-number";
 
 function groupLabel(h: RankingHighlight): string {
   if (h.dimension === "genre") return `در ژانر ${genreLabel(h.group.title)}`;
-  if (h.dimension === "director") return `میان فیلم‌های ${h.group.title}`;
-  if (h.dimension === "creator") return `میان سریال‌های ${h.group.title}`;
+  if (h.dimension === "director") return `میان فیلم‌های ${h.group.title_fa ?? h.group.title}`;
+  if (h.dimension === "creator") return `میان سریال‌های ${h.group.title_fa ?? h.group.title}`;
   return `در ${h.group.title}`;
 }
 

@@ -183,7 +183,7 @@ def compute_backlinks(items: list[GraphItem], cast_depth: int) -> list[ListBackl
             if person:
                 backlinks.append(ListBacklink(
                     rank=i + 1, target_position=j + 1,
-                    person_name=person.title, person_slug=person.slug,
+                    person_name=person.title, person_name_fa=person.title_fa, person_slug=person.slug,
                 ))
                 break
     return backlinks

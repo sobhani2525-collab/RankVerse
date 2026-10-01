@@ -100,8 +100,8 @@ export default function ListDNA({
           <BlockLabel en="HUBS" fa="پرتکرارترین آدم‌ها" />
           <div className="flex flex-wrap gap-1.5">
             {dna.hubs.map((h) => (
-              <Chip key={h.entity.id} href={entityHref("person", h.entity.slug)} tone={PEOPLE_CHIP} ltr>
-                {h.entity.title} ×{toFaDigits(h.count)}
+              <Chip key={h.entity.id} href={entityHref("person", h.entity.slug)} tone={PEOPLE_CHIP} ltr={!h.entity.title_fa}>
+                {h.entity.title_fa ?? h.entity.title} ×{toFaDigits(h.count)}
               </Chip>
             ))}
           </div>

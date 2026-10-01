@@ -627,7 +627,7 @@ export async function getRelatedEntities(entityId: string, limit: number = 6): P
 
 export interface RankingHighlight {
   dimension: string;
-  group: { id: string; slug: string; title: string };
+  group: { id: string; slug: string; title: string; title_fa?: string | null };
   rank: number;
   group_size: number;
 }

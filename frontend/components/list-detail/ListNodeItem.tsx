@@ -118,8 +118,8 @@ export default function ListNodeItem({
                 <RowLabel dot="bg-violet-light" en="PEOPLE" fa="آدم‌ها" />
                 <div className="flex flex-wrap gap-1.5">
                   {people.map((p) => (
-                    <Chip key={p.id} href={entityHref("person", p.slug)} tone={PEOPLE_CHIP} ltr>
-                      {p.title}
+                    <Chip key={p.id} href={entityHref("person", p.slug)} tone={PEOPLE_CHIP} ltr={!p.title_fa}>
+                      {p.title_fa ?? p.title}
                     </Chip>
                   ))}
                 </div>
@@ -170,7 +170,7 @@ export default function ListNodeItem({
             </svg>
             <span>
               به #{toFaDigits(backlink.target_position)} هم وصل است ·{" "}
-              <span dir="ltr">{backlink.person_name}</span>
+              <span dir={backlink.person_name_fa ? "rtl" : "ltr"}>{backlink.person_name_fa ?? backlink.person_name}</span>
             </span>
           </a>
         )}

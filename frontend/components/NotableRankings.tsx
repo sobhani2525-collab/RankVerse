@@ -4,10 +4,10 @@ import { genreLabel } from "@/lib/genre-labels";
 import { SectionHeading } from "@/components/list-detail/ui";
 
 function highlightLabel(highlight: RankingHighlight): string {
-  const title = highlight.group.title;
+  const title = highlight.group.title_fa ?? highlight.group.title;
   switch (highlight.dimension) {
     case "genre":
-      return `بهترین‌های ${genreLabel(title)}`;
+      return `بهترین‌های ${genreLabel(highlight.group.title)}`;
     case "director":
       return `بهترین فیلم‌های ${title}`;
     case "creator":

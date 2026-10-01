@@ -41,9 +41,9 @@ export default function EdgeConnector({ edge, className = "" }: { edge: ListEdge
                 key={target.id}
                 href={entityHref(target.entity_type, target.slug)}
                 tone={style.chip}
-                ltr={edge.kind === "people"}
+                ltr={edge.kind === "people" && !target.title_fa}
               >
-                {edge.kind === "genre" ? genreLabel(target.title) : target.title}
+                {edge.kind === "genre" ? genreLabel(target.title) : target.title_fa ?? target.title}
               </Chip>
             ))}
           </>

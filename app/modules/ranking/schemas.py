@@ -8,6 +8,7 @@ class RankingGroupRef(BaseModel):
     id: uuid.UUID
     slug: str
     title: str
+    title_fa: str | None = None
 
 
 class RankingHighlight(BaseModel):

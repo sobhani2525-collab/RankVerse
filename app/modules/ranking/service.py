@@ -215,6 +215,7 @@ class RankingService:
                 group_entity.id,
                 group_entity.slug,
                 group_entity.title,
+                group_entity.attributes["title_fa"].astext,
             )
             .join(group_entity, group_entity.id == ranked.c.group_id)
             .where(ranked.c.member_id == entity.id, ranked.c.group_size >= min_group_size)
@@ -223,11 +224,11 @@ class RankingService:
         highlights: list[RankingHighlight] = [
             RankingHighlight(
                 dimension=RANKING_DIMENSIONS[relation_type],
-                group=RankingGroupRef(id=group_id, slug=group_slug, title=group_title),
+                group=RankingGroupRef(id=group_id, slug=group_slug, title=group_title, title_fa=group_title_fa),
                 rank=rank,
                 group_size=group_size,
             )
-            for relation_type, rank, group_size, group_id, group_slug, group_title in result.all()
+            for relation_type, rank, group_size, group_id, group_slug, group_title, group_title_fa in result.all()
         ]
 
         # Ties keep RANKING_DIMENSIONS order (genre, director, creator), as

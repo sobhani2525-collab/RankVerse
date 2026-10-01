@@ -72,6 +72,7 @@ class EntityRef(BaseModel):
     id: uuid.UUID
     slug: str
     title: str
+    title_fa: str | None = None  # Persian-script name (people), when known
     entity_type: str
 
 
@@ -92,6 +93,7 @@ class ListBacklink(BaseModel):
     rank: int
     target_position: int
     person_name: str
+    person_name_fa: str | None = None
     person_slug: str
 
 

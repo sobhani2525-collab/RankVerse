@@ -54,17 +54,17 @@ function focusFromTitle(t: {
   label: string;
   posterUrl: string | null;
   year: number | null;
-  directors: { slug: string; title: string }[];
+  directors: { slug: string; title: string; title_fa?: string | null }[];
   genres: { slug: string; title: string }[];
-  cast: { slug: string; title: string }[];
-  creators?: { slug: string; title: string }[];
+  cast: { slug: string; title: string; title_fa?: string | null }[];
+  creators?: { slug: string; title: string; title_fa?: string | null }[];
 }): Focus {
   const sats: Satellite[] = [
-    ...(t.creators ?? []).slice(0, 1).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title, relation: "سازنده" })),
-    ...t.directors.slice(0, 2).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title, relation: "کارگردان" })),
+    ...(t.creators ?? []).slice(0, 1).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title_fa ?? p.title, relation: "سازنده" })),
+    ...t.directors.slice(0, 2).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title_fa ?? p.title, relation: "کارگردان" })),
     ...t.genres.slice(0, 3).map((g) => ({ key: `genre:${g.slug}`, kind: "genre" as Kind, slug: g.slug, label: genreLabel(g.title), relation: "ژانر" })),
     ...(t.year ? [{ key: `year:${t.year}`, kind: "year" as Kind, label: toFaDigits(t.year), relation: "سال" }] : []),
-    ...t.cast.slice(0, 4).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title, relation: "بازیگر" })),
+    ...t.cast.slice(0, 4).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title_fa ?? p.title, relation: "بازیگر" })),
   ];
   const unique = sats.filter((s, i) => sats.findIndex((o) => o.key === s.key) === i);
   return {
@@ -112,7 +112,7 @@ async function loadFocus(kind: Exclude<Kind, "year">, slug: string): Promise<Foc
       .filter(({ m }) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
       .slice(0, MAX_SATELLITES)
       .map(({ m, relation }) => titleSatellite(m, relation));
-    return { kind, slug, label: p.title, caption: "شخص", posterUrl: p.media.image_url, satellites: sats };
+    return { kind, slug, label: p.title_fa ?? p.title, caption: "شخص", posterUrl: p.media.image_url, satellites: sats };
   }
 
   const g = await getGenreBySlug(slug);

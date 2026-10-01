@@ -141,6 +141,7 @@ export interface EntityRef {
   id: string;
   slug: string;
   title: string;
+  title_fa?: string | null;
   entity_type: string;
 }
 
@@ -195,6 +196,7 @@ export interface ListBacklink {
   rank: number;
   target_position: number;
   person_name: string;
+  person_name_fa?: string | null;
   person_slug: string;
 }
 

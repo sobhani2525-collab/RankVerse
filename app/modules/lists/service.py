@@ -46,7 +46,10 @@ def _entity_mini(entity) -> EntityMini:
 
 
 def _entity_ref(entity) -> EntityRef:
-    return EntityRef(id=entity.id, slug=entity.slug, title=entity.title, entity_type=entity.entity_type)
+    return EntityRef(
+        id=entity.id, slug=entity.slug, title=entity.title,
+        title_fa=(entity.attributes or {}).get("title_fa"), entity_type=entity.entity_type,
+    )
 
 
 def _build_graph_items(entities: list, edges: list[tuple]) -> list[GraphItem]:
