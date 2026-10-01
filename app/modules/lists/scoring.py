@@ -13,6 +13,11 @@ def compute_like_score(likes: int, dislikes: int) -> float:
     return (k * global_avg + likes) / (k + likes + dislikes)
 
 
+def is_list_active(contributor_count: int) -> bool:
+    """A list is active when enough distinct people contributed to it."""
+    return contributor_count >= settings.list_active_min_contributors
+
+
 def community_order_key(item_id: uuid.UUID, like_score: float | None, added_at: datetime) -> tuple:
     """Sort key for community_ordered lists: score DESC, then added_at,
     then the item id itself for full determinism (never hash())."""
