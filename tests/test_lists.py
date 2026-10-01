@@ -150,6 +150,20 @@ async def test_list_detail_returns_constellation(client, auth_headers, db_sessio
         )
         assert res.status_code == 200
 
+    # Tests share one transaction, so the server-default added_at (now()) is
+    # identical for every item and community ordering would fall back to the
+    # random item-id tie-break. Pin distinct timestamps in insertion order.
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import update
+    from app.modules.lists.models import UserListItem
+
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    for i, entity in enumerate((inception, memento, shutter)):
+        await db_session.execute(
+            update(UserListItem).where(UserListItem.entity_id == entity.id).values(added_at=base + timedelta(minutes=i))
+        )
+    await db_session.commit()
+
     data = (await client.get(f"/api/v1/lists/{slug}", headers=auth_headers)).json()["data"]
 
     first = data["items"][0]
