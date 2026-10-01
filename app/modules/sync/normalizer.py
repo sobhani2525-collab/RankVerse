@@ -77,7 +77,10 @@ def person_name_attrs(raw: dict) -> dict:
     candidate = None
     for t in (raw.get("translations") or {}).get("translations", []):
         if t.get("iso_639_1") == "fa":
-            candidate = ((t.get("data") or {}).get("name") or "").strip() or None
+            # TMDb often fills the fa entry with the English name; only a
+            # Persian-script one counts, else fall through to also_known_as.
+            name = ((t.get("data") or {}).get("name") or "").strip()
+            candidate = name if _is_persian_script(name) else None
             break
     if not candidate:
         birthplace = (raw.get("place_of_birth") or "").strip().lower()
