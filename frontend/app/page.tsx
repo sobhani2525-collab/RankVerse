@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import ListCard from "@/components/lists/list-card";
 import HomeHero from "@/components/home/HomeHero";
@@ -19,6 +20,8 @@ import { rethrowOutsideBuild } from "@/lib/isr";
 import { ListDetail, MovieDetail, MovieListItem } from "@/lib/types";
 
 export const revalidate = 1800;
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 // Backend load per home render is kept small and bounded: 3 list reads in
 // parallel; as soon as the movie list lands, detail fetches for only the

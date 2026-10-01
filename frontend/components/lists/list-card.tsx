@@ -1,4 +1,5 @@
 "use client";
+import { listHref } from "@/lib/list-url";
 import { useState } from "react";
 import Link from "next/link";
 import EntityMedia, { MediaKind } from "@/components/entities/entity-media";
@@ -50,7 +51,7 @@ const COLLAGE_SLOTS = 3;
 export default function ListCard({ list }: { list: ListCardList }) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
-  const href = `/lists/${list.slug}`;
+  const href = listHref(list.slug);
   const items = list.items ?? [];
   const typeCounts = Object.entries(list.countsByType ?? {});
   const displayedItems = items.slice(0, 4);

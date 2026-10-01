@@ -1,3 +1,4 @@
+import { listHref } from "@/lib/list-url";
 import Link from "next/link";
 import { getListsContainingEntity } from "@/lib/api";
 import ListCard from "@/components/lists/list-card";
@@ -34,7 +35,7 @@ export default async function EntityLists({
           {shown.map((list, i) => (
             <Link
               key={list.id}
-              href={`/lists/${list.slug}`}
+              href={listHref(list.slug)}
               className={`group flex items-center gap-4 py-4 transition hover:opacity-80 ${i > 0 ? "border-t border-border-soft" : ""}`}
             >
               <div className="min-w-0 flex-1">

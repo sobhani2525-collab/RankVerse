@@ -1,4 +1,5 @@
 "use client";
+import { listHref } from "@/lib/list-url";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -140,7 +141,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
     try {
       const result = await createList(token, { title, entity_type: entity.entity_type });
       await addListItem(token, result.slug, { entity_id: entity.id });
-      router.push(`/lists/${result.slug}`);
+      router.push(listHref(result.slug));
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در ساخت لیست");
       setCreating(false);

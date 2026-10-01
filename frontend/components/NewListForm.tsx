@@ -1,4 +1,5 @@
 "use client";
+import { listHref } from "@/lib/list-url";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -72,7 +73,7 @@ export default function NewListForm() {
       // submitting deliberately stays true here -- the button keeps showing
       // its loading state through the navigation instead of flashing back to
       // "ساخت لیست" while the new page is still fetching.
-      router.push(`/lists/${result.slug}`);
+      router.push(listHref(result.slug));
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در ساخت لیست");
       setSubmitting(false);

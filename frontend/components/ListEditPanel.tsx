@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { updateList, deleteList } from "@/lib/api";
 import { ListDetail } from "@/lib/types";
+import { listHref } from "@/lib/list-url";
 
 export default function ListEditPanel({
   slug,
@@ -29,11 +30,17 @@ export default function ListEditPanel({
     setSaving(true);
     setError(null);
     try {
-      await updateList(token, slug, {
+      const { slug: newSlug } = await updateList(token, slug, {
         title: title.trim(),
         description: description.trim() || undefined,
       });
-      onSaved();
+      // A new title moves the list to a new slug; the old URL would only
+      // redirect, so go straight there.
+      if (newSlug !== slug) {
+        router.replace(listHref(newSlug));
+      } else {
+        onSaved();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در ذخیره تغییرات");
     } finally {

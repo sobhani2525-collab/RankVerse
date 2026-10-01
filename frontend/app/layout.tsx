@@ -7,11 +7,30 @@ import { WatchLaterProvider } from "@/contexts/WatchLaterContext";
 import type { Metadata } from "next";
 import { vazirmatn, jetbrainsMono, lalezar } from "./fonts";
 import "./globals.css";
+import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
+// NOTE: no alternates.canonical and no openGraph.url here -- children
+// inherit them, so every page would canonicalize to "/". Each page sets its
+// own. (A page's openGraph also REPLACES this one rather than merging, so
+// pages that set it repeat siteName/locale.)
 export const metadata: Metadata = {
-  title: "RankVerse — نقشه‌ی برترین‌های سینما",
-  description:
-    "رتبه‌بندی فیلم‌ها بر پایه گراف دانش، ترکیب هوش جمعی کاربران و هوش مصنوعی.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: SITE_LOCALE,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+    images: ["/logo.png"],
+  },
+  twitter: { card: "summary" },
+  robots: { index: true, follow: true, "max-image-preview": "large" },
 };
 
 export default function RootLayout({

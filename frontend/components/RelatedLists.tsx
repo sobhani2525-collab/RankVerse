@@ -1,3 +1,4 @@
+import { listHref } from "@/lib/list-url";
 import Link from "next/link";
 import { getRelatedLists } from "@/lib/api";
 import { toFaDigits } from "@/lib/format-number";
@@ -26,7 +27,7 @@ export default async function RelatedLists({ slug }: { slug: string }) {
       {related.map((list) => (
         <Link
           key={list.id}
-          href={`/lists/${list.slug}`}
+          href={listHref(list.slug)}
           className="flex flex-col gap-1 rounded-[14px] border border-border-soft bg-surface px-4 py-3.5 text-ink transition hover:border-border lg:gap-1.5 lg:px-[18px] lg:py-4"
         >
           <span className="text-[15px] font-bold lg:text-base">{list.title}</span>

@@ -189,3 +189,18 @@ class ListComment(Base):
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserListSlugHistory(Base):
+    """Former slugs of a list. They keep resolving (and the frontend
+    308-redirects them to the current slug) after a rename."""
+    __tablename__ = "user_list_slug_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    list_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_lists.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    slug: Mapped[str] = mapped_column(String(220), unique=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

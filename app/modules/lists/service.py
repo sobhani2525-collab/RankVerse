@@ -1,6 +1,6 @@
 import uuid
 
-from slugify import slugify
+from app.core.slug import persian_slugify
 from app.modules.lists.models import UserList, UserListItem, ContributionMode, ListType
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,8 @@ GRAPH_RELATION_TYPES = ["directed_by", "creator", "acted_in", "has_genre"]
 # Title of the one private, owner-only "will watch" list every user gets --
 # see ListService.get_or_create_watch_later_list.
 WATCH_LATER_TITLE = "تماشا خواهم کرد"
+# Frontend routes living directly under /lists/ -- no list may take their slug.
+RESERVED_LIST_SLUGS = {"new"}
 
 
 def _entity_mini(entity) -> EntityMini:
@@ -112,11 +114,11 @@ class ListService:
         self.repo = ListRepository(db)
         self.entity_repo = EntityRepository(db)
 
-    async def _unique_slug(self, title: str) -> str:
-        base = slugify(title)[:200]
+    async def _unique_slug(self, title: str, list_id: uuid.UUID | None = None) -> str:
+        base = persian_slugify(title, max_length=200)
         slug = base
         suffix = 1
-        while await self.repo.slug_exists(slug):
+        while slug in RESERVED_LIST_SLUGS or await self.repo.slug_exists(slug, exclude_list_id=list_id):
             suffix += 1
             slug = f"{base}-{suffix}"
         return slug
@@ -308,6 +310,13 @@ class ListService:
         if lst.user_id != user_id:
             raise UnauthorizedError("You don't have permission to edit this list")
 
+        if payload.title is not None and payload.title != lst.title:
+            new_slug = await self._unique_slug(payload.title, list_id=lst.id)
+            if new_slug != lst.slug:
+                await self.repo.release_old_slug(lst.id, new_slug)
+                await self.repo.record_old_slug(lst.id, lst.slug)
+                lst.slug = new_slug
+
         await self.repo.update_list(
             lst,
             title=payload.title,
@@ -320,6 +329,10 @@ class ListService:
         )
         await self.db.commit()
         return lst
+
+    async def sitemap_entries(self) -> list[dict]:
+        rows = await self.repo.sitemap_entries()
+        return [{"slug": slug, "updated_at": updated_at} for slug, updated_at in rows]
 
     async def delete_list(self, user_id: uuid.UUID, slug: str) -> None:
         lst = await self.repo.get_by_slug(slug)

@@ -1,3 +1,4 @@
+import { listHref } from "@/lib/list-url";
 import Link from "next/link";
 import Image from "next/image";
 import SectionHeading from "./SectionHeading";
@@ -20,7 +21,7 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
           title={list.title}
           lead={`برگزیده از میان لیست‌های کاربران${list.owner_username ? ` — ساخته‌شده توسط ${list.owner_username}` : ""}`}
           action={
-            <Link href={`/lists/${list.slug}`} className="text-sm text-gold hover:underline">
+            <Link href={listHref(list.slug)} className="text-sm text-gold hover:underline">
               مشاهدهٔ لیست کامل ←
             </Link>
           }
@@ -51,14 +52,14 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
             );
             return (
               <li key={item.id} className={`w-40 shrink-0 snap-start sm:w-44 ${OFFSETS[i % OFFSETS.length]}`}>
-                <Link href={`/lists/${list.slug}`} className="group block transition duration-500 hover:-translate-y-2 focus-visible:-translate-y-2">
+                <Link href={listHref(list.slug)} className="group block transition duration-500 hover:-translate-y-2 focus-visible:-translate-y-2">
                   {card}
                 </Link>
               </li>
             );
           })}
           <li className={`w-40 shrink-0 snap-start sm:w-44 ${OFFSETS[list.items.length % OFFSETS.length]}`}>
-            <Link href={`/lists/${list.slug}`} className="group block transition duration-500 hover:-translate-y-2 focus-visible:-translate-y-2">
+            <Link href={listHref(list.slug)} className="group block transition duration-500 hover:-translate-y-2 focus-visible:-translate-y-2">
               <span className="relative flex aspect-[2/3] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-dashed border-white/15 bg-surface2/40 text-center transition duration-500 group-hover:border-gold/40 group-hover:bg-surface2/70">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-lg text-muted transition group-hover:border-gold/40 group-hover:text-gold">
                   +

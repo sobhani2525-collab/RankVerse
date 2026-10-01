@@ -1,4 +1,5 @@
 "use client";
+import { listHref } from "@/lib/list-url";
 import { useState } from "react";
 
 /**
@@ -21,7 +22,7 @@ export default function ShareListButton({
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
-    const url = `${window.location.origin}/lists/${slug}`;
+    const url = `${window.location.origin}${listHref(slug)}`;
 
     if (navigator.share) {
       try {

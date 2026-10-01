@@ -1,3 +1,4 @@
+import { encodeListSlug } from "./list-url";
 import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser, ListItem, ListCandidate } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
@@ -354,9 +355,9 @@ export async function getPublicUserLists(username: string): Promise<ListSummary[
 
 export async function getListBySlug(slug: string, token?: string | null): Promise<ListDetail> {
   if (token) {
-    return authFetch<ListDetail>(`/lists/${slug}`, token);
+    return authFetch<ListDetail>(`/lists/${encodeListSlug(slug)}`, token);
   }
-  const res = await fetch(`${API_BASE}/lists/${slug}`, { cache: "no-store" });
+  const res = await fetch(`${API_BASE}/lists/${encodeListSlug(slug)}`, { cache: "no-store" });
   const json: Envelope<ListDetail> = await res.json();
   if (!res.ok || json.error) {
     throw new Error(json.error?.message || "Failed to fetch list");
@@ -364,14 +365,19 @@ export async function getListBySlug(slug: string, token?: string | null): Promis
   return json.data;
 }
 
+/** Public, non-empty lists for sitemap.xml. */
+export async function getListsSitemap(): Promise<{ slug: string; updated_at: string | null }[]> {
+  return fetchEnvelope<{ slug: string; updated_at: string | null }[]>(`/sitemap/lists`, 3600);
+}
+
 export async function getListComments(slug: string): Promise<ListComment[]> {
   // Uncached: the list page is rendered per request anyway (its list read is
   // no-store), and a freshly posted comment should show on the next load.
-  return fetchEnvelope<ListComment[]>(`/lists/${slug}/comments`, 0);
+  return fetchEnvelope<ListComment[]>(`/lists/${encodeListSlug(slug)}/comments`, 0);
 }
 
 export async function getRelatedLists(slug: string): Promise<RelatedListSummary[]> {
-  return fetchEnvelope<RelatedListSummary[]>(`/lists/${slug}/related`, COMMUNITY_TTL);
+  return fetchEnvelope<RelatedListSummary[]>(`/lists/${encodeListSlug(slug)}/related`, COMMUNITY_TTL);
 }
 
 export async function getListsContainingEntity(entityId: string): Promise<ListSummary[]> {
@@ -424,11 +430,11 @@ export async function updateList(
     contribution_mode: ListContributionMode;
   }>
 ): Promise<{ id: string; slug: string }> {
-  return authFetch(`/lists/${slug}`, token, { method: "PUT", body: payload });
+  return authFetch(`/lists/${encodeListSlug(slug)}`, token, { method: "PUT", body: payload });
 }
 
 export async function deleteList(token: string, slug: string): Promise<{ deleted: boolean }> {
-  return authFetch(`/lists/${slug}`, token, { method: "DELETE" });
+  return authFetch(`/lists/${encodeListSlug(slug)}`, token, { method: "DELETE" });
 }
 
 export async function getMyLists(token: string): Promise<ListSummary[]> {
@@ -452,7 +458,7 @@ export async function addListItem(
   slug: string,
   payload: { entity_id: string; note?: string }
 ): Promise<ListItem> {
-  return authFetch<ListItem>(`/lists/${slug}/items`, token, { method: "POST", body: payload });
+  return authFetch<ListItem>(`/lists/${encodeListSlug(slug)}/items`, token, { method: "POST", body: payload });
 }
 
 /** Add-item form results: title matches for q, graph suggestions when q is empty. */
@@ -463,15 +469,15 @@ export async function getListCandidates(
   limit: number = 12
 ): Promise<ListCandidate[]> {
   const qs = new URLSearchParams({ q, limit: String(limit) });
-  return authFetch<ListCandidate[]>(`/lists/${slug}/candidates?${qs.toString()}`, token);
+  return authFetch<ListCandidate[]>(`/lists/${encodeListSlug(slug)}/candidates?${qs.toString()}`, token);
 }
 
 export async function removeListItem(token: string, slug: string, itemId: string) {
-  return authFetch<{ deleted: boolean }>(`/lists/${slug}/items/${itemId}`, token, { method: "DELETE" });
+  return authFetch<{ deleted: boolean }>(`/lists/${encodeListSlug(slug)}/items/${itemId}`, token, { method: "DELETE" });
 }
 
 export async function reorderListItems(token: string, slug: string, itemIds: string[]) {
-  return authFetch<{ reordered: boolean }>(`/lists/${slug}/reorder`, token, {
+  return authFetch<{ reordered: boolean }>(`/lists/${encodeListSlug(slug)}/reorder`, token, {
     method: "PUT",
     body: { item_ids: itemIds },
   });
@@ -490,7 +496,7 @@ export async function voteListItem(
   itemId: string,
   isLike: boolean
 ): Promise<ListItemVoteResult> {
-  return authFetch(`/lists/${slug}/items/${itemId}/like`, token, {
+  return authFetch(`/lists/${encodeListSlug(slug)}/items/${itemId}/like`, token, {
     method: "POST",
     body: { is_like: isLike },
   });
@@ -501,15 +507,15 @@ export async function removeListItemVote(
   slug: string,
   itemId: string
 ): Promise<ListItemVoteResult> {
-  return authFetch(`/lists/${slug}/items/${itemId}/like`, token, { method: "DELETE" });
+  return authFetch(`/lists/${encodeListSlug(slug)}/items/${itemId}/like`, token, { method: "DELETE" });
 }
 
 export async function toggleListLike(token: string, slug: string): Promise<{ liked: boolean }> {
-  return authFetch(`/lists/${slug}/like`, token, { method: "POST" });
+  return authFetch(`/lists/${encodeListSlug(slug)}/like`, token, { method: "POST" });
 }
 
 export async function toggleListFollow(token: string, slug: string): Promise<{ following: boolean }> {
-  return authFetch(`/lists/${slug}/follow`, token, { method: "POST" });
+  return authFetch(`/lists/${encodeListSlug(slug)}/follow`, token, { method: "POST" });
 }
 
 export async function addListComment(
@@ -517,7 +523,7 @@ export async function addListComment(
   slug: string,
   payload: { body: string; parent_comment_id?: string }
 ): Promise<ListComment> {
-  return authFetch(`/lists/${slug}/comments`, token, { method: "POST", body: payload });
+  return authFetch(`/lists/${encodeListSlug(slug)}/comments`, token, { method: "POST", body: payload });
 }
 
 // --- Search: global site search (no type = every entity_type) and

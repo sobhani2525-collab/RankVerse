@@ -46,6 +46,12 @@ async def discover_lists(
     )
 
 
+@router.get("/sitemap/lists")
+async def lists_sitemap(db: AsyncSession = Depends(get_read_db)):
+    service = ListService(db)
+    return envelope(data=await service.sitemap_entries())
+
+
 @router.get("/lists/{slug}")
 async def get_list(
     slug: str,

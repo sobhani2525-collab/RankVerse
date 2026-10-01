@@ -1,13 +1,15 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import select, func, case, update, delete
+from sqlalchemy import select, func, case, update, delete, or_, exists
 from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity, RelationshipEdge
 from app.modules.lists.models import (
-    UserList, UserListItem, ListLike, ListFollow, ListComment, ListItemLike
+    UserList, UserListItem, ListLike, ListFollow, ListComment, ListItemLike,
+    UserListSlugHistory,
 )
 
 # UserList.updated_at has onupdate=func.now(), which also fires on these
@@ -15,6 +17,16 @@ from app.modules.lists.models import (
 # "the list was just edited" (the list page's freshness badge). Setting the
 # column to itself keeps it untouched; real edits go through touch().
 _KEEP_UPDATED_AT = {"updated_at": UserList.updated_at}
+
+
+def _matches_slug(slug: str):
+    """The list's current slug, or any slug it used to have."""
+    return or_(
+        UserList.slug == slug,
+        UserList.id.in_(
+            select(UserListSlugHistory.list_id).where(UserListSlugHistory.slug == slug)
+        ),
+    )
 
 
 class ListRepository:
@@ -36,7 +48,7 @@ class ListRepository:
                 selectinload(UserList.items).selectinload(UserListItem.entity),
                 selectinload(UserList.owner),
             )
-            .where(UserList.slug == slug)
+            .where(_matches_slug(slug))
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
@@ -52,7 +64,7 @@ class ListRepository:
                 .selectinload(Entity.ranking),
                 selectinload(UserList.owner),
             )
-            .where(UserList.slug == slug)
+            .where(_matches_slug(slug))
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
@@ -90,9 +102,41 @@ class ListRepository:
     async def get_by_id(self, list_id: uuid.UUID) -> UserList | None:
         return await self.db.get(UserList, list_id)
 
-    async def slug_exists(self, slug: str) -> bool:
-        stmt = select(func.count()).select_from(UserList).where(UserList.slug == slug)
-        return (await self.db.execute(stmt)).scalar_one() > 0
+    async def slug_exists(self, slug: str, exclude_list_id: uuid.UUID | None = None) -> bool:
+        """True if another list uses the slug now or used it before. A
+        list's own history doesn't count (it may reclaim its old slug)."""
+        current = select(UserList.id).where(_matches_slug(slug))
+        history = select(UserListSlugHistory.list_id).where(UserListSlugHistory.slug == slug)
+        if exclude_list_id is not None:
+            current = current.where(UserList.id != exclude_list_id)
+            history = history.where(UserListSlugHistory.list_id != exclude_list_id)
+        stmt = select(or_(exists(current), exists(history)))
+        return bool((await self.db.execute(stmt)).scalar_one())
+
+    async def record_old_slug(self, list_id: uuid.UUID, slug: str) -> None:
+        self.db.add(UserListSlugHistory(list_id=list_id, slug=slug))
+        await self.db.flush()
+
+    async def release_old_slug(self, list_id: uuid.UUID, slug: str) -> None:
+        await self.db.execute(
+            delete(UserListSlugHistory).where(
+                UserListSlugHistory.list_id == list_id, UserListSlugHistory.slug == slug
+            )
+        )
+
+    async def sitemap_entries(self, limit: int = 50000) -> list[tuple[str, datetime]]:
+        has_items = exists(select(UserListItem.id).where(UserListItem.list_id == UserList.id))
+        stmt = (
+            select(UserList.slug, UserList.updated_at)
+            .where(
+                UserList.visibility == "public",
+                UserList.is_watch_later.is_(False),
+                has_items,
+            )
+            .order_by(UserList.updated_at.desc())
+            .limit(limit)
+        )
+        return [(slug, updated) for slug, updated in (await self.db.execute(stmt)).all()]
 
     async def update_list(self, lst: UserList, **kwargs) -> UserList:
         for key, value in kwargs.items():
