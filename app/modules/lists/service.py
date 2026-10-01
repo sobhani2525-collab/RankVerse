@@ -356,15 +356,24 @@ class ListService:
         self, page: int, page_size: int, entity_type: str | None, tag: str | None, sort_by: str
     ) -> tuple[list[ListSummary], int]:
         lists, total = await self.repo.discover(page, page_size, entity_type, tag, sort_by)
-        return [self._to_summary_with_preview(lst) for lst in lists], total
+        summaries = [self._to_summary_with_preview(lst) for lst in lists]
+        person_ids = [lst.id for lst in lists if lst.entity_type == "person"]
+        role_counts = await self.repo.person_role_counts(person_ids)
+        for summary in summaries:
+            counts = role_counts.get(summary.id)
+            if counts:
+                actors, directors = counts.get("actor", 0), counts.get("director", 0)
+                if actors != directors:
+                    summary.person_role = "actor" if actors > directors else "director"
+        return summaries, total
 
     def _to_summary_with_preview(self, lst: UserList) -> ListSummary:
         """Like ListSummary.model_validate(lst), plus owner_username and a
-        3-item poster preview -- requires `owner` and `items.entity` to
+        5-item poster preview -- requires `owner` and `items.entity` to
         already be eager-loaded (see ListRepository.discover)."""
         summary = ListSummary.model_validate(lst)
         summary.owner_username = lst.owner.username if lst.owner else None
-        summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:3]]
+        summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:5]]
         return summary
 
     # --- Items ---

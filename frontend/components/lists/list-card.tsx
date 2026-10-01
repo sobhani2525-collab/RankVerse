@@ -34,7 +34,7 @@ export interface ListCardList {
   slug: string;
   title: string;
   /** First few items, used for the poster collage and the "شامل: " line.
-   *  Populated by /lists (ListSummary.preview_items, up to 3, position
+   *  Populated by /lists (ListSummary.preview_items, up to 5, position
    *  order); empty for callers that pass a ListSummary without eager-loaded
    *  items (see listSummaryToListCard's doc comment). */
   items?: ListCardItem[];
@@ -54,7 +54,8 @@ export default function ListCard({ list }: { list: ListCardList }) {
   const href = listHref(list.slug);
   const items = list.items ?? [];
   const typeCounts = Object.entries(list.countsByType ?? {});
-  const displayedItems = items.slice(0, 4);
+  // /lists now sends up to 5 preview items; the collage and this line show 3.
+  const displayedItems = items.slice(0, COLLAGE_SLOTS);
   const hasMoreItems = items.length > displayedItems.length;
 
   const [liked, setLiked] = useState(false);

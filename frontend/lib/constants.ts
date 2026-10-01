@@ -8,6 +8,9 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   track: "موسیقی",
   album: "آلبوم",
   person: "شخصیت",
+  // Person-list roles (ListSummary.person_role), not real entity types.
+  actor: "بازیگر",
+  director: "کارگردان",
   genre: "ژانر",
   country: "کشور",
 };

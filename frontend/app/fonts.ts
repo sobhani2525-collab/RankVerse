@@ -3,6 +3,7 @@ import { Vazirmatn, JetBrains_Mono, Lalezar } from "next/font/google";
 // Body / UI text — Persian, full weight range.
 export const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
+  weight: ["400", "700", "800", "900"],
   variable: "--font-vazirmatn",
   display: "swap",
 });

@@ -292,3 +292,40 @@ async def test_candidates_respect_add_permission(client, auth_headers, db_sessio
     assert (await client.get(f"/api/v1/lists/{slug}/candidates")).status_code == 401
     res = await client.get(f"/api/v1/lists/{slug}/candidates?q=a", headers=other_headers)
     assert res.status_code == 401
+
+
+async def _seed_person_list(db_session, user, relation: str):
+    """A public person list holding one person credited with `relation`
+    (movie --relation--> person)."""
+    from app.modules.entities.models import Entity, RelationshipEdge
+    from app.modules.lists.models import UserList, UserListItem
+
+    movie = Entity(entity_type="movie", title="M-" + relation, slug="m-" + relation, attributes={})
+    person = Entity(entity_type="person", title="P-" + relation, slug="p-" + relation, attributes={})
+    db_session.add_all([movie, person])
+    await db_session.flush()
+    db_session.add(RelationshipEdge(from_entity_id=movie.id, to_entity_id=person.id, relation_type=relation))
+    lst = UserList(
+        user_id=user.id, title="people " + relation, slug="people-" + relation,
+        entity_type="person", is_ranked=True, visibility="public",
+    )
+    db_session.add(lst)
+    await db_session.flush()
+    db_session.add(UserListItem(list_id=lst.id, entity_id=person.id, entity_type="person", position=1, added_by_user_id=user.id))
+    await db_session.flush()
+    return lst
+
+
+async def test_discover_filters_person_lists_by_role(client, db_session, test_user):
+    await _seed_person_list(db_session, test_user, "acted_in")
+    await _seed_person_list(db_session, test_user, "directed_by")
+
+    actors = (await client.get("/api/v1/lists?entity_type=actor")).json()["data"]
+    directors = (await client.get("/api/v1/lists?entity_type=director")).json()["data"]
+    people = (await client.get("/api/v1/lists?entity_type=person")).json()["data"]
+
+    assert [l["slug"] for l in actors] == ["people-acted_in"]
+    assert [l["slug"] for l in directors] == ["people-directed_by"]
+    assert len(people) == 2
+    assert actors[0]["person_role"] == "actor"
+    assert directors[0]["person_role"] == "director"
