@@ -8,6 +8,7 @@ with empty attributes -- no photo, no biography. This fetches
 request covers the photo and the English + Persian biography) and merges
 the result into attributes (normalizer.person_backfill_attrs).
 
+Install only what this needs: pip install -r scripts/requirements-backfill.txt
 Run from the repo root with the venv active:
     python scripts/backfill_person_profiles.py [--dry-run] [--limit N] [--workers 16] [--batch 200]
 
