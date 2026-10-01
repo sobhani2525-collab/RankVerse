@@ -9,15 +9,16 @@ const PHRASES: { text: string; size: number }[] = [
   { text: "انیمیشن‌های محبوبم", size: 36 },
 ];
 
-// Frame rect (stroke centreline); bulbs sit on it every 20 units.
-const FX = 40, FY = 20, FW = 360, FH = 140, STEP = 20;
+// Gold frame rect; bulbs run on a ring inset 10 units inside it, every 20.
+const FX = 30, FY = 20, FW = 380, FH = 140, STEP = 20, INSET = 10;
+const RX = FX + INSET, RY = FY + INSET, RW = FW - 2 * INSET, RH = FH - 2 * INSET;
 
 function bulbPositions(): [number, number][] {
   const pts: [number, number][] = [];
-  for (let x = FX; x < FX + FW; x += STEP) pts.push([x, FY]);
-  for (let y = FY; y < FY + FH; y += STEP) pts.push([FX + FW, y]);
-  for (let x = FX + FW; x > FX; x -= STEP) pts.push([x, FY + FH]);
-  for (let y = FY + FH; y > FY; y -= STEP) pts.push([FX, y]);
+  for (let x = RX; x < RX + RW; x += STEP) pts.push([x, RY]);
+  for (let y = RY; y < RY + RH; y += STEP) pts.push([RX + RW, y]);
+  for (let x = RX + RW; x > RX; x -= STEP) pts.push([x, RY + RH]);
+  for (let y = RY + RH; y > RY; y -= STEP) pts.push([RX, y]);
   return pts;
 }
 
@@ -60,7 +61,7 @@ export default function MarqueeSign({ className = "" }: { className?: string }) 
 
       {/* frame + cream plate */}
       <rect x={FX} y={FY} width={FW} height={FH} rx="14" fill="#1C1534" stroke="#E8B34A" strokeWidth="3" />
-      <rect x="62" y="42" width="316" height="96" rx="8" fill="#F2E6C9" />
+      <rect x="58" y="42" width="324" height="96" rx="8" fill="#F2E6C9" />
       <text x="220" y="62" textAnchor="middle" fontFamily="var(--font-jetbrains), monospace" fontSize="11" letterSpacing="3.5" fill="#8A5A1E">
         NOW SHOWING
       </text>
