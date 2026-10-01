@@ -79,7 +79,7 @@ export default function ListComments({
             <div key={c.id} className="border-b border-border-soft pb-3.5">
               <div className="mb-1 flex items-center justify-between">
                 {c.username ? (
-                  <Link href={`/profile/${c.username}`} className="text-sm font-medium text-teal hover:underline">
+                  <Link href={`/profile/${encodeURIComponent(c.username)}`} className="text-sm font-medium text-teal hover:underline">
                     @{c.username}
                   </Link>
                 ) : (

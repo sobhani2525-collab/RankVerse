@@ -23,7 +23,7 @@ export default function ListHero({ detail }: { detail: ListDetail }) {
       <div className="flex items-center justify-between gap-3.5 lg:justify-start">
         {detail.owner_username && (
           <Link
-            href={`/profile/${detail.owner_username}`}
+            href={`/profile/${encodeURIComponent(detail.owner_username)}`}
             className="flex min-h-[44px] items-center gap-2.5 text-ink lg:gap-3"
           >
             <span
