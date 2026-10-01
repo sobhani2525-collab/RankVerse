@@ -45,7 +45,7 @@ export default function MarqueeSign({ className = "" }: { className?: string }) 
           <stop offset="100%" stopColor="#E8B34A" stopOpacity="0" />
         </radialGradient>
         <clipPath id="marquee-text-clip">
-          <rect x="70" y="68" width="300" height="48" />
+          <rect x="70" y="76" width="300" height="38" />
         </clipPath>
       </defs>
 
