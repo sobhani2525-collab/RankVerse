@@ -59,7 +59,7 @@ export default function MarqueeSign({ className = "" }: { className?: string }) 
       <rect x="320" y="160" width="10" height="48" fill="#262040" />
 
       {/* frame + cream plate */}
-      <rect x={FX} y={FY} width={FW} height={FH} rx="14" fill="#1C1534" stroke="#E8B34A" strokeWidth="3" />
+      <rect x={FX} y={FY} width={FW} height={FH} rx="14" fill="#1C1534" />
       <rect x="62" y="42" width="316" height="96" rx="8" fill="#F2E6C9" />
       <text x="220" y="62" textAnchor="middle" fontFamily="var(--font-jetbrains), monospace" fontSize="11" letterSpacing="3.5" fill="#8A5A1E">
         NOW SHOWING
