@@ -6,7 +6,7 @@ import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import type { ListSummary } from "@/lib/types";
 
 export type ListSort = "newest" | "popular";
-export type ListTypeFilter = "all" | "movie" | "tv_series" | "actor" | "director";
+export type ListTypeFilter = "all" | "movie" | "tv_series" | "person";
 
 const PAGE_SIZE = 30;
 
@@ -15,14 +15,11 @@ const SORT_OPTIONS: { value: ListSort; label: string }[] = [
   { value: "popular", label: "محبوب‌ترین" },
 ];
 
-// "actor"/"director" are backend pseudo-types over person lists
-// (see ListRepository.discover).
 const TYPE_OPTIONS: { value: ListTypeFilter; label: string }[] = [
   { value: "all", label: "همه" },
   { value: "movie", label: "فیلم" },
   { value: "tv_series", label: "سریال" },
-  { value: "actor", label: "بازیگر" },
-  { value: "director", label: "کارگردان" },
+  { value: "person", label: "شخص" },
 ];
 
 const chip = "inline-flex min-h-[44px] items-center rounded-full border px-5 text-sm transition";
@@ -105,14 +102,9 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
         </div>
       ) : (
         <div className={`grid grid-cols-1 gap-8 transition-opacity md:grid-cols-2 lg:grid-cols-3 ${loading && page === 1 ? "opacity-50" : ""}`}>
-          {lists.map((list) => {
-            const card = listSummaryToTicketCard(list);
-            // With an actor/director filter on, every card matches that role
-            // (it holds at least one such person), so label it that way even
-            // when the list is mixed and has no single dominant role.
-            if (type === "actor" || type === "director") card.entityType = type;
-            return <ListTicketCard key={list.id} list={card} />;
-          })}
+          {lists.map((list) => (
+            <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
+          ))}
         </div>
       )}
 
