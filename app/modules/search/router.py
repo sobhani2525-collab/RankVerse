@@ -39,7 +39,7 @@ def _title_fa_sql():
 
 
 def _escape_like(s: str) -> str:
-    return s.replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 async def find_entities_by_title(
