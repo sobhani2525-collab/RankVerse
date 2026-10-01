@@ -105,9 +105,14 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
         </div>
       ) : (
         <div className={`grid grid-cols-1 gap-8 transition-opacity md:grid-cols-2 lg:grid-cols-3 ${loading && page === 1 ? "opacity-50" : ""}`}>
-          {lists.map((list) => (
-            <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
-          ))}
+          {lists.map((list) => {
+            const card = listSummaryToTicketCard(list);
+            // With an actor/director filter on, every card matches that role
+            // (it holds at least one such person), so label it that way even
+            // when the list is mixed and has no single dominant role.
+            if (type === "actor" || type === "director") card.entityType = type;
+            return <ListTicketCard key={list.id} list={card} />;
+          })}
         </div>
       )}
 
