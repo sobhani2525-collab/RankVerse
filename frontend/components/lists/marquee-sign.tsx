@@ -39,8 +39,9 @@ export default function MarqueeSign({ className = "" }: { className?: string }) 
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <radialGradient id="marquee-halo" cx="50%" cy="38%" r="55%">
-          <stop offset="0%" stopColor="#E8B34A" stopOpacity="0.22" />
+        <radialGradient id="marquee-halo" gradientUnits="userSpaceOnUse" cx="220" cy="90" r="210">
+          <stop offset="0%" stopColor="#E8B34A" stopOpacity="0.2" />
+          <stop offset="60%" stopColor="#E8B34A" stopOpacity="0.06" />
           <stop offset="100%" stopColor="#E8B34A" stopOpacity="0" />
         </radialGradient>
         <clipPath id="marquee-text-clip">
@@ -48,7 +49,7 @@ export default function MarqueeSign({ className = "" }: { className?: string }) 
         </clipPath>
       </defs>
 
-      <rect x="0" y="0" width="440" height="293" fill="url(#marquee-halo)" />
+      <circle cx="220" cy="90" r="210" fill="url(#marquee-halo)" />
       {STARS.map(([x, y, r], i) => (
         <circle key={i} cx={x} cy={y} r={r} fill="#F2F0E8" opacity="0.35" />
       ))}
