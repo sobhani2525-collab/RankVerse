@@ -56,6 +56,10 @@ def person_biography_attrs(raw: dict) -> dict:
     }
 
 
+# Letters Arabic spells differently from Persian (ي ك ة ى instead of ی ک ه ی).
+ARABIC_ONLY_LETTERS = "يكةى"
+
+
 def _is_persian_script(name: str) -> bool:
     letters = [c for c in name if c.isalpha()]
     return bool(letters) and all("\u0600" <= c <= "\u06ff" for c in letters)
@@ -65,9 +69,9 @@ def person_name_attrs(raw: dict) -> dict:
     """
     title_fa for an Iranian person: their name in Persian script, taken from
     TMDb's fa translation name if there is one, else the first Persian-script
-    entry in also_known_as. Only set when TMDb says they were born in Iran
-    (or has an explicit fa translation name), so e.g. Arabic-script aliases
-    of non-Iranian people are never picked up. Empty otherwise.
+    entry in also_known_as. Only set when TMDb says they were born in Iran, has
+    no birthplace on file, or has an explicit fa translation name, so e.g.
+    Arabic-script aliases of non-Iranian people are not picked up. Empty otherwise.
     """
     name_en = (raw.get("name") or "").strip()
     candidate = None
@@ -75,10 +79,20 @@ def person_name_attrs(raw: dict) -> dict:
         if t.get("iso_639_1") == "fa":
             candidate = ((t.get("data") or {}).get("name") or "").strip() or None
             break
-    if not candidate and "iran" in (raw.get("place_of_birth") or "").lower():
-        candidate = next(
-            (n.strip() for n in raw.get("also_known_as") or [] if n and _is_persian_script(n.strip())), None
-        )
+    if not candidate:
+        birthplace = (raw.get("place_of_birth") or "").strip().lower()
+        # A birthplace that isn't Iran rules the alias out; with no birthplace
+        # on file (common for small Iranian profiles) accept it unless it uses
+        # Arabic-only letters, i.e. is probably an Arabic name.
+        if not birthplace or "iran" in birthplace:
+            candidate = next(
+                (
+                    n.strip() for n in raw.get("also_known_as") or []
+                    if n and _is_persian_script(n.strip())
+                    and (birthplace or not any(c in n for c in ARABIC_ONLY_LETTERS))
+                ),
+                None,
+            )
     title_fa = _persian_title(candidate, name_en)
     return {"title_fa": title_fa} if title_fa and _is_persian_script(title_fa) else {}
 
