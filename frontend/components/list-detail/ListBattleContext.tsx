@@ -49,10 +49,12 @@ export function useListBattle(): ListBattleState {
   return ctx;
 }
 
-/** Item #1, unless it has nobody to battle -- then the first item that does. */
+/** The last (lowest-ranked) item, unless it has nobody to battle -- then the nearest one above it that does. */
 function defaultAnchor(items: ListItem[]): number {
-  const index = items.findIndex((_, i) => battleOpponents(items, i).length > 0);
-  return index === -1 ? 0 : index;
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (battleOpponents(items, i).length > 0) return i;
+  }
+  return 0;
 }
 
 /** The anchor after `current` (wrapping) that has at least one opponent. */
