@@ -239,9 +239,6 @@ export interface ListSummary {
   // First few items (position order) -- only populated by /lists
   // (discoverLists); see app/modules/lists/service.py's discover().
   preview_items: EntityMini[];
-  // Person lists from /lists only: "actor"/"director" when the people in it
-  // are mostly credited as that.
-  person_role?: "actor" | "director" | null;
 }
 
 export interface ListDetail extends ListSummary {
