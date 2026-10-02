@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { GraphFocusKind, requestGraphFocus, setHeroCenter } from "@/lib/graph-focus";
+import { GraphFocusKind, requestGraphFocus, scrollToGraph, setHeroCenter } from "@/lib/graph-focus";
 import { EgoGraph, EgoNode, getHeroGraphs } from "@/lib/api";
 import { displayTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
@@ -143,7 +143,6 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
   // Idle tour: while nobody hovers, the sky walks through the stars one by
   // one, lighting a star and its links -- showing "these are connected".
   const [tour, setTour] = useState<number | null>(null);
-  const pointerType = useRef<string>("mouse");
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The pool (Iranian + foreign, high-IMDb titles and well-connected people)
@@ -339,23 +338,20 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
         </g>
       </svg>
 
-      {/* Real, focusable hit targets over the SVG (one per node). */}
+      {/* Real, focusable hit targets over the SVG (one per node). A click
+          explores the node in the graph below; the hover card links to its page. */}
       {nodes.map((n, i) => (
-        <Link
+        <button
           key={n.node.id}
-          href={detailPathFor(n.node.entity_type, n.node.slug) ?? `/movies/${n.node.slug}`}
-          aria-label={`${nameOf(n.node)} — ${TYPE_LABEL[n.node.entity_type] ?? ""}`}
-          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-gold"
+          type="button"
+          aria-label={`${nameOf(n.node)} — ${TYPE_LABEL[n.node.entity_type] ?? ""} — کاوش در گراف`}
+          className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full focus-visible:outline-gold"
           style={{ left: `${n.x}%`, top: `${n.y}%`, width: "9%", height: "9%", minWidth: 36, minHeight: 36 }}
-          onPointerDown={(e) => {
-            pointerType.current = e.pointerType;
-          }}
-          onClick={(e) => {
-            // Touch has no hover: the first tap opens the card, a second tap follows the link.
-            if (pointerType.current !== "mouse" && active !== i) {
-              e.preventDefault();
-              show(i);
-            }
+          onClick={() => {
+            // Touch has no hover, so the tap also opens the card (with its page link).
+            show(i);
+            requestGraphFocus({ kind: n.node.entity_type as GraphFocusKind, slug: n.node.slug });
+            scrollToGraph({ onlyIfHidden: true });
           }}
           onMouseEnter={() => show(i)}
           onMouseLeave={hideSoon}

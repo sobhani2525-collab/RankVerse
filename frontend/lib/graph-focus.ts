@@ -23,9 +23,14 @@ export const GRAPH_SECTION_ID = "universe";
 // section top keeps the heading from eating the viewport.
 export const GRAPH_CANVAS_ID = "universe-graph";
 
-export function scrollToGraph(): void {
+export function scrollToGraph(opts: { onlyIfHidden?: boolean } = {}): void {
   const target = document.getElementById(GRAPH_CANVAS_ID) ?? document.getElementById(GRAPH_SECTION_ID);
   if (!target) return;
+  if (opts.onlyIfHidden) {
+    // Already fully on screen: just let the content change, don't jump.
+    const r = target.getBoundingClientRect();
+    if (r.top >= 0 && r.bottom <= window.innerHeight) return;
+  }
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
 }
