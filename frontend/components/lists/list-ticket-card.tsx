@@ -35,7 +35,7 @@ export default function ListTicketCard({ list }: { list: TicketCardList }) {
   return (
     <Link
       href={`/lists/${list.slug}`}
-      className="group block overflow-hidden rounded-[20px] bg-[#151A30] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,.5)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group block overflow-hidden rounded-[20px] bg-[#151A30] shadow-[0_10px_28px_-6px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_-8px_rgba(0,0,0,.65),0_0_32px_rgba(232,179,74,.10),inset_0_1px_0_rgba(255,255,255,.07)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <div
         className="grid h-[250px] gap-2 px-4 pb-[10px] pt-4"
