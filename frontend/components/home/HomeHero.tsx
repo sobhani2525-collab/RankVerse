@@ -6,10 +6,12 @@ import { toFaDigits } from "@/lib/format-number";
 
 export default function HomeHero({
   titles,
+  centerPool,
   movieTotal,
   tvTotal,
 }: {
   titles: HomeTitle[];
+  centerPool: HomeTitle[];
   movieTotal: number | null;
   tvTotal: number | null;
 }) {
@@ -70,16 +72,22 @@ export default function HomeHero({
           )}
         </div>
 
-        {titles.length > 0 && (
+        {(titles.length > 0 || centerPool.length > 0) && (
           <div className="relative mx-auto w-full max-w-[560px]">
-            <HeroConstellation titles={titles} />
+            <HeroConstellation titles={titles} centerPool={centerPool} />
             <p className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted/80">
-              <span>هر ستاره یک فیلم برتر · اندازه = امتیاز</span>
+              <span className="w-full text-center">مرکز هر بار تصادفی است؛ خط بین دو ستاره یعنی با هم ارتباط دارند</span>
               <span className="flex items-center gap-1">
-                <span className="inline-block h-px w-4 bg-gold" /> کارگردان مشترک
+                <span className="inline-block h-2 w-2 rounded-full bg-violet" /> فیلم / سریال
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block h-px w-4 bg-teal" /> ژانر مشترک
+                <span className="inline-block h-2 w-2 rounded-full bg-teal" /> هنرمند
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-2 w-2 rounded-full border border-teal" /> ژانر
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-px w-4 bg-gold" /> نقش در اثر
               </span>
             </p>
           </div>

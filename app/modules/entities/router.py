@@ -8,6 +8,7 @@ import uuid
 from app.modules.auth.dependencies import get_current_user, get_current_user_optional
 from app.modules.battles.schemas import SuggestedBattleResponse, SuggestedBattleEntity
 from app.modules.battles.suggested import SuggestedBattleService
+from app.modules.entities.ego import build_ego_graph
 from app.modules.entities.schemas import EntityCommentCreate
 from app.modules.entities.service import EntityService
 from app.modules.users.models import User
@@ -93,6 +94,11 @@ async def get_person(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = EntityService(db)
     person = await service.get_person_detail(slug)
     return envelope(data=person.model_dump())
+
+
+@router.get("/graph/ego/{slug}")
+async def get_ego_graph(slug: str, db: AsyncSession = Depends(get_read_db)):
+    return envelope(data=await build_ego_graph(db, slug))
 
 
 @router.get("/genres/{slug}")

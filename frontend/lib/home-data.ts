@@ -1,4 +1,5 @@
-import { MovieDetail, MovieListItem } from "./types";
+import type { PersonListItem } from "./api";
+import { MovieDetail, MovieListItem, PersonDetail, TvSeriesDetail } from "./types";
 
 /**
  * One ranked title as the home page's sections see it: the /rankings row
@@ -22,6 +23,10 @@ export interface HomeTitle {
   directors: { slug: string; title: string; title_fa?: string | null }[];
   genres: { slug: string; title: string }[];
   cast: { slug: string; title: string; title_fa?: string | null }[];
+  // Only for people: slugs of the titles they worked on.
+  works?: string[];
+  // Only for people: their best-scored titles, ready to be drawn next to them.
+  workNodes?: HomeTitle[];
 }
 
 // Same source/fallback order as entity-card-adapters.ts' resolvePosterUrl.
@@ -29,7 +34,7 @@ export function posterUrlFor(item: { media?: { image_url: string | null } | null
   return item.media?.image_url ?? (item.poster_path ? `https://image.tmdb.org/t/p/${size}${item.poster_path}` : null);
 }
 
-export function toHomeTitle(item: MovieListItem, rank: number, detail?: MovieDetail | null): HomeTitle {
+export function toHomeTitle(item: MovieListItem, rank: number, detail?: MovieDetail | TvSeriesDetail | null): HomeTitle {
   return {
     id: item.id,
     slug: item.slug,
@@ -42,7 +47,7 @@ export function toHomeTitle(item: MovieListItem, rank: number, detail?: MovieDet
     rank,
     posterUrl: posterUrlFor(item),
     hasDetail: !!detail,
-    directors: detail?.directors.map(({ slug, title, title_fa }) => ({ slug, title, title_fa })) ?? [],
+    directors: [...(detail && "creators" in detail ? detail.creators : []), ...(detail?.directors ?? [])].map(({ slug, title, title_fa }) => ({ slug, title, title_fa })),
     genres: detail?.genres.map(({ slug, title }) => ({ slug, title })) ?? [],
     cast: detail?.cast.slice(0, 6).map(({ slug, title, title_fa }) => ({ slug, title, title_fa })) ?? [],
   };
@@ -70,4 +75,37 @@ export function clusterByGenre(titles: HomeTitle[]): GenreCluster[] {
     }
   }
   return [...map.values()].sort((a, b) => b.titles.length - a.titles.length || a.title.localeCompare(b.title));
+}
+
+/**
+ * A ranked person as a constellation node. `works` holds the slugs of
+ * everything they directed/created/acted in -- the hero graph links a
+ * person to any title in `works` (empty when the detail fetch failed).
+ */
+export function toHomePerson(item: PersonListItem, rank: number, detail?: PersonDetail | null): HomeTitle {
+  const works = detail ? [...detail.directed, ...detail.created, ...detail.acted_in].map((w) => w.slug) : [];
+  return {
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    title_fa: item.title_fa ?? null,
+    entity_type: "person",
+    year: null,
+    score: item.avg_score,
+    votes: item.works_count,
+    rank,
+    posterUrl: item.media?.image_url ?? null,
+    hasDetail: !!detail,
+    directors: [],
+    genres: [],
+    cast: [],
+    works,
+    workNodes: detail
+      ? [...detail.directed, ...detail.created, ...detail.acted_in]
+          .filter((w, i, all) => all.findIndex((x) => x.id === w.id) === i)
+          .sort((a, b) => (b.computed_score ?? 0) - (a.computed_score ?? 0))
+          .slice(0, 4)
+          .map((w) => toHomeTitle(w, 0))
+      : [],
+  };
 }

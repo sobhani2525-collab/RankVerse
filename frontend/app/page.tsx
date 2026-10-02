@@ -13,9 +13,9 @@ import GenreUniverse from "@/components/home/GenreUniverse";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import FinalCta from "@/components/home/FinalCta";
 import SectionHeading from "@/components/home/SectionHeading";
-import { getRankingsPage, getMovieBySlug, getMovieRankings, discoverLists, getListBySlug, RankingHighlight, RANKING_TTL } from "@/lib/api";
+import { getRankingsPage, getPeoplePage, getMovieBySlug, getMovieRankings, discoverLists, getListBySlug, RankingHighlight, RANKING_TTL } from "@/lib/api";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
-import { clusterByGenre, toHomeTitle } from "@/lib/home-data";
+import { clusterByGenre, toHomePerson, toHomeTitle, HomeTitle } from "@/lib/home-data";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { ListDetail, MovieDetail, MovieListItem } from "@/lib/types";
 
@@ -55,13 +55,29 @@ async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[]; 
   return { details, highlights: await highlights };
 }
 
+// Hero centre pool: the top 10 Iranian movies, series and people. One is
+// picked at random in the browser, which then asks /graph/ego/{slug} for
+// its neighbourhood -- so no detail fetches are needed here.
+async function fetchHeroPool(): Promise<HomeTitle[]> {
+  const [movies, series, people] = await Promise.allSettled([
+    getRankingsPage("movie", { page_size: 10, origin: "persian" }),
+    getRankingsPage("tv_series", { page_size: 10, origin: "persian" }),
+    getPeoplePage({ page_size: 10, origin: "persian" }),
+  ]);
+  return [
+    ...(movies.status === "fulfilled" ? movies.value.items.map((m, i) => toHomeTitle(m, i + 1)) : []),
+    ...(series.status === "fulfilled" ? series.value.items.map((t, i) => toHomeTitle(t, i + 1)) : []),
+    ...(people.status === "fulfilled" ? people.value.items.map((p, i) => toHomePerson(p, i + 1)) : []),
+  ];
+}
+
 export default async function HomePage() {
   // Independent reads, fetched together; each failure only hides its own
   // section (movies failing shows the error state below). The movie
   // details chain off the movie list alone, so they don't wait for the
   // other two reads.
   const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
-  const [movieRes, tvRes, listsRes, extrasRes, featuredListRes] = await Promise.allSettled([
+  const [movieRes, tvRes, listsRes, extrasRes, featuredListRes, heroPoolRes] = await Promise.allSettled([
     moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
     // آخرین فهرست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
@@ -74,7 +90,9 @@ export default async function HomePage() {
     discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL).then((lists) =>
       lists[0] ? getListBySlug(lists[0].slug) : null
     ),
+    fetchHeroPool(),
   ]);
+  const heroPool = heroPoolRes.status === "fulfilled" ? heroPoolRes.value : [];
 
   const movies: MovieListItem[] = movieRes.status === "fulfilled" ? movieRes.value.items : [];
   const movieTotal = movieRes.status === "fulfilled" ? movieRes.value.total : null;
@@ -108,7 +126,7 @@ export default async function HomePage() {
   if (loadError || !leader) {
     return (
       <main>
-        <HomeHero titles={[]} movieTotal={null} tvTotal={tvTotal} />
+        <HomeHero titles={[]} centerPool={[]} movieTotal={null} tvTotal={tvTotal} />
         <section className="mx-auto max-w-7xl px-6 py-14">
           {loadError ? (
             <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
@@ -128,7 +146,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <HomeHero titles={titles.slice(0, HERO_NODES)} movieTotal={movieTotal} tvTotal={tvTotal} />
+      <HomeHero titles={titles.slice(0, HERO_NODES)} centerPool={heroPool} movieTotal={movieTotal} tvTotal={tvTotal} />
       {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <LiveRanking movies={top10} tvSeries={tvTitles} />
       <WhyNumberOne leader={leader} rivals={titles.slice(1, 5)} highlights={highlights} />

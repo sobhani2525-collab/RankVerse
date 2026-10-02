@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Constellation from "@/components/Constellation";
+import { EgoGraph, EgoNode, getEgoGraph } from "@/lib/api";
 import { HomeTitle } from "@/lib/home-data";
 import { displayTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
@@ -11,7 +11,7 @@ import { toFaDigits } from "@/lib/format-number";
 import { detailPathFor } from "@/lib/entity-routes";
 
 interface PlacedNode {
-  title: HomeTitle;
+  node: EgoNode;
   x: number;
   y: number;
   r: number;
@@ -20,16 +20,12 @@ interface PlacedNode {
 interface Edge {
   a: number;
   b: number;
-  sharedDirector: boolean;
-  weight: number;
+  kind: "credit" | "genre";
 }
 
-// Server and browser Math.cos/sin can differ in the last digits, which
-// breaks hydration -- every computed coordinate goes through this.
+// Every computed coordinate goes through this so the markup is stable.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-// Cheap deterministic hash so a title keeps its spot across renders and
-// between server and client (no Math.random -> no hydration mismatch).
 function hash(str: string): number {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -39,82 +35,176 @@ function hash(str: string): number {
   return (h >>> 0) / 4294967295;
 }
 
+const INNER_R = 23;
+const OUTER_R = 40;
+const MIN_GAP = 34; // degrees between neighbours on the outer ring
+
+function circularMean(angles: number[]): number {
+  const x = angles.reduce((s, a) => s + Math.cos(a), 0);
+  const y = angles.reduce((s, a) => s + Math.sin(a), 0);
+  return Math.atan2(y, x);
+}
+
 /**
- * #1 sits at the centre; the next five on an inner orbit, the rest on an
- * outer one -- so position encodes rank, radius encodes score.
+ * Centre in the middle; the titles on an inner orbit; people and genres on
+ * an outer one, each sitting at the mean angle of the titles it links to so
+ * the edges stay short and don't cross the whole sky.
  */
-function placeNodes(titles: HomeTitle[]): PlacedNode[] {
-  const scores = titles.map((t) => t.score).filter((s): s is number => s !== null);
-  const min = Math.min(...scores);
-  const max = Math.max(...scores);
+function layout(graph: EgoGraph): { nodes: PlacedNode[]; edges: Edge[] } {
+  const centerIdx = graph.nodes.findIndex((n) => n.id === graph.center_id);
+  const ordered = [graph.nodes[centerIdx], ...graph.nodes.filter((_, i) => i !== centerIdx)];
+  const index = new Map(ordered.map((n, i) => [n.id, i]));
+  const edges: Edge[] = graph.edges.flatMap((e) => {
+    const a = index.get(e.source);
+    const b = index.get(e.target);
+    return a === undefined || b === undefined ? [] : [{ a, b, kind: e.kind }];
+  });
 
-  return titles.map((t, i) => {
-    const jitter = hash(t.id);
-    const norm = t.score === null || max === min ? 0.5 : (t.score - min) / (max - min);
-    const r = round2(1.2 + norm * 1.2 + (i === 0 ? 0.8 : 0));
+  const angle = new Map<number, number>(); // node index -> radians
+  const works = ordered.map((n, i) => ({ n, i })).filter(({ n }) => n.role === "work");
+  works.forEach(({ i }, k) => angle.set(i, ((-90 + (360 / works.length) * k) * Math.PI) / 180));
 
-    if (i === 0) return { title: t, x: 50, y: 50, r };
+  const outer = ordered.map((n, i) => ({ n, i })).filter(({ n }) => n.role === "person" || n.role === "genre");
+  const desired = outer.map(({ i }) => {
+    const linked = edges
+      .filter((e) => e.a === i || e.b === i)
+      .map((e) => angle.get(e.a === i ? e.b : e.a))
+      .filter((a): a is number => a !== undefined);
+    return linked.length > 0 ? circularMean(linked) : null;
+  });
+  // Unlinked ones (e.g. a title centre's own cast) spread over the free arc.
+  const free = desired.filter((d) => d === null).length;
+  let k = 0;
+  const deg = desired.map((d) => {
+    if (d !== null) return (d * 180) / Math.PI;
+    const a = -90 + 20 + ((360 - 40) / Math.max(1, free)) * k;
+    k++;
+    return a;
+  });
 
-    const inner = i <= 5;
-    const slot = inner ? i - 1 : i - 6;
-    const slots = inner ? 5 : Math.max(1, titles.length - 6);
-    const baseAngle = inner ? -90 + (360 / slots) * slot : -60 + (360 / slots) * slot;
-    const angle = ((baseAngle + (jitter - 0.5) * 18) * Math.PI) / 180;
-    const radius = (inner ? 24 : 40) + (jitter - 0.5) * 6;
+  // Relax: push neighbours on the ring apart until they stop overlapping.
+  const mod = (v: number) => ((v % 360) + 360) % 360;
+  const order = deg.map((_, j) => j).sort((p, q) => mod(deg[p]) - mod(deg[q]));
+  const norm = order.map((j) => mod(deg[j]));
+  for (let iter = 0; iter < 12 && norm.length > 1; iter++) {
+    for (let m = 0; m < norm.length; m++) {
+      const nxt = (m + 1) % norm.length;
+      let diff = norm[nxt] - norm[m];
+      if (nxt === 0) diff += 360;
+      if (diff < MIN_GAP) {
+        const push = (MIN_GAP - diff) / 2;
+        norm[m] -= push;
+        norm[nxt] += push;
+      }
+    }
+  }
+  order.forEach((j, m) => angle.set(outer[j].i, (norm[m] * Math.PI) / 180));
+
+  const nodes: PlacedNode[] = ordered.map((node, i) => {
+    if (i === 0) return { node, x: 50, y: 50, r: 3.6 };
+    const a = angle.get(i) ?? 0;
+    const radius = node.role === "work" ? INNER_R : OUTER_R;
+    const r = node.role === "work" ? 2.6 : node.role === "person" ? 2.1 : 1.5;
     return {
-      title: t,
-      x: round2(Math.min(94, Math.max(6, 50 + radius * Math.cos(angle)))),
-      y: round2(Math.min(94, Math.max(6, 50 + radius * Math.sin(angle)))),
+      node,
+      x: round2(Math.min(92, Math.max(8, 50 + radius * Math.cos(a)))),
+      y: round2(Math.min(92, Math.max(8, 50 + radius * Math.sin(a)))),
       r,
     };
   });
+  return { nodes, edges };
 }
 
-/**
- * Real relationships only: two titles are linked when they share a
- * director (strong) and/or genres (one point per shared genre). Each node
- * keeps at most its three strongest links so the sky stays readable.
- */
-function buildEdges(titles: HomeTitle[]): Edge[] {
-  const candidates: Edge[] = [];
-  for (let a = 0; a < titles.length; a++) {
-    for (let b = a + 1; b < titles.length; b++) {
-      const dirsA = new Set(titles[a].directors.map((d) => d.slug));
-      const genresA = new Set(titles[a].genres.map((g) => g.slug));
-      const sharedDirector = titles[b].directors.some((d) => dirsA.has(d.slug));
-      const sharedGenres = titles[b].genres.filter((g) => genresA.has(g.slug)).length;
-      const weight = (sharedDirector ? 3 : 0) + sharedGenres;
-      if (weight > 0) candidates.push({ a, b, sharedDirector, weight });
-    }
-  }
-
-  const kept = new Set<Edge>();
-  for (let n = 0; n < titles.length; n++) {
-    candidates
-      .filter((e) => e.a === n || e.b === n)
-      .sort((x, y) => y.weight - x.weight)
-      .slice(0, 3)
-      .forEach((e) => kept.add(e));
-  }
-  return [...kept];
+// Persian name when there is one, the original otherwise.
+function nameOf(n: EgoNode): string {
+  return n.entity_type === "genre" ? genreLabel(n.title) : n.title_fa ?? n.title;
 }
 
-export default function HeroConstellation({ titles }: { titles: HomeTitle[] }) {
-  const nodes = useMemo(() => placeNodes(titles), [titles]);
-  const edges = useMemo(() => buildEdges(titles), [titles]);
+function labelOf(n: EgoNode, max = 14): string {
+  const t = nameOf(n);
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+// Latin names need an LTR base direction or the ellipsis lands on the wrong end.
+const isLatin = (t: string) => !/[؀-ۿ]/.test(t);
+
+const ROLE_LABEL: Record<string, string> = { directed_by: "کارگردان", creator: "سازنده", acted_in: "بازیگر" };
+
+function roleOf(n: EgoNode): string | null {
+  if (n.entity_type !== "person" || !n.credits || n.credits.length === 0) return null;
+  return n.credits.map((c) => ROLE_LABEL[c]).filter(Boolean).join("، ");
+}
+
+const TYPE_LABEL: Record<string, string> = { movie: "فیلم", tv_series: "سریال", person: "هنرمند", genre: "ژانر" };
+
+export default function HeroConstellation({ titles, centerPool }: { titles: HomeTitle[]; centerPool: HomeTitle[] }) {
+  const [graph, setGraph] = useState<EgoGraph | null>(null);
   const [active, setActive] = useState<number | null>(null);
+  // Idle tour: while nobody hovers, the sky walks through the stars one by
+  // one, lighting a star and its links -- showing "these are connected".
+  const [tour, setTour] = useState<number | null>(null);
   const pointerType = useRef<string>("mouse");
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // The centre is random per visit and chosen after mount, so the cached
+  // server HTML never disagrees with the client. Iranian candidates first;
+  // the overall #1 is the fallback when there are none.
+  useEffect(() => {
+    let cancelled = false;
+    const pool = centerPool.length > 0 ? centerPool : titles.slice(0, 1);
+    const candidates = [...pool].sort(() => Math.random() - 0.5).slice(0, 4);
+    (async () => {
+      for (const c of candidates) {
+        try {
+          const g = await getEgoGraph(c.slug);
+          // A centre with nothing around it makes a lonely sky; try the next.
+          if (g.nodes.length >= 4) {
+            if (!cancelled) setGraph(g);
+            return;
+          }
+        } catch {
+          /* try the next candidate */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [centerPool, titles]);
+
+  const placed = useMemo(() => (graph ? layout(graph) : null), [graph]);
+  const nodes = placed?.nodes ?? [];
+  const edges = placed?.edges ?? [];
+  const focus = active ?? tour;
+
+  useEffect(() => {
+    if (active !== null || nodes.length === 0) {
+      setTour(null);
+      return;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let step = 0;
+    const tick = () => {
+      setTour(step % nodes.length);
+      step++;
+    };
+    const first = setTimeout(tick, 1200);
+    const id = setInterval(tick, 2600);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [active, nodes.length]);
+
   const connected = useMemo(() => {
-    if (active === null) return null;
-    const set = new Set<number>([active]);
+    if (focus === null) return null;
+    const set = new Set<number>([focus]);
     edges.forEach((e) => {
-      if (e.a === active) set.add(e.b);
-      if (e.b === active) set.add(e.a);
+      if (e.a === focus) set.add(e.b);
+      if (e.b === focus) set.add(e.a);
     });
     return set;
-  }, [active, edges]);
+  }, [focus, edges]);
 
   function show(i: number) {
     if (clearTimer.current) clearTimeout(clearTimer.current);
@@ -125,7 +215,6 @@ export default function HeroConstellation({ titles }: { titles: HomeTitle[] }) {
     clearTimer.current = setTimeout(() => setActive(null), 180);
   }
 
-  if (nodes.length === 0) return null;
   const activeNode = active !== null ? nodes[active] : null;
 
   return (
@@ -151,19 +240,23 @@ export default function HeroConstellation({ titles }: { titles: HomeTitle[] }) {
             <stop offset="60%" stopColor="#a78bfa" />
             <stop offset="100%" stopColor="#9163f5" stopOpacity="0.2" />
           </radialGradient>
+          <radialGradient id="rv-core-person" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#F2F0E8" />
+            <stop offset="60%" stopColor="#4FB8A6" />
+            <stop offset="100%" stopColor="#4FB8A6" stopOpacity="0.2" />
+          </radialGradient>
         </defs>
 
-        <g className="rv-drift">
+        {/* Orbit guides: inner = titles, outer = people and genres */}
+        <circle cx="50" cy="50" r={INNER_R} fill="none" stroke="#F2F0E8" strokeOpacity="0.13" strokeWidth="0.15" strokeDasharray="0.6 1.2" />
+        <circle cx="50" cy="50" r={OUTER_R} fill="none" stroke="#F2F0E8" strokeOpacity="0.11" strokeWidth="0.15" strokeDasharray="0.6 1.2" />
 
-          {/* Orbit guides: inner = ranks 2–6, outer = 7+ */}
-          <circle cx="50" cy="50" r="24" fill="none" stroke="#F2F0E8" strokeOpacity="0.05" strokeWidth="0.15" strokeDasharray="0.6 1.2" />
-          <circle cx="50" cy="50" r="40" fill="none" stroke="#F2F0E8" strokeOpacity="0.04" strokeWidth="0.15" strokeDasharray="0.6 1.2" />
-
+        <g className="rv-drift" key={graph?.center_id}>
           {edges.map((e, i) => {
             const A = nodes[e.a];
             const B = nodes[e.b];
-            const lit = active !== null && (e.a === active || e.b === active);
-            const dim = active !== null && !lit;
+            const lit = focus !== null && (e.a === focus || e.b === focus);
+            const dim = focus !== null && !lit;
             return (
               <line
                 key={i}
@@ -173,38 +266,65 @@ export default function HeroConstellation({ titles }: { titles: HomeTitle[] }) {
                 y2={B.y}
                 pathLength={1}
                 className="rv-draw transition-[stroke-opacity] duration-300"
-                stroke={e.sharedDirector ? "#E8B34A" : "#4FB8A6"}
-                strokeOpacity={lit ? 0.85 : dim ? 0.05 : 0.22 + Math.min(e.weight, 3) * 0.06}
-                strokeWidth={lit ? 0.35 : 0.18}
-                style={{ ["--rv-delay" as string]: `${round2(0.3 + i * 0.05)}s` }}
+                stroke={e.kind === "credit" ? "#E8B34A" : "#4FB8A6"}
+                strokeOpacity={lit ? 0.85 : dim ? 0.05 : 0.4}
+                strokeWidth={lit ? 0.35 : 0.2}
+                style={{ ["--rv-delay" as string]: `${round2(0.3 + i * 0.07)}s` }}
               />
             );
           })}
 
           {nodes.map((n, i) => {
             const dim = connected !== null && !connected.has(i);
+            const isGenre = n.node.role === "genre";
+            const isCenter = i === 0;
             return (
-              <g key={n.title.id} className="transition-opacity duration-300" opacity={dim ? 0.3 : 1}>
-                <circle
-                  cx={n.x}
-                  cy={n.y}
-                  r={round2(n.r * 1.9)}
-                  fill={i === 0 ? "#E8B34A" : "#9163f5"}
-                  className="rv-halo"
-                  style={{ ["--rv-delay" as string]: `${round2(hash(n.title.id) * 5)}s`, ["--rv-dur" as string]: `${round2(5 + hash(n.title.slug) * 4)}s` }}
-                />
-                <circle cx={n.x} cy={n.y} r={active === i ? round2(n.r * 1.3) : n.r} fill={i < 3 ? "url(#rv-core)" : "url(#rv-core-cool)"} className="transition-all duration-300" />
-                {(n.title.rank <= 5 || active === i) && (
+              <g key={n.node.id} className="transition-opacity duration-300" opacity={dim ? 0.3 : 1}>
+                {!isGenre && (
+                  <circle
+                    cx={n.x}
+                    cy={n.y}
+                    r={round2(n.r * 1.9)}
+                    fill={isCenter ? "#E8B34A" : n.node.role === "person" ? "#4FB8A6" : "#9163f5"}
+                    className="rv-halo"
+                    style={{ ["--rv-delay" as string]: `${round2(hash(n.node.id) * 5)}s`, ["--rv-dur" as string]: `${round2(5 + hash(n.node.slug) * 4)}s` }}
+                  />
+                )}
+                {isGenre ? (
+                  <circle cx={n.x} cy={n.y} r={active === i ? round2(n.r * 1.3) : n.r} fill="#070A12" stroke="#4FB8A6" strokeWidth="0.5" className="transition-all duration-300" />
+                ) : (
+                  <circle
+                    cx={n.x}
+                    cy={n.y}
+                    r={active === i ? round2(n.r * 1.3) : n.r}
+                    fill={isCenter ? "url(#rv-core)" : n.node.role === "person" ? "url(#rv-core-person)" : "url(#rv-core-cool)"}
+                    className="transition-all duration-300"
+                  />
+                )}
+                <text
+                  x={n.x}
+                  y={round2(n.y + (isGenre ? n.r : n.r * 1.9) + 2.6)}
+                  fontSize={isCenter ? 2.9 : 2.3}
+                  fontWeight={isCenter ? 700 : 400}
+                  textAnchor="middle"
+                  direction={isLatin(nameOf(n.node)) ? "ltr" : "rtl"}
+                  fill={focus === i ? "#E8B34A" : isCenter ? "#F2F0E8" : "#B9C0CF"}
+                  fillOpacity={focus === i || isCenter ? 1 : n.node.role === "work" ? 0.8 : 0.6}
+                  style={{ fontFamily: "var(--font-vazirmatn)" }}
+                >
+                  {labelOf(n.node, isCenter ? 22 : 14)}
+                </text>
+                {roleOf(n.node) && (
                   <text
-                    x={round2(n.x + n.r + 1.4)}
-                    y={round2(n.y - n.r - 0.4)}
-                    fontSize="2.4"
-                    direction="ltr"
-                    fill={active === i ? "#E8B34A" : "#8A93A6"}
-                    fillOpacity={active === i ? 1 : 0.75}
+                    x={n.x}
+                    y={round2(n.y + n.r * 1.9 + (isCenter ? 5.6 : 4.9))}
+                    fontSize={1.8}
+                    textAnchor="middle"
+                    fill="#8A93A6"
+                    fillOpacity={0.85}
                     style={{ fontFamily: "var(--font-vazirmatn)" }}
                   >
-                    {toFaDigits(n.title.rank)}
+                    {roleOf(n.node)}
                   </text>
                 )}
               </g>
@@ -213,12 +333,12 @@ export default function HeroConstellation({ titles }: { titles: HomeTitle[] }) {
         </g>
       </svg>
 
-      {/* Real, focusable hit targets over the SVG (one per title). */}
+      {/* Real, focusable hit targets over the SVG (one per node). */}
       {nodes.map((n, i) => (
         <Link
-          key={n.title.id}
-          href={detailPathFor(n.title.entity_type, n.title.slug) ?? `/movies/${n.title.slug}`}
-          aria-label={`${displayTitle(n.title)} — رتبه ${toFaDigits(n.title.rank)}`}
+          key={n.node.id}
+          href={detailPathFor(n.node.entity_type, n.node.slug) ?? `/movies/${n.node.slug}`}
+          aria-label={`${nameOf(n.node)} — ${TYPE_LABEL[n.node.entity_type] ?? ""}`}
           className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-gold"
           style={{ left: `${n.x}%`, top: `${n.y}%`, width: "9%", height: "9%", minWidth: 36, minHeight: 36 }}
           onPointerDown={(e) => {
@@ -238,27 +358,23 @@ export default function HeroConstellation({ titles }: { titles: HomeTitle[] }) {
         />
       ))}
 
-      {activeNode && (
-        <InfoCard
-          node={activeNode}
-          onEnter={() => show(active!)}
-          onLeave={hideSoon}
-        />
-      )}
+      {activeNode && <InfoCard node={activeNode} onEnter={() => show(active!)} onLeave={hideSoon} />}
     </div>
   );
 }
 
 function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () => void; onLeave: () => void }) {
-  const t = node.title;
+  const t = node.node;
   const href = detailPathFor(t.entity_type, t.slug) ?? `/movies/${t.slug}`;
   const toLeft = node.x > 50;
   const shiftY = node.y < 30 ? "-12%" : node.y > 70 ? "-88%" : "-50%";
+  const name = nameOf(t);
+  const role = roleOf(t);
 
   return (
     <div
       role="dialog"
-      aria-label={displayTitle(t)}
+      aria-label={name}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       className="rv-rise absolute z-20 w-64 rounded-2xl border border-white/10 bg-[#0A0F18]/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-md max-md:!inset-x-0 max-md:!bottom-0 max-md:!top-auto max-md:!w-auto max-md:!translate-y-0"
@@ -269,34 +385,28 @@ function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () =>
       }}
     >
       <div className="flex gap-3">
-        <div className="relative h-[84px] w-14 shrink-0 overflow-hidden rounded-md bg-surface2">
-          {t.posterUrl ? (
-            <Image src={t.posterUrl} alt="" fill sizes="56px" className="object-cover" />
-          ) : (
-            <span className="absolute inset-0 bg-gradient-brand opacity-40" />
-          )}
-        </div>
+        {t.entity_type !== "genre" && (
+          <div className="relative h-[84px] w-14 shrink-0 overflow-hidden rounded-md bg-surface2">
+            {t.image_url ? (
+              <Image src={t.image_url} alt="" fill sizes="56px" className="object-cover" />
+            ) : (
+              <span className="absolute inset-0 bg-gradient-brand opacity-40" />
+            )}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="num text-2xl font-bold text-gold">#{toFaDigits(t.rank)}</span>
+            <span className="text-[11px] font-medium text-gold">{TYPE_LABEL[t.entity_type] ?? ""}</span>
             {t.score !== null && <span className="num text-lg text-ink">{toFaDigits(t.score.toFixed(1))}</span>}
           </div>
-          <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-ink">{displayTitle(t)}</p>
-          {t.directors[0] && <p className="truncate text-xs text-muted">{t.directors[0].title_fa ?? t.directors[0].title}</p>}
+          <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-ink">{name}</p>
+          {role && <p className="text-xs text-muted">{role}</p>}
+          {t.year && <p className="num text-right text-xs text-muted">{toFaDigits(t.year)}</p>}
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/5 pt-3">
-        <div className="min-w-0 text-xs text-muted">
-          {t.genres.length > 0 && <p className="truncate">{t.genres.slice(0, 2).map((g) => genreLabel(g.title)).join(" · ")}</p>}
-          {t.year && <p className="num">{toFaDigits(t.year)}</p>}
-        </div>
-        {/* The same director/genre/year glyph the ranking rows use, fed real data. */}
-        <Constellation director={t.directors[0]?.title} genre={t.genres[0]?.title} year={t.year} size={48} />
       </div>
 
       <Link href={href} className="mt-3 flex items-center justify-center gap-1 rounded-lg border border-gold/30 bg-gold/10 py-2 text-xs font-semibold text-gold transition hover:bg-gold/20">
-        کاوش فیلم
+        کاوش
         <span aria-hidden="true">←</span>
       </Link>
     </div>

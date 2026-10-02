@@ -754,3 +754,29 @@ export async function getSimilarLists(title: string, signal?: AbortSignal): Prom
   }
   return json.data;
 }
+
+// --- Home hero: ego graph around one entity (see app/modules/entities/ego.py) ---
+
+export interface EgoNode {
+  id: string;
+  slug: string;
+  title: string;
+  title_fa: string | null;
+  entity_type: string;
+  year: number | null;
+  score: number | null;
+  image_url: string | null;
+  role: "center" | "work" | "person" | "genre";
+  // Persons only: "directed_by" | "creator" | "acted_in" on the board's titles.
+  credits?: string[];
+}
+
+export interface EgoGraph {
+  center_id: string;
+  nodes: EgoNode[];
+  edges: { source: string; target: string; kind: "credit" | "genre" }[];
+}
+
+export async function getEgoGraph(slug: string): Promise<EgoGraph> {
+  return fetchEnvelope<EgoGraph>(`/graph/ego/${encodeURIComponent(slug)}`, DETAIL_TTL);
+}
