@@ -112,7 +112,7 @@ async function loadFocus(kind: Exclude<Kind, "year">, slug: string): Promise<Foc
       .filter(({ m }) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
       .slice(0, MAX_SATELLITES)
       .map(({ m, relation }) => titleSatellite(m, relation));
-    return { kind, slug, label: p.title_fa ?? p.title, caption: "شخص", posterUrl: p.media.image_url, satellites: sats };
+    return { kind, slug, label: p.title_fa ?? p.title, caption: "هنرمند", posterUrl: p.media.image_url, satellites: sats };
   }
 
   const g = await getGenreBySlug(slug);
@@ -214,7 +214,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
         <SectionHeading
           kicker="Everything is connected"
           title="همه‌چیز به هم وصل است."
-          lead="روی هر گره بزنید تا مرکز کهکشان شود: کارگردان به فیلم‌هایش، ژانر به عنوان‌هایش، فیلم به آدم‌ها و ژانرهایش."
+          lead="روی هر گره بزنید تا مرکز کهکشان شود: کارگردان به فیلم‌هایش، ژانر به عنوان‌هایش، فیلم به هنرمندانش و ژانرهایش."
         />
 
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)]">
@@ -357,7 +357,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                 [
                   ["movie", "فیلم"],
                   ["tv_series", "سریال"],
-                  ["person", "شخص"],
+                  ["person", "هنرمند"],
                   ["genre", "ژانر"],
                   ["year", "سال"],
                 ] as const

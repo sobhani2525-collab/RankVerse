@@ -13,7 +13,7 @@ const NAV_LINKS = [
   { href: "/#universe", label: "کاوش", match: null },
   { href: "/rankings", label: "فیلم‌ها", match: null },
   { href: "/rankings?type=tv_series", label: "سریال‌ها", match: null },
-  { href: "/people", label: "اشخاص", match: "/people" },
+  { href: "/people", label: "هنرمندان", match: "/people" },
   { href: "/lists", label: "فهرست‌ها", match: "/lists" },
 ];
 

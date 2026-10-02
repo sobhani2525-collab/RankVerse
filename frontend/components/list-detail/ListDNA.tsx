@@ -97,7 +97,7 @@ export default function ListDNA({
 
       {dna.hubs.length > 0 && (
         <div className="flex flex-col gap-2.5">
-          <BlockLabel en="HUBS" fa="پرتکرارترین آدم‌ها" />
+          <BlockLabel en="HUBS" fa="پرتکرارترین هنرمندان" />
           <div className="flex flex-wrap gap-1.5">
             {dna.hubs.map((h) => (
               <Chip key={h.entity.id} href={entityHref("person", h.entity.slug)} tone={PEOPLE_CHIP} ltr={!h.entity.title_fa}>

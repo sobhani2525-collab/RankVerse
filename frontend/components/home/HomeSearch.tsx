@@ -13,7 +13,7 @@ import { detailPathFor } from "@/lib/entity-routes";
 const GROUPS: { type: string; label: string; kicker: string; tone: string }[] = [
   { type: "movie", label: "فیلم‌ها", kicker: "Movies", tone: "border-gold/40 text-gold" },
   { type: "tv_series", label: "سریال‌ها", kicker: "Series", tone: "border-violet-soft/40 text-violet-soft" },
-  { type: "person", label: "آدم‌ها", kicker: "People", tone: "border-violet/40 text-violet-soft" },
+  { type: "person", label: "هنرمندان", kicker: "People", tone: "border-violet/40 text-violet-soft" },
   { type: "genre", label: "ژانرها", kicker: "Genres", tone: "border-teal/40 text-teal" },
   { type: "track", label: "موسیقی", kicker: "Tracks", tone: "border-teal/40 text-teal" },
 ];
@@ -82,7 +82,7 @@ export default function HomeSearch({ suggestions }: { suggestions: string[] }) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="یک فیلم، سریال، آدم یا ژانر…"
+            placeholder="یک فیلم، سریال، هنرمند یا ژانر…"
             autoComplete="off"
             className="w-full rounded-2xl border border-white/10 bg-[#05070D] px-6 py-5 text-lg text-ink placeholder:text-muted/60 focus:border-gold/50 focus:outline-none"
           />

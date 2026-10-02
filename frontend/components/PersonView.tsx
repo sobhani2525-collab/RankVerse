@@ -69,7 +69,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
                   <MonoLabel size="text-[10px]" className="text-gold">
                     PERSON
                   </MonoLabel>
-                  <span className="text-xs text-muted">شخص</span>
+                  <span className="text-xs text-muted">هنرمند</span>
                 </div>
               </div>
 
@@ -115,7 +115,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
 
           {(data.related_people?.length ?? 0) > 0 && (
             <div className="mt-14">
-              <SectionHeading en="RELATED PEOPLE" fa="اشخاص مرتبط" tone="text-gold" />
+              <SectionHeading en="RELATED PEOPLE" fa="هنرمندان مرتبط" tone="text-gold" />
               <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
                 {data.related_people?.map((p) => (
                   <PersonCard key={p.id} person={p} hideWorks />

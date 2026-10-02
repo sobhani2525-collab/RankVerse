@@ -43,7 +43,7 @@ export const TAG_CHIP = "border-border text-muted";
 const TYPE_LABELS: Record<string, { en: string; fa: string }> = {
   movie: { en: "MOVIE", fa: "فیلم" },
   tv_series: { en: "SERIES", fa: "سریال" },
-  person: { en: "PERSON", fa: "شخص" },
+  person: { en: "PERSON", fa: "هنرمند" },
   genre: { en: "GENRE", fa: "ژانر" },
   track: { en: "TRACK", fa: "قطعه" },
 };

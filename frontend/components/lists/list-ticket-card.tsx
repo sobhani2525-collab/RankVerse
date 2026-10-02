@@ -29,8 +29,8 @@ const NAME_SHADOW = { textShadow: "0 1px 3px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0
  *  perforation, then the list's text and stats. The whole card is one link,
  *  so nothing inside is interactive. */
 export default function ListTicketCard({ list }: { list: TicketCardList }) {
-  // People lists (actors, directors, ...) are labelled just "شخص" here.
-  const typeLabel = list.entityType === "person" ? "شخص" : list.entityType ? entityTypeLabel(list.entityType) : null;
+  // People lists (actors, directors, ...) are labelled just "هنرمند" here.
+  const typeLabel = list.entityType === "person" ? "هنرمند" : list.entityType ? entityTypeLabel(list.entityType) : null;
 
   return (
     <Link

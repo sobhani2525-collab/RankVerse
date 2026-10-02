@@ -19,7 +19,7 @@ const TYPE_OPTIONS: { value: ListTypeFilter; label: string }[] = [
   { value: "all", label: "همه" },
   { value: "movie", label: "فیلم" },
   { value: "tv_series", label: "سریال" },
-  { value: "person", label: "شخص" },
+  { value: "person", label: "هنرمند" },
 ];
 
 const chip = "inline-flex min-h-[44px] items-center rounded-full border px-5 text-sm transition";

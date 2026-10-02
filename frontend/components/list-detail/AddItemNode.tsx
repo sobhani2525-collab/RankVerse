@@ -230,7 +230,7 @@ export default function AddItemNode({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="عنوان فیلم، سریال یا شخص"
+              placeholder="عنوان فیلم، سریال یا هنرمند"
               aria-label="جستجوی عنوان"
               className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-dim"
             />

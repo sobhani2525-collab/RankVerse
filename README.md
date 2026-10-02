@@ -61,7 +61,7 @@ pytest tests/
 هر ماژول زیر `app/modules/` مستقل و خودکفاست (model, schema, repository, service, router).
 جزئیات کامل در فایل توضیح‌داده‌شده در گفتگو موجود است. خلاصه:
 
-- `entities/` → فیلم، شخص، ژانر (گره‌های گراف دانش)
+- `entities/` → فیلم، هنرمند، ژانر (گره‌های گراف دانش)
 - `ranking/` → فرمول امتیازدهی بیزی + بلند کردن با امتیاز خارجی
 - `users/` → ثبت‌نام، رای‌دهی
 - `auth/` → JWT access/refresh token

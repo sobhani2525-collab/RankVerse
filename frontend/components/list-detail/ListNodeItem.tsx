@@ -115,7 +115,7 @@ export default function ListNodeItem({
           <div className="flex flex-col gap-3.5 pt-1 sm:flex-row sm:flex-wrap sm:gap-7 sm:pt-3">
             {people.length > 0 && (
               <div className="flex flex-col items-start gap-2">
-                <RowLabel dot="bg-violet-light" en="PEOPLE" fa="آدم‌ها" />
+                <RowLabel dot="bg-violet-light" en="PEOPLE" fa="هنرمندان" />
                 <div className="flex flex-wrap gap-1.5">
                   {people.map((p) => (
                     <Chip key={p.id} href={entityHref("person", p.slug)} tone={PEOPLE_CHIP} ltr={!p.title_fa}>

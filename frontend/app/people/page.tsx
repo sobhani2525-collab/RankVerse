@@ -68,7 +68,7 @@ export default async function PeoplePage({
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
       <p className="kicker text-teal/80">The people behind the screen</p>
-      <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">اشخاص</h1>
+      <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">هنرمندان</h1>
       <p className="mt-2 text-sm text-muted">کارگردانان، بازیگران و سازندگان، بر اساس تعداد آثار و امتیاز آثارشان در RankVerse.</p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -110,7 +110,7 @@ export default async function PeoplePage({
           </div>
         ) : result.items.length === 0 ? (
           <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-            شخصی با این فیلترها پیدا نشد.
+            هنرمندی با این فیلترها پیدا نشد.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-6">

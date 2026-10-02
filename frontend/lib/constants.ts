@@ -7,7 +7,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   tv_series: "سریال",
   track: "موسیقی",
   album: "آلبوم",
-  person: "شخصیت",
+  person: "هنرمند",
   genre: "ژانر",
   country: "کشور",
 };
