@@ -19,6 +19,16 @@ export interface GraphFocusRequest {
 }
 
 export const GRAPH_SECTION_ID = "universe";
+// The graph canvas itself; scrolling to this (centred) instead of the
+// section top keeps the heading from eating the viewport.
+export const GRAPH_CANVAS_ID = "universe-graph";
+
+export function scrollToGraph(): void {
+  const target = document.getElementById(GRAPH_CANVAS_ID) ?? document.getElementById(GRAPH_SECTION_ID);
+  if (!target) return;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+}
 
 export function requestGraphFocus(request: GraphFocusRequest): void {
   window.dispatchEvent(new CustomEvent<GraphFocusRequest>(GRAPH_FOCUS_EVENT, { detail: request }));

@@ -8,7 +8,7 @@ import { displayTitle } from "@/lib/title";
 import { entityTypeLabel } from "@/lib/constants";
 import { genreLabel } from "@/lib/genre-labels";
 import { detailPathFor } from "@/lib/entity-routes";
-import { GRAPH_FOCUS_KINDS, GRAPH_SECTION_ID, GraphFocusKind, requestGraphFocus } from "@/lib/graph-focus";
+import { GRAPH_FOCUS_KINDS, GRAPH_SECTION_ID, GraphFocusKind, requestGraphFocus, scrollToGraph } from "@/lib/graph-focus";
 
 const MAX_RESULTS = 6;
 
@@ -90,8 +90,7 @@ export default function HeroGraphSearch() {
       return;
     }
     requestGraphFocus({ kind: r.type as GraphFocusKind, slug: r.slug });
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    section.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    scrollToGraph();
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

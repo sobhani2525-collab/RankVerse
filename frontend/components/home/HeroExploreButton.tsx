@@ -1,6 +1,6 @@
 "use client";
 
-import { GRAPH_FOCUS_KINDS, GRAPH_SECTION_ID, getHeroCenter, requestGraphFocus } from "@/lib/graph-focus";
+import { GRAPH_FOCUS_KINDS, GRAPH_SECTION_ID, getHeroCenter, requestGraphFocus, scrollToGraph } from "@/lib/graph-focus";
 
 export default function HeroExploreButton({ className }: { className?: string }) {
   function onClick(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -9,8 +9,7 @@ export default function HeroExploreButton({ className }: { className?: string })
     e.preventDefault();
     const center = getHeroCenter();
     if (center && GRAPH_FOCUS_KINDS.has(center.kind)) requestGraphFocus(center);
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    section.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    scrollToGraph();
   }
 
   return (

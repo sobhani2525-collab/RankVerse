@@ -11,7 +11,7 @@ import { displayTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 import { detailPathFor } from "@/lib/entity-routes";
-import { GRAPH_FOCUS_EVENT, GRAPH_SECTION_ID, GraphFocusRequest } from "@/lib/graph-focus";
+import { GRAPH_CANVAS_ID, GRAPH_FOCUS_EVENT, GRAPH_SECTION_ID, GraphFocusRequest } from "@/lib/graph-focus";
 
 type Kind = "movie" | "tv_series" | "person" | "genre" | "year";
 
@@ -218,7 +218,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
         />
 
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)]">
-          <div className="relative mx-auto aspect-square w-full max-w-[600px]">
+          <div id={GRAPH_CANVAS_ID} className="relative mx-auto aspect-square w-full max-w-[600px]">
             <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
               <circle cx="50" cy="50" r="37" fill="none" stroke="#F2F0E8" strokeOpacity="0.05" strokeWidth="0.2" strokeDasharray="0.5 1.5" />
               {placed.map(({ s, x, y }, i) => (
@@ -237,6 +237,13 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                 />
               ))}
             </svg>
+
+            {loadingKey && (
+              <div role="status" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-full bg-[#070A12]/60 backdrop-blur-[2px]">
+                <span className="h-10 w-10 animate-spin rounded-full border-2 border-gold/30 border-t-gold" aria-hidden="true" />
+                <span className="text-sm text-ink">در حال دریافت اتصال‌ها…</span>
+              </div>
+            )}
 
             {/* Centre node */}
             <div className="absolute left-1/2 top-1/2 z-10 flex w-[34%] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center">
