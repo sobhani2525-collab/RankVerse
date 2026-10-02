@@ -528,6 +528,14 @@ export async function addListComment(
   return authFetch(`/lists/${encodeListSlug(slug)}/comments`, token, { method: "POST", body: payload });
 }
 
+export async function getEntityComments(entityId: string): Promise<ListComment[]> {
+  return fetchEnvelope<ListComment[]>(`/entities/${entityId}/comments`, 0);
+}
+
+export async function addEntityComment(token: string, entityId: string, payload: { body: string }): Promise<ListComment> {
+  return authFetch(`/entities/${entityId}/comments`, token, { method: "POST", body: payload });
+}
+
 // --- Search: global site search (no type = every entity_type) and
 // list-scoped search (a type filters to one entity_type, e.g. adding an
 // item to a movie-only list) ---

@@ -1,9 +1,13 @@
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.schemas import (
     AlbumSummary,
+    EntityCommentCreate,
+    EntityCommentPublic,
     MediaInfo,
     MovieDetail,
     MovieListItem,
@@ -257,6 +261,32 @@ class EntityService:
         acted_in_edges = edges["acted_in"]
         performed_by_edges = edges["performed_by"]
 
+        # Related people = frequent collaborators (shared titles), topped up
+        # with the most-credited people of the same field and origin.
+        related_people = [
+            PersonListItem(
+                id=e.id,
+                slug=e.slug,
+                title=e.title,
+                title_fa=(e.attributes or {}).get("title_fa"),
+                media=_extract_media(e.attributes),
+                works_count=n,
+            )
+            for e, n in await self.repo.list_collaborators(entity.id, 12)
+        ]
+        if len(related_people) < 12:
+            role_counts = {
+                "director": len(directed_edges),
+                "creator": len(created_edges),
+                "actor": len(acted_in_edges),
+            }
+            top_role = max(role_counts, key=lambda r: role_counts[r])
+            if role_counts[top_role] > 0:
+                origin = "persian" if entity.attributes.get("title_fa") else "foreign"
+                candidates, _ = await self.list_people(page=1, page_size=24, role=top_role, origin=origin)
+                seen = {p.id for p in related_people} | {entity.id}
+                related_people += [p for p in candidates if p.id not in seen][: 12 - len(related_people)]
+
         return PersonDetail(
             id=entity.id,
             slug=entity.slug,
@@ -289,7 +319,24 @@ class EntityService:
                 ),
                 key=_by_score_desc,
             ),
+            related_people=related_people,
         )
+
+    async def add_comment(self, user_id: uuid.UUID, username: str, entity_id: uuid.UUID, payload: EntityCommentCreate) -> EntityCommentPublic:
+        if not await self.repo.get_by_id(entity_id):
+            raise NotFoundError("Entity not found")
+        comment = await self.repo.add_comment(entity_id, user_id, payload.body)
+        await self.db.commit()
+        return EntityCommentPublic(
+            id=comment.id, user_id=user_id, username=username, body=comment.body, created_at=comment.created_at
+        )
+
+    async def list_comments(self, entity_id: uuid.UUID) -> list[EntityCommentPublic]:
+        rows = await self.repo.list_comments(entity_id)
+        return [
+            EntityCommentPublic(id=c.id, user_id=c.user_id, username=u, body=c.body, created_at=c.created_at)
+            for c, u in rows
+        ]
 
     async def get_genre_detail(self, slug: str) -> GenreDetail:
         entity = await self.repo.get_by_slug(slug, entity_type="genre")

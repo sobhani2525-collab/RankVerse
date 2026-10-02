@@ -5,7 +5,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import aliased, contains_eager, joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.entities.models import Entity, RelationshipEdge, EntityRanking
+from app.modules.entities.models import Entity, EntityComment, RelationshipEdge, EntityRanking
+from app.modules.users.models import User
 
 
 def _persian_work(entity):
@@ -167,6 +168,48 @@ class EntityRepository:
         if not rows:
             return [], 0
         return [(e, int(w), float(a) if a is not None else None) for e, w, a, _ in rows], rows[0][3]
+
+    async def list_collaborators(
+        self, person_id: uuid.UUID, limit: int
+    ) -> list[tuple[Entity, int]]:
+        """People credited (director/creator/actor) on the same titles as
+        `person_id`, most shared titles first."""
+        credit_types = ["directed_by", "creator", "acted_in"]
+        mine = aliased(RelationshipEdge)
+        theirs = aliased(RelationshipEdge)
+        shared = func.count(func.distinct(mine.from_entity_id))
+        stmt = (
+            select(Entity, shared.label("shared"))
+            .select_from(mine)
+            .join(theirs, theirs.from_entity_id == mine.from_entity_id)
+            .join(Entity, Entity.id == theirs.to_entity_id)
+            .where(
+                mine.to_entity_id == person_id,
+                mine.relation_type.in_(credit_types),
+                theirs.relation_type.in_(credit_types),
+                theirs.to_entity_id != person_id,
+                Entity.entity_type == "person",
+            )
+            .group_by(Entity.id)
+            .order_by(shared.desc(), Entity.title, Entity.id)
+            .limit(limit)
+        )
+        return [(e, int(n)) for e, n in (await self.db.execute(stmt)).all()]
+
+    async def add_comment(self, entity_id: uuid.UUID, user_id: uuid.UUID, body: str) -> EntityComment:
+        comment = EntityComment(entity_id=entity_id, user_id=user_id, body=body)
+        self.db.add(comment)
+        await self.db.flush()
+        return comment
+
+    async def list_comments(self, entity_id: uuid.UUID) -> list[tuple[EntityComment, str]]:
+        stmt = (
+            select(EntityComment, User.username)
+            .join(User, User.id == EntityComment.user_id)
+            .where(EntityComment.entity_id == entity_id)
+            .order_by(EntityComment.created_at.asc())
+        )
+        return [(c, u) for c, u in (await self.db.execute(stmt)).all()]
 
     async def get_relationships(
         self, entity_id: uuid.UUID, relation_type: str

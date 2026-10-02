@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { addListComment } from "@/lib/api";
+import { addEntityComment, addListComment } from "@/lib/api";
 import { ListComment } from "@/lib/types";
 import { toFaDigits } from "@/lib/format-number";
 import { SectionHeading } from "@/components/list-detail/ui";
@@ -14,9 +14,13 @@ function formatDate(iso: string) {
 
 export default function ListComments({
   slug,
+  entityId,
   initialComments,
 }: {
-  slug: string;
+  /** A list's slug... */
+  slug?: string;
+  /** ...or the id of an entity (person page) whose comments these are. */
+  entityId?: string;
   initialComments: ListComment[];
 }) {
   const { getToken, user } = useAuth();
@@ -32,7 +36,8 @@ export default function ListComments({
     setSubmitting(true);
     setError(null);
     try {
-      const comment = await addListComment(token, slug, { body: body.trim() });
+      const payload = { body: body.trim() };
+      const comment = entityId ? await addEntityComment(token, entityId, payload) : await addListComment(token, slug ?? "", payload);
       setComments((prev) => [...prev, { ...comment, username: user?.username ?? comment.username }]);
       setBody("");
     } catch (err) {

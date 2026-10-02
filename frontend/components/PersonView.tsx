@@ -7,9 +7,13 @@ import MediaPlayer from "@/components/MediaPlayer";
 import EntityDescription from "@/components/EntityDescription";
 import RelatedList from "@/components/RelatedList";
 import RelatedEntities from "@/components/RelatedEntities";
+import PersonCard from "@/components/PersonCard";
+import { MonoLabel, SectionHeading } from "@/components/list-detail/ui";
 import EntityLists from "@/components/EntityLists";
-import { getRelatedEntities, RelatedEntity } from "@/lib/api";
-import { PersonDetail } from "@/lib/types";
+import ListComments from "@/components/ListComments";
+import PersonBattle from "@/components/PersonBattle";
+import { getEntityComments, getRelatedEntities, RelatedEntity } from "@/lib/api";
+import { ListComment, PersonDetail } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 
 export default async function PersonView({ data }: { data: PersonDetail }) {
@@ -18,6 +22,13 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
     related = await getRelatedEntities(data.id);
   } catch {
     related = [];
+  }
+
+  let comments: ListComment[] = [];
+  try {
+    comments = await getEntityComments(data.id);
+  } catch {
+    comments = [];
   }
 
   const posterUrl = data.media?.image_url ?? null;
@@ -30,31 +41,54 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
       </Link>
 
       <div className="mt-6 flex flex-col gap-8 sm:flex-row">
-        {posterUrl && (
-          // Same treatment as the movie/tv-series hero poster -- deliberately
-          // bigger than any related-entity card so it reads as the primary
-          // image on the page.
-          <div className="h-96 w-64 shrink-0 overflow-hidden rounded-xl bg-surface2 sm:mx-0 mx-auto">
+        {/* Same hero photo block as the movie page. */}
+        <div className="h-[480px] w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
+          {posterUrl ? (
             <Image
               src={posterUrl}
               alt={data.title_fa ?? data.title}
-              width={256}
-              height={384}
+              width={320}
+              height={480}
               className="h-full w-full object-cover"
             />
-          </div>
-        )}
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm text-muted">
+              بدون تصویر
+            </div>
+          )}
+        </div>
 
-        <div className="max-w-3xl flex-1">
+        <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
-            <h1 className="font-display text-2xl text-ink">{displayTitle(data)}</h1>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-gold">
+                  <span className="h-2 w-2 rounded-full bg-gold" />
+                </span>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <MonoLabel size="text-[10px]" className="text-gold">
+                    PERSON
+                  </MonoLabel>
+                  <span className="text-xs text-muted">شخص</span>
+                </div>
+              </div>
+
+              <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
+                {data.title_fa ?? data.title}.
+              </h1>
+              {data.title_fa && (
+                <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
+                  {data.title}.
+                </p>
+              )}
+            </div>
             <div className="flex shrink-0 items-center gap-2">
-              <DetailFavoriteButton entity={personEntity} size={44} />
-              <DetailShareButton entity={personEntity} title={data.title_fa ?? data.title} size={44} />
+              <DetailFavoriteButton entity={personEntity} size={48} shape="square" />
+              <DetailShareButton entity={personEntity} title={displayTitle(data)} size={48} shape="square" />
             </div>
           </div>
 
-          <div className="mt-3 flex justify-end">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <AddToListMenu entity={personEntity} />
           </div>
 
@@ -63,23 +97,41 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
         </div>
       </div>
 
-      <div className="mt-10">
-        <RelatedEntities items={related} />
+      <div className="flex flex-col gap-12 lg:flex-row lg:items-start lg:gap-14">
+        <div className="min-w-0 flex-1">
+          <div className="mt-14">
+            <RelatedEntities items={related} tone="text-gold" />
+          </div>
+
+          {/* Movie/tv-series credits use the same poster-card grid as the
+              movie page; tracks/albums aren't "فیلم و سریال" so they keep
+              the compact ranked-row layout. */}
+          <RelatedList title="کارگردانی‌ها" en="DIRECTED" items={data.directed} display="cards" />
+          <RelatedList title="ساخته‌ها" en="CREATED" items={data.created} display="cards" />
+          <RelatedList title="بازیگری‌ها" en="ACTED IN" items={data.acted_in} display="cards" />
+
+          <RelatedList title="آهنگ‌ها" en="TRACKS" items={data.tracks} />
+          <RelatedList title="آلبوم‌ها" en="ALBUMS" items={data.albums} />
+
+          {(data.related_people?.length ?? 0) > 0 && (
+            <div className="mt-14">
+              <SectionHeading en="RELATED PEOPLE" fa="اشخاص مرتبط" tone="text-gold" />
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
+                {data.related_people?.map((p) => (
+                  <PersonCard key={p.id} person={p} hideWorks />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Same side column as the list page: battle, lists, comments. */}
+        <aside className="flex shrink-0 flex-col gap-10 lg:mt-14 lg:w-[380px] lg:gap-7">
+          <PersonBattle directed={data.directed} created={data.created} actedIn={data.acted_in} />
+          <EntityLists entityId={data.id} variant="sidebar" />
+          <ListComments entityId={data.id} initialComments={comments} />
+        </aside>
       </div>
-
-      {/* Movie/tv-series credits use the same poster-card grid as the home
-          page; tracks/albums aren't "فیلم و سریال" so they keep the
-          compact ranked-row layout, in its own readable column. */}
-      <RelatedList title="کارگردانی‌ها" items={data.directed} display="cards" />
-      <RelatedList title="ساخته‌ها" items={data.created} display="cards" />
-      <RelatedList title="بازیگری‌ها" items={data.acted_in} display="cards" />
-
-      <div className="max-w-3xl">
-        <RelatedList title="آهنگ‌ها" items={data.tracks} />
-        <RelatedList title="آلبوم‌ها" items={data.albums} />
-      </div>
-
-      <EntityLists entityId={data.id} />
     </main>
   );
 }

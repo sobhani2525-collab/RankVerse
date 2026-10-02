@@ -19,6 +19,7 @@ export default function TrackView({ data }: { data: TrackDetail }) {
 
       <RelatedList
         title={data.artist ? `آهنگ‌های دیگر از ${data.artist.title}` : undefined}
+        en="MORE TRACKS"
         items={data.other_tracks}
       />
 

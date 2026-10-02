@@ -60,8 +60,8 @@ export default async function EntityLists({
   }
 
   return (
-    <div className="mt-10">
-      <h2 className="text-lg font-bold text-ink">لیست‌های مرتبط</h2>
+    <div className="mt-14">
+      <SectionHeading en="RELATED LISTS" fa="لیست‌های مرتبط" tone="text-gold" />
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {lists.map((list) => (
           <ListCard key={list.id} list={listSummaryToListCard(list)} />

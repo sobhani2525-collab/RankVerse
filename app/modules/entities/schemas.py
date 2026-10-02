@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MediaInfo(BaseModel):
@@ -106,6 +107,7 @@ class PersonDetail(BaseModel):
     acted_in: list[MovieListItem] = []
     tracks: list[MovieListItem] = []
     albums: list[MovieListItem] = []
+    related_people: list[PersonListItem] = []
 
 
 class GenreDetail(GenreSummary):
@@ -131,3 +133,16 @@ class TrackDetail(BaseModel):
     artist: PersonSummary | None = None
     album: AlbumSummary | None = None
     other_tracks: list[MovieListItem] = []
+
+
+class EntityCommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+
+
+class EntityCommentPublic(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    username: str | None = None
+    body: str
+    parent_comment_id: uuid.UUID | None = None
+    created_at: datetime

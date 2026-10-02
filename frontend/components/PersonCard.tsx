@@ -7,7 +7,7 @@ import { displayTitle } from "@/lib/title";
 import type { PersonListItem } from "@/lib/api";
 
 /** Poster-card look for a person: 2:3 photo, name, credit-count pill. */
-export default function PersonCard({ person }: { person: PersonListItem }) {
+export default function PersonCard({ person, hideWorks = false }: { person: PersonListItem; hideWorks?: boolean }) {
   const href = `/person/${person.slug}`;
   const photo = person.media.image_url;
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -58,9 +58,9 @@ export default function PersonCard({ person }: { person: PersonListItem }) {
         {displayTitle(person)}
       </Link>
 
-      <span className="w-fit rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
+      {!hideWorks && <span className="w-fit rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
         <span className="num">{toFaDigits(person.works_count)}</span> اثر
-      </span>
+      </span>}
     </div>
   );
 }

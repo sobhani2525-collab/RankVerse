@@ -7,6 +7,7 @@ interface RelatedEntitiesProps {
   /** Ids already shown in "ساخته‌های دیگر X" (DirectorWorks) -- filtered out
    *  here so the two sections don't repeat the same title. */
   excludeIds?: string[];
+  tone?: string;
 }
 
 // build_reason() (app/modules/recommendations/router.py) joins its parts
@@ -23,14 +24,14 @@ function whyChipsFor(reason: string | null): PosterCardWhyChip[] {
     .map((text): PosterCardWhyChip => ({ text, tone: text.startsWith("ژانر مشترک") ? "genre" : "people" }));
 }
 
-export default function RelatedEntities({ items, excludeIds = [] }: RelatedEntitiesProps) {
+export default function RelatedEntities({ items, excludeIds = [], tone }: RelatedEntitiesProps) {
   const excluded = new Set(excludeIds);
   const shown = items.filter((item) => !excluded.has(item.id));
   if (shown.length === 0) return null;
 
   return (
     <div>
-      <SectionHeading en="IF YOU LIKED" fa="اگر این را دوست داشتی" />
+      <SectionHeading en="IF YOU LIKED" fa="اگر این را دوست داشتی" tone={tone} />
       <div className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
         {shown.map((item) => (
           <PosterCard key={item.id} entity={item} why={whyChipsFor(item.reason)} />

@@ -3,9 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
-from app.modules.auth.dependencies import get_current_user_optional
+import uuid
+
+from app.modules.auth.dependencies import get_current_user, get_current_user_optional
 from app.modules.battles.schemas import SuggestedBattleResponse, SuggestedBattleEntity
 from app.modules.battles.suggested import SuggestedBattleService
+from app.modules.entities.schemas import EntityCommentCreate
 from app.modules.entities.service import EntityService
 from app.modules.users.models import User
 
@@ -104,3 +107,20 @@ async def get_track(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = EntityService(db)
     track = await service.get_track_detail(slug)
     return envelope(data=track.model_dump())
+
+
+@router.get("/entities/{entity_id}/comments")
+async def list_entity_comments(entity_id: uuid.UUID, db: AsyncSession = Depends(get_read_db)):
+    comments = await EntityService(db).list_comments(entity_id)
+    return envelope(data=[c.model_dump() for c in comments])
+
+
+@router.post("/entities/{entity_id}/comments")
+async def add_entity_comment(
+    entity_id: uuid.UUID,
+    payload: EntityCommentCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    comment = await EntityService(db).add_comment(current_user.id, current_user.username, entity_id, payload)
+    return envelope(data=comment.model_dump())

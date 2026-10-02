@@ -1,3 +1,4 @@
+import type { PersonListItem } from "./api";
 export interface Envelope<T> {
   data: T;
   meta: { page?: number; page_size?: number; total?: number } | null;
@@ -94,6 +95,7 @@ export interface PersonDetail {
   acted_in: MovieListItem[];
   tracks: MovieListItem[];
   albums: MovieListItem[];
+  related_people: PersonListItem[];
 }
 
 export interface GenreDetail {
