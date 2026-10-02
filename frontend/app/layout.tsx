@@ -33,6 +33,12 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true, "max-image-preview": "large" },
 };
 
+// Form-autofill browser extensions stamp `fdprocessedid` on every button/input
+// before React hydrates, which triggers a hydration-mismatch warning on
+// whichever element is first. Strip it as it appears so hydration sees clean
+// markup. Harmless without the extension.
+const STRIP_EXTENSION_ATTRS = `(function(){var A="fdprocessedid";function s(r){if(r.querySelectorAll)r.querySelectorAll("["+A+"]").forEach(function(e){e.removeAttribute(A)})}s(document);new MutationObserver(function(m){m.forEach(function(x){if(x.type==="attributes")x.target.removeAttribute(A);else x.addedNodes.forEach(function(n){if(n.nodeType===1){if(n.hasAttribute(A))n.removeAttribute(A);s(n)}})})}).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:[A]});})();`;
+
 export default function RootLayout({
   children,
 }: {
@@ -44,6 +50,9 @@ export default function RootLayout({
       dir="rtl"
       className={`${vazirmatn.variable} ${jetbrainsMono.variable} ${lalezar.variable}`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: STRIP_EXTENSION_ATTRS }} />
+      </head>
       <body className="min-h-screen antialiased">
         <AuthProvider>
           <AuthGateProvider>
