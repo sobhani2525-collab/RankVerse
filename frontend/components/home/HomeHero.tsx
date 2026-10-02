@@ -1,17 +1,19 @@
 import Link from "next/link";
 import HeroConstellation from "./HeroConstellation";
 import HeroGraphSearch from "./HeroGraphSearch";
+import HeroExploreButton from "./HeroExploreButton";
 import { HomeTitle } from "@/lib/home-data";
+import type { EgoGraph } from "@/lib/api";
 import { toFaDigits } from "@/lib/format-number";
 
 export default function HomeHero({
   titles,
-  centerPool,
+  graphs,
   movieTotal,
   tvTotal,
 }: {
   titles: HomeTitle[];
-  centerPool: HomeTitle[];
+  graphs: EgoGraph[];
   movieTotal: number | null;
   tvTotal: number | null;
 }) {
@@ -46,9 +48,7 @@ export default function HomeHero({
           <HeroGraphSearch />
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="#universe" className="btn-primary text-sm hover:opacity-90">
-              کاوش در کهکشان
-            </Link>
+            <HeroExploreButton className="btn-primary text-sm hover:opacity-90" />
             <Link href="/rankings" className="btn-secondary text-sm transition hover:border-gold/40 hover:text-gold">
               دیدن رتبه‌بندی
             </Link>
@@ -72,9 +72,9 @@ export default function HomeHero({
           )}
         </div>
 
-        {(titles.length > 0 || centerPool.length > 0) && (
+        {true && (
           <div className="relative mx-auto w-full max-w-[560px]">
-            <HeroConstellation titles={titles} centerPool={centerPool} />
+            <HeroConstellation graphs={graphs} />
             <p className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted/80">
               <span className="w-full text-center">مرکز هر بار تصادفی است؛ خط بین دو ستاره یعنی با هم ارتباط دارند</span>
               <span className="flex items-center gap-1">

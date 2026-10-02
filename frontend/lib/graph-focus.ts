@@ -21,3 +21,16 @@ export const GRAPH_SECTION_ID = "universe";
 export function requestGraphFocus(request: GraphFocusRequest): void {
   window.dispatchEvent(new CustomEvent<GraphFocusRequest>(GRAPH_FOCUS_EVENT, { detail: request }));
 }
+
+// The entity the home hero currently shows at its centre. The hero picks it
+// at random in the browser; "کاوش در کهکشان" reads it so the explorer opens
+// on what the visitor just saw, not on a different entity.
+let heroCenter: GraphFocusRequest | null = null;
+
+export function setHeroCenter(center: GraphFocusRequest | null): void {
+  heroCenter = center;
+}
+
+export function getHeroCenter(): GraphFocusRequest | null {
+  return heroCenter;
+}

@@ -146,7 +146,7 @@ export default function HeroGraphSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim() && setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="یک فیلم، سریال، آدم یا ژانر را روی گراف پیدا کن…"
+          placeholder="بگرد و روی کهکشان ببین؛ فیلم، سریال، هنرمند یا ژانر…"
           autoComplete="off"
           className="w-full rounded-2xl border border-white/10 bg-[#05070D]/80 py-3.5 pl-10 pr-11 text-sm text-ink backdrop-blur placeholder:text-muted/60 focus:border-gold/50 focus:outline-none"
         />

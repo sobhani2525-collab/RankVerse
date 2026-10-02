@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
+from app.modules.entities.ego import warm_hero_pool
 from app.core.exceptions import (
     RankVerseError,
     rankverse_exception_handler,
@@ -27,6 +28,14 @@ app.add_exception_handler(RankVerseError, rankverse_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(api_router)
+
+
+@app.on_event("startup")
+async def _warm_hero_pool():
+    # Index the home hero's graphs in the background so the first visitor
+    # doesn't wait for them.
+    warm_hero_pool()
+
 
 @app.get("/health")
 async def health():

@@ -780,3 +780,9 @@ export interface EgoGraph {
 export async function getEgoGraph(slug: string): Promise<EgoGraph> {
   return fetchEnvelope<EgoGraph>(`/graph/ego/${encodeURIComponent(slug)}`, DETAIL_TTL);
 }
+
+// Pre-built ego graphs for the hero's rotating centre (indexed once on the
+// server; empty until its first build finishes).
+export async function getHeroGraphs(revalidateSeconds: number = RANKING_TTL): Promise<EgoGraph[]> {
+  return fetchEnvelope<EgoGraph[]>("/graph/hero-pool", revalidateSeconds);
+}

@@ -10,15 +10,22 @@ Title centre:   title -> its director(s)/lead cast -> those people's other
 
 Everything is derived from the relationships table; nothing is invented.
 """
+import asyncio
+import logging
+import time
 from collections import Counter, defaultdict
 
 from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.core.database import ReadSessionLocal
 from app.core.exceptions import NotFoundError
 from app.modules.entities.models import Entity, RelationshipEdge
+from app.modules.entities.repository import EntityRepository, _apply_origin
 from app.modules.entities.service import _extract_media
+
+logger = logging.getLogger(__name__)
 
 CREDITS = ("directed_by", "creator", "acted_in")
 WORK_TYPES = ("movie", "tv_series")
@@ -191,3 +198,94 @@ async def build_ego_graph(db: AsyncSession, slug: str) -> dict:
                 link(work_id, g.id, "genre")
 
     return {"center_id": str(center.id), "nodes": list(nodes.values()), "edges": edges}
+
+
+# ---------------------------------------------------------------------------
+# Hero pool: the entities the home hero rotates through, indexed once.
+# ---------------------------------------------------------------------------
+
+HERO_TTL_SECONDS = 1800
+# (entity_type, persian?, how many, min IMDb votes). Iranian titles have far
+# fewer IMDb votes than foreign ones, hence the separate floors.
+HERO_TITLE_SLOTS = (
+    ("movie", True, 4, 1000),
+    ("tv_series", True, 3, 500),
+    ("movie", False, 3, 50000),
+    ("tv_series", False, 2, 50000),
+)
+HERO_PEOPLE_SLOTS = ((True, 4), (False, 2))
+HERO_MIN_IMDB = 7.5
+HERO_MIN_NODES = 5
+
+_hero_cache: tuple[float, list[dict]] | None = None
+_hero_task: asyncio.Task | None = None
+_HERO_CONCURRENCY = 3  # sessions in flight; the DB pool is shared with everything else
+
+
+async def _top_titles(entity_type: str, persian: bool, limit: int, min_votes: int) -> list[str]:
+    rating = Entity.attributes["imdb_rating"].as_float()
+    votes = Entity.attributes["imdb_votes"].as_integer()
+    stmt = select(Entity.slug).where(
+        Entity.entity_type == entity_type,
+        rating >= HERO_MIN_IMDB,
+        votes >= min_votes,
+    )
+    stmt = _apply_origin(stmt, Entity, "persian" if persian else "foreign")
+    async with ReadSessionLocal() as db:
+        return list((await db.execute(stmt.order_by(rating.desc(), Entity.id).limit(limit))).scalars())
+
+
+async def _top_people(persian: bool, limit: int) -> list[str]:
+    async with ReadSessionLocal() as db:
+        rows, _ = await EntityRepository(db).list_people(1, limit, "all", "works", "persian" if persian else "foreign")
+    return [person.slug for person, _w, _a in rows]
+
+
+async def _compute_hero_pool() -> list[dict]:
+    picked = await asyncio.gather(
+        *(_top_titles(t, p, n, v) for t, p, n, v in HERO_TITLE_SLOTS),
+        *(_top_people(p, n) for p, n in HERO_PEOPLE_SLOTS),
+    )
+    slugs = [slug for group in picked for slug in group]
+    gate = asyncio.Semaphore(_HERO_CONCURRENCY)
+
+    async def one(slug: str) -> dict | None:
+        async with gate, ReadSessionLocal() as db:
+            try:
+                return await build_ego_graph(db, slug)
+            except Exception:
+                logger.exception("hero pool: ego graph failed for %s", slug)
+                return None
+
+    graphs = await asyncio.gather(*(one(s) for s in slugs))
+    # A centre with little around it makes a lonely sky.
+    return [g for g in graphs if g and len(g["nodes"]) >= HERO_MIN_NODES]
+
+
+async def _refresh_hero_pool() -> None:
+    global _hero_cache
+    try:
+        graphs = await _compute_hero_pool()
+        if graphs:  # never replace a good cache with an empty result
+            _hero_cache = (time.monotonic(), graphs)
+    except Exception:
+        logger.exception("hero pool refresh failed")
+
+
+def get_hero_pool() -> list[dict]:
+    """
+    The home hero's pre-built ego graphs: a mixed Iranian/foreign set of
+    high-IMDb titles and best-connected people, indexed once and kept in
+    memory. Never blocks -- a stale cache is served while a refresh runs in
+    the background, and an empty list is returned until the first build
+    finishes (warm_hero_pool() starts it at boot).
+    """
+    global _hero_task
+    fresh = _hero_cache is not None and time.monotonic() - _hero_cache[0] < HERO_TTL_SECONDS
+    if not fresh and (_hero_task is None or _hero_task.done()):
+        _hero_task = asyncio.create_task(_refresh_hero_pool())
+    return _hero_cache[1] if _hero_cache else []
+
+
+def warm_hero_pool() -> None:
+    get_hero_pool()

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { EgoGraph, EgoNode, getEgoGraph } from "@/lib/api";
-import { HomeTitle } from "@/lib/home-data";
+import { GraphFocusKind, setHeroCenter } from "@/lib/graph-focus";
+import { EgoGraph, EgoNode, getHeroGraphs } from "@/lib/api";
 import { displayTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
@@ -137,7 +137,7 @@ function roleOf(n: EgoNode): string | null {
 
 const TYPE_LABEL: Record<string, string> = { movie: "فیلم", tv_series: "سریال", person: "هنرمند", genre: "ژانر" };
 
-export default function HeroConstellation({ titles, centerPool }: { titles: HomeTitle[]; centerPool: HomeTitle[] }) {
+export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
   const [graph, setGraph] = useState<EgoGraph | null>(null);
   const [active, setActive] = useState<number | null>(null);
   // Idle tour: while nobody hovers, the sky walks through the stars one by
@@ -146,33 +146,35 @@ export default function HeroConstellation({ titles, centerPool }: { titles: Home
   const pointerType = useRef<string>("mouse");
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // The centre is random per visit and chosen after mount, so the cached
-  // server HTML never disagrees with the client. Iranian candidates first;
-  // the overall #1 is the fallback when there are none.
+  // The pool (Iranian + foreign, high-IMDb titles and well-connected people)
+  // is indexed once on the server; each visit just draws one of its graphs
+  // at random. Done after mount so the cached server HTML never disagrees
+  // with the client. If the page was cached before the index was ready, ask
+  // the API once from the browser.
   useEffect(() => {
     let cancelled = false;
-    const pool = centerPool.length > 0 ? centerPool : titles.slice(0, 1);
-    const candidates = [...pool].sort(() => Math.random() - 0.5).slice(0, 4);
-    (async () => {
-      for (const c of candidates) {
-        try {
-          const g = await getEgoGraph(c.slug);
-          // A centre with nothing around it makes a lonely sky; try the next.
-          if (g.nodes.length >= 4) {
-            if (!cancelled) setGraph(g);
-            return;
-          }
-        } catch {
-          /* try the next candidate */
-        }
-      }
-    })();
+    const pick = (pool: EgoGraph[]) => pool[Math.floor(Math.random() * pool.length)];
+    if (graphs.length > 0) {
+      setGraph(pick(graphs));
+    } else {
+      getHeroGraphs(0)
+        .then((pool) => {
+          if (!cancelled && pool.length > 0) setGraph(pick(pool));
+        })
+        .catch(() => {});
+    }
     return () => {
       cancelled = true;
     };
-  }, [centerPool, titles]);
+  }, [graphs]);
 
-  const placed = useMemo(() => (graph ? layout(graph) : null), [graph]);
+  // Tell the "کاوش در کهکشان" button what is at the centre right now.
+  useEffect(() => {
+    const c = graph?.nodes.find((n) => n.id === graph.center_id);
+    setHeroCenter(c ? { kind: c.entity_type as GraphFocusKind, slug: c.slug } : null);
+  }, [graph]);
+
+    const placed = useMemo(() => (graph ? layout(graph) : null), [graph]);
   const nodes = placed?.nodes ?? [];
   const edges = placed?.edges ?? [];
   const focus = active ?? tour;
@@ -188,8 +190,8 @@ export default function HeroConstellation({ titles, centerPool }: { titles: Home
       setTour(step % nodes.length);
       step++;
     };
-    const first = setTimeout(tick, 1200);
-    const id = setInterval(tick, 2600);
+    const first = setTimeout(tick, 2000);
+    const id = setInterval(tick, 5000);
     return () => {
       clearTimeout(first);
       clearInterval(id);
@@ -265,7 +267,7 @@ export default function HeroConstellation({ titles, centerPool }: { titles: Home
                 x2={B.x}
                 y2={B.y}
                 pathLength={1}
-                className="rv-draw transition-[stroke-opacity] duration-300"
+                className="rv-draw transition-[stroke-opacity] duration-700"
                 stroke={e.kind === "credit" ? "#E8B34A" : "#4FB8A6"}
                 strokeOpacity={lit ? 0.85 : dim ? 0.05 : 0.4}
                 strokeWidth={lit ? 0.35 : 0.2}
@@ -279,7 +281,7 @@ export default function HeroConstellation({ titles, centerPool }: { titles: Home
             const isGenre = n.node.role === "genre";
             const isCenter = i === 0;
             return (
-              <g key={n.node.id} className="transition-opacity duration-300" opacity={dim ? 0.3 : 1}>
+              <g key={n.node.id} className="transition-opacity duration-700" opacity={dim ? 0.3 : 1}>
                 {!isGenre && (
                   <circle
                     cx={n.x}
@@ -291,14 +293,14 @@ export default function HeroConstellation({ titles, centerPool }: { titles: Home
                   />
                 )}
                 {isGenre ? (
-                  <circle cx={n.x} cy={n.y} r={active === i ? round2(n.r * 1.3) : n.r} fill="#070A12" stroke="#4FB8A6" strokeWidth="0.5" className="transition-all duration-300" />
+                  <circle cx={n.x} cy={n.y} r={active === i ? round2(n.r * 1.3) : n.r} fill="#070A12" stroke="#4FB8A6" strokeWidth="0.5" className="transition-all duration-700" />
                 ) : (
                   <circle
                     cx={n.x}
                     cy={n.y}
                     r={active === i ? round2(n.r * 1.3) : n.r}
                     fill={isCenter ? "url(#rv-core)" : n.node.role === "person" ? "url(#rv-core-person)" : "url(#rv-core-cool)"}
-                    className="transition-all duration-300"
+                    className="transition-all duration-700"
                   />
                 )}
                 <text
@@ -372,12 +374,13 @@ function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () =>
   const role = roleOf(t);
 
   return (
-    <div
+    <Link
+      href={href}
       role="dialog"
       aria-label={name}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
-      className="rv-rise absolute z-20 w-64 rounded-2xl border border-white/10 bg-[#0A0F18]/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-md max-md:!inset-x-0 max-md:!bottom-0 max-md:!top-auto max-md:!w-auto max-md:!translate-y-0"
+      className="rv-rise absolute z-20 block w-64 rounded-2xl border border-white/10 bg-[#0A0F18]/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-md transition hover:border-gold/40 max-md:!inset-x-0 max-md:!bottom-0 max-md:!top-auto max-md:!w-auto max-md:!translate-y-0"
       style={{
         top: `${node.y}%`,
         transform: `translateY(${shiftY})`,
@@ -386,9 +389,9 @@ function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () =>
     >
       <div className="flex gap-3">
         {t.entity_type !== "genre" && (
-          <div className="relative h-[84px] w-14 shrink-0 overflow-hidden rounded-md bg-surface2">
+          <div className="relative h-[132px] w-[88px] shrink-0 overflow-hidden rounded-lg bg-surface2">
             {t.image_url ? (
-              <Image src={t.image_url} alt="" fill sizes="56px" className="object-cover" />
+              <Image src={t.image_url} alt="" fill sizes="88px" className="object-cover" />
             ) : (
               <span className="absolute inset-0 bg-gradient-brand opacity-40" />
             )}
@@ -399,16 +402,11 @@ function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () =>
             <span className="text-[11px] font-medium text-gold">{TYPE_LABEL[t.entity_type] ?? ""}</span>
             {t.score !== null && <span className="num text-lg text-ink">{toFaDigits(t.score.toFixed(1))}</span>}
           </div>
-          <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-ink">{name}</p>
+          <p className="mt-1 line-clamp-3 text-sm font-medium leading-6 text-ink">{name}</p>
           {role && <p className="text-xs text-muted">{role}</p>}
           {t.year && <p className="num text-right text-xs text-muted">{toFaDigits(t.year)}</p>}
         </div>
       </div>
-
-      <Link href={href} className="mt-3 flex items-center justify-center gap-1 rounded-lg border border-gold/30 bg-gold/10 py-2 text-xs font-semibold text-gold transition hover:bg-gold/20">
-        کاوش
-        <span aria-hidden="true">←</span>
-      </Link>
-    </div>
+    </Link>
   );
 }
