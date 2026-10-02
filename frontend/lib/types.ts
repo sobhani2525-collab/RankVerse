@@ -180,6 +180,13 @@ export interface ListCandidate {
   lead_actor: EntityRef | null;
   genres: EntityRef[];
   overview: string | null;
+  /** How the server connects it to the list (people, works, genres); absent on older servers. */
+  reason?: {
+    strength: number;
+    kind: "people" | "genre" | "none";
+    text: string;
+    score: number;
+  } | null;
 }
 
 /** Why display rank `from_rank` connects to `from_rank + 1`. */

@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.entities.models import Entity, RelationshipEdge
+from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.lists.models import (
     UserList, UserListItem, ListLike, ListFollow, ListComment, ListItemLike,
     UserListSlugHistory,
@@ -294,14 +294,13 @@ class ListRepository:
     async def entities_linked_to_people(
         self,
         person_ids: set[uuid.UUID],
-        entity_type: str | None,
+        entity_types: list[str] | None,
         exclude_ids: set[uuid.UUID],
         limit: int,
     ) -> list[Entity]:
-        """Entities (of `entity_type`, or any type when omitted) that a
-        person in `person_ids` directed, created or acted in -- a loose
-        pool; the caller keeps only the ones whose director/lead actor
-        actually matches."""
+        """Entities (of `entity_types`, or any type when omitted) that a
+        person in `person_ids` directed, created or acted in, best-ranked
+        first -- a loose pool; the caller scores how each one connects."""
         if not person_ids:
             return []
         linked = select(RelationshipEdge.from_entity_id).where(
@@ -309,12 +308,57 @@ class ListRepository:
             RelationshipEdge.relation_type.in_(["directed_by", "creator", "acted_in"]),
         )
         stmt = select(Entity).where(Entity.id.in_(linked))
-        if entity_type:
-            stmt = stmt.where(Entity.entity_type == entity_type)
+        return await self._ranked(stmt, entity_types, exclude_ids, limit)
+
+    async def entities_with_genres(
+        self,
+        genre_ids: set[uuid.UUID],
+        entity_types: list[str],
+        exclude_ids: set[uuid.UUID],
+        limit: int,
+    ) -> list[Entity]:
+        """Best-ranked entities of `entity_types` tagged with any of the genres."""
+        if not genre_ids or not entity_types:
+            return []
+        tagged = select(RelationshipEdge.from_entity_id).where(
+            RelationshipEdge.to_entity_id.in_(genre_ids),
+            RelationshipEdge.relation_type == "has_genre",
+        )
+        stmt = select(Entity).where(Entity.id.in_(tagged))
+        return await self._ranked(stmt, entity_types, exclude_ids, limit)
+
+    async def co_credited_people(
+        self, work_ids: set[uuid.UUID], exclude_ids: set[uuid.UUID], limit: int
+    ) -> list[Entity]:
+        """People credited on any of `work_ids`, those on the most of them
+        first -- the colleagues of whoever those works came from."""
+        if not work_ids:
+            return []
+        shared = func.count(func.distinct(RelationshipEdge.from_entity_id))
+        stmt = (
+            select(Entity)
+            .join(RelationshipEdge, RelationshipEdge.to_entity_id == Entity.id)
+            .where(
+                RelationshipEdge.from_entity_id.in_(work_ids),
+                RelationshipEdge.relation_type.in_(["directed_by", "creator", "acted_in"]),
+                Entity.entity_type == "person",
+            )
+            .group_by(Entity.id)
+            .order_by(shared.desc(), Entity.title)
+            .limit(limit)
+        )
         if exclude_ids:
             stmt = stmt.where(Entity.id.not_in(exclude_ids))
-        result = await self.db.execute(stmt.limit(limit))
-        return list(result.scalars().all())
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def _ranked(self, stmt, entity_types, exclude_ids, limit) -> list[Entity]:
+        stmt = stmt.outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
+        if entity_types:
+            stmt = stmt.where(Entity.entity_type.in_(entity_types))
+        if exclude_ids:
+            stmt = stmt.where(Entity.id.not_in(exclude_ids))
+        stmt = stmt.order_by(EntityRanking.computed_score.desc().nulls_last(), Entity.title).limit(limit)
+        return list((await self.db.execute(stmt)).scalars().all())
 
     async def item_exists(self, list_id: uuid.UUID, entity_id: uuid.UUID) -> bool:
         stmt = select(func.count()).select_from(UserListItem).where(

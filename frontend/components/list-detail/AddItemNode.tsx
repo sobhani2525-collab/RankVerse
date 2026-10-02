@@ -245,7 +245,36 @@ export default function AddItemNode({
           </div>
 
           {candidates === null ? (
-            <p className="text-[13px] text-dim">در حال جستجو…</p>
+            <div role="status" aria-live="polite" className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5 text-[13px] text-[#4CC9A6]">
+                <span
+                  className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#4CC9A6]/25 border-t-[#4CC9A6]"
+                  aria-hidden="true"
+                />
+                <span>
+                  {debouncedQuery
+                    ? "در حال جستجو…"
+                    : "گراف دارد از روی آیتم‌های لیستت پیشنهاد می‌سازد… (چند ثانیه صبر کن)"}
+                </span>
+              </div>
+              <ul className="flex flex-col gap-2" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <li
+                    key={i}
+                    style={{ opacity: 1 - i * 0.25 }}
+                    className="flex animate-pulse items-center gap-3 rounded-xl border border-border-soft bg-surface p-2.5"
+                  >
+                    <span className="h-6 w-6 shrink-0 rounded-md bg-surface-2" />
+                    <span className="h-[66px] w-11 shrink-0 rounded-md bg-surface-2" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <span className="h-3.5 w-2/3 rounded bg-surface-2" />
+                      <span className="h-3 w-1/4 rounded bg-surface-2" />
+                      <span className="h-3 w-1/2 rounded bg-surface-2" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : rows.length === 0 ? (
             <p className="text-[13px] text-dim">نتیجه‌ای پیدا نشد.</p>
           ) : (

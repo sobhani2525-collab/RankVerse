@@ -226,7 +226,9 @@ export function withoutItem(detail: ListDetail, itemId: string): ListDetail {
   return { ...detail, items, edges, backlinks };
 }
 
-export type CandidateReason = { strength: 0 | 1 | 2; text: string; tone: string };
+export type CandidateReason = { strength: number; text: string; tone: string };
+
+const REASON_TONE = { people: "text-violet-light", genre: "text-teal", none: "text-dim" } as const;
 
 /**
  * How a candidate connects to the list: a shared director or lead actor
@@ -234,6 +236,11 @@ export type CandidateReason = { strength: 0 | 1 | 2; text: string; tone: string 
  * nothing (dim). strength sorts the results: people > genre > none.
  */
 export function candidateReason(candidate: ListCandidate, items: ListItem[]): CandidateReason {
+  // The server sees the whole graph (people's filmographies, full casts), so its word wins.
+  if (candidate.reason) {
+    const { strength, kind, text } = candidate.reason;
+    return { strength, text, tone: REASON_TONE[kind] };
+  }
   const ranks: number[] = [];
   let via: EntityRef | null = null;
   items.forEach((item, i) => {

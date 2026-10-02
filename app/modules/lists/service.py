@@ -14,8 +14,9 @@ from app.modules.lists.graph import (
     CREDIT_RELATIONS, GraphItem, RELATION_LABELS_FA, RELATION_LABEL_FALLBACK_FA,
     compute_backlinks, compute_dna, compute_edges, person_graph_data, pick_battle_pair,
 )
+from app.modules.lists.suggest import build_profile, explain_candidate
 from app.modules.lists.schemas import (
-    ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
+    CandidateReason, ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
     ListItemPublic, EntityMini, EntityRef, CommentCreate, CommentPublic, ListItemVoteResult,
     ListItemSuggestion, RelatedListSummary, ListCandidate,
 )
@@ -90,6 +91,16 @@ def _build_graph_items(
     return items
 
 
+def _display_order(lst: UserList) -> list[UserListItem]:
+    """The list's items in the order the detail page ranks them."""
+    ordered = list(lst.items)
+    if lst.list_type == ListType.COMMUNITY_ORDERED:
+        ordered.sort(key=lambda i: community_order_key(i.id, i.like_score, i.added_at))
+    else:
+        ordered.sort(key=lambda i: i.position)
+    return ordered
+
+
 def _item_graph_fields(entity, node: GraphItem) -> dict:
     """The per-item graph fields shown on a list card (and on an add-item
     candidate): a series' creator when it has one, else the (first)
@@ -109,15 +120,6 @@ def _item_graph_fields(entity, node: GraphItem) -> dict:
         or (entity.attributes or {}).get("biography")
         or None,
     }
-
-
-def _shares_director_or_lead(a: dict, b: dict) -> bool:
-    """Same rule as the add form's reason line (lib/list-constellation.ts):
-    same director, or same lead actor."""
-    return any(
-        a[key] is not None and b[key] is not None and a[key].id == b[key].id
-        for key in ("director", "lead_actor")
-    )
 
 
 class ListService:
@@ -246,11 +248,7 @@ class ListService:
 
         vote_counts = await self.repo.item_vote_counts_for_list(lst.id)
 
-        ordered = list(lst.items)
-        if lst.list_type == ListType.COMMUNITY_ORDERED:
-            ordered.sort(key=lambda i: community_order_key(i.id, i.like_score, i.added_at))
-        else:
-            ordered.sort(key=lambda i: i.position)
+        ordered = _display_order(lst)
 
         entities = [item.entity for item in ordered]
         graph_rows = await self.repo.graph_edges_for_entities(
@@ -437,23 +435,39 @@ class ListService:
             entity=_entity_mini(entity),
         )
 
-    async def _to_candidates(self, entities: list) -> list[ListCandidate]:
+    async def _to_candidates(
+        self, entities: list, list_nodes: list[GraphItem] | None = None, profile=None
+    ) -> list[ListCandidate]:
+        """`entities` as candidates; with the list's graph slice (`list_nodes`
+        in display order) and profile each also gets a `reason`."""
         rows = await self.repo.graph_edges_for_entities([e.id for e in entities], GRAPH_RELATION_TYPES)
-        nodes = _build_graph_items(entities, rows)
-        return [
-            ListCandidate(entity=_entity_mini(e), **_item_graph_fields(e, node))
-            for e, node in zip(entities, nodes)
-        ]
+        nodes = _build_graph_items(entities, rows, await self._person_graph_data(entities))
+        out = []
+        for entity, node in zip(entities, nodes):
+            reason = None
+            if profile is not None:
+                attrs = entity.attributes or {}
+                r = explain_candidate(
+                    node, list_nodes or [], profile, settings.list_graph_cast_depth,
+                    country=attrs.get("country"),
+                    rating=attrs.get("imdb_rating") or attrs.get("external_rating"),
+                )
+                reason = CandidateReason(strength=r.strength, kind=r.kind, text=r.text, score=r.score)
+            out.append(ListCandidate(entity=_entity_mini(entity), reason=reason, **_item_graph_fields(entity, node)))
+        return out
 
     async def get_candidates(
         self, user_id: uuid.UUID, slug: str, entity_type: str | None, q: str, limit: int
     ) -> list[ListCandidate]:
         """What the add-item form offers: title matches for `q`, or -- with
-        an empty query -- graph suggestions: entities whose director or lead
-        actor is also one of a list item's, most-connected first. `entity_type`
-        narrows either to one type; omitting it searches/suggests across all
-        of them. Items already in the list are never offered."""
-        lst = await self.repo.get_by_slug(slug)
+        an empty query -- suggestions drawn from the list's own graph (see
+        suggest.py): people the items share or colleagues of the list's
+        people, works those people are credited on, and well-ranked titles in
+        the genres the list is made of. Each carries a `reason` saying how it
+        connects. `entity_type` narrows either to one type; otherwise the
+        suggestions stay within the types the list already holds. Items
+        already in the list are never offered."""
+        lst = await self.repo.get_detail_by_slug(slug)
         if not lst:
             raise NotFoundError(f"List '{slug}' not found")
         is_following = False
@@ -462,29 +476,58 @@ class ListService:
         if not self._can_add_item(lst, user_id, is_following):
             raise UnauthorizedError("You don't have permission to add items to this list")
 
-        in_list = set(await self.repo.list_item_entity_ids(lst.id))
+        ordered = _display_order(lst)
+        list_entities = [item.entity for item in ordered]
+        in_list = {e.id for e in list_entities}
+        cast_depth = settings.list_graph_cast_depth
+        list_nodes = _build_graph_items(
+            list_entities,
+            await self.repo.graph_edges_for_entities(list(in_list), GRAPH_RELATION_TYPES),
+            await self._person_graph_data(list_entities),
+        )
+        profile = build_profile(list_nodes, [(e.attributes or {}).get("country") for e in list_entities])
+
         if q.strip():
             found = await find_entities_by_title(self.db, q, entity_type, limit + len(in_list))
-            return await self._to_candidates([e for e in found if e.id not in in_list][:limit])
+            return await self._to_candidates(
+                [e for e in found if e.id not in in_list][:limit], list_nodes, profile
+            )
+        if not list_nodes:
+            return []
 
-        list_fields = [
-            {"director": c.director, "lead_actor": c.lead_actor}
-            for c in await self._to_candidates(await self.repo.entities_by_ids(list(in_list)))
-        ]
-        people = {
-            ref.id for f in list_fields for ref in (f["director"], f["lead_actor"]) if ref is not None
+        types = [entity_type] if entity_type else sorted({n.entity_type for n in list_nodes})
+        people: set[uuid.UUID] = set()
+        for node in list_nodes:
+            if node.entity_type == "person":
+                people.add(node.entity_id)
+            else:
+                people.update(p.id for p in [*node.makers(), *node.top_cast(cast_depth)])
+
+        pool: dict[uuid.UUID, object] = {}
+
+        def take(entities):
+            for entity in entities:
+                pool.setdefault(entity.id, entity)
+
+        pool_size = settings.list_candidate_pool_size
+        take(await self.repo.entities_linked_to_people(people, types, in_list, pool_size))
+        if "person" in types:
+            # Colleagues: whoever is credited on the works of the list's people
+            # (or, for a list of titles, on the titles themselves).
+            works: set[uuid.UUID] = set()
+            for node in list_nodes:
+                works.update(list(node.credits)[:400] if node.entity_type == "person" else [node.entity_id])
+            take(await self.repo.co_credited_people(works, in_list, pool_size // 2))
+        titled = [t for t in types if t != "person"]
+        top_genres = {
+            gid for gid, _ in sorted(profile.genre_weights.items(), key=lambda kv: -kv[1])[:3]
         }
-        pool = await self.repo.entities_linked_to_people(
-            people, entity_type, in_list, settings.list_candidate_pool_size
-        )
-        scored = []
-        for candidate in await self._to_candidates(pool):
-            fields = {"director": candidate.director, "lead_actor": candidate.lead_actor}
-            connected = sum(1 for f in list_fields if _shares_director_or_lead(fields, f))
-            if connected:
-                scored.append((connected, candidate))
-        scored.sort(key=lambda pair: (-pair[0], pair[1].entity.title))
-        return [candidate for _, candidate in scored[:limit]]
+        take(await self.repo.entities_with_genres(top_genres, titled, in_list, pool_size // 2))
+
+        candidates = await self._to_candidates(list(pool.values()), list_nodes, profile)
+        scored = [c for c in candidates if c.reason and c.reason.strength > 0]
+        scored.sort(key=lambda c: (-c.reason.score, c.entity.title))
+        return scored[:limit]
 
     async def remove_item(self, user_id: uuid.UUID, slug: str, item_id: uuid.UUID) -> None:
         lst = await self.repo.get_by_slug(slug)

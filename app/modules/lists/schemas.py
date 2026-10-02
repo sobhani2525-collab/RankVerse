@@ -200,6 +200,14 @@ class ListDetail(ListSummary):
     is_active: bool = False
     battle_pair: ListBattlePair | None = None
 
+class CandidateReason(BaseModel):
+    """How a candidate connects to the list (see lists/suggest.py)."""
+    strength: int  # 0 none, 1 genre, 2 people, 3 people through several items
+    kind: Literal["people", "genre", "none"]
+    text: str
+    score: float
+
+
 class ListCandidate(BaseModel):
     """An entity the viewer could add to a list (GET /lists/{slug}/candidates),
     with the same graph fields as a ListItemPublic so the client can say how
@@ -210,6 +218,7 @@ class ListCandidate(BaseModel):
     lead_actor: EntityRef | None = None
     genres: list[EntityRef] = []
     overview: str | None = None
+    reason: CandidateReason | None = None
 
 
 class ListItemSuggestion(BaseModel):
