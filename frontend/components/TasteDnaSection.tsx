@@ -14,6 +14,8 @@ interface TasteDnaSectionProps {
    *  app/profile/page.tsx) so it sits between those two, not because this
    *  component owns watch-later data itself. */
   afterPredictedPicks?: ReactNode;
+  /** Public profiles don't show the user's anchors. */
+  hideAnchors?: boolean;
 }
 
 /**
@@ -24,7 +26,7 @@ interface TasteDnaSectionProps {
  * rendered by the page itself, merged into its RATINGS stat strip, not
  * here.
  */
-export default function TasteDnaSection({ profile, predictedPicks = [], afterPredictedPicks }: TasteDnaSectionProps) {
+export default function TasteDnaSection({ profile, predictedPicks = [], afterPredictedPicks, hideAnchors = false }: TasteDnaSectionProps) {
   const hasSnapshot = profile.snapshot !== null;
 
   if (!hasSnapshot) {
@@ -50,7 +52,7 @@ export default function TasteDnaSection({ profile, predictedPicks = [], afterPre
           the whole section instead of squeezing into a half column. */}
       {predictedPicks.length > 0 && <TastePredictedPicksCard picks={predictedPicks} />}
       {afterPredictedPicks}
-      {profile.anchors.length > 0 && <TasteAnchorsCard anchors={profile.anchors} />}
+      {!hideAnchors && profile.anchors.length > 0 && <TasteAnchorsCard anchors={profile.anchors} />}
     </div>
   );
 }

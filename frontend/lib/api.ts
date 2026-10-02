@@ -349,6 +349,10 @@ export async function getPublicUser(username: string): Promise<PublicUser> {
   return fetchEnvelope<PublicUser>(`/users/${encodeURIComponent(username)}`, COMMUNITY_TTL);
 }
 
+export async function getPublicTasteDna(username: string, entityScope: string = "movie"): Promise<TasteProfile> {
+  return fetchEnvelope<TasteProfile>(`/users/${encodeURIComponent(username)}/taste-dna?entity_scope=${entityScope}`, COMMUNITY_TTL);
+}
+
 export async function getPublicUserLists(username: string): Promise<ListSummary[]> {
   return fetchEnvelope<ListSummary[]>(`/users/${encodeURIComponent(username)}/lists`, COMMUNITY_TTL);
 }

@@ -173,6 +173,10 @@ class ListRepository:
         stmt = (
             select(UserList)
             .where(UserList.user_id == user_id, UserList.is_watch_later.is_(False))
+            .options(
+                selectinload(UserList.owner),
+                selectinload(UserList.items).selectinload(UserListItem.entity),
+            )
             .order_by(UserList.created_at.desc())
         )
         result = await self.db.execute(stmt)

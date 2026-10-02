@@ -13,8 +13,10 @@ import TasteDnaErrorState from "@/components/TasteDnaErrorState";
 import EntityMedia from "@/components/entities/entity-media";
 import PosterCard from "@/components/entities/poster-card";
 import ProgressBar from "@/components/ProgressBar";
-import ListCard, { AuthorAvatar } from "@/components/lists/list-card";
-import { listSummaryToListCard } from "@/lib/entity-card-adapters";
+import { AuthorAvatar } from "@/components/lists/list-card";
+import ListTicketCard from "@/components/lists/list-ticket-card";
+import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
+import StatTile from "@/components/profile/stat-tile";
 import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
 import { StarIcon, ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { toFaDigits } from "@/lib/format-number";
@@ -23,42 +25,6 @@ import { displayTitle } from "@/lib/title";
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
 const TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w185";
-
-function StatTile({
-  mono,
-  value,
-  label,
-  icon,
-  accent = "#8A93A6",
-  valueClassName = "text-ink",
-}: {
-  mono: string;
-  value: string;
-  label: string;
-  icon: React.ReactNode;
-  accent?: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-border-soft bg-surface/60 px-6 py-5">
-      <div
-        className="absolute inset-x-0 top-0 h-[3px]"
-        style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
-      />
-      <div className="flex items-center justify-between">
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-xl"
-          style={{ background: `${accent}1f`, color: accent }}
-        >
-          {icon}
-        </div>
-        <MonoLabel size="text-[10px]">{mono}</MonoLabel>
-      </div>
-      <div className={`num mt-4 text-right text-3xl font-bold ${valueClassName}`}>{value}</div>
-      <div className="mt-1 text-xs text-muted">{label}</div>
-    </div>
-  );
-}
 
 export default function ProfilePage() {
   const { user, token, loading: authLoading } = useAuth();
@@ -368,9 +334,9 @@ export default function ProfilePage() {
           )}
 
           {!loadingLists && !listsError && lists && lists.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
               {lists.map((list) => (
-                <ListCard key={list.id} list={listSummaryToListCard(list)} />
+                <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
               ))}
             </div>
           )}
