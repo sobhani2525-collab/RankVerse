@@ -20,7 +20,7 @@ const ROUTE_BY_TYPE: Record<string, string> = {
   track: "/track",
 };
 
-export default function SearchBox() {
+export default function SearchBox({ className = "min-w-0 flex-1" }: { className?: string }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -70,7 +70,7 @@ export default function SearchBox() {
   }
 
   return (
-    <div ref={containerRef} className="relative min-w-0 flex-1">
+    <div ref={containerRef} className={`relative ${className}`}>
       <input
         type="text"
         // Form-autofill extensions inject attributes (fdprocessedid) before hydration.

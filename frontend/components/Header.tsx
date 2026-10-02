@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -35,9 +36,16 @@ export default function Header() {
 
   return (
     <header className="relative z-40 border-b border-border bg-surface px-4 py-[16.5px] sm:px-6">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4">
-        <Link href="/" className="shrink-0 font-display text-lg text-ink">
-          RankVerse
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-3 sm:gap-x-4 md:flex-nowrap">
+        <Link href="/" aria-label="سینماگزین" className="shrink-0">
+          <Image
+            src="/brand-logo.png"
+            alt="سینماگزین"
+            width={454}
+            height={160}
+            priority
+            className="h-11 w-auto md:h-12"
+          />
         </Link>
 
         <nav aria-label="ناوبری اصلی" className="hidden shrink-0 items-center gap-1 md:flex">
@@ -53,31 +61,34 @@ export default function Header() {
           ))}
         </nav>
 
-        <SearchBox />
+        {/* Below md the box drops to its own full-width row. */}
+        <SearchBox className="order-last w-full min-w-0 md:order-none md:w-auto md:flex-1" />
 
-        <button
-          type="button"
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-expanded={menuOpen}
-          aria-controls="mobile-nav"
-          aria-label={menuOpen ? "بستن منو" : "باز کردن منو"}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-ink transition hover:border-gold/40 md:hidden"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
-          </svg>
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
+            aria-label={menuOpen ? "بستن منو" : "باز کردن منو"}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-ink transition hover:border-gold/40 md:hidden"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+            </svg>
+          </button>
 
-        <div className="flex h-9 shrink-0 items-center">
-          {!loading &&
-            (isAuthenticated && user ? (
-              <UserMenu username={user.username} onLogout={logout} />
-            ) : (
-              // The login modal links to /register, so one button covers both.
-              <button onClick={openLoginModal} className="btn-primary whitespace-nowrap text-sm hover:opacity-90">
-                ورود / ثبت‌نام
-              </button>
-            ))}
+          <div className="flex h-9 items-center">
+            {!loading &&
+              (isAuthenticated && user ? (
+                <UserMenu username={user.username} onLogout={logout} />
+              ) : (
+                // The login modal links to /register, so one button covers both.
+                <button onClick={openLoginModal} className="btn-primary whitespace-nowrap text-sm hover:opacity-90">
+                  ورود / ثبت‌نام
+                </button>
+              ))}
+          </div>
         </div>
       </div>
 
