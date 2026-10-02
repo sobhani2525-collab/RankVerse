@@ -14,6 +14,8 @@ export const GRAPH_FOCUS_KINDS: ReadonlySet<string> = new Set<GraphFocusKind>(["
 export interface GraphFocusRequest {
   kind: GraphFocusKind;
   slug: string;
+  // Start the explorer's path over from this entity instead of extending it.
+  reset?: boolean;
 }
 
 export const GRAPH_SECTION_ID = "universe";

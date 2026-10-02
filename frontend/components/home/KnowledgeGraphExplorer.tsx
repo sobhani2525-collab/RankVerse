@@ -153,7 +153,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
   // top of a newer one (e.g. a hero search made while a node is loading).
   const requestId = useRef(0);
 
-  const focusOn = useCallback(async (kind: Exclude<Kind, "year">, slug: string) => {
+  const focusOn = useCallback(async (kind: Exclude<Kind, "year">, slug: string, reset = false) => {
     const key = `${kind}:${slug}`;
     const id = ++requestId.current;
     setError(null);
@@ -175,6 +175,10 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
     setLoadingKey(null);
     const found = next;
     // Already on the path -> step back to it; otherwise extend the path.
+    if (reset) {
+      setTrail([found]);
+      return;
+    }
     setTrail((t) => {
       const i = t.findIndex((f) => `${f.kind}:${f.slug}` === key);
       return i >= 0 ? t.slice(0, i + 1) : [...t, found].slice(-6);
@@ -189,8 +193,8 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
   // Requests from elsewhere on the page (the hero search box).
   useEffect(() => {
     function onRequest(e: Event) {
-      const { kind, slug } = (e as CustomEvent<GraphFocusRequest>).detail;
-      focusOn(kind, slug);
+      const { kind, slug, reset } = (e as CustomEvent<GraphFocusRequest>).detail;
+      focusOn(kind, slug, reset);
     }
     window.addEventListener(GRAPH_FOCUS_EVENT, onRequest);
     return () => window.removeEventListener(GRAPH_FOCUS_EVENT, onRequest);

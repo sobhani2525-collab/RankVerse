@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { GraphFocusKind, setHeroCenter } from "@/lib/graph-focus";
+import { GraphFocusKind, requestGraphFocus, setHeroCenter } from "@/lib/graph-focus";
 import { EgoGraph, EgoNode, getHeroGraphs } from "@/lib/api";
 import { displayTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
@@ -171,7 +171,11 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
   // Tell the "کاوش در کهکشان" button what is at the centre right now.
   useEffect(() => {
     const c = graph?.nodes.find((n) => n.id === graph.center_id);
-    setHeroCenter(c ? { kind: c.entity_type as GraphFocusKind, slug: c.slug } : null);
+    if (!c) return setHeroCenter(null);
+    const center = { kind: c.entity_type as GraphFocusKind, slug: c.slug };
+    setHeroCenter(center);
+    // The explorer below starts on the same entity as the hero.
+    requestGraphFocus({ ...center, reset: true });
   }, [graph]);
 
     const placed = useMemo(() => (graph ? layout(graph) : null), [graph]);
