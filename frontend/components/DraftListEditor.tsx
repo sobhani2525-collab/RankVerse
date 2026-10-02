@@ -30,12 +30,13 @@ function PublishBar({
   onPublish: () => void;
   onDiscard: () => void;
 }) {
-  const { detail } = useListViewer();
+  const { detail, syncing } = useListViewer();
   const count = detail.items.length;
   const remaining = MIN_ITEMS - count;
   const ready = remaining <= 0;
-  // An item still being saved has a temp id; don't publish before it lands.
-  const saving = detail.items.some((i) => i.id.startsWith("temp-"));
+  // An item still being saved has a temp id, and after the last save the server
+  // recomputes the list's edges; don't publish before both are done.
+  const saving = syncing || detail.items.some((i) => i.id.startsWith("temp-"));
 
   return (
     <div className="mt-10 flex flex-col gap-4 border-t border-border-soft pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -66,7 +67,7 @@ function PublishBar({
           disabled={publishing || !ready || saving}
           className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gold px-8 text-[15px] font-extrabold text-bg transition hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
         >
-          {publishing ? "در حال انتشار..." : "انتشار فهرست"}
+          {publishing ? "در حال انتشار..." : saving ? "در حال ذخیره آیتم‌ها..." : "انتشار فهرست"}
         </button>
       </div>
     </div>

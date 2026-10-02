@@ -233,7 +233,7 @@ export default function ProfilePage() {
         />
         <div>
           <h1 className="font-display text-3xl text-ink md:text-4xl">{user.username}</h1>
-          <p className="num mt-1.5 text-sm text-muted" dir="ltr">
+          <p className="num mt-1.5 text-right text-sm text-muted" dir="ltr">
             {user.email}
           </p>
         </div>

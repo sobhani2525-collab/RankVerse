@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getListBySlug } from "@/lib/api";
@@ -29,6 +29,8 @@ interface ListViewerState {
   setFollow: (following: boolean, followerCount: number) => void;
   /** Re-render the server components (after an edit) and refetch. */
   refresh: () => void;
+  /** True from refresh() until the server's recomputed edges/backlinks have landed. */
+  syncing: boolean;
   /** Replace the items/edges/backlinks locally (optimistic add, or its rollback). */
   setItemsDetail: React.Dispatch<React.SetStateAction<ListDetail>>;
   /** Entity id of the item that just joined the spine, while its entrance animates. */
@@ -59,6 +61,17 @@ export function ListViewerProvider({
     following: initialDetail.is_following,
     followerCount: initialDetail.follower_count,
   });
+
+  const [syncing, setSyncing] = useState(false);
+  const [refreshPending, startRefresh] = useTransition();
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+  }, []);
+  const stopSyncing = useCallback(() => {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    setSyncing(false);
+  }, []);
 
   const [justAddedEntityId, setJustAddedEntityId] = useState<string | null>(null);
   const justAddedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,11 +118,17 @@ export function ListViewerProvider({
       })
       .catch(() => {
         // keep the publicly-fetched detail if the authenticated refetch fails
+      })
+      .finally(() => {
+        if (!cancelled && !refreshPendingRef.current) stopSyncing();
       });
     return () => {
       cancelled = true;
     };
   }, [authLoading, token, slug, initialDetail, applyDetail]);
+
+  const refreshPendingRef = useRef(false);
+  refreshPendingRef.current = refreshPending;
 
   const value: ListViewerState = {
     slug,
@@ -117,7 +136,14 @@ export function ListViewerProvider({
     ...social,
     setLike: (liked, likeCount) => setSocial((s) => ({ ...s, liked, likeCount })),
     setFollow: (following, followerCount) => setSocial((s) => ({ ...s, following, followerCount })),
-    refresh: () => router.refresh(),
+    refresh: () => {
+      setSyncing(true);
+      // Safety net: never leave the publish button waiting forever.
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      syncTimer.current = setTimeout(() => setSyncing(false), 20000);
+      startRefresh(() => router.refresh());
+    },
+    syncing,
     setItemsDetail: setDetail,
     justAddedEntityId,
     markJustAdded,

@@ -39,7 +39,7 @@ export default function ListFormFields({
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder={titlePlaceholder}
           autoFocus={autoFocus}
-          className="w-full border-b-2 border-border bg-transparent pb-3 text-2xl font-extrabold leading-snug text-ink outline-none transition placeholder:font-bold placeholder:text-dim focus:border-gold lg:text-3xl"
+          className="w-full border-b-2 border-border bg-transparent pb-3 text-2xl font-extrabold leading-snug text-ink outline-none transition placeholder:font-bold placeholder:text-dim focus:border-gold lg:text-2xl"
         />
       </label>
 
