@@ -21,12 +21,12 @@ function PosterFallback({ title }: { title: string }) {
   return (
     <div
       dir="ltr"
-      className="flex h-full w-full flex-col justify-between bg-gradient-to-br from-surface-2 to-bg p-3.5 text-left lg:p-2.5"
+      className="flex h-full w-full flex-col justify-between bg-gradient-to-br from-surface-2 to-bg p-3.5 text-left sm:p-2.5"
     >
-      <MonoLabel size="text-[9px] lg:text-[9px]" className="text-dim/70">
+      <MonoLabel size="text-[9px] sm:text-[9px]" className="text-dim/70">
         POSTER
       </MonoLabel>
-      <span className="font-mono text-sm leading-snug text-muted lg:text-[11px]">{title}</span>
+      <span className="font-mono text-sm leading-snug text-muted sm:text-[11px]">{title}</span>
     </div>
   );
 }
@@ -61,9 +61,9 @@ export default function ListNodeItem({
   const overview = item.overview?.trim();
 
   const posterBox = (
-    <div className="relative aspect-[2/3] w-full overflow-hidden border-b border-border-soft bg-surface-2 lg:w-[132px] lg:shrink-0 lg:self-start lg:rounded-[10px] lg:border lg:border-border">
+    <div className="relative aspect-[2/3] w-full overflow-hidden border-b border-border-soft bg-surface-2 sm:w-[132px] sm:shrink-0 sm:self-start sm:rounded-[10px] sm:border sm:border-border">
       {poster ? (
-        <Image src={poster} alt={title} fill sizes="(max-width: 1024px) 90vw, 132px" className="object-cover" />
+        <Image src={poster} alt={title} fill sizes="(max-width: 640px) 90vw, 132px" className="object-cover" />
       ) : (
         <PosterFallback title={entity.title} />
       )}
@@ -73,24 +73,24 @@ export default function ListNodeItem({
   return (
     <article
       aria-busy={removing}
-      className={`overflow-hidden rounded-2xl border border-border-soft bg-surface transition-opacity duration-200 lg:flex lg:gap-6 lg:rounded-[18px] lg:p-[22px] ${removing ? "pointer-events-none opacity-40" : ""} ${className}`}
+      className={`overflow-hidden rounded-2xl border border-border-soft bg-surface transition-opacity duration-200 sm:flex sm:gap-6 sm:rounded-[18px] sm:p-[22px] ${removing ? "pointer-events-none opacity-40" : ""} ${className}`}
     >
       {href ? (
-        <Link href={href} aria-label={title} className="block lg:shrink-0">
+        <Link href={href} aria-label={title} className="block sm:shrink-0">
           {posterBox}
         </Link>
       ) : (
         posterBox
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3.5 p-4 lg:gap-3 lg:p-0">
-        <div className="flex flex-col items-start gap-1.5 text-start lg:gap-2.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-3.5 p-4 sm:gap-3 sm:p-0">
+        <div className="flex flex-col items-start gap-1.5 text-start sm:gap-2.5">
           <div className="flex w-full items-center justify-between gap-2">
-            <div className="flex items-center gap-2 lg:gap-2.5">
-              <MonoLabel size="text-[10px] lg:text-[11px]" className="text-gold">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <MonoLabel size="text-[10px] sm:text-[11px]" className="text-gold">
                 {type.en}
               </MonoLabel>
-              <span className="text-xs text-muted lg:text-[13px]">{type.fa}</span>
+              <span className="text-xs text-muted sm:text-[13px]">{type.fa}</span>
             </div>
             {score != null && (
               <div className="flex items-baseline gap-1.5 lg:hidden">
@@ -100,19 +100,19 @@ export default function ListNodeItem({
             )}
           </div>
           {href ? (
-            <Link href={href} className="text-lg font-extrabold leading-[1.5] text-ink transition hover:text-gold lg:text-[22px] lg:leading-[1.4]">
+            <Link href={href} className="text-lg font-extrabold leading-[1.5] text-ink transition hover:text-gold sm:text-[22px] sm:leading-[1.4]">
               {title}
             </Link>
           ) : (
-            <span className="text-lg font-extrabold leading-[1.5] text-ink lg:text-[22px] lg:leading-[1.4]">{title}</span>
+            <span className="text-lg font-extrabold leading-[1.5] text-ink sm:text-[22px] sm:leading-[1.4]">{title}</span>
           )}
           {overview && (
-            <p className="line-clamp-2 text-[13px] leading-[1.8] text-[#9AA3B8] lg:text-sm lg:leading-[1.8]">{overview}</p>
+            <p className="line-clamp-2 text-[13px] leading-[1.8] text-[#9AA3B8] sm:text-sm sm:leading-[1.8]">{overview}</p>
           )}
         </div>
 
         {(people.length > 0 || genres.length > 0 || item.year) && (
-          <div className="flex flex-col gap-3.5 pt-1 lg:flex-row lg:flex-wrap lg:gap-7 lg:pt-3">
+          <div className="flex flex-col gap-3.5 pt-1 sm:flex-row sm:flex-wrap sm:gap-7 sm:pt-3">
             {people.length > 0 && (
               <div className="flex flex-col items-start gap-2">
                 <RowLabel dot="bg-violet-light" en="PEOPLE" fa="آدم‌ها" />
@@ -125,9 +125,9 @@ export default function ListNodeItem({
                 </div>
               </div>
             )}
-            <div className="flex gap-5 lg:contents">
+            <div className="flex gap-5 sm:contents">
               {genres.length > 0 && (
-                <div className="flex flex-1 flex-col items-start gap-2 lg:flex-none">
+                <div className="flex flex-1 flex-col items-start gap-2 sm:flex-none">
                   <RowLabel dot="bg-teal" en="GENRES" fa="ژانرها" />
                   <div className="flex flex-wrap gap-1.5">
                     {genres.map((g) => (
@@ -151,18 +151,18 @@ export default function ListNodeItem({
         )}
 
         {item.note && (
-          <div className="flex flex-col items-start gap-1 border-t border-border-soft pt-3 text-start lg:border-0 lg:pt-1">
+          <div className="flex flex-col items-start gap-1 border-t border-border-soft pt-3 text-start sm:border-0 sm:pt-1">
             <MonoLabel size="text-[10px]" className="shrink-0 text-dim">
               WHY HERE
             </MonoLabel>
-            <p className="whitespace-pre-line text-[13px] leading-[1.8] text-ink-dim lg:text-sm lg:leading-[1.8]">{item.note}</p>
+            <p className="whitespace-pre-line text-[13px] leading-[1.8] text-ink-dim sm:text-sm sm:leading-[1.8]">{item.note}</p>
           </div>
         )}
 
         {backlink && (
           <a
             href={`#rank-${backlink.target_position}`}
-            className="flex min-h-[32px] items-center gap-1.5 text-xs text-violet-light hover:underline lg:gap-2 lg:text-[13px]"
+            className="flex min-h-[32px] items-center gap-1.5 text-xs text-violet-light hover:underline sm:gap-2 sm:text-[13px]"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 14 4 9l5-5" />
