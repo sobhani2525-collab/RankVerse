@@ -17,6 +17,8 @@ interface Domain {
   key: string;
   label: string;
   items: MovieListItem[];
+  /** Replaces the default "از ضعیف‌ترین" hint under the heading. */
+  note?: string;
 }
 
 // With this many credits or fewer the run covers all of them at once;
@@ -93,7 +95,7 @@ export default function PersonBattle({
   );
 }
 
-function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => void }) {
+export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => void }) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const items = domain.items;
@@ -134,7 +136,7 @@ function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => void })
     <div id="person-battle-heading" className="flex flex-col gap-1.5">
       <SectionHeading en="BATTLE" fa={done ? "نبرد تمام شد" : "کدام بهتر است؟"} tone="text-violet-light" />
       <p className="text-xs text-dim">
-        {domain.label} · از ضعیف‌ترین
+        {domain.label} · {domain.note ?? "از ضعیف‌ترین"}
         {!done && (
           <>
             {" "}— جفت <span className="num">{toFaDigits(step + 1)}</span> از <span className="num">{toFaDigits(total)}</span>

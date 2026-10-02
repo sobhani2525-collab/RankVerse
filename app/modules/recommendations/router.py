@@ -70,6 +70,8 @@ async def get_related_entities(
             weight=edge.weight,
             relation_type=edge.relation_type,
             poster_path=edge.to_entity.attributes.get("poster_path"),
+            year=edge.to_entity.attributes.get("year"),
+            title_fa=edge.to_entity.attributes.get("title_fa"),
             reason=build_reason(shared[edge.to_entity.id]),
         )
         for edge in edges
@@ -86,6 +88,8 @@ async def get_related_entities(
             weight=0.35,
             relation_type="same_genre",
             poster_path=fallback_entity.attributes.get("poster_path"),
+            year=fallback_entity.attributes.get("year"),
+            title_fa=fallback_entity.attributes.get("title_fa"),
             reason=build_reason(shared[fallback_entity.id]),
         )
         for fallback_entity in fallback_entities

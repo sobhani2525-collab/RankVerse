@@ -10,13 +10,13 @@ import { MonoLabel, Chip } from "@/components/list-detail/ui";
 import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
-import BattleSection from "@/components/BattleSection";
+import EntityBattle from "@/components/EntityBattle";
 import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, getPersonBySlug, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { MovieListItem, SuggestedBattle } from "@/lib/types";
+import { MovieListItem } from "@/lib/types";
 
 export const revalidate = 3600;
 
@@ -50,6 +50,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   // something to show instead of nothing.
   const mainDirector = movie.directors[0] ?? null;
   const movieId = movie.id;
+  let battlePool: MovieListItem[] = [];
   const [related, rankingHighlights, directorWorks] = await Promise.all([
     getRelatedEntities(movieId).catch((): RelatedEntity[] => []),
     rankingsPromise,
@@ -61,36 +62,12 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             // DirectorWorks' key={item.id} never collides.
             const combined = [...director.directed, ...director.created];
             const unique = [...new Map(combined.map((m) => [m.id, m])).values()];
+            battlePool = [...unique, ...director.acted_in].filter((m) => m.id !== movieId);
             return unique.filter((m) => m.id !== movieId);
           })
           .catch((): MovieListItem[] => [])
       : Promise.resolve<MovieListItem[]>([]),
   ]);
-  const fallbackBattle: SuggestedBattle | null =
-    mainDirector && directorWorks.length > 0
-      ? {
-          category: "movie",
-          left: {
-            id: directorWorks[0].id,
-            slug: directorWorks[0].slug,
-            title: directorWorks[0].title,
-            title_fa: directorWorks[0].title_fa,
-            entity_type: directorWorks[0].entity_type,
-            poster_path: directorWorks[0].poster_path,
-            computed_score: directorWorks[0].computed_score,
-          },
-          right: {
-            id: movie.id,
-            slug: movie.slug,
-            title: movie.title,
-            title_fa: movie.title_fa,
-            entity_type: movie.entity_type,
-            poster_path: movie.poster_path,
-            computed_score: movie.computed_score,
-          },
-        }
-      : null;
-
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : null;
@@ -206,26 +183,22 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           year={movie.year}
           rankingHighlights={rankingHighlights}
           entityId={movie.id}
+          belowGraph={
+            <>
+              {mainDirector && (
+                <DirectorWorks directorName={mainDirector.title_fa ?? mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />
+              )}
+              <RelatedEntities items={related} excludeIds={directorWorks.map((w) => w.id)} />
+            </>
+          }
+          battle={
+            <EntityBattle
+              current={movie}
+              opponents={[...new Map(battlePool.map((m) => [m.id, m])).values()]}
+              label={mainDirector ? `آثار ${mainDirector.title_fa ?? mainDirector.title}` : "آثار"}
+            />
+          }
         />
-      </div>
-
-      <div className="mt-10 border-t border-border-soft pt-10">
-        <BattleSection
-          entityType="movie"
-          slug={movie.slug}
-          fallbackBattle={fallbackBattle}
-          directorName={mainDirector ? (mainDirector.title_fa ?? mainDirector.title) : null}
-        />
-      </div>
-
-      {mainDirector && (
-        <div className="mt-10">
-          <DirectorWorks directorName={mainDirector.title_fa ?? mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />
-        </div>
-      )}
-
-      <div className="mt-10">
-        <RelatedEntities items={related} excludeIds={directorWorks.map((w) => w.id)} />
       </div>
 
       <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">

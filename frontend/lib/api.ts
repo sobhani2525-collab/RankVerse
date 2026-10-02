@@ -628,6 +628,8 @@ export interface RelatedEntity {
   weight: number;
   relation_type: string;
   poster_path: string | null;
+  year?: number | null;
+  title_fa?: string | null;
   reason: string | null;
 }
 

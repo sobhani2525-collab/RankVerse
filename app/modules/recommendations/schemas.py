@@ -9,6 +9,8 @@ class RelatedEntityOut(BaseModel):
     weight: float
     relation_type: str
     poster_path: str | None = None
+    year: int | None = None
+    title_fa: str | None = None
     reason: str | None = None
 
     class Config:

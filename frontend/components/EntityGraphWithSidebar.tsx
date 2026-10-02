@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import EntityGraphSection from "./EntityGraphSection";
 import NotableRankings from "./NotableRankings";
 import EntityLists from "./EntityLists";
@@ -23,6 +24,8 @@ export default function EntityGraphWithSidebar({
   year,
   rankingHighlights,
   entityId,
+  battle,
+  belowGraph,
 }: {
   entityType: string;
   peopleRows: PeopleRow[];
@@ -31,13 +34,18 @@ export default function EntityGraphWithSidebar({
   year: number | null;
   rankingHighlights: RankingHighlight[];
   entityId: string;
+  battle?: ReactNode;
+  /** Rendered in the main column under the GRAPH section. */
+  belowGraph?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
       <div className="min-w-0 flex-1">
         <EntityGraphSection entityType={entityType} peopleRows={peopleRows} cast={cast} genres={genres} year={year} />
+        {belowGraph && <div className="mt-10 flex flex-col gap-10">{belowGraph}</div>}
       </div>
       <aside className="flex shrink-0 flex-col gap-6 lg:w-[380px]">
+        {battle}
         <NotableRankings items={rankingHighlights} />
         <EntityLists entityId={entityId} variant="sidebar" />
       </aside>

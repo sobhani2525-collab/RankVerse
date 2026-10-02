@@ -10,13 +10,13 @@ import { MonoLabel, Chip } from "@/components/list-detail/ui";
 import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
-import BattleSection from "@/components/BattleSection";
+import EntityBattle from "@/components/EntityBattle";
 import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { MovieListItem, PersonSummary, SuggestedBattle } from "@/lib/types";
+import { MovieListItem, PersonSummary } from "@/lib/types";
 
 export const revalidate = 3600;
 
@@ -70,6 +70,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   // (common for Iranian series) fall back to their main director.
   const mainCreator = tv.creators[0] ?? tv.directors[0] ?? null;
   const tvId = tv.id;
+  let battlePool: MovieListItem[] = [];
   const [related, rankingHighlights, creatorWorks] = await Promise.all([
     getRelatedEntities(tvId).catch((): RelatedEntity[] => []),
     rankingsPromise,
@@ -81,36 +82,12 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
             // DirectorWorks' key={item.id} never collides.
             const combined = [...creator.directed, ...creator.created];
             const unique = [...new Map(combined.map((m) => [m.id, m])).values()];
+            battlePool = [...unique, ...creator.acted_in].filter((m) => m.id !== tvId);
             return unique.filter((m) => m.id !== tvId);
           })
           .catch((): MovieListItem[] => [])
       : Promise.resolve<MovieListItem[]>([]),
   ]);
-  const fallbackBattle: SuggestedBattle | null =
-    mainCreator && creatorWorks.length > 0
-      ? {
-          category: "tv_series",
-          left: {
-            id: creatorWorks[0].id,
-            slug: creatorWorks[0].slug,
-            title: creatorWorks[0].title,
-            title_fa: creatorWorks[0].title_fa,
-            entity_type: creatorWorks[0].entity_type,
-            poster_path: creatorWorks[0].poster_path,
-            computed_score: creatorWorks[0].computed_score,
-          },
-          right: {
-            id: tv.id,
-            slug: tv.slug,
-            title: tv.title,
-            title_fa: tv.title_fa,
-            entity_type: tv.entity_type,
-            poster_path: tv.poster_path,
-            computed_score: tv.computed_score,
-          },
-        }
-      : null;
-
   const posterUrl = tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null;
 
   const startYear = tv.first_air_date ? tv.first_air_date.slice(0, 4) : null;
@@ -254,26 +231,22 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           year={startYear ? Number(startYear) : null}
           rankingHighlights={rankingHighlights}
           entityId={tv.id}
+          belowGraph={
+            <>
+              {mainCreator && (
+                <DirectorWorks directorName={mainCreator.title_fa ?? mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
+              )}
+              <RelatedEntities items={related} excludeIds={creatorWorks.map((w) => w.id)} />
+            </>
+          }
+          battle={
+            <EntityBattle
+              current={tv}
+              opponents={[...new Map(battlePool.map((m) => [m.id, m])).values()]}
+              label={mainCreator ? `آثار ${mainCreator.title_fa ?? mainCreator.title}` : "آثار"}
+            />
+          }
         />
-      </div>
-
-      <div className="mt-10 border-t border-border-soft pt-10">
-        <BattleSection
-          entityType="tv_series"
-          slug={tv.slug}
-          fallbackBattle={fallbackBattle}
-          directorName={mainCreator ? (mainCreator.title_fa ?? mainCreator.title) : null}
-        />
-      </div>
-
-      {mainCreator && (
-        <div className="mt-10">
-          <DirectorWorks directorName={mainCreator.title_fa ?? mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
-        </div>
-      )}
-
-      <div className="mt-10">
-        <RelatedEntities items={related} excludeIds={creatorWorks.map((w) => w.id)} />
       </div>
 
       <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
