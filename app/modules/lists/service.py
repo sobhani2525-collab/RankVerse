@@ -11,8 +11,8 @@ from app.modules.entities.service import _extract_media
 from app.modules.lists.repository import ListRepository
 from app.modules.lists.scoring import compute_like_score, community_order_key, is_list_active
 from app.modules.lists.graph import (
-    GraphItem, RELATION_LABELS_FA, RELATION_LABEL_FALLBACK_FA,
-    compute_backlinks, compute_dna, compute_edges, pick_battle_pair,
+    CREDIT_RELATIONS, GraphItem, RELATION_LABELS_FA, RELATION_LABEL_FALLBACK_FA,
+    compute_backlinks, compute_dna, compute_edges, person_graph_data, pick_battle_pair,
 )
 from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
@@ -52,10 +52,14 @@ def _entity_ref(entity) -> EntityRef:
     )
 
 
-def _build_graph_items(entities: list, edges: list[tuple]) -> list[GraphItem]:
+def _build_graph_items(
+    entities: list, edges: list[tuple], person_data: dict | None = None
+) -> list[GraphItem]:
     """One GraphItem per entity (same order), from graph_edges_for_entities
     rows. Cast is sorted by TMDb billing order; directors by episode share
-    (series) then name; creators and genres by name."""
+    (series) then name; creators and genres by name. person_data (see
+    graph.person_graph_data) adds each person's filmography."""
+    person_data = person_data or {}
     by_entity: dict[uuid.UUID, dict[str, list[tuple]]] = {}
     for from_id, relation_type, metadata, target in edges:
         by_entity.setdefault(from_id, {}).setdefault(relation_type, []).append((metadata, target))
@@ -70,7 +74,12 @@ def _build_graph_items(entities: list, edges: list[tuple]) -> list[GraphItem]:
         cast = sorted(rels.get("acted_in", []), key=lambda r: (r[0].get("order", 99), r[1].title))
         creators = sorted(rels.get("creator", []), key=lambda r: r[1].title)
         genres = sorted(rels.get("has_genre", []), key=lambda r: r[1].title)
+        credits, career_genres = person_data.get(entity.id, ({}, []))
         items.append(GraphItem(
+            entity_id=entity.id,
+            ref=_entity_ref(entity),
+            credits=credits,
+            career_genres=career_genres,
             entity_type=entity.entity_type,
             year=(entity.attributes or {}).get("year"),
             directors=[_entity_ref(t) for _, t in directors],
@@ -247,7 +256,9 @@ class ListService:
         graph_rows = await self.repo.graph_edges_for_entities(
             [e.id for e in entities], GRAPH_RELATION_TYPES
         )
-        graph_items = _build_graph_items(entities, graph_rows)
+        graph_items = _build_graph_items(
+            entities, graph_rows, await self._person_graph_data(entities)
+        )
 
         items = []
         for item, node in zip(ordered, graph_items):
@@ -308,6 +319,20 @@ class ListService:
             battle_pair=pick_battle_pair(graph_items, cast_depth),
             contributor_count=contributor_count,
             is_active=is_list_active(contributor_count),
+        )
+
+    async def _person_graph_data(self, entities: list) -> dict:
+        """Filmography + dominant genres for each person among `entities`
+        (see graph.person_graph_data); {} when the list has no people."""
+        person_ids = [e.id for e in entities if e.entity_type == "person"]
+        credit_rows = await self.repo.person_credits(person_ids, list(CREDIT_RELATIONS))
+        if not credit_rows:
+            return {}
+        work_ids = list({work.id for _, _, work in credit_rows})
+        genre_rows = await self.repo.graph_edges_for_entities(work_ids, ["has_genre"])
+        return person_graph_data(
+            [(pid, rel, _entity_ref(work)) for pid, rel, work in credit_rows],
+            [(from_id, _entity_ref(genre)) for from_id, _, _, genre in genre_rows],
         )
 
     async def update_list(self, user_id: uuid.UUID, slug: str, payload: ListUpdate) -> UserList:

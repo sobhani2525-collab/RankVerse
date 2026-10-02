@@ -93,6 +93,25 @@ class ListRepository:
         result = await self.db.execute(stmt)
         return [(row[0], row[1], row[2] or {}, row[3]) for row in result.all()]
 
+    async def person_credits(
+        self, person_ids: list[uuid.UUID], relation_types: list[str]
+    ) -> list[tuple[uuid.UUID, str, Entity]]:
+        """The reverse of graph_edges_for_entities for people: every work
+        pointing at one of the persons (work --directed_by/acted_in-->
+        person), as (person_id, relation_type, work)."""
+        if not person_ids:
+            return []
+        stmt = (
+            select(RelationshipEdge.to_entity_id, RelationshipEdge.relation_type, Entity)
+            .join(Entity, Entity.id == RelationshipEdge.from_entity_id)
+            .where(
+                RelationshipEdge.to_entity_id.in_(person_ids),
+                RelationshipEdge.relation_type.in_(relation_types),
+            )
+        )
+        result = await self.db.execute(stmt)
+        return [(row[0], row[1], row[2]) for row in result.all()]
+
     async def touch(self, list_id: uuid.UUID) -> None:
         """Mark the list as edited (items added/removed/reordered)."""
         await self.db.execute(

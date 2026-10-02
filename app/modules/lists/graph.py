@@ -11,6 +11,7 @@ GraphItem per list item, and hands them over in display order. Positions
 in the output are 1-based display ranks (#1 is the first item shown),
 not UserListItem.position.
 """
+import uuid
 from dataclasses import dataclass, field
 
 from app.modules.lists.schemas import (
@@ -49,6 +50,14 @@ class GraphItem:
     creators: list[EntityRef] = field(default_factory=list)
     cast: list[EntityRef] = field(default_factory=list)
     genres: list[EntityRef] = field(default_factory=list)
+    # Only for a `person` item: its own node, the works it is credited on
+    # (work id -> (work, relation types)) and the genres most of those works
+    # share, most common first. A person has no directors/cast/genres of its
+    # own, so its filmography is what connects it to other items.
+    entity_id: uuid.UUID | None = None
+    ref: EntityRef | None = None
+    credits: dict = field(default_factory=dict)
+    career_genres: list[EntityRef] = field(default_factory=list)
 
     def makers(self) -> list[EntityRef]:
         """Creators first (a series' showrunner is the closer analogue of a
@@ -121,6 +130,92 @@ def _genre_frequency(items: list[GraphItem]) -> dict:
     return counts
 
 
+CREDIT_RELATIONS = ("directed_by", "creator", "acted_in")
+# Shown when a person is credited on the other item itself; first match wins.
+CREDIT_ROLE_LABELS_FA = {
+    "directed_by": "کارگردان همین اثر",
+    "creator": "سازنده همین اثر",
+    "acted_in": "بازیگر همین اثر",
+}
+SHARED_WORK_LABEL_FA = "هم‌پروژه در"
+SHARED_CAREER_GENRE_LABEL_FA = "ژانر غالب مشترک"
+CAREER_GENRE_DEPTH = 3
+MAX_SHARED_WORKS = 2
+
+
+def person_graph_data(
+    credit_rows: list[tuple[uuid.UUID, str, EntityRef]],
+    genre_rows: list[tuple[uuid.UUID, EntityRef]],
+) -> dict[uuid.UUID, tuple[dict, list[EntityRef]]]:
+    """person id -> (credits, career_genres) from the persons' incoming
+    directed_by/creator/acted_in edges (person, relation, work) and the
+    works' has_genre edges (work id, genre)."""
+    work_genres: dict[uuid.UUID, list[EntityRef]] = {}
+    for work_id, genre in genre_rows:
+        work_genres.setdefault(work_id, []).append(genre)
+
+    credits_by_person: dict[uuid.UUID, dict] = {}
+    for person_id, relation, work in credit_rows:
+        entry = credits_by_person.setdefault(person_id, {}).setdefault(work.id, (work, set()))
+        entry[1].add(relation)
+
+    out: dict[uuid.UUID, tuple[dict, list[EntityRef]]] = {}
+    for person_id, credits in credits_by_person.items():
+        counts: dict = {}
+        for work_id in credits:
+            for genre in {g.id: g for g in work_genres.get(work_id, [])}.values():
+                entry = counts.setdefault(genre.id, [genre, 0])
+                entry[1] += 1
+        ranked = sorted(counts.values(), key=lambda e: (-e[1], e[0].title))
+        out[person_id] = (credits, [g for g, _ in ranked[:CAREER_GENRE_DEPTH]])
+    return out
+
+
+def _shared_genre_edge(
+    from_rank: int, label: str, a: list[EntityRef], b: list[EntityRef], max_genres: int
+) -> ListEdge | None:
+    b_ids = {g.id for g in b}
+    shared = [g for g in {g.id: g for g in a}.values() if g.id in b_ids][:max_genres]
+    if not shared:
+        return None
+    return ListEdge(
+        from_rank=from_rank, kind="genre", label_fa=label,
+        value=" · ".join(g.title for g in shared), targets=shared,
+    )
+
+
+def _person_edge(
+    a: GraphItem, b: GraphItem, from_rank: int, max_genres: int
+) -> ListEdge | None:
+    """Edge when at least one side is a person: a shared work, the role the
+    person played on the other item, else genres their careers share."""
+    if a.entity_type == "person" and b.entity_type == "person":
+        shared = [a.credits[w][0] for w in a.credits if w in b.credits]
+        if shared:
+            shared.sort(key=lambda w: w.title)
+            shared = shared[:MAX_SHARED_WORKS]
+            return ListEdge(
+                from_rank=from_rank, kind="people", label_fa=SHARED_WORK_LABEL_FA,
+                value=" · ".join(w.title for w in shared), targets=shared,
+            )
+        return _shared_genre_edge(
+            from_rank, SHARED_CAREER_GENRE_LABEL_FA, a.career_genres, b.career_genres, max_genres
+        )
+
+    person, other = (a, b) if a.entity_type == "person" else (b, a)
+    credit = person.credits.get(other.entity_id) if other.entity_id else None
+    if credit and person.ref:
+        for relation in CREDIT_RELATIONS:
+            if relation in credit[1]:
+                return ListEdge(
+                    from_rank=from_rank, kind="people", label_fa=CREDIT_ROLE_LABELS_FA[relation],
+                    value=person.ref.title, targets=[person.ref],
+                )
+    return _shared_genre_edge(
+        from_rank, RELATION_LABELS_FA["has_genre"], person.career_genres, other.genres, max_genres
+    )
+
+
 def compute_edge(
     a: GraphItem,
     b: GraphItem,
@@ -130,6 +225,9 @@ def compute_edge(
     max_genres: int,
     genre_frequency: dict | None = None,
 ) -> ListEdge:
+    if "person" in (a.entity_type, b.entity_type):
+        edge = _person_edge(a, b, from_rank, max_genres)
+        return edge or ListEdge(from_rank=from_rank, kind="none")
     for kind in priority:
         if kind == "director":
             maker = shared_maker(a, b)

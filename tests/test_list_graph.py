@@ -203,3 +203,60 @@ def test_battle_pair_none_when_unrelated_or_mixed_types():
     film = movie([NOLAN])
     series = movie(creators=[NOLAN], entity_type="tv_series")
     assert pick_battle_pair([film, series], CAST_DEPTH) is None
+
+
+# --- person items (filmography-based edges) ---
+
+COMEDY, ACTION = genre("Comedy"), genre("Action")
+
+
+def work(title: str, entity_type: str = "movie") -> EntityRef:
+    return EntityRef(id=uuid.uuid5(uuid.NAMESPACE_OID, title), slug=title.lower(), title=title,
+                     entity_type=entity_type)
+
+
+def human(ref: EntityRef, credits=(), career_genres=()) -> GraphItem:
+    return GraphItem(
+        entity_type="person", entity_id=ref.id, ref=ref,
+        credits={w.id: (w, set(roles)) for w, roles in credits}, career_genres=list(career_genres),
+    )
+
+
+def test_two_people_sharing_a_work_connect_through_it():
+    show = work("Pezhman", "tv_series")
+    a = human(person("Soroush Sehhat"), [(show, {"creator"})], [COMEDY])
+    b = human(person("Mehran Modiri"), [(show, {"acted_in"})], [COMEDY])
+    [edge] = edges([a, b])
+    assert (edge.kind, edge.label_fa, edge.value) == ("people", "هم‌پروژه در", "Pezhman")
+    assert [t.entity_type for t in edge.targets] == ["tv_series"]
+
+
+def test_two_people_without_shared_work_connect_through_career_genre():
+    a = human(person("A"), [(work("W1"), {"acted_in"})], [COMEDY, ACTION])
+    b = human(person("B"), [(work("W2"), {"acted_in"})], [COMEDY])
+    [edge] = edges([a, b])
+    assert (edge.kind, edge.label_fa, edge.value) == ("genre", "ژانر غالب مشترک", "Comedy")
+
+
+def test_two_unrelated_people_have_no_edge():
+    a = human(person("A"), [(work("W1"), {"acted_in"})], [ACTION])
+    b = human(person("B"), [(work("W2"), {"acted_in"})], [COMEDY])
+    assert edges([a, b])[0].kind == "none"
+
+
+def test_person_credited_on_the_next_title_names_their_role_either_order():
+    director = person("Nolan")
+    film = movie([], [], [SCIFI])
+    film.entity_id = uuid.uuid4()
+    film_ref = EntityRef(id=film.entity_id, slug="film", title="Film", entity_type="movie")
+    p = human(director, [(film_ref, {"acted_in", "directed_by"})], [SCIFI])
+    for pair in ([p, film], [film, p]):
+        [edge] = edges(pair)
+        assert (edge.kind, edge.label_fa, edge.value) == ("people", "کارگردان همین اثر", "Nolan")
+
+
+def test_person_and_title_without_credit_share_a_genre():
+    p = human(person("A"), [(work("W1"), {"acted_in"})], [COMEDY])
+    film = movie([], [], [COMEDY, DRAMA])
+    [edge] = edges([p, film])
+    assert (edge.kind, edge.value) == ("genre", "Comedy")
