@@ -11,7 +11,7 @@ _WORD = re.compile(r"[\w]+", re.UNICODE)
 
 # Words every list title is full of; two lists sharing only these aren't alike.
 _GENERIC = {
-    "بهترین", "برترین", "بهتر", "برتر", "فیلم", "سریال", "انیمه", "انیمیشن", "لیست", "مجموعه",
+    "بهترین", "برترین", "بهتر", "برتر", "فیلم", "سریال", "انیمه", "انیمیشن", "لیست", "فهرست", "مجموعه",
     "از", "در", "و", "به", "با", "که", "برای", "را", "این", "آن", "یا", "من", "ما", "های", "ها",
     "top", "best", "movies", "movie", "films", "film", "series", "list", "of", "the", "and",
 }

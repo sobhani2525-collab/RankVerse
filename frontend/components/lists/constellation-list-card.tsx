@@ -67,7 +67,7 @@ export default function ConstellationListCard({ list, delay = 0 }: { list: ListS
           <MonoLabel size="text-[10px]" className="text-gold">
             {list.is_ranked ? "RANKED" : "LIST"}
           </MonoLabel>
-          <span className="text-xs text-muted">{list.is_ranked ? "لیست رتبه‌بندی‌شده" : "مجموعه"}</span>
+          <span className="text-xs text-muted">{list.is_ranked ? "فهرست رتبه‌بندی‌شده" : "مجموعه"}</span>
         </div>
 
         <Link href={href} className="text-lg font-extrabold leading-snug text-ink transition hover:text-gold">

@@ -138,7 +138,7 @@ export default function ListItemsManager({
 
   async function handleRemove(itemId: string) {
     if (!token) return;
-    if (!confirm("این آیتم از لیست حذف شود؟")) return;
+    if (!confirm("این آیتم از فهرست حذف شود؟")) return;
     setBusyId(itemId);
     setError(null);
     try {
@@ -156,7 +156,7 @@ export default function ListItemsManager({
   if (items.length === 0 && !showAddTile) {
     return (
       <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-        این لیست هنوز آیتمی ندارد.
+        این فهرست هنوز آیتمی ندارد.
       </div>
     );
   }
@@ -202,8 +202,8 @@ export default function ListItemsManager({
                     type="button"
                     onClick={() => handleRemove(item.id)}
                     disabled={busyId === item.id}
-                    aria-label="حذف از لیست"
-                    title="حذف از لیست"
+                    aria-label="حذف از فهرست"
+                    title="حذف از فهرست"
                     className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-border text-ink backdrop-blur-sm transition hover:border-red-500/50 hover:text-red-400 disabled:opacity-50"
                     style={{ background: "rgba(7,11,22,.7)" }}
                   >

@@ -51,7 +51,7 @@ export default function NewListForm() {
       // its loading state until the next step renders.
       router.push(`/lists/new/${encodeListSlug(result.slug)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "خطا در ساخت لیست");
+      setError(err instanceof Error ? err.message : "خطا در ساخت فهرست");
       setSubmitting(false);
     }
   }
@@ -103,7 +103,7 @@ export default function NewListForm() {
             {submitting ? "در حال ساخت..." : "ادامه و افزودن آیتم‌ها"}
           </button>
           <p className="text-center text-xs text-dim">
-            لیست تا زمانی که منتشرش نکنید پیش‌نویس است و فقط خودتان آن را می‌بینید.
+            فهرست تا زمانی که منتشرش نکنید پیش‌نویس است و فقط خودتان آن را می‌بینید.
           </p>
         </div>
       </form>

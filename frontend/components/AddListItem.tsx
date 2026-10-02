@@ -94,7 +94,7 @@ export default function AddListItem({
           <MonoLabel size="text-[10px]" className="text-[#4CC9A6]">
             ADD NODE
           </MonoLabel>
-          <span className="text-[15px] font-extrabold text-ink">افزودن آیتم به لیست</span>
+          <span className="text-[15px] font-extrabold text-ink">افزودن آیتم به فهرست</span>
         </button>
       </div>
     );

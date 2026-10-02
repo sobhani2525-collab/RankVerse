@@ -195,7 +195,7 @@ export default function AddItemNode({
             <MonoLabel size="text-[10px]" className="text-[#4CC9A6]">
               ADD NODE
             </MonoLabel>
-            <span className="text-[15px] font-extrabold text-ink">افزودن آیتم به انتهای لیست</span>
+            <span className="text-[15px] font-extrabold text-ink">افزودن آیتم به انتهای فهرست</span>
           </button>
           {error && (
             <p className="text-xs text-[#F07178]" role="alert">
@@ -254,7 +254,7 @@ export default function AddItemNode({
                 <span>
                   {debouncedQuery
                     ? "در حال جستجو…"
-                    : "گراف دارد از روی آیتم‌های لیستت پیشنهاد می‌سازد… (چند ثانیه صبر کن)"}
+                    : "گراف دارد از روی آیتم‌های فهرستت پیشنهاد می‌سازد… (چند ثانیه صبر کن)"}
                 </span>
               </div>
               <ul className="flex flex-col gap-2" aria-hidden="true">

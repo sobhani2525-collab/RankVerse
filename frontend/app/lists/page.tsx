@@ -8,9 +8,9 @@ import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 600;
 
-const TITLE = "لیست‌های کاربران — بهترین فیلم‌ها و سریال‌ها";
+const TITLE = "فهرست‌های کاربران — بهترین فیلم‌ها و سریال‌ها";
 const DESCRIPTION =
-  "لیست‌های ساخته‌ی کاربران سینماگزین: بهترین فیلم‌ها و سریال‌ها به انتخاب علاقه‌مندان سینما، از کلاسیک‌ها تا تازه‌ترین‌ها.";
+  "فهرست‌های ساخته‌ی کاربران سینماگزین: بهترین فیلم‌ها و سریال‌ها به انتخاب علاقه‌مندان سینما، از کلاسیک‌ها تا تازه‌ترین‌ها.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -56,7 +56,7 @@ export default async function ListsPage() {
             ببر
           </h1>
           <p className="mt-4 text-base leading-[2] text-[#C7CCE0]">
-            فیلم‌هایی که دوستشان داری را کنار هم بچین، رتبه بده و با بقیه به اشتراک بگذار. شاید لیست تو، فیلم بعدیِ کسی باشد.
+            فیلم‌هایی که دوستشان داری را کنار هم بچین، رتبه بده و با بقیه به اشتراک بگذار. شاید فهرست تو، فیلم بعدیِ کسی باشد.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <Link
@@ -64,7 +64,7 @@ export default async function ListsPage() {
               className="inline-flex h-[52px] items-center rounded-[14px] px-7 font-bold text-[#0B0F1A] transition hover:opacity-90"
               style={{ backgroundImage: "linear-gradient(90deg, #8B6CF0, #4FB8A6)" }}
             >
-              ساخت لیست جدید
+              ساخت فهرست جدید
             </Link>
             <span className="text-[13px] text-[#8A93A6]">فقط چند دقیقه وقت می‌گیرد</span>
           </div>

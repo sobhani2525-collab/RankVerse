@@ -136,6 +136,6 @@ def explain_candidate(
         matched = sum(1 for node in list_nodes if {g.id for g in _item_genres(node)} & {g.id for g in _item_genres(candidate)})
         return Reason(
             strength=1, kind="genre", score=score,
-            text=f"ژانر مشترک با {_fa(matched)} آیتم این لیست",
+            text=f"ژانر مشترک با {_fa(matched)} آیتم این فهرست",
         )
-    return Reason(strength=0, kind="none", text="بدون اتصال مستقیم به این لیست", score=score)
+    return Reason(strength=0, kind="none", text="بدون اتصال مستقیم به این فهرست", score=score)

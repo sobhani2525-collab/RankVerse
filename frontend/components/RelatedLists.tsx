@@ -22,7 +22,7 @@ export default async function RelatedLists({ slug }: { slug: string }) {
   return (
     <section aria-labelledby="related-lists-heading" className="flex flex-col gap-3 lg:gap-3.5">
       <div id="related-lists-heading">
-        <SectionHeading en="RELATED LISTS" fa="لیست‌های هم‌مدار" />
+        <SectionHeading en="RELATED LISTS" fa="فهرست‌های هم‌مدار" />
       </div>
       {related.map((list) => (
         <Link

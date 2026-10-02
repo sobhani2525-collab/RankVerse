@@ -112,7 +112,7 @@ export default function ProfilePage() {
     };
   }, [token]);
 
-  // دریافت لیست‌های ساخته‌شده توسط کاربر
+  // دریافت فهرست‌های ساخته‌شده توسط کاربر
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
@@ -122,7 +122,7 @@ export default function ProfilePage() {
         if (!cancelled) setLists(data);
       })
       .catch(() => {
-        if (!cancelled) setListsError("دریافت لیست‌ها با مشکل مواجه شد.");
+        if (!cancelled) setListsError("دریافت فهرست‌ها با مشکل مواجه شد.");
       })
       .finally(() => {
         if (!cancelled) setLoadingLists(false);
@@ -133,7 +133,7 @@ export default function ProfilePage() {
     };
   }, [token]);
 
-  // دریافت Taste DNA کاربر — section جدا و مستقل از رتبه‌بندی‌ها/لیست‌ها،
+  // دریافت Taste DNA کاربر — section جدا و مستقل از رتبه‌بندی‌ها/فهرست‌ها،
   // با error state جدا از empty state (پروفایل واقعاً خالیه در مقابل
   // fetch شکست خورده): tasteReloadKey با هر بار retry تغییر می‌کنه تا
   // این effect دوباره اجرا بشه.
@@ -190,7 +190,7 @@ export default function ProfilePage() {
         if (!cancelled) setWatchLater(data);
       })
       .catch(() => {
-        if (!cancelled) setWatchLaterError("دریافت لیست «بعداً می‌بینم» با مشکل مواجه شد.");
+        if (!cancelled) setWatchLaterError("دریافت فهرست «بعداً می‌بینم» با مشکل مواجه شد.");
       })
       .finally(() => {
         if (!cancelled) setLoadingWatchLater(false);
@@ -287,7 +287,7 @@ export default function ProfilePage() {
           <StatTile
             mono="LISTS"
             value={loadingLists ? "—" : toFaDigits(lists?.length ?? 0)}
-            label="لیست‌های ساخته‌شده"
+            label="فهرست‌های ساخته‌شده"
             icon={<ListIcon size={20} />}
             accent="#4FB8A6"
             valueClassName="text-teal"
@@ -341,10 +341,10 @@ export default function ProfilePage() {
       <section className="mt-16">
         <SectionHeading
           en="YOUR LISTS"
-          fa="لیست‌های شما"
+          fa="فهرست‌های شما"
           aside={
             <Link href="/lists/new" className="text-xs font-semibold text-gold hover:underline">
-              + لیست جدید
+              + فهرست جدید
             </Link>
           }
         />
@@ -360,9 +360,9 @@ export default function ProfilePage() {
 
           {!loadingLists && !listsError && lists && lists.length === 0 && (
             <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center">
-              <p className="text-sm text-muted">هنوز هیچ لیستی نساخته‌اید.</p>
+              <p className="text-sm text-muted">هنوز هیچ فهرستی نساخته‌اید.</p>
               <Link href="/lists/new" className="mt-4 inline-block text-sm text-gold hover:underline">
-                ساخت اولین لیست
+                ساخت اولین فهرست
               </Link>
             </div>
           )}

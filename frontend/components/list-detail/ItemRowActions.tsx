@@ -46,7 +46,7 @@ export function RemoveItemButton({
   async function remove() {
     const token = getToken();
     if (!token || busy) return;
-    if (!confirm(`«${title}» از لیست حذف شود؟`)) return;
+    if (!confirm(`«${title}» از فهرست حذف شود؟`)) return;
     setBusy(true);
     setError(null);
     onRemoving(true);
@@ -67,8 +67,8 @@ export function RemoveItemButton({
         type="button"
         onClick={remove}
         disabled={busy}
-        aria-label={`حذف ${title} از لیست`}
-        title="حذف از لیست"
+        aria-label={`حذف ${title} از فهرست`}
+        title="حذف از فهرست"
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-[#2A3247] text-[#C9CFDC] transition-[border-color,color] duration-[160ms] hover:border-[#F07178] hover:text-[#F07178]"
       >
         <TrashIcon size={18} />

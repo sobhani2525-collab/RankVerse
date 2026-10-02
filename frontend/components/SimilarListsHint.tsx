@@ -41,10 +41,10 @@ export default function SimilarListsHint({ title }: { title: string }) {
       }`}
     >
       <p className={`text-sm font-bold ${exact ? "text-gold" : "text-teal"}`}>
-        {exact ? "لیستی با همین عنوان از قبل وجود دارد" : "فهرست‌های مشابه"}
+        {exact ? "فهرستی با همین عنوان از قبل وجود دارد" : "فهرست‌های مشابه"}
       </p>
       <p className="text-xs leading-[1.8] text-muted">
-        قبل از ساخت لیست جدید نگاهی بیندازید؛ شاید بتوانید آیتم‌هایتان را به یکی از این‌ها اضافه کنید.
+        قبل از ساخت فهرست جدید نگاهی بیندازید؛ شاید بتوانید آیتم‌هایتان را به یکی از این‌ها اضافه کنید.
       </p>
       <ul className="flex flex-col gap-1.5">
         {matches.map((m) => (

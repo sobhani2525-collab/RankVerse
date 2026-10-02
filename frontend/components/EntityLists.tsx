@@ -12,7 +12,7 @@ export default async function EntityLists({
 }: {
   entityId: string;
   /** "sidebar" = the movie/tv-series page's condensed "IN LISTS" module (up
-   *  to 2 rows + a "همه لیست‌ها" link), for the 380px column next to the
+   *  to 2 rows + a "همه فهرست‌ها" link), for the 380px column next to the
    *  GRAPH section. "grid" (default) is the wide poster-collage layout used
    *  everywhere else (person/genre/track pages). */
   variant?: "grid" | "sidebar";
@@ -30,7 +30,7 @@ export default async function EntityLists({
     const shown = lists.slice(0, 2);
     return (
       <div>
-        <SectionHeading en="IN LISTS" fa={`در ${toFaDigits(lists.length)} لیست کاربران`} />
+        <SectionHeading en="IN LISTS" fa={`در ${toFaDigits(lists.length)} فهرست کاربران`} tone="text-gold" />
         <div className="mt-2 flex flex-col">
           {shown.map((list, i) => (
             <Link
@@ -41,7 +41,7 @@ export default async function EntityLists({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-bold text-ink">{list.title}</p>
                 {list.owner_username && (
-                  <p dir="ltr" className="mt-0.5 text-xs text-muted">
+                  <p dir="ltr" className="mt-0.5 text-right text-xs text-muted">
                     @{list.owner_username}
                   </p>
                 )}
@@ -53,7 +53,7 @@ export default async function EntityLists({
           ))}
         </div>
         <Link href="/lists" className="mt-2 flex min-h-[32px] items-center text-xs text-violet-light hover:text-ink">
-          همه لیست‌ها ←
+          همه فهرست‌ها ←
         </Link>
       </div>
     );
@@ -61,7 +61,7 @@ export default async function EntityLists({
 
   return (
     <div className="mt-14">
-      <SectionHeading en="RELATED LISTS" fa="لیست‌های مرتبط" tone="text-gold" />
+      <SectionHeading en="RELATED LISTS" fa="فهرست‌های مرتبط" tone="text-gold" />
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {lists.map((list) => (
           <ListCard key={list.id} list={listSummaryToListCard(list)} />

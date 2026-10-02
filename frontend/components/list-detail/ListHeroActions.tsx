@@ -69,14 +69,14 @@ export default function ListHeroActions() {
               : "bg-ink text-bg hover:bg-ink/90"
           }`}
         >
-          {following ? "دنبال می‌کنید" : "دنبال کردن لیست"}
+          {following ? "دنبال می‌کنید" : "دنبال کردن فهرست"}
         </button>
 
         <button
           type="button"
           onClick={() => requireAuth(doLike)}
           aria-pressed={liked}
-          aria-label={liked ? "لغو پسندیدن لیست" : "پسندیدن لیست"}
+          aria-label={liked ? "لغو پسندیدن فهرست" : "پسندیدن فهرست"}
           className={`num flex h-12 items-center gap-2.5 rounded-xl border px-4 text-sm font-bold transition-[background-color,border-color,color] duration-[160ms] lg:px-5 ${
             liked
               ? "border-gold bg-gold/[0.14] text-gold"
@@ -95,7 +95,7 @@ export default function ListHeroActions() {
             onClick={() => setEditing((v) => !v)}
             className="h-12 rounded-xl border border-border bg-surface px-4 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
           >
-            {editing ? "بستن ویرایش" : "ویرایش لیست"}
+            {editing ? "بستن ویرایش" : "ویرایش فهرست"}
           </button>
         )}
       </div>

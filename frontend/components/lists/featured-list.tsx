@@ -14,7 +14,7 @@ export default function FeaturedList({ list }: { list: ListSummary }) {
         <div className="flex items-center gap-2.5">
           <span className="h-[7px] w-[7px] rounded-full bg-gold shadow-[0_0_0_3px_rgba(232,179,74,0.18)]" aria-hidden="true" />
           <MonoLabel className="text-gold">BRIGHTEST STAR</MonoLabel>
-          <span className="text-xs text-muted">درخشان‌ترین لیست</span>
+          <span className="text-xs text-muted">درخشان‌ترین فهرست</span>
         </div>
         <Link href={href} className="font-display text-3xl leading-tight text-ink transition hover:text-gold md:text-4xl">
           {list.title}

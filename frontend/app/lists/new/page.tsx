@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import NewListForm from "@/components/NewListForm";
 
 export const metadata: Metadata = {
-  title: "ساخت لیست جدید",
+  title: "ساخت فهرست جدید",
   robots: { index: false, follow: false },
 };
 

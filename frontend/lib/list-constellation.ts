@@ -262,7 +262,7 @@ export function candidateReason(candidate: ListCandidate, items: ListItem[]): Ca
   const genreIds = new Set(candidate.genres.map((g) => g.id));
   const genreMatches = items.filter((item) => (item.genres ?? []).some((g) => genreIds.has(g.id))).length;
   if (genreMatches) {
-    return { strength: 1, text: `ژانر مشترک با ${toFaDigits(genreMatches)} آیتم این لیست`, tone: "text-teal" };
+    return { strength: 1, text: `ژانر مشترک با ${toFaDigits(genreMatches)} آیتم این فهرست`, tone: "text-teal" };
   }
-  return { strength: 0, text: "بدون اتصال مستقیم به این لیست", tone: "text-dim" };
+  return { strength: 0, text: "بدون اتصال مستقیم به این فهرست", tone: "text-dim" };
 }

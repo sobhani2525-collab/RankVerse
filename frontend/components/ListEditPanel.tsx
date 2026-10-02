@@ -68,12 +68,12 @@ export default function ListEditPanel({
   async function handleDelete() {
     const token = getToken();
     if (!token) return;
-    if (!confirm("این لیست برای همیشه حذف می‌شود. مطمئنید؟")) return;
+    if (!confirm("این فهرست برای همیشه حذف می‌شود. مطمئنید؟")) return;
     try {
       await deleteList(token, slug);
       router.push("/lists");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "خطا در حذف لیست");
+      alert(err instanceof Error ? err.message : "خطا در حذف فهرست");
     }
   }
 
@@ -113,7 +113,7 @@ export default function ListEditPanel({
             onClick={handleDelete}
             className="h-12 rounded-xl border border-red-500/40 px-4 text-sm text-red-400 transition hover:bg-red-500/10"
           >
-            حذف لیست
+            حذف فهرست
           </button>
         )}
       </div>

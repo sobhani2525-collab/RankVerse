@@ -36,7 +36,7 @@ export default function ListHero({ detail }: { detail: ListDetail }) {
               <span dir="ltr" className="text-sm font-bold lg:text-[15px]">
                 @{detail.owner_username}
               </span>
-              <span className="text-xs text-muted lg:text-[13px]">سازنده لیست</span>
+              <span className="text-xs text-muted lg:text-[13px]">سازنده فهرست</span>
             </span>
           </Link>
         )}

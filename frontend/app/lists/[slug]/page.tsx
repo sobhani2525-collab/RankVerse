@@ -36,14 +36,14 @@ function listDescription(detail: ListDetail): string {
   if (detail.description?.trim()) return excerpt(detail.description, 160);
   const count = detail.items.length;
   const owner = detail.owner_username ? ` ساخته‌ی ${detail.owner_username}` : "";
-  if (count === 0) return `لیست «${detail.title}»${owner} در ${SITE_NAME}.`;
+  if (count === 0) return `فهرست «${detail.title}»${owner} در ${SITE_NAME}.`;
   const names = detail.items
     .slice(0, MAX_NAMES_IN_DESCRIPTION)
     .map((i) => i.entity.title_fa || i.entity.title)
     .join("، ");
   const more = count > MAX_NAMES_IN_DESCRIPTION ? "…" : "";
   return excerpt(
-    `لیست «${detail.title}»${owner} با ${toFaDigits(count)} ${itemNoun(detail)}: ${names}${more}`,
+    `فهرست «${detail.title}»${owner} با ${toFaDigits(count)} ${itemNoun(detail)}: ${names}${more}`,
     160,
   );
 }
@@ -58,7 +58,7 @@ export async function generateMetadata({
   try {
     detail = await loadList(slug);
   } catch {
-    return { title: "لیست پیدا نشد", robots: { index: false, follow: false } };
+    return { title: "فهرست پیدا نشد", robots: { index: false, follow: false } };
   }
 
   const path = listHref(detail.slug);
@@ -70,7 +70,7 @@ export async function generateMetadata({
   const keywords = [
     ...(detail.tags ?? []),
     ...detail.items.slice(0, 10).map((i) => i.entity.title_fa || i.entity.title),
-    "لیست فیلم",
+    "فهرست فیلم",
   ];
 
   return {
@@ -136,7 +136,7 @@ function listJsonLd(detail: ListDetail) {
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: SITE_NAME, item: absoluteUrl("/") },
-          { "@type": "ListItem", position: 2, name: "لیست‌های کاربران", item: absoluteUrl("/lists") },
+          { "@type": "ListItem", position: 2, name: "فهرست‌های کاربران", item: absoluteUrl("/lists") },
           { "@type": "ListItem", position: 3, name: detail.title, item: url },
         ],
       },
@@ -207,8 +207,8 @@ export default async function ListDetailPage({
         <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:mt-20 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
           <span>
             {detail.list_type === "community_ordered"
-              ? "ترتیب این لیست با رأی کاربران تعیین می‌شود؛"
-              : "ترتیب این لیست انتخاب سازنده است؛"}{" "}
+              ? "ترتیب این فهرست با رأی کاربران تعیین می‌شود؛"
+              : "ترتیب این فهرست انتخاب سازنده است؛"}{" "}
             امتیاز ترکیبی از رأی جامعه، روند محبوبیت و نتایج نبردها محاسبه می‌شود.
           </span>
           <Link href="/rankings" className="flex min-h-[44px] shrink-0 items-center text-violet-light hover:text-ink">

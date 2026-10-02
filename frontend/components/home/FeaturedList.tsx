@@ -19,10 +19,10 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
         <SectionHeading
           kicker="Featured list"
           title={list.title}
-          lead={`برگزیده از میان لیست‌های کاربران${list.owner_username ? ` — ساخته‌شده توسط ${list.owner_username}` : ""}`}
+          lead={`برگزیده از میان فهرست‌های کاربران${list.owner_username ? ` — ساخته‌شده توسط ${list.owner_username}` : ""}`}
           action={
             <Link href={listHref(list.slug)} className="text-sm text-gold hover:underline">
-              مشاهدهٔ لیست کامل ←
+              مشاهدهٔ فهرست کامل ←
             </Link>
           }
         />

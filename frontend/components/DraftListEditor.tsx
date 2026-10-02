@@ -47,9 +47,9 @@ function PublishBar({
         </div>
         <p className="text-xs leading-[1.8] text-dim">
           {ready
-            ? `${toFaDigits(count)} آیتم در لیست است؛ آماده انتشار است.`
+            ? `${toFaDigits(count)} آیتم در فهرست است؛ آماده انتشار است.`
             : `برای انتشار حداقل ${toFaDigits(MIN_ITEMS)} آیتم لازم است؛ ${toFaDigits(count)} از ${toFaDigits(MIN_ITEMS)} اضافه شده، ${toFaDigits(remaining)} تای دیگر مانده.`}{" "}
-          تا انتشار، فقط خودتان این لیست را می‌بینید.
+          تا انتشار، فقط خودتان این فهرست را می‌بینید.
         </p>
       </div>
       <div className="flex gap-2">
@@ -66,7 +66,7 @@ function PublishBar({
           disabled={publishing || !ready || saving}
           className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gold px-8 text-[15px] font-extrabold text-bg transition hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
         >
-          {publishing ? "در حال انتشار..." : "انتشار لیست"}
+          {publishing ? "در حال انتشار..." : "انتشار فهرست"}
         </button>
       </div>
     </div>
@@ -144,7 +144,7 @@ export default function DraftListEditor({ slug }: { slug: string }) {
       // Stays "publishing" through the navigation, like the old create button.
       router.push(listHref(detail.slug));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "خطا در انتشار لیست");
+      setError(err instanceof Error ? err.message : "خطا در انتشار فهرست");
       setPublishing(false);
     }
   }
@@ -166,7 +166,7 @@ export default function DraftListEditor({ slug }: { slug: string }) {
       <main className="mx-auto max-w-[760px] px-4 py-24 text-center">
         <p className="mb-4 text-ink">این پیش‌نویس پیدا نشد.</p>
         <Link href="/lists/new" className="text-teal hover:underline">
-          ساخت لیست جدید
+          ساخت فهرست جدید
         </Link>
       </main>
     );

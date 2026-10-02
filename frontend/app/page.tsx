@@ -64,13 +64,13 @@ export default async function HomePage() {
   const [movieRes, tvRes, listsRes, extrasRes, featuredListRes] = await Promise.allSettled([
     moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
-    // آخرین لیست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
+    // آخرین فهرست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
     // این بخش بی‌سروصدا مخفی می‌شه و مانع لود بقیهٔ صفحه نمی‌شه.
     // Cached as long as the rest of the page, so this read doesn't pull the
     // whole home page down to the lists TTL.
     discoverLists({ sort: "newest", page_size: 6 }, RANKING_TTL),
     moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
-    // پرمشارکت‌ترین لیست کاربرها (بیشترین پسند)، برای بخش «Featured list».
+    // پرمشارکت‌ترین فهرست کاربرها (بیشترین پسند)، برای بخش «Featured list».
     discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL).then((lists) =>
       lists[0] ? getListBySlug(lists[0].slug) : null
     ),
@@ -143,10 +143,10 @@ export default async function HomePage() {
         <section className="mx-auto max-w-7xl px-6 py-24">
           <SectionHeading
             kicker="Curated by the community"
-            title="آخرین لیست‌ها"
+            title="آخرین فهرست‌ها"
             action={
               <Link href="/lists" className="text-sm text-teal hover:underline">
-                همه لیست‌ها
+                همه فهرست‌ها
               </Link>
             }
           />

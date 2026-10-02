@@ -58,7 +58,7 @@ function CheckRow({
 }
 
 /**
- * "+ افزودن به لیست…" -- opens a "MY LISTS" popover, anchored to the
+ * "+ افزودن به فهرست…" -- opens a "MY LISTS" popover, anchored to the
  * trigger's right edge and expanding leftward (matching RTL reading
  * direction): the "بعداً تماشا می‌کنم" shortcut first (favoriting already
  * has its own heart button in the action row, so it isn't duplicated
@@ -150,7 +150,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
       await addListItem(token, result.slug, { entity_id: entity.id });
       router.push(`/lists/new/${encodeListSlug(result.slug)}?edit=1`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "خطا در ساخت لیست");
+      setError(err instanceof Error ? err.message : "خطا در ساخت فهرست");
       setCreating(false);
     }
   }
@@ -165,21 +165,20 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
         className="flex h-11 items-center gap-1.5 rounded-xl bg-ink px-4 text-sm font-extrabold text-bg transition hover:bg-ink/90"
       >
         <PlusIcon size={16} />
-        افزودن به لیست…
+        افزودن به فهرست…
       </button>
 
       {open && (
         <div className="absolute right-0 top-full z-20 mt-1.5 w-72 overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
           <div className="flex items-center gap-2 border-b border-border-soft px-3.5 py-2.5">
-            <MonoLabel size="text-[10px]" className="text-dim">
-              MY LISTS
-            </MonoLabel>
-            <span className="text-xs text-muted">لیست‌های من</span>
+            <span className="text-xs text-muted">فهرست‌های من</span>
           </div>
 
-          <CheckRow label="بعداً تماشا می‌کنم" checked={watchingLater} onClick={() => toggleWatchLater(entity.id)} />
+          {entity.entity_type !== "person" && (
+            <CheckRow label="بعداً تماشا می‌کنم" checked={watchingLater} onClick={() => toggleWatchLater(entity.id)} />
+          )}
 
-          <div className="border-t border-border-soft">
+          <div className={entity.entity_type !== "person" ? "border-t border-border-soft" : ""}>
             {loadingLists ? (
               <p className="px-3.5 py-2.5 text-xs text-muted">در حال بارگذاری...</p>
             ) : lists && lists.length > 0 ? (
@@ -195,7 +194,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
                 ))}
               </div>
             ) : (
-              <p className="px-3.5 py-2.5 text-xs text-muted">هنوز لیستی نساخته‌اید</p>
+              <p className="px-3.5 py-2.5 text-xs text-muted">هنوز فهرستی نساخته‌اید</p>
             )}
           </div>
 
@@ -211,7 +210,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
                     handleCreateList();
                   }
                 }}
-                placeholder="+ لیست جدید"
+                placeholder="+ فهرست جدید"
                 disabled={creating}
                 className="h-11 w-full min-w-0 rounded-xl border border-border bg-bg px-3 text-sm text-ink placeholder:text-muted outline-none focus:border-teal/50"
               />
@@ -219,7 +218,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
                 type="button"
                 onClick={handleCreateList}
                 disabled={creating || !newTitle.trim()}
-                aria-label={creating ? "در حال ساخت لیست" : "ایجاد لیست"}
+                aria-label={creating ? "در حال ساخت فهرست" : "ایجاد فهرست"}
                 className="flex h-11 min-w-[64px] shrink-0 items-center justify-center rounded-xl bg-gold px-3.5 text-xs font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
               >
                 {creating ? (

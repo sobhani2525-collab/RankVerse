@@ -1,11 +1,11 @@
 import { toFaDigits } from "@/lib/format-number";
 
-const STEPS = ["مشخصات لیست", "افزودن آیتم‌ها"];
+const STEPS = ["مشخصات فهرست", "افزودن آیتم‌ها"];
 
 /** Two-step indicator shared by the new-list form (step 1) and the draft page (step 2). */
 export default function ListStepper({ current }: { current: 1 | 2 }) {
   return (
-    <ol className="flex items-center gap-3" aria-label="مراحل ساخت لیست">
+    <ol className="flex items-center gap-3" aria-label="مراحل ساخت فهرست">
       {STEPS.map((label, i) => {
         const n = i + 1;
         const done = n < current;

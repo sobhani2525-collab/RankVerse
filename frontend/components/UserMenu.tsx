@@ -59,7 +59,7 @@ export default function UserMenu({ username, onLogout }: { username: string; onL
             صفحه‌ی عمومی من
           </Link>
           <Link href="/lists/new" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-            ساخت لیست جدید
+            ساخت فهرست جدید
           </Link>
           <button
             role="menuitem"

@@ -16,7 +16,9 @@ export default function ListComments({
   slug,
   entityId,
   initialComments,
+  tone,
 }: {
+  tone?: string;
   /** A list's slug... */
   slug?: string;
   /** ...or the id of an entity (person page) whose comments these are. */
@@ -55,7 +57,7 @@ export default function ListComments({
 
   return (
     <section aria-label="نظرها" className="flex flex-col gap-4">
-      <SectionHeading en="COMMENTS" fa={`نظرها · ${toFaDigits(comments.length)}`} />
+      <SectionHeading en="COMMENTS" fa={`نظرها · ${toFaDigits(comments.length)}`} tone={tone} />
 
       <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-2">
         <textarea

@@ -3,7 +3,7 @@ import DraftListEditor from "@/components/DraftListEditor";
 import { decodeListSlug } from "@/lib/list-url";
 
 export const metadata: Metadata = {
-  title: "افزودن آیتم به لیست",
+  title: "افزودن آیتم به فهرست",
   robots: { index: false, follow: false },
 };
 

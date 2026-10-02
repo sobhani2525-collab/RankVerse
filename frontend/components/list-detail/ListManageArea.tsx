@@ -58,7 +58,7 @@ export default function ListManageArea() {
       <div className="mb-6 border-b border-border-soft pb-5 lg:mb-9 lg:pb-7" id="list-nodes-heading">
         <SectionHeading
           en="NODES"
-          fa="آیتم‌های لیست"
+          fa="آیتم‌های فهرست"
           aside={
             (canManage || showAdd) && (
               <div className="flex gap-2">

@@ -129,7 +129,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
         <aside className="flex shrink-0 flex-col gap-10 lg:mt-14 lg:w-[380px] lg:gap-7">
           <PersonBattle directed={data.directed} created={data.created} actedIn={data.acted_in} />
           <EntityLists entityId={data.id} variant="sidebar" />
-          <ListComments entityId={data.id} initialComments={comments} />
+          <ListComments entityId={data.id} initialComments={comments} tone="text-gold" />
         </aside>
       </div>
     </main>

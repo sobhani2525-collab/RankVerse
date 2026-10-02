@@ -82,7 +82,7 @@ export default function PosterCard({
         {showRemove && (
           <button
             type="button"
-            aria-label="حذف از لیست"
+            aria-label="حذف از فهرست"
             onClick={(e) => {
               e.preventDefault();
               onRemove!(entity);

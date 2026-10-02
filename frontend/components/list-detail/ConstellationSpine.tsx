@@ -45,7 +45,7 @@ export default function ConstellationSpine({ addSlot }: { addSlot?: React.ReactN
     return (
       <div className="flex flex-col gap-6">
         <div className="rounded-2xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-          این لیست هنوز آیتمی ندارد.
+          این فهرست هنوز آیتمی ندارد.
         </div>
         {addSlot}
       </div>

@@ -12,7 +12,7 @@ export default function ListFormFields({
   onTitleChange,
   onDescriptionChange,
   onTagsChange,
-  titlePlaceholder = "عنوان لیست",
+  titlePlaceholder = "عنوان فهرست",
   autoFocus = false,
   titleHint,
 }: {
@@ -30,7 +30,7 @@ export default function ListFormFields({
   return (
     <>
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-bold text-ink-dim">عنوان لیست</span>
+        <span className="text-sm font-bold text-ink-dim">عنوان فهرست</span>
         <input
           type="text"
           required
@@ -52,7 +52,7 @@ export default function ListFormFields({
         <textarea
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}
-          placeholder="این لیست دربارهٔ چیست؟ چرا این آیتم‌ها؟"
+          placeholder="این فهرست دربارهٔ چیست؟ چرا این آیتم‌ها؟"
           rows={3}
           className="w-full resize-none rounded-xl border border-border bg-bg/40 px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none transition placeholder:text-dim focus:border-teal/50"
         />

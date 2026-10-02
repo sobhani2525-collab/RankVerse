@@ -51,11 +51,11 @@ export default async function PublicProfilePage({
         </div>
       </div>
 
-      <h2 className="mt-10 mb-4 text-lg font-bold text-ink">لیست‌های {user.username}</h2>
+      <h2 className="mt-10 mb-4 text-lg font-bold text-ink">فهرست‌های {user.username}</h2>
 
       {lists.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-          این کاربر هنوز لیست عمومی‌ای نساخته.
+          این کاربر هنوز فهرست عمومی‌ای نساخته.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6">

@@ -347,7 +347,7 @@ class ListService:
 
         if payload.visibility == "public" and lst.visibility != "public":
             if await self.repo.count_items(lst.id) < MIN_ITEMS_TO_PUBLISH:
-                raise ValidationError(f"برای انتشار لیست حداقل {MIN_ITEMS_TO_PUBLISH} آیتم لازم است")
+                raise ValidationError(f"برای انتشار فهرست حداقل {MIN_ITEMS_TO_PUBLISH} آیتم لازم است")
 
         if payload.title is not None and payload.title != lst.title:
             new_slug = await self._unique_slug(payload.title, list_id=lst.id)

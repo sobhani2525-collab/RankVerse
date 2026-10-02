@@ -123,7 +123,7 @@ function BattleRun({ items, anchor, onNext }: { items: ListItem[]; anchor: numbe
       <>
         {heading}
         <p className="text-[13px] leading-[1.8] text-muted">
-          «{shortTitle(anchorItem)}» در این لیست هم‌نوعی برای نبرد ندارد.
+          «{shortTitle(anchorItem)}» در این فهرست هم‌نوعی برای نبرد ندارد.
         </p>
         {nextAnchor(items, anchor) !== anchor && nextButton}
       </>
@@ -149,7 +149,7 @@ function BattleRun({ items, anchor, onNext }: { items: ListItem[]; anchor: numbe
             </div>
           )}
           <div className="flex flex-col gap-1 text-[13px] leading-[1.8]">
-            <p className="font-bold text-ink">نبرد «{shortTitle(anchorItem)}» با همه آیتم‌های لیست تمام شد.</p>
+            <p className="font-bold text-ink">نبرد «{shortTitle(anchorItem)}» با همه آیتم‌های فهرست تمام شد.</p>
             {streak > 0 && (
               <p className="text-ink-dim">
                 🏆 برنده: <span className="font-bold text-gold">{shortTitle(championItem)}</span> ·{" "}
@@ -239,7 +239,7 @@ function BattleRun({ items, anchor, onNext }: { items: ListItem[]; anchor: numbe
                 <span className="text-[15px] font-extrabold leading-snug text-ink">{shortTitle(item)}</span>
               )}
               <span className="text-xs text-dim">
-                #{toFaDigits(index + 1)} در لیست
+                #{toFaDigits(index + 1)} در فهرست
                 {item.year ? <> · <span className="num">{toFaDigits(item.year)}</span></> : null}
               </span>
             </div>
