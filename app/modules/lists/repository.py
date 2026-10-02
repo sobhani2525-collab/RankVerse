@@ -366,6 +366,10 @@ class ListRepository:
         )
         return (await self.db.execute(stmt)).scalar_one() > 0
 
+    async def count_items(self, list_id: uuid.UUID) -> int:
+        stmt = select(func.count()).select_from(UserListItem).where(UserListItem.list_id == list_id)
+        return (await self.db.execute(stmt)).scalar_one()
+
     async def get_item_by_entity(self, list_id: uuid.UUID, entity_id: uuid.UUID) -> UserListItem | None:
         stmt = select(UserListItem).where(
             UserListItem.list_id == list_id, UserListItem.entity_id == entity_id

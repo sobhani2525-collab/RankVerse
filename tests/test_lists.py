@@ -20,6 +20,53 @@ async def test_create_list(client, auth_headers):
     assert data["slug"].startswith("my-favorite-movies")
 
 
+async def test_create_list_as_draft_is_private_until_published(client, auth_headers, db_session):
+    res = await client.post(
+        "/api/v1/lists", headers=auth_headers, json={"title": "Draft List", "visibility": "private"}
+    )
+    slug = res.json()["data"]["slug"]
+
+    anon = await client.get(f"/api/v1/lists/{slug}")
+    assert anon.status_code == 404
+    owner = await client.get(f"/api/v1/lists/{slug}", headers=auth_headers)
+    assert owner.status_code == 200
+    assert owner.json()["data"]["visibility"] == "private"
+
+    # Too few items: publishing is refused and the list stays private.
+    too_few = await client.put(
+        f"/api/v1/lists/{slug}", headers=auth_headers, json={"visibility": "public"}
+    )
+    assert too_few.status_code == 400
+    assert (await client.get(f"/api/v1/lists/{slug}")).status_code == 404
+
+    from app.modules.entities.repository import EntityRepository
+
+    repo = EntityRepository(db_session)
+    for i in range(5):
+        movie = await repo.create_entity(
+            entity_type="movie", external_id=None, external_source=None,
+            title=f"Draft Movie {i}", slug=f"draft-movie-{i}", attributes={},
+        )
+        await db_session.commit()
+        res = await client.post(
+            f"/api/v1/lists/{slug}/items", headers=auth_headers, json={"entity_id": str(movie.id)}
+        )
+        assert res.status_code == 200
+
+    published = await client.put(
+        f"/api/v1/lists/{slug}", headers=auth_headers, json={"visibility": "public"}
+    )
+    assert published.status_code == 200
+    assert (await client.get(f"/api/v1/lists/{slug}")).status_code == 200
+
+
+async def test_create_list_rejects_unlisted_visibility(client, auth_headers):
+    res = await client.post(
+        "/api/v1/lists", headers=auth_headers, json={"title": "X", "visibility": "unlisted"}
+    )
+    assert res.status_code == 422
+
+
 async def test_create_list_generates_unique_slugs_on_title_collision(client, auth_headers):
     first = await client.post(
         "/api/v1/lists", headers=auth_headers, json={"title": "Same Title"}

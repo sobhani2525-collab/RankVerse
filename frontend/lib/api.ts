@@ -412,6 +412,8 @@ export async function createList(
     description?: string;
     entity_type?: string;
     tags?: string[];
+    /** "private" creates a draft the owner publishes later. */
+    visibility?: "public" | "private";
   }
 ): Promise<{ id: string; slug: string }> {
   return authFetch(`/lists`, token, { method: "POST", body: payload });

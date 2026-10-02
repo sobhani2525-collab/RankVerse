@@ -5,7 +5,7 @@ from app.modules.lists.models import UserList, UserListItem, ContributionMode, L
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedError
+from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedError, ValidationError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.service import _extract_media
 from app.modules.lists.repository import ListRepository
@@ -31,6 +31,9 @@ GRAPH_RELATION_TYPES = ["directed_by", "creator", "acted_in", "has_genre"]
 WATCH_LATER_TITLE = "تماشا خواهم کرد"
 # Frontend routes living directly under /lists/ -- no list may take their slug.
 RESERVED_LIST_SLUGS = {"new"}
+
+# A draft can't be published (private -> public) with fewer items than this.
+MIN_ITEMS_TO_PUBLISH = 5
 
 
 def _entity_mini(entity) -> EntityMini:
@@ -138,9 +141,10 @@ class ListService:
         return slug
 
     async def create_list(self, user_id: uuid.UUID, payload: ListCreate) -> UserList:
-        """Every manually-created list is public, open to anyone's
-        contributions, and ordered by community vote -- see ListCreate's
-        docstring for why those aren't payload fields anymore."""
+        """Every manually-created list is open to anyone's contributions and
+        ordered by community vote -- see ListCreate's docstring for why those
+        aren't payload fields anymore. Visibility is the exception: a list
+        created "private" is a draft until its owner publishes it."""
         slug = await self._unique_slug(payload.title)
         lst = await self.repo.create_list(
             user_id=user_id,
@@ -149,7 +153,7 @@ class ListService:
             description=payload.description,
             entity_type=payload.entity_type,
             is_ranked=True,
-            visibility="public",
+            visibility=payload.visibility,
             tags=payload.tags,
             list_type=ListType.COMMUNITY_ORDERED,
             contribution_mode=ContributionMode.ANYONE,
@@ -339,6 +343,10 @@ class ListService:
             raise NotFoundError(f"List '{slug}' not found")
         if lst.user_id != user_id:
             raise UnauthorizedError("You don't have permission to edit this list")
+
+        if payload.visibility == "public" and lst.visibility != "public":
+            if await self.repo.count_items(lst.id) < MIN_ITEMS_TO_PUBLISH:
+                raise ValidationError(f"برای انتشار لیست حداقل {MIN_ITEMS_TO_PUBLISH} آیتم لازم است")
 
         if payload.title is not None and payload.title != lst.title:
             new_slug = await self._unique_slug(payload.title, list_id=lst.id)

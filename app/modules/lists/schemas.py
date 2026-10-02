@@ -18,6 +18,9 @@ class ListCreate(BaseModel):
     description: str | None = None
     entity_type: str | None = None
     tags: list[str] = []
+    # "private" makes a draft: the new-list form creates one after step 1 and
+    # the owner publishes it (PUT visibility=public) once items are added.
+    visibility: Literal["public", "private"] = "public"
 
 
 class WatchLaterToggle(BaseModel):
