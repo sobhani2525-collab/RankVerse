@@ -9,6 +9,7 @@ from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedE
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.service import _extract_media
 from app.modules.lists.repository import ListRepository
+from app.modules.lists.similar import SIMILARITY_THRESHOLD, content_words, similarity
 from app.modules.lists.scoring import compute_like_score, community_order_key, is_list_active
 from app.modules.lists.graph import (
     CREDIT_RELATIONS, GraphItem, RELATION_LABELS_FA, RELATION_LABEL_FALLBACK_FA,
@@ -395,6 +396,29 @@ class ListService:
     ) -> tuple[list[ListSummary], int]:
         lists, total = await self.repo.discover(page, page_size, entity_type, tag, sort_by)
         return [self._to_summary_with_preview(lst) for lst in lists], total
+
+    async def similar_lists(self, title: str, limit: int = 5) -> list[dict]:
+        """Existing public lists whose title looks like `title`, best match
+        first -- shown on the new-list form so people don't create duplicates."""
+        words = sorted(content_words(title))[:6]
+        candidates = await self.repo.similar_title_candidates(words)
+        scored = []
+        for lst, item_count in candidates:
+            score = similarity(title, lst.title)
+            if score >= SIMILARITY_THRESHOLD:
+                scored.append((score, lst, item_count))
+        scored.sort(key=lambda row: (row[0], row[1].like_count), reverse=True)
+        return [
+            {
+                "slug": lst.slug,
+                "title": lst.title,
+                "owner_username": lst.owner.username if lst.owner else None,
+                "item_count": item_count,
+                "like_count": lst.like_count,
+                "exact": score >= 1.0,
+            }
+            for score, lst, item_count in scored[:limit]
+        ]
 
     def _to_summary_with_preview(self, lst: UserList) -> ListSummary:
         """Like ListSummary.model_validate(lst), plus owner_username and a

@@ -206,6 +206,36 @@ class ListRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def similar_title_candidates(
+        self, words: list[str], limit: int = 60
+    ) -> list[tuple[UserList, int]]:
+        """Public lists whose title contains any of `words` (already
+        normalised), with their item counts -- the rough net that
+        lists/similar.py then scores."""
+        if not words:
+            return []
+        # Fold Arabic ي/ك and the zero-width non-joiner so stored titles match
+        # normalised words.
+        title = func.lower(func.translate(UserList.title, "يك‌", "یک "))
+        item_count = (
+            select(func.count(UserListItem.id))
+            .where(UserListItem.list_id == UserList.id)
+            .correlate(UserList)
+            .scalar_subquery()
+        )
+        stmt = (
+            select(UserList, item_count)
+            .where(
+                UserList.visibility == "public",
+                UserList.is_watch_later.is_(False),
+                or_(*[title.contains(w, autoescape=True) for w in words]),
+            )
+            .options(joinedload(UserList.owner))
+            .order_by(UserList.like_count.desc())
+            .limit(limit)
+        )
+        return [(lst, count) for lst, count in (await self.db.execute(stmt)).all()]
+
     async def discover(
         self,
         page: int = 1,

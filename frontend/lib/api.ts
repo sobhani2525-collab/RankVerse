@@ -717,3 +717,26 @@ export async function getRankingsPage(
   }
   return { items: json.data, total: json.meta?.total ?? null };
 }
+
+export interface SimilarList {
+  slug: string;
+  title: string;
+  owner_username: string | null;
+  item_count: number;
+  like_count: number;
+  /** Same title once normalised (vs. merely overlapping words). */
+  exact: boolean;
+}
+
+/** Public lists whose title resembles `title`, for the new-list form's duplicate hint. */
+export async function getSimilarLists(title: string, signal?: AbortSignal): Promise<SimilarList[]> {
+  const res = await fetch(`${API_BASE}/lists/similar?title=${encodeURIComponent(title)}`, {
+    cache: "no-store",
+    signal,
+  });
+  const json: Envelope<SimilarList[]> = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message || "Failed to fetch similar lists");
+  }
+  return json.data;
+}

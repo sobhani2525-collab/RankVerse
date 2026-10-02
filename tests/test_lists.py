@@ -354,3 +354,22 @@ async def test_candidates_respect_add_permission(client, auth_headers, db_sessio
     res = await client.get(f"/api/v1/lists/{slug}/candidates?q=a", headers=other_headers)
     assert res.status_code == 401
 
+
+
+async def test_similar_lists_flags_near_duplicate_titles(client, auth_headers):
+    await client.post("/api/v1/lists", headers=auth_headers, json={"title": "بهترین فیلم‌های اکشن"})
+    await client.post("/api/v1/lists", headers=auth_headers, json={"title": "بهترین فیلم‌های نولان"})
+    # Private drafts are never suggested.
+    await client.post(
+        "/api/v1/lists", headers=auth_headers, json={"title": "فیلم های اکشن خصوصی", "visibility": "private"}
+    )
+
+    res = await client.get("/api/v1/lists/similar", params={"title": "۱۰ بهترین فیلم اکشن"})
+    assert res.status_code == 200
+    titles = [row["title"] for row in res.json()["data"]]
+    assert titles == ["بهترین فیلم‌های اکشن"]
+    assert res.json()["data"][0]["exact"] is True
+
+    # Sharing only generic words («بهترین فیلم‌ها») isn't similar.
+    unrelated = await client.get("/api/v1/lists/similar", params={"title": "بهترین فیلم‌های ترسناک"})
+    assert unrelated.json()["data"] == []

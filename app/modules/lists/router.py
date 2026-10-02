@@ -52,6 +52,17 @@ async def lists_sitemap(db: AsyncSession = Depends(get_read_db)):
     return envelope(data=await service.sitemap_entries())
 
 
+@router.get("/lists/similar")
+async def similar_lists(
+    title: str = Query(..., min_length=2, max_length=200),
+    db: AsyncSession = Depends(get_read_db),
+):
+    """Public lists whose title resembles `title` (duplicate hint for the
+    new-list form). Declared before /lists/{slug} so "similar" isn't read as a slug."""
+    service = ListService(db)
+    return envelope(data=await service.similar_lists(title))
+
+
 @router.get("/lists/{slug}")
 async def get_list(
     slug: str,

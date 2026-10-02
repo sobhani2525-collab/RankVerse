@@ -6,6 +6,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { createList } from "@/lib/api";
 import { encodeListSlug } from "@/lib/list-url";
 import ListFormFields from "@/components/ListFormFields";
+import SimilarListsHint from "@/components/SimilarListsHint";
 import ListStepper from "@/components/ListStepper";
 import { MonoLabel } from "@/components/list-detail/ui";
 
@@ -80,6 +81,7 @@ export default function NewListForm() {
           onTagsChange={setTags}
           titlePlaceholder={`مثلاً «${example}»`}
           autoFocus
+          titleHint={<SimilarListsHint title={title} />}
         />
 
         {error && (

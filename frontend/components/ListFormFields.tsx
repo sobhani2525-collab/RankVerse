@@ -14,6 +14,7 @@ export default function ListFormFields({
   onTagsChange,
   titlePlaceholder = "عنوان لیست",
   autoFocus = false,
+  titleHint,
 }: {
   title: string;
   description: string;
@@ -23,6 +24,8 @@ export default function ListFormFields({
   onTagsChange: (v: string[]) => void;
   titlePlaceholder?: string;
   autoFocus?: boolean;
+  /** Rendered right under the title (e.g. similar-list suggestions). */
+  titleHint?: React.ReactNode;
 }) {
   return (
     <>
@@ -39,6 +42,8 @@ export default function ListFormFields({
           className="w-full border-b-2 border-border bg-transparent pb-3 text-2xl font-extrabold leading-snug text-ink outline-none transition placeholder:font-bold placeholder:text-dim focus:border-gold lg:text-3xl"
         />
       </label>
+
+      {titleHint}
 
       <label className="flex flex-col gap-2">
         <span className="text-sm font-bold text-ink-dim">
