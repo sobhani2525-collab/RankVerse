@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { createList } from "@/lib/api";
 import { encodeListSlug } from "@/lib/list-url";
-import TagComposer from "@/components/TagComposer";
+import ListFormFields from "@/components/ListFormFields";
 import ListStepper from "@/components/ListStepper";
 import { MonoLabel } from "@/components/list-detail/ui";
 
@@ -71,34 +71,16 @@ export default function NewListForm() {
         onSubmit={handleSubmit}
         className="flex flex-col gap-7 rounded-3xl border border-border bg-gradient-to-b from-surface to-surface/40 p-5 shadow-[0_20px_60px_-30px_rgba(122,92,255,0.35)] sm:p-8"
       >
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-bold text-ink-dim">عنوان لیست</span>
-          <input
-            type="text"
-            required
-            maxLength={200}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={`مثلاً «${example}»`}
-            autoFocus
-            className="w-full border-b-2 border-border bg-transparent pb-3 text-2xl font-extrabold leading-snug text-ink outline-none transition placeholder:font-bold placeholder:text-dim focus:border-gold lg:text-3xl"
-          />
-        </label>
-
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-bold text-ink-dim">
-            توضیح <span className="font-normal text-dim">(اختیاری)</span>
-          </span>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="این لیست دربارهٔ چیست؟ چرا این آیتم‌ها؟"
-            rows={3}
-            className="w-full resize-none rounded-xl border border-border bg-bg/40 px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none transition placeholder:text-dim focus:border-teal/50"
-          />
-        </label>
-
-        <TagComposer tags={tags} onChange={setTags} />
+        <ListFormFields
+          title={title}
+          description={description}
+          tags={tags}
+          onTitleChange={setTitle}
+          onDescriptionChange={setDescription}
+          onTagsChange={setTags}
+          titlePlaceholder={`مثلاً «${example}»`}
+          autoFocus
+        />
 
         {error && (
           <p className="rounded-lg border border-gold/30 bg-gold/5 px-4 py-2 text-sm text-gold">{error}</p>

@@ -5,22 +5,30 @@ import { useAuth } from "@/lib/auth-context";
 import { updateList, deleteList } from "@/lib/api";
 import { ListDetail } from "@/lib/types";
 import { listHref } from "@/lib/list-url";
+import ListFormFields from "@/components/ListFormFields";
 
+/** Same fields and look as the new-list form (see ListFormFields). */
 export default function ListEditPanel({
   slug,
   detail,
   onSaved,
   onCancel,
+  hrefFor = listHref,
+  allowDelete = true,
 }: {
   slug: string;
   detail: ListDetail;
   onSaved: () => void;
   onCancel: () => void;
+  /** Where to go if a new title moves the list to a new slug (drafts live under /lists/new). */
+  hrefFor?: (slug: string) => string;
+  allowDelete?: boolean;
 }) {
   const router = useRouter();
   const { getToken } = useAuth();
   const [title, setTitle] = useState(detail.title);
   const [description, setDescription] = useState(detail.description ?? "");
+  const [tags, setTags] = useState<string[]>(detail.tags ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,11 +41,12 @@ export default function ListEditPanel({
       const { slug: newSlug } = await updateList(token, slug, {
         title: title.trim(),
         description: description.trim() || undefined,
+        tags,
       });
       // A new title moves the list to a new slug; the old URL would only
       // redirect, so go straight there.
       if (newSlug !== slug) {
-        router.replace(listHref(newSlug));
+        router.replace(hrefFor(newSlug));
       } else {
         onSaved();
       }
@@ -51,6 +60,7 @@ export default function ListEditPanel({
   function handleCancel() {
     setTitle(detail.title);
     setDescription(detail.description ?? "");
+    setTags(detail.tags ?? []);
     setError(null);
     onCancel();
   }
@@ -68,51 +78,44 @@ export default function ListEditPanel({
   }
 
   return (
-    <div className="mt-6 flex flex-col gap-4 rounded-xl border border-border bg-surface/60 p-4">
-      <div>
-        <label className="mb-1 block text-xs text-muted">عنوان</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-gold/50"
-        />
-      </div>
+    <div className="mt-6 flex flex-col gap-7 rounded-3xl border border-border bg-gradient-to-b from-surface to-surface/40 p-5 sm:p-8">
+      <ListFormFields
+        title={title}
+        description={description}
+        tags={tags}
+        onTitleChange={setTitle}
+        onDescriptionChange={setDescription}
+        onTagsChange={setTags}
+      />
 
-      <div>
-        <label className="mb-1 block text-xs text-muted">توضیح</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-gold/50"
-        />
-      </div>
+      {error && (
+        <p className="rounded-lg border border-gold/30 bg-gold/5 px-4 py-2 text-sm text-gold">{error}</p>
+      )}
 
-      {error && <p className="text-sm text-gold">{error}</p>}
-
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2">
           <button
             onClick={handleSave}
             disabled={saving || !title.trim()}
-            className="rounded-lg bg-gold px-4 py-2 text-sm font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
+            className="h-12 flex-1 rounded-xl bg-gold px-8 text-[15px] font-extrabold text-bg transition hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
           >
             {saving ? "در حال ذخیره..." : "ذخیره"}
           </button>
           <button
             onClick={handleCancel}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-muted transition hover:border-gold/40"
+            className="h-12 rounded-xl border border-border px-5 text-sm text-muted transition hover:border-gold/40"
           >
             انصراف
           </button>
         </div>
-        <button
-          onClick={handleDelete}
-          className="rounded-lg border border-red-500/40 px-4 py-2 text-sm text-red-400 transition hover:bg-red-500/10"
-        >
-          حذف لیست
-        </button>
+        {allowDelete && (
+          <button
+            onClick={handleDelete}
+            className="h-12 rounded-xl border border-red-500/40 px-4 text-sm text-red-400 transition hover:bg-red-500/10"
+          >
+            حذف لیست
+          </button>
+        )}
       </div>
     </div>
   );

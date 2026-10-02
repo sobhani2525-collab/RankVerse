@@ -1,5 +1,5 @@
 "use client";
-import { listHref } from "@/lib/list-url";
+import { encodeListSlug } from "@/lib/list-url";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -127,10 +127,11 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
     }
   }
 
-  // Navigates to the new list's page on success (instead of just closing the
-  // menu) so the user lands where they can keep adding items to it --
-  // `creating` deliberately stays true through the redirect so the form
-  // can't be resubmitted while the page transitions.
+  // Navigates to the new draft's page on success (instead of just closing
+  // the menu) with its details form already open (?edit=1), so the user can
+  // write the description and tags right away -- `creating` deliberately
+  // stays true through the redirect so the button keeps its loading state
+  // and the form can't be resubmitted while the page transitions.
   async function handleCreateList() {
     const token = getToken();
     const title = newTitle.trim();
@@ -139,9 +140,15 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
     setCreating(true);
     setError(null);
     try {
-      const result = await createList(token, { title, entity_type: entity.entity_type });
+      // Starts as a private draft (published from step 2 once it has enough
+      // items), like a list made from the new-list form.
+      const result = await createList(token, {
+        title,
+        entity_type: entity.entity_type,
+        visibility: "private",
+      });
       await addListItem(token, result.slug, { entity_id: entity.id });
-      router.push(listHref(result.slug));
+      router.push(`/lists/new/${encodeListSlug(result.slug)}?edit=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در ساخت لیست");
       setCreating(false);
@@ -212,9 +219,17 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
                 type="button"
                 onClick={handleCreateList}
                 disabled={creating || !newTitle.trim()}
-                className="h-11 shrink-0 rounded-xl bg-gold px-3.5 text-xs font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
+                aria-label={creating ? "در حال ساخت لیست" : "ایجاد لیست"}
+                className="flex h-11 min-w-[64px] shrink-0 items-center justify-center rounded-xl bg-gold px-3.5 text-xs font-bold text-bg transition hover:bg-gold/90 disabled:opacity-50"
               >
-                {creating ? "..." : "ایجاد"}
+                {creating ? (
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  "ایجاد"
+                )}
               </button>
             </div>
             {error && <p className="mt-1.5 text-[11px] text-gold">{error}</p>}

@@ -22,7 +22,9 @@ export default function ListManageArea() {
   const [managing, setManaging] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  const canManage = detail.is_owner || detail.items.some((i) => i.can_remove);
+  // Only the list's creator manages (reorders/removes) items; contributors
+  // can still add.
+  const canManage = detail.is_owner;
   const canAddAuthed =
     detail.is_owner ||
     detail.contribution_mode === "anyone" ||

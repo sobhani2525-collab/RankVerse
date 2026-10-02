@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getListBySlug, updateList, deleteList } from "@/lib/api";
-import { listHref } from "@/lib/list-url";
+import { encodeListSlug, listHref } from "@/lib/list-url";
 import { toFaDigits } from "@/lib/format-number";
 import type { ListDetail } from "@/lib/types";
 import { ListViewerProvider, useListViewer } from "@/components/list-detail/ListViewerContext";
@@ -13,6 +13,9 @@ import { ListBattleProvider } from "@/components/list-detail/ListBattleContext";
 import ListManageArea from "@/components/list-detail/ListManageArea";
 import { MonoLabel } from "@/components/list-detail/ui";
 import ListStepper from "@/components/ListStepper";
+import ListEditPanel from "@/components/ListEditPanel";
+
+const draftHref = (slug: string) => `/lists/new/${encodeListSlug(slug)}`;
 
 // Mirrors MIN_ITEMS_TO_PUBLISH in app/modules/lists/service.py (the server enforces it).
 const MIN_ITEMS = 5;
@@ -84,6 +87,29 @@ export default function DraftListEditor({ slug }: { slug: string }) {
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  // "?edit=1" (set after creating a list from a movie page) opens the details
+  // form straight away; drop the param so a refresh doesn't reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("edit") !== "1") return;
+    setEditing(true);
+    params.delete("edit");
+    const query = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : ""));
+  }, []);
+
+  async function reloadDetail() {
+    const t = getToken();
+    if (!t || !detail) return;
+    try {
+      setDetail(await getListBySlug(detail.slug, t));
+    } catch {
+      // keep what's shown; the next visit loads fresh data
+    }
+    setEditing(false);
+  }
 
   useEffect(() => {
     if (authLoading) return;
@@ -151,7 +177,7 @@ export default function DraftListEditor({ slug }: { slug: string }) {
   }
 
   return (
-    <ListViewerProvider slug={detail.slug} initialDetail={detail}>
+    <ListViewerProvider key={detail.slug} slug={detail.slug} initialDetail={detail}>
       <ListBattleProvider>
         <main className="mx-auto max-w-[1100px] px-4 pb-14 pt-8 lg:px-10 lg:pt-[72px]">
           <div className="mb-8 flex flex-col gap-5">
@@ -159,22 +185,44 @@ export default function DraftListEditor({ slug }: { slug: string }) {
             <ListStepper current={2} />
           </div>
 
-          <header className="mb-10 flex flex-col gap-2 rounded-3xl border border-border bg-gradient-to-b from-surface to-surface/40 p-5 sm:p-7">
-            <span className="w-fit rounded-full border border-gold/40 bg-gold/10 px-3 py-0.5 text-xs font-bold text-gold">
-              پیش‌نویس
-            </span>
-            <h1 className="text-2xl font-extrabold leading-snug text-ink lg:text-3xl">{detail.title}</h1>
-            {detail.description && <p className="text-sm leading-relaxed text-ink-dim">{detail.description}</p>}
-            {detail.tags.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-2">
-                {detail.tags.map((t) => (
-                  <span key={t} className="rounded-full border border-teal/35 bg-teal/[.08] px-3 py-0.5 text-[13px] text-teal">
-                    #{t}
-                  </span>
-                ))}
+          {editing ? (
+            <div className="mb-10">
+              <ListEditPanel
+                slug={detail.slug}
+                detail={detail}
+                hrefFor={draftHref}
+                allowDelete={false}
+                onSaved={reloadDetail}
+                onCancel={() => setEditing(false)}
+              />
+            </div>
+          ) : (
+            <header className="mb-10 flex flex-col gap-2 rounded-3xl border border-border bg-gradient-to-b from-surface to-surface/40 p-5 sm:p-7">
+              <div className="flex items-center justify-between gap-3">
+                <span className="w-fit rounded-full border border-gold/40 bg-gold/10 px-3 py-0.5 text-xs font-bold text-gold">
+                  پیش‌نویس
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="h-10 rounded-xl border border-border bg-surface px-4 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
+                >
+                  ویرایش مشخصات
+                </button>
               </div>
-            )}
-          </header>
+              <h1 className="text-2xl font-extrabold leading-snug text-ink lg:text-3xl">{detail.title}</h1>
+              {detail.description && <p className="text-sm leading-relaxed text-ink-dim">{detail.description}</p>}
+              {detail.tags.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {detail.tags.map((t) => (
+                    <span key={t} className="rounded-full border border-teal/35 bg-teal/[.08] px-3 py-0.5 text-[13px] text-teal">
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </header>
+          )}
 
           <ListManageArea />
 
