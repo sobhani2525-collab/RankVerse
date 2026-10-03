@@ -8,7 +8,9 @@ import { toFaDigits } from "@/lib/format-number";
 import { entityPosterUrl } from "@/lib/list-constellation";
 
 // Vertical offsets give the strip an orbit-like wave instead of a flat grid row.
-const OFFSETS = ["mt-0", "mt-10", "mt-4", "mt-14", "mt-2", "mt-8"];
+const OFFSETS = ["lg:mt-0", "lg:mt-10", "lg:mt-4", "lg:mt-14", "lg:mt-2", "lg:mt-8"];
+// The first SHOWN items + the "add yours" tile fill one row on desktop (6 columns).
+const SHOWN = 5;
 
 export default function FeaturedList({ list }: { list: ListDetail }) {
   if (list.items.length === 0) return null;
@@ -30,8 +32,8 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
 
       <div className="relative">
         <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[45%] h-px bg-gradient-to-l from-transparent via-white/10 to-transparent" />
-        <ul className="no-scrollbar mx-auto flex max-w-7xl snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-16 pt-2">
-          {list.items.map((item, i) => {
+        <ul className="mx-auto grid max-w-7xl grid-cols-2 gap-x-5 gap-y-8 px-6 pb-16 pt-2 sm:grid-cols-3 lg:grid-cols-6">
+          {list.items.slice(0, SHOWN).map((item, i) => {
             const posterUrl = entityPosterUrl(item.entity);
             const card = (
               <>
@@ -51,14 +53,14 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
               </>
             );
             return (
-              <li key={item.id} className={`w-40 shrink-0 snap-start sm:w-44 ${OFFSETS[i % OFFSETS.length]}`}>
+              <li key={item.id} className={OFFSETS[i % OFFSETS.length]}>
                 <Link href={listHref(list.slug)} className="group block transition duration-500 hover:-translate-y-2 focus-visible:-translate-y-2">
                   {card}
                 </Link>
               </li>
             );
           })}
-          <li className={`w-40 shrink-0 snap-start sm:w-44 ${OFFSETS[list.items.length % OFFSETS.length]}`}>
+          <li className={OFFSETS[Math.min(list.items.length, SHOWN) % OFFSETS.length]}>
             <Link href={listHref(list.slug)} className="group block transition duration-500 hover:-translate-y-2 focus-visible:-translate-y-2">
               <span className="relative flex aspect-[2/3] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-dashed border-white/15 bg-surface2/40 text-center transition duration-500 group-hover:border-gold/40 group-hover:bg-surface2/70">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-lg text-muted transition group-hover:border-gold/40 group-hover:text-gold">
