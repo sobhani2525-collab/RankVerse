@@ -20,6 +20,8 @@ export interface TicketCardList {
   likeCount: number;
   commentCount: number;
   saveCount: number;
+  /** Admin-featured: shows the gold «برگزیده» badge. */
+  featured?: boolean;
 }
 
 const SLOTS = 5;
@@ -35,10 +37,15 @@ export default function ListTicketCard({ list }: { list: TicketCardList }) {
   return (
     <Link
       href={`/lists/${list.slug}`}
-      className="group block overflow-hidden rounded-[20px] bg-[#151A30] shadow-[0_10px_28px_-6px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_-8px_rgba(0,0,0,.65),0_0_32px_rgba(232,179,74,.10),inset_0_1px_0_rgba(255,255,255,.07)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group relative block overflow-hidden rounded-[20px] bg-[#151A30] shadow-[0_10px_28px_-6px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_-8px_rgba(0,0,0,.65),0_0_32px_rgba(232,179,74,.10),inset_0_1px_0_rgba(255,255,255,.07)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
+      {list.featured && (
+        <span className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-full border border-gold/40 bg-bg/85 px-2.5 py-1 text-[11px] font-bold text-gold backdrop-blur">
+          <span aria-hidden>★</span> برگزیده
+        </span>
+      )}
       <div
-        className="grid h-[250px] gap-2 px-4 pb-[10px] pt-4"
+        className="grid h-[250px gap-2 px-4 pb-[10px] pt-4"
         style={{ gridTemplateColumns: "2fr 1fr 1fr", gridTemplateRows: "1fr 1fr" }}
       >
         {Array.from({ length: SLOTS }).map((_, i) => {

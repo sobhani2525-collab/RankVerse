@@ -43,8 +43,6 @@ export interface ListCardList {
   countsByType?: Record<string, number> | null;
   likesCount?: number | null;
   updatedAt?: string | null;
-  /** Admin-featured: shows the gold «برگزیده» badge. */
-  isFeatured?: boolean;
   author?: ListCardAuthor | null;
 }
 
@@ -96,11 +94,6 @@ export default function ListCard({ list }: { list: ListCardList }) {
         })}
         {/* First item (rightmost in RTL) stays clearest; third item (leftmost) fades darkest. */}
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-l from-transparent to-black/85" />
-        {list.isFeatured && (
-          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-gold/40 bg-bg/80 px-2.5 py-1 text-[11px] font-bold text-gold backdrop-blur">
-            <span aria-hidden>★</span> برگزیده
-          </span>
-        )}
       </Link>
 
       <div className="flex flex-1 flex-col gap-2.5 p-4 md:p-6">

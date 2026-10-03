@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import ListCard from "@/components/lists/list-card";
+import ListTicketCard from "@/components/lists/list-ticket-card";
 import HomeHero from "@/components/home/HomeHero";
 import LiveRanking from "@/components/home/LiveRanking";
 import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
@@ -15,7 +15,7 @@ import SectionHeading from "@/components/home/SectionHeading";
 import {
   getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlug, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
 } from "@/lib/api";
-import { listSummaryToListCard } from "@/lib/entity-card-adapters";
+import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import { clusterByGenre, toHomeTitle } from "@/lib/home-data";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { ListDetail, ListSummary, MovieDetail, MovieListItem } from "@/lib/types";
@@ -143,10 +143,15 @@ export default async function HomePage() {
       {otherFeatured.length > 0 && (
         <section className="mx-auto max-w-7xl px-6 pb-16">
           <h3 className="mb-5 text-lg font-bold text-ink">برگزیده‌های دیگر</h3>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {otherFeatured.map((list) => (
-              <ListCard key={list.id} list={listSummaryToListCard(list)} />
+              <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} />
             ))}
+          </div>
+          <div className="mt-8 text-center">
+            <Link href="/lists" className="text-sm text-teal hover:underline">
+              مشاهدهٔ همهٔ فهرست‌ها ←
+            </Link>
           </div>
         </section>
       )}
@@ -164,9 +169,9 @@ export default async function HomePage() {
               </Link>
             }
           />
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {latestLists.map((list) => (
-              <ListCard key={list.id} list={listSummaryToListCard(list)} />
+              <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} />
             ))}
           </div>
         </section>
