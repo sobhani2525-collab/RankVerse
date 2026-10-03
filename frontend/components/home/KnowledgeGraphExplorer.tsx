@@ -325,7 +325,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
               </ol>
             </div>
 
-            <div className="flex gap-4 rounded-2xl border border-white/5 bg-surface/40 p-5">
+            <CardShell href={focusHref} className="flex gap-4 rounded-2xl border border-white/5 bg-surface/40 p-5 transition hover:border-gold/40">
               {focus.kind !== "genre" && (
                 <div className="relative h-[150px] w-[100px] shrink-0 overflow-hidden rounded-lg bg-surface2">
                   {focus.posterUrl ? (
@@ -341,13 +341,13 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
               <p className={`text-xs ${KIND_STYLE[focus.kind].text}`}>{focus.caption}</p>
               <p className="mt-1 text-lg font-medium text-ink">{focus.label}</p>
               {focusHref && (
-                <Link href={focusHref} className="mt-4 inline-flex items-center gap-1 text-sm text-gold hover:underline">
+                <span className="mt-4 inline-flex items-center gap-1 text-sm text-gold">
                   رفتن به صفحهٔ {focus.caption}
                   <span aria-hidden="true">←</span>
-                </Link>
+                </span>
               )}
               </div>
-            </div>
+            </CardShell>
 
             {loadingKey && (
               <p role="status" className="flex items-center gap-2 text-sm text-muted">
@@ -382,5 +382,17 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
         </div>
       </div>
     </section>
+  );
+}
+
+// The whole focus card is one link to the entity's page (a plain box when
+// the type has no page).
+function CardShell({ href, className, children }: { href: string | null; className: string; children: React.ReactNode }) {
+  return href ? (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
   );
 }
