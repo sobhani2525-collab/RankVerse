@@ -174,6 +174,8 @@ class ListSummary(BaseModel):
     follower_count: int
     created_at: datetime
     owner_username: str | None = None
+    # Admin-featured (card badge); see app/modules/admin.
+    is_featured: bool = False
     # First few items (position order), for a poster collage on list cards.
     # Only populated by ListService.discover today -- other ListSummary call
     # sites (list_by_user, related, for-entity) don't eager-load items/owner,

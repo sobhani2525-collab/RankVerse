@@ -392,10 +392,19 @@ class ListService:
         return [self._to_summary_with_preview(lst) for lst in lists]
 
     async def discover(
-        self, page: int, page_size: int, entity_type: str | None, tag: str | None, sort_by: str
+        self,
+        page: int,
+        page_size: int,
+        entity_type: str | None,
+        tag: str | None,
+        sort_by: str,
+        quality_only: bool = False,
     ) -> tuple[list[ListSummary], int]:
-        lists, total = await self.repo.discover(page, page_size, entity_type, tag, sort_by)
+        lists, total = await self.repo.discover(page, page_size, entity_type, tag, sort_by, quality_only)
         return [self._to_summary_with_preview(lst) for lst in lists], total
+
+    async def featured(self, limit: int) -> list[ListSummary]:
+        return [self._to_summary_with_preview(lst) for lst in await self.repo.featured(limit)]
 
     async def similar_lists(self, title: str, limit: int = 5) -> list[dict]:
         """Existing public lists whose title looks like `title`, best match

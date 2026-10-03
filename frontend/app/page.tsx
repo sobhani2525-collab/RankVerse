@@ -12,11 +12,13 @@ import GenreUniverse from "@/components/home/GenreUniverse";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import FinalCta from "@/components/home/FinalCta";
 import SectionHeading from "@/components/home/SectionHeading";
-import { getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlug, RANKING_TTL } from "@/lib/api";
+import {
+  getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlug, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
+} from "@/lib/api";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 import { clusterByGenre, toHomeTitle } from "@/lib/home-data";
 import { rethrowOutsideBuild } from "@/lib/isr";
-import { ListDetail, MovieDetail, MovieListItem } from "@/lib/types";
+import { ListDetail, ListSummary, MovieDetail, MovieListItem } from "@/lib/types";
 
 export const revalidate = 1800;
 
@@ -44,6 +46,18 @@ async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[] }
   return { details };
 }
 
+const OTHER_FEATURED = 3;
+
+/** The hero «Featured list» in full, plus up to OTHER_FEATURED more admin-featured lists as cards. */
+async function loadFeatured(): Promise<{ main: ListDetail | null; others: ListSummary[] }> {
+  const featured = await getFeaturedLists(1 + OTHER_FEATURED);
+  if (featured.length > 0) {
+    return { main: await getListBySlug(featured[0].slug), others: featured.slice(1) };
+  }
+  const [popular] = await discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL, [LISTS_CACHE_TAG]);
+  return { main: popular ? await getListBySlug(popular.slug) : null, others: [] };
+}
+
 export default async function HomePage() {
   // Independent reads, fetched together; each failure only hides its own
   // section (movies failing shows the error state below). The movie
@@ -57,12 +71,10 @@ export default async function HomePage() {
     // این بخش بی‌سروصدا مخفی می‌شه و مانع لود بقیهٔ صفحه نمی‌شه.
     // Cached as long as the rest of the page, so this read doesn't pull the
     // whole home page down to the lists TTL.
-    discoverLists({ sort: "newest", page_size: 6 }, RANKING_TTL),
+    discoverLists({ sort: "newest", page_size: 6 }, RANKING_TTL, [LISTS_CACHE_TAG]),
     moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
-    // پرمشارکت‌ترین فهرست کاربرها (بیشترین پسند)، برای بخش «Featured list».
-    discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL).then((lists) =>
-      lists[0] ? getListBySlug(lists[0].slug) : null
-    ),
+    // فهرست‌های برگزیدهٔ ادمین؛ اگر نبود، پرلایک‌ترین فهرست باکیفیت (فیلتر کیفیت پیش‌فرض بک‌اند).
+    loadFeatured(),
     // Pre-indexed ego graphs for the hero; failure just means the hero
     // fetches them itself in the browser.
     getHeroGraphs(),
@@ -81,7 +93,8 @@ export default async function HomePage() {
   const tvSeries: MovieListItem[] = tvRes.status === "fulfilled" ? tvRes.value.items : [];
   const tvTotal = tvRes.status === "fulfilled" ? tvRes.value.total : null;
   const latestLists = listsRes.status === "fulfilled" ? listsRes.value : [];
-  const featuredList: ListDetail | null = featuredListRes.status === "fulfilled" ? featuredListRes.value : null;
+  const featuredList = featuredListRes.status === "fulfilled" ? featuredListRes.value.main : null;
+  const otherFeatured = featuredListRes.status === "fulfilled" ? featuredListRes.value.others : [];
 
   const extras = extrasRes.status === "fulfilled" ? extrasRes.value : { details: [] };
   const detailById = new Map<string, MovieDetail>();
@@ -127,6 +140,16 @@ export default async function HomePage() {
       <VoteShift guestPreview={top10} />
       <HomeSearch suggestions={searchSuggestions} />
       {featuredList && <FeaturedList list={featuredList} />}
+      {otherFeatured.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 pb-16">
+          <h3 className="mb-5 text-lg font-bold text-ink">برگزیده‌های دیگر</h3>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+            {otherFeatured.map((list) => (
+              <ListCard key={list.id} list={listSummaryToListCard(list)} />
+            ))}
+          </div>
+        </section>
+      )}
       <GenreUniverse clusters={clusterByGenre(detailed)} sampleSize={detailed.length} />
       <PersonalUniverse startHref={`/movies/${leader.slug}`} />
 

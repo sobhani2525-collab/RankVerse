@@ -28,3 +28,31 @@ class AdminTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     admin: AdminPublic
+
+
+class AdminListRow(BaseModel):
+    id: uuid.UUID
+    title: str
+    slug: str
+    owner_username: str | None
+    entity_type: str | None
+    visibility: str
+    item_count: int
+    like_count: int
+    comment_count: int
+    created_at: datetime
+    is_featured: bool
+    featured_order: int | None
+    is_hidden_from_discovery: bool
+    curation_note: str | None
+
+
+class AdminListUpdate(BaseModel):
+    is_featured: bool | None = None
+    featured_order: int | None = None
+    is_hidden_from_discovery: bool | None = None
+    curation_note: str | None = Field(default=None, max_length=500)
+
+
+class AdminFeaturedReorder(BaseModel):
+    ids: list[uuid.UUID]

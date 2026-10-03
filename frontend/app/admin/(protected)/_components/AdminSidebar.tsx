@@ -14,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ingestion و منابع داده", href: "/admin/ingestion" },
   { label: "الگوریتم‌ها", href: "/admin/algorithms" },
   { label: "کاربران و جامعه", href: "/admin/users" },
+  { label: "فهرست‌ها و برگزیده‌ها", href: "/admin/lists" },
   { label: "آنالیتیکس", href: "/admin/analytics" },
   { label: "سلامت زیرساخت", href: "/admin/health" },
   { label: "SEO و کشف محتوا", href: "/admin/seo" },

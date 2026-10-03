@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # below, because it's a literal cutoff expressed in raw rating units
     # (score >= N), not a sample count.
     ranking_min_votes: int = 50
+    # Public discovery quality bar (/lists, home "latest lists"): a list needs
+    # at least this many items and a title of this length to show up unless an
+    # admin featured it. See ListRepository.discover(quality_only=True).
+    list_discovery_min_items: int = 3
+    list_discovery_min_title_length: int = 5
     ranking_user_weight: float = 0.7
     ranking_external_weight: float = 0.3
     # External (IMDb/TMDb) score shrinkage: like ranking_min_votes, but toward

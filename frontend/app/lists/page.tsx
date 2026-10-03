@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ListsExplorer from "@/components/lists/lists-explorer";
 import MarqueeSign from "@/components/lists/marquee-sign";
-import { discoverLists } from "@/lib/api";
+import { discoverLists, LISTS_CACHE_TAG } from "@/lib/api";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
@@ -32,7 +32,7 @@ export default async function ListsPage() {
   let loadError: string | null = null;
 
   try {
-    lists = await discoverLists({ page_size: 30, sort: "newest" });
+    lists = await discoverLists({ page_size: 30, sort: "newest" }, undefined, [LISTS_CACHE_TAG]);
   } catch (err) {
     rethrowOutsideBuild(err);
     loadError = err instanceof Error ? err.message : "خطا در دریافت اطلاعات";

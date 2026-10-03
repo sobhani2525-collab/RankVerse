@@ -96,10 +96,10 @@ export function isNotFoundError(err: unknown): boolean {
   return err instanceof ApiError && err.status === 404;
 }
 
-async function fetchEnvelope<T>(path: string, revalidateSeconds = RANKING_TTL): Promise<T> {
+async function fetchEnvelope<T>(path: string, revalidateSeconds = RANKING_TTL, tags?: string[]): Promise<T> {
   const res = await fetchWithTimeout(
     path,
-    revalidateSeconds > 0 ? { next: { revalidate: revalidateSeconds } } : { cache: "no-store" }
+    revalidateSeconds > 0 ? { next: { revalidate: revalidateSeconds, tags } } : { cache: "no-store" }
   );
 
   if (!res.ok) {
@@ -333,14 +333,22 @@ export async function discoverLists(params: {
   entity_type?: string;
   tag?: string;
   sort?: "newest" | "popular";
-} = {}, revalidateSeconds: number = COMMUNITY_TTL): Promise<ListSummary[]> {
+} = {}, revalidateSeconds: number = COMMUNITY_TTL, tags?: string[]): Promise<ListSummary[]> {
   const qs = new URLSearchParams();
   if (params.page) qs.set("page", String(params.page));
   if (params.page_size) qs.set("page_size", String(params.page_size));
   if (params.entity_type) qs.set("entity_type", params.entity_type);
   if (params.tag) qs.set("tag", params.tag);
   if (params.sort) qs.set("sort", params.sort);
-  return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, revalidateSeconds);
+  return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, revalidateSeconds, tags);
+}
+
+/** Cache tag for every public read that depends on admin list curation; the admin proxy revalidates it. */
+export const LISTS_CACHE_TAG = "lists";
+
+/** Admin-featured lists in curated order (public, non-hidden). */
+export async function getFeaturedLists(limit = 4, revalidateSeconds: number = RANKING_TTL): Promise<ListSummary[]> {
+  return fetchEnvelope<ListSummary[]>(`/lists/featured?limit=${limit}`, revalidateSeconds, [LISTS_CACHE_TAG]);
 }
 
 // --- Public user profiles ---

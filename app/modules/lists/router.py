@@ -36,10 +36,11 @@ async def discover_lists(
     entity_type: str | None = None,
     tag: str | None = None,
     sort: str = Query("newest", pattern="^(newest|popular)$"),
+    quality_only: bool = True,
     db: AsyncSession = Depends(get_read_db),
 ):
     service = ListService(db)
-    items, total = await service.discover(page, page_size, entity_type, tag, sort)
+    items, total = await service.discover(page, page_size, entity_type, tag, sort, quality_only)
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),
@@ -50,6 +51,18 @@ async def discover_lists(
 async def lists_sitemap(db: AsyncSession = Depends(get_read_db)):
     service = ListService(db)
     return envelope(data=await service.sitemap_entries())
+
+
+@router.get("/lists/featured")
+async def featured_lists(
+    limit: int = Query(4, ge=1, le=20),
+    db: AsyncSession = Depends(get_read_db),
+):
+    """Admin-curated featured lists, in curated order. Declared before
+    /lists/{slug} so "featured" isn't read as a slug."""
+    service = ListService(db)
+    items = await service.featured(limit)
+    return envelope(data=[i.model_dump() for i in items])
 
 
 @router.get("/lists/similar")

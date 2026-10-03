@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.lists.models import (
     UserList, UserListItem, ListLike, ListFollow, ListComment, ListItemLike,
@@ -150,6 +151,7 @@ class ListRepository:
             .where(
                 UserList.visibility == "public",
                 UserList.is_watch_later.is_(False),
+                UserList.is_hidden_from_discovery.is_(False),
                 has_items,
             )
             .order_by(UserList.updated_at.desc())
@@ -247,6 +249,7 @@ class ListRepository:
         entity_type: str | None = None,
         tag: str | None = None,
         sort_by: str = "newest",
+        quality_only: bool = False,
     ) -> tuple[list[UserList], int]:
         # A window-function count rides along with the page query instead of
         # a separate round trip, and the owner (a single row per list) is
@@ -261,6 +264,22 @@ class ListRepository:
             stmt = stmt.where(UserList.entity_type == entity_type)
         if tag:
             stmt = stmt.where(UserList.tags.contains([tag]))
+        if quality_only:
+            item_count = (
+                select(func.count(UserListItem.id))
+                .where(UserListItem.list_id == UserList.id)
+                .correlate(UserList)
+                .scalar_subquery()
+            )
+            # Hidden always wins; an admin-featured list skips the size/title bar.
+            stmt = stmt.where(
+                UserList.is_hidden_from_discovery.is_(False),
+                or_(
+                    UserList.is_featured.is_(True),
+                    (item_count >= settings.list_discovery_min_items)
+                    & (func.char_length(func.trim(UserList.title)) >= settings.list_discovery_min_title_length),
+                ),
+            )
 
         if sort_by == "popular":
             stmt = stmt.order_by(UserList.like_count.desc())
@@ -283,6 +302,26 @@ class ListRepository:
         rows = result.unique().all()
         total = rows[0].total if rows else 0
         return [row.UserList for row in rows], total
+
+    async def featured(self, limit: int) -> list[UserList]:
+        stmt = (
+            select(UserList)
+            .where(
+                UserList.is_featured.is_(True),
+                UserList.visibility == "public",
+                UserList.is_hidden_from_discovery.is_(False),
+            )
+            .order_by(
+                UserList.featured_order.asc().nulls_last(),
+                UserList.featured_at.desc().nulls_last(),
+            )
+            .options(
+                joinedload(UserList.owner),
+                selectinload(UserList.items).selectinload(UserListItem.entity).defer(Entity.embedding),
+            )
+            .limit(limit)
+        )
+        return list((await self.db.execute(stmt)).unique().scalars().all())
 
     # --- Items ---
 

@@ -58,6 +58,20 @@ class UserList(Base):
     # ListService.get_or_create_watch_later_list.
     is_watch_later: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
 
+    # Admin curation (see app/modules/admin): featured lists are pinned on the
+    # home page; hidden ones stay reachable by direct link and for their owner
+    # but are left out of /lists, the home page and the sitemap.
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    featured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    featured_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_hidden_from_discovery: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    curated_by_admin_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("admin_accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    curation_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     list_type: Mapped[ListType] = mapped_column(
         Enum(
             ListType,
