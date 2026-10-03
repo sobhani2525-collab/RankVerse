@@ -122,3 +122,20 @@ async def test_admin_can_delete_list(client, db_session, test_user, admin_header
     assert (await client.delete(f"/api/v1/admin/lists/{lst.id}", headers=auth_headers)).status_code == 401
     assert (await client.delete(f"/api/v1/admin/lists/{lst.id}", headers=admin_headers)).status_code == 200
     assert (await client.get("/api/v1/lists/junk-list")).status_code == 404
+
+
+async def test_admin_item_control(client, db_session, test_user, admin_headers):
+    lst = await _make_list(db_session, test_user, "Item Control", 3)
+    base = f"/api/v1/admin/lists/{lst.id}/items"
+    items = (await client.get(base, headers=admin_headers)).json()["data"]
+    ids = [i["id"] for i in items]
+    assert len(ids) == 3
+
+    res = await client.put(f"{base}/reorder", headers=admin_headers, json={"item_ids": ids[::-1]})
+    assert [i["id"] for i in res.json()["data"]] == ids[::-1]
+    bad = await client.put(f"{base}/reorder", headers=admin_headers, json={"item_ids": ids[:2]})
+    assert bad.status_code == 400
+
+    res = await client.delete(f"{base}/{ids[0]}", headers=admin_headers)
+    assert res.status_code == 200 and len(res.json()["data"]) == 2
+    assert (await client.get(base)).status_code == 401

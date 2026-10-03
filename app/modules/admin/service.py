@@ -11,7 +11,7 @@ from app.core.security import create_admin_access_token, hash_password, verify_p
 from app.modules.admin.models import AdminAccount
 from app.modules.admin.repository import AdminAccountRepository, AdminListRepository
 from app.modules.lists.models import UserList
-from app.modules.admin.schemas import AdminListRow, AdminListUpdate, AdminLogin, AdminPasswordChange, AdminPublic, AdminTokenResponse
+from app.modules.admin.schemas import AdminListItemRow, AdminListRow, AdminListUpdate, AdminLogin, AdminPasswordChange, AdminPublic, AdminTokenResponse
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +161,38 @@ class AdminListService:
         await self.db.delete(lst)  # items, likes, comments, slug history cascade
         await self.db.commit()
         logger.info("admin %s DELETED list %s (%s, %r)", admin.id, list_id, slug, title)
+
+    async def items(self, list_id: uuid.UUID) -> list[AdminListItemRow]:
+        if await self.repo.get(list_id) is None:
+            raise NotFoundError("List not found")
+        return [
+            AdminListItemRow(
+                id=i.id, position=i.position, entity_id=e.id, entity_type=e.entity_type,
+                title=e.title, slug=e.slug, added_by_username=u,
+            )
+            for i, e, u in await self.repo.items(list_id)
+        ]
+
+    async def remove_item(self, admin: AdminAccount, list_id: uuid.UUID, item_id: uuid.UUID) -> list[AdminListItemRow]:
+        item = await self.repo.get_item(list_id, item_id)
+        if item is None:
+            raise NotFoundError("Item not found in this list")
+        await self.db.delete(item)
+        await self.db.commit()
+        logger.info("admin %s removed item %s from list %s", admin.id, item_id, list_id)
+        return await self.items(list_id)
+
+    async def reorder_items(
+        self, admin: AdminAccount, list_id: uuid.UUID, item_ids: list[uuid.UUID]
+    ) -> list[AdminListItemRow]:
+        current = {i.id for i, _, _ in await self.repo.items(list_id)}
+        if set(item_ids) != current or len(item_ids) != len(current):
+            raise ValidationError("item_ids must contain exactly the list's current items")
+        for position, item_id in enumerate(item_ids):
+            (await self.repo.get_item(list_id, item_id)).position = position
+        await self.db.commit()
+        logger.info("admin %s reordered items of list %s", admin.id, list_id)
+        return await self.items(list_id)
 
     async def reorder_featured(self, admin: AdminAccount, ids: list[uuid.UUID]) -> list[AdminListRow]:
         featured = {lst.id: lst for lst in await self.repo.featured()}

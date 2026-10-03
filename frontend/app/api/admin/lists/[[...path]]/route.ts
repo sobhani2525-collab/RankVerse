@@ -45,6 +45,9 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 export async function DELETE(request: NextRequest, { params }: Ctx) {
   return forward(request, (await params).path);
 }
+export async function PUT(request: NextRequest, { params }: Ctx) {
+  return forward(request, (await params).path);
+}
 export async function POST(request: NextRequest, { params }: Ctx) {
   return forward(request, (await params).path);
 }

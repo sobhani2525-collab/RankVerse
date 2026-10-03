@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toFaDigits } from "@/lib/format-number";
 import { listHref } from "@/lib/list-url";
@@ -24,6 +24,14 @@ interface Envelope<T> {
   data: T;
   meta?: { total?: number } | null;
   error?: { message: string } | null;
+}
+
+interface AdminItem {
+  id: string;
+  position: number;
+  title: string;
+  entity_type: string;
+  added_by_username: string | null;
 }
 
 const PAGE_SIZE = 30;
@@ -55,6 +63,8 @@ export function AdminListsManager() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [items, setItems] = useState<AdminItem[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -116,6 +126,43 @@ export function AdminListsManager() {
   function remove(row: AdminListRow) {
     if (!window.confirm(`فهرست «${row.title}» برای همیشه حذف شود؟ آیتم‌ها و کامنت‌هایش هم پاک می‌شوند و برگشت ندارد.`)) return;
     void mutate(row.id, () => call(`/${row.id}`, { method: "DELETE" }), "فهرست حذف شد");
+  }
+
+  async function toggleItems(row: AdminListRow) {
+    if (openId === row.id) return setOpenId(null);
+    setOpenId(row.id);
+    setItems([]);
+    try {
+      setItems((await call<AdminItem[]>(`/${row.id}/items`)).data);
+    } catch (err) {
+      setNotice({ ok: false, text: err instanceof Error ? err.message : "خطا در دریافت آیتم‌ها" });
+    }
+  }
+
+  async function itemAction(row: AdminListRow, run: () => Promise<Envelope<AdminItem[]>>, success: string) {
+    setBusyId(row.id);
+    try {
+      setItems((await run()).data);
+      setNotice({ ok: true, text: success });
+      await load();
+    } catch (err) {
+      setNotice({ ok: false, text: err instanceof Error ? err.message : "ذخیره نشد" });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function moveItem(row: AdminListRow, index: number, delta: -1 | 1) {
+    const ids = items.map((i) => i.id);
+    const target = index + delta;
+    if (target < 0 || target >= ids.length) return;
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    void itemAction(row, () => call<AdminItem[]>(`/${row.id}/items/reorder`, { method: "PUT", body: JSON.stringify({ item_ids: ids }) }), "ترتیب آیتم‌ها ذخیره شد");
+  }
+
+  function removeItem(row: AdminListRow, item: AdminItem) {
+    if (!window.confirm(`«${item.title}» از این فهرست حذف شود؟`)) return;
+    void itemAction(row, () => call<AdminItem[]>(`/${row.id}/items/${item.id}`, { method: "DELETE" }), "آیتم حذف شد");
   }
 
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -196,7 +243,8 @@ export function AdminListsManager() {
               {rows.map((row) => {
                 const note = notes[row.id] ?? row.curation_note ?? "";
                 return (
-                  <tr key={row.id} className="border-b border-border/60 last:border-0">
+                  <Fragment key={row.id}>
+                  <tr className="border-b border-border/60 last:border-0">
                     <td className="max-w-[260px] px-3 py-2">
                       <Link href={listHref(row.slug)} target="_blank" className="block truncate text-ink hover:text-teal">{row.title}</Link>
                       <span dir="ltr" className="block truncate text-[11px] text-muted">{row.slug}</span>
@@ -226,12 +274,38 @@ export function AdminListsManager() {
                         className={`${field} w-40 py-1 text-xs`}
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="space-x-2 space-x-reverse whitespace-nowrap px-3 py-2">
+                      <button type="button" onClick={() => toggleItems(row)} className="rounded-full border border-border px-3 py-1 text-xs font-bold text-muted transition hover:border-gold/40 hover:text-gold">
+                        {openId === row.id ? "بستن آیتم‌ها" : "آیتم‌ها"}
+                      </button>
                       <button type="button" disabled={busyId === row.id} onClick={() => remove(row)} className="rounded-full border border-border px-3 py-1 text-xs font-bold text-muted transition hover:border-red-500/50 hover:text-red-400 disabled:opacity-40">
                         حذف
                       </button>
                     </td>
                   </tr>
+                  {openId === row.id && (
+                    <tr className="border-b border-border/60 bg-bg/60">
+                      <td colSpan={10} className="px-4 py-3">
+                        {items.length === 0 ? (
+                          <p className="text-xs text-muted">آیتمی نیست یا در حال بارگذاری…</p>
+                        ) : (
+                          <ol className="space-y-1.5">
+                            {items.map((item, idx) => (
+                              <li key={item.id} className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm">
+                                <span className="num w-6 text-center font-bold text-gold">{toFaDigits(idx + 1)}</span>
+                                <span className="flex-1 truncate text-ink">{item.title}</span>
+                                <span className="text-xs text-muted">{item.added_by_username}</span>
+                                <button type="button" disabled={busyId === row.id || idx === 0} onClick={() => moveItem(row, idx, -1)} aria-label="بالا" className="rounded border border-border px-2 py-0.5 text-muted hover:text-gold disabled:opacity-30">↑</button>
+                                <button type="button" disabled={busyId === row.id || idx === items.length - 1} onClick={() => moveItem(row, idx, 1)} aria-label="پایین" className="rounded border border-border px-2 py-0.5 text-muted hover:text-gold disabled:opacity-30">↓</button>
+                                <button type="button" disabled={busyId === row.id} onClick={() => removeItem(row, item)} className="rounded border border-border px-2 py-0.5 text-xs text-muted hover:border-red-500/50 hover:text-red-400 disabled:opacity-30">حذف</button>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
               {!loading && rows.length === 0 && (

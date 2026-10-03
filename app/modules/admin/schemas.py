@@ -56,3 +56,17 @@ class AdminListUpdate(BaseModel):
 
 class AdminFeaturedReorder(BaseModel):
     ids: list[uuid.UUID]
+
+
+class AdminListItemRow(BaseModel):
+    id: uuid.UUID
+    position: int
+    entity_id: uuid.UUID
+    entity_type: str
+    title: str
+    slug: str
+    added_by_username: str | None = None
+
+
+class AdminItemsReorder(BaseModel):
+    item_ids: list[uuid.UUID]

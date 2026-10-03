@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.modules.admin.models import AdminAccount
+from app.modules.entities.models import Entity
 from app.modules.lists.models import UserList, UserListItem
 from app.modules.users.models import User
 
@@ -120,3 +121,17 @@ class AdminListRepository:
             .order_by(UserList.featured_order.asc().nulls_last(), UserList.featured_at.desc().nulls_last())
         )
         return list((await self.db.execute(stmt)).unique().scalars().all())
+
+    async def items(self, list_id: uuid.UUID) -> list[tuple[UserListItem, Entity, str | None]]:
+        stmt = (
+            select(UserListItem, Entity, User.username)
+            .join(Entity, Entity.id == UserListItem.entity_id)
+            .outerjoin(User, User.id == UserListItem.added_by_user_id)
+            .where(UserListItem.list_id == list_id)
+            .order_by(UserListItem.position)
+        )
+        return [(i, e, u) for i, e, u in (await self.db.execute(stmt)).all()]
+
+    async def get_item(self, list_id: uuid.UUID, item_id: uuid.UUID) -> UserListItem | None:
+        stmt = select(UserListItem).where(UserListItem.id == item_id, UserListItem.list_id == list_id)
+        return (await self.db.execute(stmt)).scalar_one_or_none()

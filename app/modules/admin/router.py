@@ -9,7 +9,7 @@ from app.core.redis import get_redis
 from app.core.schemas import envelope, Meta
 from app.modules.admin.dependencies import get_current_admin
 from app.modules.admin.models import AdminAccount
-from app.modules.admin.schemas import AdminFeaturedReorder, AdminListUpdate, AdminLogin, AdminPasswordChange, AdminPublic
+from app.modules.admin.schemas import AdminFeaturedReorder, AdminItemsReorder, AdminListUpdate, AdminLogin, AdminPasswordChange, AdminPublic
 from app.modules.admin.service import AdminAuthService, AdminListService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -110,3 +110,35 @@ async def admin_delete_list(
 ):
     await AdminListService(db).delete(admin, list_id)
     return envelope(data={"deleted": True})
+
+
+@router.get("/lists/{list_id}/items")
+async def admin_list_items(
+    list_id: uuid.UUID,
+    _admin: AdminAccount = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await AdminListService(db).items(list_id)
+    return envelope(data=[r.model_dump(mode="json") for r in rows])
+
+
+@router.delete("/lists/{list_id}/items/{item_id}")
+async def admin_remove_list_item(
+    list_id: uuid.UUID,
+    item_id: uuid.UUID,
+    admin: AdminAccount = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await AdminListService(db).remove_item(admin, list_id, item_id)
+    return envelope(data=[r.model_dump(mode="json") for r in rows])
+
+
+@router.put("/lists/{list_id}/items/reorder")
+async def admin_reorder_list_items(
+    list_id: uuid.UUID,
+    payload: AdminItemsReorder,
+    admin: AdminAccount = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await AdminListService(db).reorder_items(admin, list_id, payload.item_ids)
+    return envelope(data=[r.model_dump(mode="json") for r in rows])
