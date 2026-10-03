@@ -103,15 +103,23 @@ export default async function BattleResultPage({ searchParams }: { searchParams:
     <main className="mx-auto flex max-w-xl flex-col items-center px-6 py-16 text-center">
       <p className="font-display text-3xl text-gold">قهرمان من</p>
 
-      <div className="relative mt-8 aspect-[2/3] w-64 overflow-hidden rounded-2xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_6px_rgba(232,179,74,0.18)]">
+      <Link
+        href={detailHref}
+        aria-label={`صفحهٔ ${displayTitle(movie)}`}
+        className="relative mt-8 block aspect-[2/3] w-64 overflow-hidden rounded-2xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_6px_rgba(232,179,74,0.18)] transition hover:shadow-[0_0_0_6px_rgba(232,179,74,0.35)]"
+      >
         {poster ? (
           <Image src={poster} alt={displayTitle(movie)} fill priority sizes="256px" className="object-cover" />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-sm text-muted">بدون پوستر</span>
         )}
-      </div>
+      </Link>
 
-      <h1 className="mt-8 text-2xl font-extrabold text-ink">{movie.title_fa || movie.title}</h1>
+      <h1 className="mt-8 text-2xl font-extrabold text-ink">
+        <Link href={detailHref} className="transition hover:text-gold">
+          {movie.title_fa || movie.title}
+        </Link>
+      </h1>
       {movie.title_fa && (
         <p dir="ltr" className="mt-1 text-sm text-muted">
           {movie.title}
@@ -129,9 +137,6 @@ export default async function BattleResultPage({ searchParams }: { searchParams:
 
       <Link href={battleHref} className="btn-primary mt-10 text-base hover:opacity-90">
         تو هم نبرد کن
-      </Link>
-      <Link href={detailHref} className="mt-4 text-sm text-muted underline-offset-4 transition hover:text-teal hover:underline">
-        دیدن صفحهٔ فیلم
       </Link>
     </main>
   );

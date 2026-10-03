@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ShareSource,
   canShareFile,
@@ -36,6 +36,8 @@ interface Props {
 export default function ShareMenu({ url, title, text, getImage, size = 44, shape = "circle", variant = "icon", label = "اشتراک‌گذاری" }: Props) {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Open upward when the popover would run off the bottom of the viewport.
+  const [up, setUp] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
@@ -62,6 +64,13 @@ export default function ShareMenu({ url, title, text, getImage, size = 44, shape
     }
     return imagePromise.current;
   }, [getImage]);
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current || !popRef.current) return;
+    const t = triggerRef.current.getBoundingClientRect();
+    const h = popRef.current.offsetHeight + 16;
+    setUp(window.innerHeight - t.bottom < h && t.top > window.innerHeight - t.bottom);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -158,7 +167,7 @@ export default function ShareMenu({ url, title, text, getImage, size = 44, shape
       </button>
 
       {open && (
-        <div ref={popRef} role="menu" dir="rtl" className="absolute end-0 top-full z-50 mt-2 w-60 rounded-xl border border-border bg-surface p-1.5 text-right shadow-xl">
+        <div ref={popRef} role="menu" dir="rtl" className={`absolute end-0 z-50 w-[min(15rem,calc(100vw-2rem))] rounded-xl border border-border bg-surface p-1.5 text-right shadow-xl ${up ? "bottom-full mb-2" : "top-full mt-2"}`}>
           <a role="menuitem" aria-label="اشتراک در تلگرام" className={itemCls} href={link("telegram", telegramShareUrl)} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
             تلگرام
           </a>
