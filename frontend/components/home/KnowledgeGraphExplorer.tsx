@@ -325,18 +325,28 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
               </ol>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-surface/40 p-5">
+            <div className="flex gap-4 rounded-2xl border border-white/5 bg-surface/40 p-5">
+              {focus.kind !== "genre" && (
+                <div className="relative h-[150px] w-[100px] shrink-0 overflow-hidden rounded-lg bg-surface2">
+                  {focus.posterUrl ? (
+                    <Image src={focus.posterUrl} alt="" fill sizes="100px" className="object-cover" />
+                  ) : (
+                    <span className={`absolute inset-0 flex items-center justify-center font-display text-4xl ${KIND_STYLE[focus.kind].text}`}>
+                      {focus.label.charAt(0)}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
               <p className={`text-xs ${KIND_STYLE[focus.kind].text}`}>{focus.caption}</p>
               <p className="mt-1 text-lg font-medium text-ink">{focus.label}</p>
-              <p className="mt-2 text-sm text-muted">
-                <span className="num">{toFaDigits(focus.satellites.length)}</span> اتصال نمایش داده‌شده
-              </p>
               {focusHref && (
                 <Link href={focusHref} className="mt-4 inline-flex items-center gap-1 text-sm text-gold hover:underline">
                   رفتن به صفحهٔ {focus.caption}
                   <span aria-hidden="true">←</span>
                 </Link>
               )}
+              </div>
             </div>
 
             {loadingKey && (
