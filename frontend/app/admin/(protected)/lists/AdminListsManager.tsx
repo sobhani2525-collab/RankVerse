@@ -113,6 +113,11 @@ export function AdminListsManager() {
     );
   }
 
+  function remove(row: AdminListRow) {
+    if (!window.confirm(`فهرست «${row.title}» برای همیشه حذف شود؟ آیتم‌ها و کامنت‌هایش هم پاک می‌شوند و برگشت ندارد.`)) return;
+    void mutate(row.id, () => call(`/${row.id}`, { method: "DELETE" }), "فهرست حذف شد");
+  }
+
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -184,6 +189,7 @@ export function AdminListsManager() {
                 <th className="px-3 py-2">برگزیده</th>
                 <th className="px-3 py-2">پنهان از کشف</th>
                 <th className="px-3 py-2">یادداشت</th>
+                <th className="px-3 py-2">حذف</th>
               </tr>
             </thead>
             <tbody>
@@ -220,11 +226,16 @@ export function AdminListsManager() {
                         className={`${field} w-40 py-1 text-xs`}
                       />
                     </td>
+                    <td className="px-3 py-2">
+                      <button type="button" disabled={busyId === row.id} onClick={() => remove(row)} className="rounded-full border border-border px-3 py-1 text-xs font-bold text-muted transition hover:border-red-500/50 hover:text-red-400 disabled:opacity-40">
+                        حذف
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
               {!loading && rows.length === 0 && (
-                <tr><td colSpan={9} className="px-3 py-10 text-center text-muted">فهرستی پیدا نشد.</td></tr>
+                <tr><td colSpan={10} className="px-3 py-10 text-center text-muted">فهرستی پیدا نشد.</td></tr>
               )}
             </tbody>
           </table>

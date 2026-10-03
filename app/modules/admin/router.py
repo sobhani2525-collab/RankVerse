@@ -100,3 +100,13 @@ async def admin_update_list(
 ):
     row = await AdminListService(db).update(admin, list_id, payload)
     return envelope(data=row.model_dump(mode="json"))
+
+
+@router.delete("/lists/{list_id}")
+async def admin_delete_list(
+    list_id: uuid.UUID,
+    admin: AdminAccount = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    await AdminListService(db).delete(admin, list_id)
+    return envelope(data={"deleted": True})

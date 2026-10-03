@@ -153,6 +153,15 @@ class AdminListService:
         logger.info("admin %s curated list %s: %s", admin.id, list_id, payload.model_dump(exclude_unset=True))
         return row
 
+    async def delete(self, admin: AdminAccount, list_id: uuid.UUID) -> None:
+        lst = await self.repo.get(list_id)
+        if lst is None or lst.is_watch_later:
+            raise NotFoundError("List not found")
+        title, slug = lst.title, lst.slug
+        await self.db.delete(lst)  # items, likes, comments, slug history cascade
+        await self.db.commit()
+        logger.info("admin %s DELETED list %s (%s, %r)", admin.id, list_id, slug, title)
+
     async def reorder_featured(self, admin: AdminAccount, ids: list[uuid.UUID]) -> list[AdminListRow]:
         featured = {lst.id: lst for lst in await self.repo.featured()}
         if any(i not in featured for i in ids):

@@ -115,3 +115,10 @@ async def test_admin_endpoints_reject_missing_and_user_tokens(client, db_session
         for headers in ({}, auth_headers):
             res = await getattr(client, method)(path, headers=headers, **({"json": body} if body else {}))
             assert res.status_code == 401, (method, path)
+
+
+async def test_admin_can_delete_list(client, db_session, test_user, admin_headers, auth_headers):
+    lst = await _make_list(db_session, test_user, "Junk List", 1)
+    assert (await client.delete(f"/api/v1/admin/lists/{lst.id}", headers=auth_headers)).status_code == 401
+    assert (await client.delete(f"/api/v1/admin/lists/{lst.id}", headers=admin_headers)).status_code == 200
+    assert (await client.get("/api/v1/lists/junk-list")).status_code == 404
