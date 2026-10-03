@@ -334,6 +334,26 @@ export interface SuggestedBattle {
   right: SuggestedBattleEntity;
 }
 
+// From GET /battles/themed: a run of movies sharing a genre / decade /
+// director. items[0] opens as the champion. For a decade, `value` is its
+// first year ("1990").
+export interface ThemedBattleItem {
+  id: string;
+  slug: string;
+  title: string;
+  title_fa: string | null;
+  entity_type: string;
+  poster_path: string | null;
+  year: number | null;
+  computed_score: number | null;
+}
+
+export interface ThemedBattle {
+  category: string;
+  theme: { kind: "genre" | "decade" | "director" | "pair"; value: string; personalized: boolean };
+  items: ThemedBattleItem[];
+}
+
 export interface CastVoteResponse {
   vote_id: string;
   left_item: string;

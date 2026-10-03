@@ -146,7 +146,7 @@ export default async function HomePage() {
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} />
       {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <LiveRanking movies={top10} tvSeries={tvTitles} />
-      <BattleArena preview={titles.length >= 2 ? [titles[0], titles[1]] : null} />
+      <BattleArena />
       <VoteShift guestPreview={top10} />
       <HomeSearch suggestions={searchSuggestions} />
       {featuredList && <FeaturedList list={featuredList} />}

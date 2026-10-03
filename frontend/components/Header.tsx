@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: "/rankings?type=tv_series", label: "سریال‌ها", match: null },
   { href: "/people", label: "هنرمندان", match: "/people" },
   { href: "/lists", label: "فهرست‌ها", match: "/lists" },
+  { href: "/battles", label: "نبرد بهترین‌ها", match: "/battles", accent: true },
 ];
 
 export default function Header() {
@@ -54,7 +55,11 @@ export default function Header() {
               key={l.label}
               href={l.href}
               aria-current={isActive(l.match) ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 text-sm transition ${isActive(l.match) ? "bg-gold/10 text-gold" : "text-muted hover:text-ink"}`}
+              className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                l.accent
+                  ? `border border-violet-light/50 font-bold text-violet-light hover:bg-violet-light/10 ${isActive(l.match) ? "bg-violet-light/15" : "bg-violet-light/5"}`
+                  : isActive(l.match) ? "bg-gold/10 text-gold" : "text-muted hover:text-ink"
+              }`}
             >
               {l.label}
             </Link>
@@ -105,7 +110,11 @@ export default function Header() {
                   href={l.href}
                   onClick={() => setMenuOpen(false)}
                   aria-current={isActive(l.match) ? "page" : undefined}
-                  className={`block rounded-lg px-3 py-3 text-base transition ${isActive(l.match) ? "bg-gold/10 text-gold" : "text-ink hover:bg-surface2"}`}
+                  className={`block rounded-lg px-3 py-3 text-base transition ${
+                    l.accent
+                      ? "border border-violet-light/50 bg-violet-light/5 font-bold text-violet-light"
+                      : isActive(l.match) ? "bg-gold/10 text-gold" : "text-ink hover:bg-surface2"
+                  }`}
                 >
                   {l.label}
                 </Link>

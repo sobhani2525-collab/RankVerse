@@ -1,5 +1,5 @@
 import { encodeListSlug } from "./list-url";
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser, ListItem, ListCandidate } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, ThemedBattle, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser, ListItem, ListCandidate } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -602,6 +602,28 @@ export async function getNextBattle(
     throw new Error(
       body?.detail || `RankVerse API error (${res.status}) on /battles/next`
     );
+  }
+  return res.json();
+}
+
+/** Open to guests (random theme); a token makes the theme personal. */
+export async function getThemedBattle(
+  token?: string | null,
+  pair?: { category: string; leftId: string; rightId: string } | null
+): Promise<ThemedBattle> {
+  const qs = new URLSearchParams();
+  if (pair) {
+    qs.set("category", pair.category);
+    qs.set("left_id", pair.leftId);
+    qs.set("right_id", pair.rightId);
+  }
+  const res = await fetchWithAuthRetry(`/battles/themed?${qs.toString()}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail || `RankVerse API error (${res.status}) on /battles/themed`);
   }
   return res.json();
 }

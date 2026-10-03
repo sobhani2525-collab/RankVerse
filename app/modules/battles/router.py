@@ -1,15 +1,23 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Adjust these two imports to match your project's actual paths.
 from app.core.database import get_db
-from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.dependencies import get_current_user, get_current_user_optional
 
 from .repository import BattleRepository
-from .schemas import BattleEntity, CastVoteRequest, CastVoteResponse, NextBattleResponse
+from .schemas import (
+    BattleEntity,
+    CastVoteRequest,
+    CastVoteResponse,
+    NextBattleResponse,
+    ThemedBattleResponse,
+    ThemedBattleTheme,
+)
 from .service import BattleService
+from .themed import CATEGORY, ThemedBattleService
 
 router = APIRouter(prefix="/battles", tags=["battles"])
 
@@ -71,7 +79,32 @@ async def get_next_battle(
     )
 
 
-@router.post("/vote", response_model=CastVoteResponse, status_code=201)
+@router.get("/themed", response_model=ThemedBattleResponse)
+async def get_themed_battle(
+    category: str = Query(CATEGORY),
+    left_id: uuid.UUID | None = Query(None),
+    right_id: uuid.UUID | None = Query(None),
+    current_user=Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    A run of movies sharing a genre / decade / director for the home page's
+    battle arena. Open to guests (random theme); a signed-in user's theme
+    comes from their taste. Votes still go through POST /battles/vote.
+    """
+    pool = await ThemedBattleService(db, category).get_pool(
+        current_user.id if current_user else None, left_id, right_id
+    )
+    if pool is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not enough movies to form a battle")
+    return ThemedBattleResponse(
+        category=category,
+        theme=ThemedBattleTheme(kind=pool.theme.kind, value=pool.theme.value, personalized=pool.personalized),
+        items=pool.items,
+    )
+
+
+@router.post("/vote",response_model=CastVoteResponse, status_code=201)
 async def cast_vote(
     payload: CastVoteRequest,
     current_user=Depends(get_current_user),

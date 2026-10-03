@@ -89,6 +89,30 @@ class SuggestedBattleResponse(BaseModel):
     right: SuggestedBattleEntity
 
 
+class ThemedBattleItem(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    title_fa: str | None = None
+    entity_type: str
+    poster_path: str | None = None
+    year: int | None = None
+    computed_score: float | None = None
+
+
+class ThemedBattleTheme(BaseModel):
+    kind: str  # "genre" | "decade" | "director"
+    value: str  # genre / director name, or the decade's first year ("1990")
+    personalized: bool
+
+
+class ThemedBattleResponse(BaseModel):
+    category: str
+    theme: ThemedBattleTheme
+    # The run's movies, in play order: items[0] opens as the champion.
+    items: list[ThemedBattleItem]
+
+
 class EntityEloScoreResponse(BaseModel):
     entity_id: uuid.UUID
     category: str
