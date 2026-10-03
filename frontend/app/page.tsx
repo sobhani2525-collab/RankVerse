@@ -3,7 +3,6 @@ import Link from "next/link";
 import ListCard from "@/components/lists/list-card";
 import HomeHero from "@/components/home/HomeHero";
 import LiveRanking from "@/components/home/LiveRanking";
-import WhyNumberOne from "@/components/home/WhyNumberOne";
 import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
 import BattleArena from "@/components/home/BattleArena";
 import VoteShift from "@/components/home/VoteShift";
@@ -13,7 +12,7 @@ import GenreUniverse from "@/components/home/GenreUniverse";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import FinalCta from "@/components/home/FinalCta";
 import SectionHeading from "@/components/home/SectionHeading";
-import { getRankingsPage, getHeroGraphs, getMovieBySlug, getMovieRankings, discoverLists, getListBySlug, RankingHighlight, RANKING_TTL } from "@/lib/api";
+import { getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlug, RANKING_TTL } from "@/lib/api";
 import { listSummaryToListCard } from "@/lib/entity-card-adapters";
 import { clusterByGenre, toHomeTitle } from "@/lib/home-data";
 import { rethrowOutsideBuild } from "@/lib/isr";
@@ -25,8 +24,7 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 // Backend load per home render is kept small and bounded: 3 list reads in
 // parallel; as soon as the movie list lands, detail fetches for only the
-// top DETAILED movies, at most DETAIL_CONCURRENCY at a time, with the #1's
-// ranking highlights riding alongside the second batch. Details feed the
+// top DETAILED movies, at most DETAIL_CONCURRENCY at a time. Details feed the
 // hero constellation's edges, hover cards, ranking-row metadata and genre
 // clusters; titles past DETAILED simply render without them.
 const DETAILED = 6;
@@ -34,25 +32,16 @@ const DETAIL_CONCURRENCY = 3;
 const HERO_NODES = 12;
 const MOVIE_WINDOW = 24; // top 10 + "beyond the top 10"
 
-/**
- * Fetches movie details in small sequential batches, plus the ranking
- * highlights of slugs[0] (the #1), started once the first batch shows the
- * backend is answering. If an entire batch fails (e.g. every request timed
- * out), the backend is struggling, so the remaining batches -- and the
- * highlights, if not started yet -- are skipped rather than piling more
- * requests onto it.
- */
-async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[]; highlights: RankingHighlight[] }> {
+/** Fetches movie details in small sequential batches; if an entire batch fails the backend is struggling, so the rest are skipped. */
+async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[] }> {
   const details: MovieDetail[] = [];
-  let highlights: Promise<RankingHighlight[]> = Promise.resolve([]);
   for (let i = 0; i < slugs.length; i += DETAIL_CONCURRENCY) {
     const batch = await Promise.allSettled(slugs.slice(i, i + DETAIL_CONCURRENCY).map((slug) => getMovieBySlug(slug)));
     const ok = batch.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
     details.push(...ok);
     if (ok.length === 0) break;
-    if (i === 0) highlights = getMovieRankings(slugs[0]).catch((): RankingHighlight[] => []);
   }
-  return { details, highlights: await highlights };
+  return { details };
 }
 
 export default async function HomePage() {
@@ -94,10 +83,9 @@ export default async function HomePage() {
   const latestLists = listsRes.status === "fulfilled" ? listsRes.value : [];
   const featuredList: ListDetail | null = featuredListRes.status === "fulfilled" ? featuredListRes.value : null;
 
-  const extras = extrasRes.status === "fulfilled" ? extrasRes.value : { details: [], highlights: [] };
+  const extras = extrasRes.status === "fulfilled" ? extrasRes.value : { details: [] };
   const detailById = new Map<string, MovieDetail>();
   extras.details.forEach((d) => detailById.set(d.id, d));
-  const highlights = extras.highlights;
 
   const titles = movies.map((m, i) => toHomeTitle(m, i + 1, detailById.get(m.id)));
   const top10 = titles.slice(0, 10);
@@ -135,7 +123,6 @@ export default async function HomePage() {
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} />
       {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <LiveRanking movies={top10} tvSeries={tvTitles} />
-      <WhyNumberOne leader={leader} rivals={titles.slice(1, 5)} highlights={highlights} />
       <BattleArena preview={titles.length >= 2 ? [titles[0], titles[1]] : null} />
       <VoteShift guestPreview={top10} />
       <HomeSearch suggestions={searchSuggestions} />
