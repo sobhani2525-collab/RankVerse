@@ -141,8 +141,8 @@ export default async function HomePage() {
       <HomeSearch suggestions={searchSuggestions} />
       {featuredList && <FeaturedList list={featuredList} />}
       {otherFeatured.length > 0 && (
-        <section className="mx-auto max-w-7xl px-6 pb-16">
-          <h3 className="mb-5 text-lg font-bold text-ink">برگزیده‌های دیگر</h3>
+        <section className="mx-auto -mt-16 max-w-7xl px-6 pb-16">
+          <h3 className="mb-5 text-lg font-bold text-ink">سایر فهرست‌های برگزیده</h3>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {otherFeatured.map((list) => (
               <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} />
