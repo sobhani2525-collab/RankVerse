@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: "/rankings?type=tv_series", label: "سریال‌ها", match: null },
   { href: "/people", label: "هنرمندان", match: "/people" },
   { href: "/lists", label: "فهرست‌ها", match: "/lists" },
+  { href: "/battles/daily", label: "نبرد روز", match: "/battles/daily" },
   { href: "/battles", label: "نبرد بهترین‌ها", match: "/battles", accent: true },
 ];
 
@@ -33,7 +34,9 @@ export default function Header() {
     return () => document.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  const isActive = (match: string | null) => !!match && !!pathname?.startsWith(match);
+  // "/battles" also prefixes "/battles/daily", which has its own link.
+  const isActive = (match: string | null) =>
+    !!match && !!pathname?.startsWith(match) && (match !== "/battles" || !pathname.startsWith("/battles/daily"));
 
   return (
     <header className="relative z-40 border-b border-border bg-surface px-4 py-[16.5px] sm:px-6">

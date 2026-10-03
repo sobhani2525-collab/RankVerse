@@ -331,7 +331,7 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
   );
 }
 
-function Poster({ item, sizes, zoom }: { item: ThemedBattleItem; sizes: string; zoom?: boolean }) {
+export function Poster({ item, sizes, zoom }: { item: Pick<ThemedBattleItem, "poster_path">; sizes: string; zoom?: boolean }) {
   return item.poster_path ? (
     <Image
       src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
@@ -345,7 +345,7 @@ function Poster({ item, sizes, zoom }: { item: ThemedBattleItem; sizes: string; 
   );
 }
 
-function VsBadge() {
+export function VsBadge() {
   return (
     <span
       aria-hidden="true"

@@ -435,3 +435,45 @@ export interface TasteProfile {
   insight: TasteInsight | null;
   contribution_stats: ContributionStats | null;
 }
+
+// --- Daily battle (GET/POST /daily-battle, raw JSON like /battles) ---
+
+export interface DailyFilm {
+  id: string;
+  slug: string;
+  title: string;
+  title_fa: string | null;
+  poster_path: string | null;
+  year: number | null;
+  computed_score: number | null;
+}
+
+export type DailySide = "left" | "right";
+
+export interface DailyResults {
+  left_votes: number;
+  right_votes: number;
+  total: number;
+}
+
+export interface DailyPrevious extends DailyResults {
+  battle_date: string;
+  left: DailyFilm;
+  right: DailyFilm;
+  winner: DailySide | "tie";
+}
+
+export interface DailyBattleToday {
+  battle_date: string;
+  daily_battle_id: string;
+  left: DailyFilm;
+  right: DailyFilm;
+  theme: { kind: "genre" | "decade" | "director" | "pair"; value: string };
+  my_choice: DailySide | null;
+  /** null until the caller has voted (enforced by the server). */
+  results: DailyResults | null;
+  seconds_until_next: number;
+  /** Consecutive days voted; null for guests. */
+  streak: number | null;
+  previous: DailyPrevious | null;
+}

@@ -5,6 +5,7 @@ import HomeHero from "@/components/home/HomeHero";
 import LiveRanking from "@/components/home/LiveRanking";
 import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
 import BattleArena from "@/components/home/BattleArena";
+import DailyBattle from "@/components/home/DailyBattle";
 import VoteShift from "@/components/home/VoteShift";
 import HomeSearch from "@/components/home/HomeSearch";
 import FeaturedList from "@/components/home/FeaturedList";
@@ -144,6 +145,7 @@ export default async function HomePage() {
   return (
     <main>
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} />
+      <DailyBattle />
       {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <LiveRanking movies={top10} tvSeries={tvTitles} />
       <BattleArena />

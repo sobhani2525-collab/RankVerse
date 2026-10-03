@@ -1,5 +1,5 @@
 import { encodeListSlug } from "./list-url";
-import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, ThemedBattle, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser, ListItem, ListCandidate } from "./types";
+import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, ThemedBattle, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser, ListItem, ListCandidate, DailyBattleToday, DailySide } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
@@ -657,6 +657,45 @@ export async function castBattleVote(
     );
   }
   return res.json();
+}
+
+/**
+ * The daily battle. Raw JSON like /battles (no envelope). A guest is told apart
+ * by the X-Guest-Id UUID the client keeps in localStorage; a token takes
+ * precedence on the server. Resolves to null when there is no battle today (404).
+ */
+export async function getDailyBattle(token: string | null, guestId: string | null): Promise<DailyBattleToday | null> {
+  const res = await fetchWithAuthRetry(`/daily-battle/today`, { headers: dailyHeaders(token, guestId), cache: "no-store" });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(typeof body?.detail === "string" ? body.detail : `RankVerse API error (${res.status}) on /daily-battle/today`);
+  }
+  return res.json();
+}
+
+export async function castDailyVote(
+  token: string | null,
+  guestId: string | null,
+  payload: { daily_battle_id: string; choice: DailySide }
+): Promise<DailyBattleToday> {
+  const res = await fetchWithAuthRetry(`/daily-battle/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...dailyHeaders(token, guestId) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(typeof body?.detail === "string" ? body.detail : `RankVerse API error (${res.status}) on /daily-battle/vote`);
+  }
+  return res.json();
+}
+
+function dailyHeaders(token: string | null, guestId: string | null): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (guestId) headers["X-Guest-Id"] = guestId;
+  return headers;
 }
 
 export interface RelatedEntity {

@@ -13,7 +13,14 @@ export interface StoryCardInput {
   /** Smaller second line, e.g. the English title. */
   subtitle?: string | null;
   themeLine: string;
-  streak: number;
+  /** Consecutive wins; the "N برد پیاپی" line is skipped for 0 or when omitted. */
+  streak?: number;
+  /** Card heading (default "قهرمان من"). */
+  heading?: string;
+  /** Replaces the streak line (e.g. "۶۳٪ با من موافق‌اند"). */
+  highlight?: string | null;
+  /** Call to action above the site name (default "تو هم نبرد کن"). */
+  footer?: string;
 }
 
 const W = 1080;
@@ -166,7 +173,7 @@ async function draw(input: StoryCardInput, withPoster: boolean): Promise<Blob> {
   // Heading
   ctx.fillStyle = GOLD;
   ctx.font = `400 120px ${display}`;
-  ctx.fillText("قهرمان من", W / 2, SAFE_Y + 100);
+  ctx.fillText(input.heading ?? "قهرمان من", W / 2, SAFE_Y + 100);
 
   // Poster
   const pw = 440;
@@ -204,17 +211,18 @@ async function draw(input: StoryCardInput, withPoster: boolean): Promise<Blob> {
     ctx.fillText(line, W / 2, y);
     y += 50;
   }
-  if (input.streak > 0) {
+  const highlight = input.highlight ?? (input.streak && input.streak > 0 ? `${toFaDigits(input.streak)} برد پیاپی` : null);
+  if (highlight) {
     ctx.fillStyle = GOLD;
     ctx.font = `800 52px ${sans}`;
-    ctx.fillText(`${toFaDigits(input.streak)} برد پیاپی`, W / 2, y + 20);
+    ctx.fillText(highlight, W / 2, y + 20);
   }
 
   // Footer (above the bottom safe margin)
   const footerY = H - SAFE_Y;
   ctx.fillStyle = INK;
   ctx.font = `800 46px ${sans}`;
-  ctx.fillText("تو هم نبرد کن", W / 2, footerY - 70);
+  ctx.fillText(input.footer ?? "تو هم نبرد کن", W / 2, footerY - 70);
   const logo = await loadImage("/brand-logo.png");
   ctx.direction = "ltr";
   ctx.fillStyle = MUTED;
