@@ -609,9 +609,14 @@ export async function getNextBattle(
 /** Open to guests (random theme); a token makes the theme personal. */
 export async function getThemedBattle(
   token?: string | null,
-  pair?: { category: string; leftId: string; rightId: string } | null
+  pair?: { category: string; leftId: string; rightId: string } | null,
+  theme?: { kind: string; value: string } | null
 ): Promise<ThemedBattle> {
   const qs = new URLSearchParams();
+  if (theme) {
+    qs.set("theme_kind", theme.kind);
+    qs.set("theme_value", theme.value);
+  }
   if (pair) {
     qs.set("category", pair.category);
     qs.set("left_id", pair.leftId);

@@ -23,6 +23,11 @@ function BattlesPageInner() {
   const rightId = searchParams.get("right_id");
   const preselected = leftId && rightId ? { category: searchParams.get("category") || "movie", leftId, rightId } : null;
 
+  const kind = searchParams.get("theme_kind") as "genre" | "decade" | "director" | null;
+  const value = searchParams.get("theme_value")?.slice(0, 80);
+  const initialTheme =
+    !preselected && value && (kind === "genre" || kind === "decade" || kind === "director") ? { kind, value } : null;
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <SectionHeading
@@ -31,7 +36,7 @@ function BattlesPageInner() {
         title="بگذار فیلم‌ها بجنگند."
         lead="از هر جفت، یکی را انتخاب کن. برنده می‌ماند و با فیلم بعدی روبه‌رو می‌شود."
       />
-      <BattleArenaBody preselected={preselected} />
+      <BattleArenaBody preselected={preselected} initialTheme={initialTheme} />
     </main>
   );
 }

@@ -15,7 +15,7 @@ three kinds.
 import random
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
@@ -82,9 +82,15 @@ class ThemedBattleService:
         user_id: uuid.UUID | None,
         left_id: uuid.UUID | None = None,
         right_id: uuid.UUID | None = None,
+        theme_kind: str | None = None,
+        theme_value: str | None = None,
     ) -> ThemedPool | None:
         if left_id is not None and right_id is not None:
             pool = await self._pair_pool(left_id, right_id)
+            if pool is not None:
+                return pool
+        if theme_kind and theme_value:
+            pool = await self._named_pool(theme_kind, theme_value)
             if pool is not None:
                 return pool
         if user_id is not None:
@@ -109,6 +115,35 @@ class ThemedBattleService:
                 items += self._sample(members, POOL_SIZE - 2)
                 break
         return ThemedPool(Theme("pair", ""), items, personalized=False)
+
+    async def _named_pool(self, kind: str, value: str) -> ThemedPool | None:
+        """A run over one named theme (a shared result page's "تو هم نبرد کن").
+        Unknown theme or too few members -> None, so the caller falls back."""
+        value = value.strip()
+        if kind == "decade":
+            if not value.isdigit() or int(value) % 10 != 0 or not 1880 <= int(value) <= 2100:
+                return None
+            themes = [Theme("decade", value, decade=int(value))]
+        elif kind in RELATION_FOR_KIND:
+            entity_type = "genre" if kind == "genre" else "person"
+            lowered = value.lower()
+            stmt = select(Entity).where(
+                Entity.entity_type == entity_type,
+                or_(
+                    func.lower(Entity.title) == lowered,
+                    func.lower(Entity.attributes["title_fa"].astext) == lowered,
+                    Entity.slug == lowered,
+                ),
+            ).limit(5)
+            targets = (await self.db.execute(stmt)).scalars().all()
+            themes = [Theme(kind, value, target_id=t.id) for t in targets]
+        else:
+            return None
+        for theme in themes:
+            members = await self._members(theme, exclude_id=None)
+            if len(members) >= MIN_POOL:
+                return ThemedPool(theme, self._sample(members, POOL_SIZE), personalized=False)
+        return None
 
     # -- pools ---------------------------------------------------------------
 

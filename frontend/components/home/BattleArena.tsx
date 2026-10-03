@@ -10,20 +10,13 @@ import { castBattleVote, getThemedBattle } from "@/lib/api";
 import { ThemedBattle, ThemedBattleItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { genreLabel } from "@/lib/genre-labels";
+import { reasonOf, resultPath, topicOf } from "@/lib/battle-theme";
+import { SITE_NAME, absoluteUrl } from "@/lib/site";
+import ShareMenu from "@/components/share/ShareMenu";
+import { renderStoryCard } from "@/lib/story-card";
+import { downloadBlob } from "@/lib/share";
 
 type Side = "left" | "right";
-
-function reasonOf({ kind, value, personalized }: ThemedBattle["theme"]): string {
-  if (kind === "pair") return "نبرد پیشنهادی برای تو";
-  const base =
-    kind === "genre"
-      ? `همه هم‌ژانرند: ${genreLabel(value)}`
-      : kind === "decade"
-        ? `همه از دههٔ ${toFaDigits(value)} میلادی‌اند`
-        : `همه ساختهٔ ${value}‌اند`;
-  return personalized ? `بر پایهٔ سلیقهٔ تو · ${base}` : base;
-}
 
 /**
  * The home page's battle: a "winner stays" run (like the list page's) over
@@ -58,11 +51,21 @@ export interface PreselectedPair {
 }
 
 /** The battle itself, shared by the home section above and the /battles page. */
-export function BattleArenaBody({ enabled = true, preselected }: { enabled?: boolean; preselected?: PreselectedPair | null }) {
+export function BattleArenaBody({
+  enabled = true,
+  preselected,
+  initialTheme,
+}: {
+  enabled?: boolean;
+  preselected?: PreselectedPair | null;
+  /** A shared result's "تو هم نبرد کن" theme; used for the first load only. */
+  initialTheme?: { kind: "genre" | "decade" | "director"; value: string } | null;
+}) {
   const { isAuthenticated, loading: authLoading, getToken } = useAuth();
   const { openLoginModal } = useAuthGate();
   // Consumed by the first load only; later runs are ordinary themed pools.
   const pair = useRef(preselected ?? null);
+  const firstTheme = useRef(initialTheme ?? null);
 
   const [battle, setBattle] = useState<ThemedBattle | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,8 +82,10 @@ export function BattleArenaBody({ enabled = true, preselected }: { enabled?: boo
     loadedSignedIn.current = signedIn;
     const first = pair.current;
     pair.current = null;
+    const theme = first ? null : firstTheme.current;
+    firstTheme.current = null;
     try {
-      setBattle(await getThemedBattle(signedIn ? getToken() : null, first));
+      setBattle(await getThemedBattle(signedIn ? getToken() : null, first, theme));
     } catch (e) {
       setError(e instanceof Error ? e.message : "دریافت نبرد ممکن نشد");
       setBattle(null);
@@ -141,6 +146,35 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
 
   const done = step >= items.length;
   const championItem = items[champion];
+  // The story card is drawn only when asked for, once per finished run.
+  const storyBlob = useRef<Promise<Blob | null> | null>(null);
+  const buildStory = useCallback(() => {
+    if (!storyBlob.current) {
+      const p = renderStoryCard({
+        posterPath: championItem.poster_path,
+        title: championItem.title_fa || championItem.title,
+        subtitle: championItem.title_fa ? championItem.title : null,
+        themeLine: reasonOf({ ...theme, personalized: false }),
+        streak,
+      }).catch(() => null);
+      storyBlob.current = p;
+      void p.then((b) => {
+        if (!b && storyBlob.current === p) storyBlob.current = null;
+      });
+    }
+    return storyBlob.current;
+  }, [championItem, theme, streak]);
+  const [storyError, setStoryError] = useState<string | null>(null);
+  async function downloadStory() {
+    setStoryError(null);
+    const blob = await buildStory();
+    if (blob) downloadBlob(blob, "cinemagozin-champion.png");
+    else setStoryError("ساخت کارت استوری ممکن نشد");
+  }
+  const championName = championItem.title_fa || championItem.title;
+  const topic = topicOf(theme);
+  const shareUrl = absoluteUrl(resultPath({ slug: championItem.slug, streak, count: items.length, theme }));
+  const shareText = `${topic ? `قهرمان من در «${topic}»` : "قهرمان نبرد من"}: ${championName} 🏆 تو چه کسی را انتخاب می‌کنی؟`;
   const challengerItem = items[Math.min(step, items.length - 1)];
 
   function pick(winner: Side) {
@@ -201,6 +235,20 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
           </p>
           {voted > 0 && getToken() && !error && <p className="text-sm text-teal">رأی‌هایت در رتبه‌بندی ثبت شد.</p>}
           {error && <p className="text-xs text-gold">{error}</p>}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <ShareMenu
+              variant="button"
+              label="اشتراک نتیجه"
+              url={shareUrl}
+              title={`${championName} | ${SITE_NAME}`}
+              text={shareText}
+              getImage={buildStory}
+            />
+            <button type="button" onClick={downloadStory} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
+              دانلود کارت استوری
+            </button>
+          </div>
+          {storyError && <p className="text-xs text-gold">{storyError}</p>}
           <div className="flex gap-3">
             <button type="button" onClick={onNext} className="btn-primary text-sm hover:opacity-90">
               نبرد بعدی

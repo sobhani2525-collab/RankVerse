@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,16 +85,20 @@ async def get_themed_battle(
     category: str = Query(CATEGORY),
     left_id: uuid.UUID | None = Query(None),
     right_id: uuid.UUID | None = Query(None),
+    theme_kind: Literal["genre", "decade", "director"] | None = Query(None),
+    theme_value: str | None = Query(None, max_length=80),
     current_user=Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
     """
     A run of movies sharing a genre / decade / director for the home page's
     battle arena. Open to guests (random theme); a signed-in user's theme
-    comes from their taste. Votes still go through POST /battles/vote.
+    comes from their taste. theme_kind + theme_value (both) open a run over
+    that named theme instead, falling back to the usual pool if it's unknown
+    or too small. Votes still go through POST /battles/vote.
     """
     pool = await ThemedBattleService(db, category).get_pool(
-        current_user.id if current_user else None, left_id, right_id
+        current_user.id if current_user else None, left_id, right_id, theme_kind, theme_value
     )
     if pool is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not enough movies to form a battle")
