@@ -209,8 +209,10 @@ class ThemedBattleService:
 
     # -- themes --------------------------------------------------------------
 
-    async def _themes_for(self, seed: Entity) -> list[Theme]:
-        """The seed's possible themes: one random pick per kind, kinds in random order."""
+    async def _themes_for(self, seed: Entity, rng=random) -> list[Theme]:
+        """The seed's possible themes: one random pick per kind, kinds in random
+        order. rng lets a caller that needs a reproducible answer (the daily
+        battle) pass a seeded random.Random instead of the module-level one."""
         edges = await self.entity_repo.get_relationships_by_type(seed.id, list(RELATION_FOR_KIND.values()))
         by_kind: dict[str, list[Theme]] = {
             kind: [Theme(kind, _name(e.to_entity), target_id=e.to_entity_id) for e in edges[relation]]
@@ -222,8 +224,8 @@ class ThemedBattleService:
             by_kind["decade"] = [Theme("decade", str(decade), decade=decade)]
 
         kinds = [k for k, themes in by_kind.items() if themes]
-        random.shuffle(kinds)
-        return [random.choice(by_kind[k]) for k in kinds]
+        rng.shuffle(kinds)
+        return [rng.choice(by_kind[k]) for k in kinds]
 
     async def _members(self, theme: Theme, exclude_id: uuid.UUID | None) -> list[tuple[Entity, float | None]]:
         stmt = (

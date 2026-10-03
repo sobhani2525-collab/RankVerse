@@ -174,6 +174,16 @@ class Settings(BaseSettings):
     # Related lists (ListService.get_related_lists): how many to return.
     list_related_limit: int = 6
 
+    # Daily battle (see app/modules/daily_battle): the auto-picked pair comes
+    # from the top `pool_size` movies by score, with Elo ratings within
+    # `elo_window` of each other (widened step by step when nothing fits) and
+    # neither movie featured in the last `no_repeat_days` days. A guest (no
+    # account) may cast at most `guest_ip_limit` votes per IP per day.
+    daily_battle_pool_size: int = 400
+    daily_battle_elo_window: int = 150
+    daily_battle_no_repeat_days: int = 60
+    daily_battle_guest_ip_limit: int = 20
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
