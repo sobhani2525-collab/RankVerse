@@ -200,6 +200,50 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
     return () => window.removeEventListener(GRAPH_FOCUS_EVENT, onRequest);
   }, [focusOn]);
 
+  // Landing on #universe (fresh load, header link, or the same URL re-entered
+  // on an open page): the browser scrolls before images and lazy blocks above
+  // have settled, so it ends up short. Keep re-aligning while the layout
+  // settles, and stop as soon as the visitor scrolls on their own.
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    function run() {
+      cleanup?.();
+      if (window.location.hash !== `#${GRAPH_SECTION_ID}`) return;
+      const align = () => document.getElementById(GRAPH_SECTION_ID)?.scrollIntoView({ behavior: "auto", block: "start" });
+      const ro = new ResizeObserver(align);
+      ro.observe(document.body);
+      const timers = [0, 300, 800, 1600].map((ms) => window.setTimeout(align, ms));
+      timers.push(window.setTimeout(() => ro.disconnect(), 6000));
+      const events = ["wheel", "touchstart", "keydown", "mousedown"] as const;
+      const stop = () => {
+        timers.forEach(window.clearTimeout);
+        ro.disconnect();
+      };
+      events.forEach((ev) => window.addEventListener(ev, stop, { passive: true, once: true }));
+      window.addEventListener("load", align, { once: true });
+      cleanup = () => {
+        stop();
+        events.forEach((ev) => window.removeEventListener(ev, stop));
+        window.removeEventListener("load", align);
+      };
+    }
+    // Same-hash navigation fires no hashchange, so also watch anchor clicks.
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a");
+      if (a && a.getAttribute("href")?.endsWith(`#${GRAPH_SECTION_ID}`)) window.setTimeout(run, 0);
+    };
+    run();
+    window.addEventListener("hashchange", run);
+    window.addEventListener("popstate", run);
+    document.addEventListener("click", onClick);
+    return () => {
+      cleanup?.();
+      window.removeEventListener("hashchange", run);
+      window.removeEventListener("popstate", run);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
+
   const n = focus.satellites.length;
   const placed = focus.satellites.map((s, i) => {
     const angle = ((-90 + (360 / Math.max(n, 1)) * i) * Math.PI) / 180;
@@ -209,7 +253,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
   const focusHref = detailPathFor(focus.kind, focus.slug);
 
   return (
-    <section id={GRAPH_SECTION_ID} className="relative scroll-mt-20 overflow-hidden">
+    <section id={GRAPH_SECTION_ID} className="relative overflow-hidden [scroll-margin-top:-3rem]">
       <div className="mx-auto max-w-7xl px-6 py-24">
         <SectionHeading
           kicker="Everything is connected"
