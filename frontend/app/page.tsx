@@ -48,11 +48,21 @@ async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[] }
 
 const OTHER_FEATURED = 3;
 
+function shuffled<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 /** The hero «Featured list» in full, plus up to OTHER_FEATURED more admin-featured lists as cards. */
 async function loadFeatured(): Promise<{ main: ListDetail | null; others: ListSummary[] }> {
-  const featured = await getFeaturedLists(1 + OTHER_FEATURED);
+  // All featured lists, shuffled: the page is ISR-cached, so the pick changes each time it regenerates.
+  const featured = shuffled(await getFeaturedLists(20));
   if (featured.length > 0) {
-    return { main: await getListBySlug(featured[0].slug), others: featured.slice(1) };
+    return { main: await getListBySlug(featured[0].slug), others: featured.slice(1, 1 + OTHER_FEATURED) };
   }
   const [popular] = await discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL, [LISTS_CACHE_TAG]);
   return { main: popular ? await getListBySlug(popular.slug) : null, others: [] };
