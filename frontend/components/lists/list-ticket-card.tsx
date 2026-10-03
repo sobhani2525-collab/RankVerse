@@ -45,7 +45,7 @@ export default function ListTicketCard({ list }: { list: TicketCardList }) {
         </span>
       )}
       <div
-        className="grid h-[250px gap-2 px-4 pb-[10px] pt-4"
+        className="grid h-[250px] gap-2 px-4 pb-[10px] pt-4"
         style={{ gridTemplateColumns: "2fr 1fr 1fr", gridTemplateRows: "1fr 1fr" }}
       >
         {Array.from({ length: SLOTS }).map((_, i) => {
