@@ -6,7 +6,9 @@ export function withShareParams(url: string, src: ShareSource): string {
     const u = new URL(url);
     u.searchParams.set("ref", "share");
     u.searchParams.set("src", src);
-    return u.toString();
+    // URL#toString percent-encodes a Persian slug into an unreadable wall of
+    // %D8%.. in the chat message; decodeURI keeps reserved characters encoded.
+    return decodeURI(u.toString());
   } catch {
     return url;
   }
