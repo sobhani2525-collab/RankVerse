@@ -121,7 +121,7 @@ class ThemedBattleService:
             .limit(SEED_WINDOW)
         )
         seeds = list((await self.db.execute(stmt)).scalars().all())
-        return await self._pool_from_seeds(seeds, personalized=False, seed_leads=False)
+        return await self._pool_from_seeds(seeds, personalized=False)
 
     async def _personal_pool(self, user_id: uuid.UUID) -> ThemedPool | None:
         anchors = await self.taste_repo.list_anchors_with_entities(user_id)
@@ -130,10 +130,22 @@ class ThemedBattleService:
             for _anchor, entity in anchors
             if entity.entity_type == self.category and (entity.attributes or {}).get("poster_path")
         ]
-        pool = await self._pool_from_seeds(seeds, personalized=True, seed_leads=True)
-        if pool is not None:
-            return pool
+        # Anchors are few (often one), so leading with one every time would
+        # open every run with the same movie: the anchor path and the
+        # top-genre path take turns at random, and the anchor is shuffled
+        # into the run instead of always opening it.
+        paths = [
+            lambda: self._pool_from_seeds(seeds, personalized=True),
+            lambda: self._top_genre_pool(user_id),
+        ]
+        random.shuffle(paths)
+        for path in paths:
+            pool = await path()
+            if pool is not None:
+                return pool
+        return None
 
+    async def _top_genre_pool(self, user_id: uuid.UUID) -> ThemedPool | None:
         dimensions = (await self.taste_repo.list_dimensions(user_id, "genre"))[:TOP_GENRES]
         random.shuffle(dimensions)
         for dimension in dimensions:
@@ -147,7 +159,7 @@ class ThemedBattleService:
         return None
 
     async def _pool_from_seeds(
-        self, seeds: list[Entity], personalized: bool, seed_leads: bool
+        self, seeds: list[Entity], personalized: bool
     ) -> ThemedPool | None:
         for seed in random.sample(seeds, min(len(seeds), MAX_SEEDS)):
             for theme in await self._themes_for(seed):
@@ -156,7 +168,7 @@ class ThemedBattleService:
                     continue
                 picked = self._sample(members, POOL_SIZE - 1)
                 head = [_item(seed, await self._score(seed.id))]
-                items = head + picked if seed_leads else self._shuffled(head + picked)
+                items = self._shuffled(head + picked)
                 return ThemedPool(theme, items, personalized)
         return None
 
