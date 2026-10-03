@@ -30,7 +30,7 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
 
       <div className="relative">
         <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[45%] h-px bg-gradient-to-l from-transparent via-white/10 to-transparent" />
-        <ul className="no-scrollbar mx-auto flex max-w-7xl snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-16 pt-2">
+        <ul className="no-scrollbar mx-auto flex max-w-7xl snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-16 pt-2 [mask-image:linear-gradient(to_right,transparent,black_14%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_14%)]">
           {list.items.map((item, i) => {
             const posterUrl = entityPosterUrl(item.entity);
             const card = (
