@@ -56,6 +56,9 @@ class RankingService:
         self.db = db
         self.m = settings.ranking_min_votes
         self.alpha = settings.ranking_user_weight
+        self.ext_prior = settings.ranking_external_prior
+        self.imdb_m = settings.ranking_imdb_min_votes
+        self.tmdb_m = settings.ranking_tmdb_min_votes
         self.beta = settings.ranking_external_weight
         self.battle_weight = settings.ranking_battle_weight
         self.battle_k = settings.ranking_battle_min_matches
@@ -65,13 +68,35 @@ class RankingService:
             return C
         return (v / (v + self.m)) * R + (self.m / (v + self.m)) * C
 
-    def blend_with_external(self, bayesian: float, external_0_10: float | None, C: float) -> float:
+    def external_score(self, attrs: dict) -> float:
+        """0-10 external quality score, Bayesian-shrunk toward the catalog
+        mean by vote count. IMDb (rating + votes) is preferred; TMDb's
+        vote_average/vote_count is the fallback. No rating -> the prior."""
+        imdb, imdb_votes = attrs.get("imdb_rating"), attrs.get("imdb_votes")
+        if imdb is not None and imdb_votes:
+            r, v, m = float(imdb), int(imdb_votes), self.imdb_m
+        else:
+            tmdb = attrs.get("external_rating")
+            if tmdb is None:
+                return self.ext_prior
+            r, v, m = float(tmdb), int(attrs.get("external_vote_count") or 0), self.tmdb_m
+        return (v * r + m * self.ext_prior) / (v + m)
+
+    def blend_with_external(
+        self, bayesian: float, external_0_10: float | None, C: float, user_votes: int | None = None
+    ) -> float:
         # bayesian/C are on the 1-5 star scale; external_0_10 (and the
         # score this function returns) is 0-10, so rescale before mixing --
         # otherwise a perfect 5-star average tops out at half of a perfect
         # external score and every blended score is compressed/deflated.
         external = external_0_10 if external_0_10 is not None else C * 2
-        return round(self.alpha * (bayesian * 2) + self.beta * external, 2)
+        alpha = self.alpha
+        if user_votes is not None:
+            # With no user votes the "user" term is just the platform
+            # average -- a constant that only dilutes the external score
+            # -- so its weight grows with the votes actually collected.
+            alpha = self.alpha * user_votes / (user_votes + self.m)
+        return round(alpha * (bayesian * 2) + (1 - alpha) * external, 2)
 
     def battle_adjustment(self, elo: float | None, matches: int) -> float:
         """Points added to (or taken from) the blended score for battle
@@ -142,7 +167,7 @@ class RankingService:
             # TMDb rating is 0-10 already; stored in attributes at ingest time
             external_score = entity.attributes.get("external_rating")
             final = round(
-                self.blend_with_external(bayesian, external_score, C)
+                self.blend_with_external(bayesian, self.external_score(entity.attributes), C, user_votes=v)
                 + self.battle_adjustment(elo, matches or 0),
                 2,
             )

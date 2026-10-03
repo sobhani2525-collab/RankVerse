@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     ranking_min_votes: int = 50
     ranking_user_weight: float = 0.7
     ranking_external_weight: float = 0.3
+    # External (IMDb/TMDb) score shrinkage: like ranking_min_votes, but toward
+    # the catalog-wide mean rating so a 10.0 from 1-2 voters can't outrank
+    # a well-established title. TMDb has far fewer voters than IMDb.
+    ranking_external_prior: float = 6.5
+    ranking_imdb_min_votes: int = 5000
+    ranking_tmdb_min_votes: int = 200
     ranking_group_min_size: int = 5
     # Battle results' pull on the ranking score (see RankingService): the
     # most points a battle record can add to or remove from an entity's

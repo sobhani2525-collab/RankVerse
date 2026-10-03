@@ -17,6 +17,7 @@ def make_service():
     svc = RankingService.__new__(RankingService)  # bypass __init__ (no db needed)
     svc.m = FakeSettings.ranking_min_votes
     svc.alpha = FakeSettings.ranking_user_weight
+    svc.ext_prior, svc.imdb_m, svc.tmdb_m = 6.5, 5000, 200
     svc.beta = FakeSettings.ranking_external_weight
     svc.battle_weight = FakeSettings.ranking_battle_weight
     svc.battle_k = FakeSettings.ranking_battle_min_matches
@@ -50,6 +51,20 @@ def test_blend_with_external_score():
     final = svc.blend_with_external(bayesian=4.0, external_0_10=7.0, C=3.0)
     # 0.7*(4*2) + 0.3*7 = 5.6 + 2.1 = 7.7
     assert final == 7.7
+
+
+def test_external_score_shrinks_few_votes_toward_prior():
+    svc = make_service()
+    one_vote = svc.external_score({"external_rating": 10.0, "external_vote_count": 1})
+    solid = svc.external_score({"imdb_rating": 8.5, "imdb_votes": 500_000, "external_rating": 10.0, "external_vote_count": 1})
+    assert one_vote < 6.6
+    assert solid > 8.4  # IMDb wins over TMDb and keeps its score with many votes
+    assert svc.external_score({}) == 6.5
+
+
+def test_no_user_votes_ranks_by_external_score_alone():
+    svc = make_service()
+    assert svc.blend_with_external(bayesian=3.0, external_0_10=8.0, C=3.0, user_votes=0) == 8.0
 
 
 def test_no_battles_leaves_score_unchanged():
