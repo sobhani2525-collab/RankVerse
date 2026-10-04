@@ -228,7 +228,7 @@ export function withoutItem(detail: ListDetail, itemId: string): ListDetail {
 
 export type CandidateReason = { strength: number; text: string; tone: string };
 
-const REASON_TONE = { people: "text-violet-light", genre: "text-teal", none: "text-dim" } as const;
+const REASON_TONE = { title: "text-gold", people: "text-violet-light", genre: "text-teal", none: "text-dim" } as const;
 
 /**
  * How a candidate connects to the list: a shared director or lead actor

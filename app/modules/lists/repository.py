@@ -400,6 +400,45 @@ class ListRepository:
         stmt = select(Entity).where(Entity.id.in_(tagged))
         return await self._ranked(stmt, entity_types, exclude_ids, limit)
 
+    async def genres_by_title(self, titles: set[str]) -> list[Entity]:
+        if not titles:
+            return []
+        stmt = select(Entity).where(Entity.entity_type == "genre", func.lower(Entity.title).in_(titles))
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def entities_matching_hints(
+        self,
+        person_ids: set[uuid.UUID],
+        genre_ids: set[uuid.UUID],
+        decade: int | None,
+        entity_types: list[str],
+        exclude_ids: set[uuid.UUID],
+        limit: int,
+    ) -> list[Entity]:
+        """Best-ranked entities satisfying every given constraint: linked to
+        any of `person_ids` (director, creator or actor), tagged with any of
+        `genre_ids`, released in the decade starting `decade`."""
+        if not (person_ids or genre_ids or decade) or not entity_types:
+            return []
+        stmt = select(Entity)
+        if person_ids:
+            stmt = stmt.where(Entity.id.in_(
+                select(RelationshipEdge.from_entity_id).where(
+                    RelationshipEdge.to_entity_id.in_(person_ids),
+                    RelationshipEdge.relation_type.in_(["directed_by", "creator", "acted_in"]),
+                )
+            ))
+        if genre_ids:
+            stmt = stmt.where(Entity.id.in_(
+                select(RelationshipEdge.from_entity_id).where(
+                    RelationshipEdge.to_entity_id.in_(genre_ids),
+                    RelationshipEdge.relation_type == "has_genre",
+                )
+            ))
+        if decade:
+            stmt = stmt.where(Entity.attributes["year"].as_integer().between(decade, decade + 9))
+        return await self._ranked(stmt, entity_types, exclude_ids, limit)
+
     async def co_credited_people(
         self, work_ids: set[uuid.UUID], exclude_ids: set[uuid.UUID], limit: int
     ) -> list[Entity]:

@@ -185,7 +185,7 @@ export interface ListCandidate {
   /** How the server connects it to the list (people, works, genres); absent on older servers. */
   reason?: {
     strength: number;
-    kind: "people" | "genre" | "none";
+    kind: "people" | "genre" | "title" | "none";
     text: string;
     score: number;
   } | null;

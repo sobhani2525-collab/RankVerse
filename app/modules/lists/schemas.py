@@ -207,8 +207,8 @@ class ListDetail(ListSummary):
 
 class CandidateReason(BaseModel):
     """How a candidate connects to the list (see lists/suggest.py)."""
-    strength: int  # 0 none, 1 genre, 2 people, 3 people through several items
-    kind: Literal["people", "genre", "none"]
+    strength: int  # 0 none, 1 genre, 2 people, 3 people through several items, 4 asked for by the list title
+    kind: Literal["people", "genre", "title", "none"]
     text: str
     score: float
 

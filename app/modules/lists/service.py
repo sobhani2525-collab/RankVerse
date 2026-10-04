@@ -9,13 +9,14 @@ from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedE
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.service import _extract_media
 from app.modules.lists.repository import ListRepository
-from app.modules.lists.similar import SIMILARITY_THRESHOLD, content_words, similarity
+from app.modules.lists.similar import SIMILARITY_THRESHOLD, content_words, normalize, similarity
 from app.modules.lists.scoring import compute_like_score, community_order_key, is_list_active
 from app.modules.lists.graph import (
     CREDIT_RELATIONS, GraphItem, RELATION_LABELS_FA, RELATION_LABEL_FALLBACK_FA,
     compute_backlinks, compute_dna, compute_edges, person_graph_data, pick_battle_pair,
 )
 from app.modules.lists.suggest import build_profile, explain_candidate
+from app.modules.lists.title_hints import parse_title_hints
 from app.modules.lists.schemas import (
     CandidateReason, ListCreate, ListUpdate, ListItemCreate, ListSummary, ListDetail,
     ListItemPublic, EntityMini, EntityRef, CommentCreate, CommentPublic, ListItemVoteResult,
@@ -32,6 +33,15 @@ GRAPH_RELATION_TYPES = ["directed_by", "creator", "acted_in", "has_genre"]
 WATCH_LATER_TITLE = "تماشا خواهم کرد"
 # Frontend routes living directly under /lists/ -- no list may take their slug.
 RESERVED_LIST_SLUGS = {"new"}
+
+_FA_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+# Genre entity title (lower-cased) -> Persian name for the "why" line.
+_GENRE_FA = {
+    "action": "اکشن", "adventure": "ماجراجویی", "animation": "انیمیشن", "comedy": "کمدی", "crime": "جنایی",
+    "documentary": "مستند", "drama": "درام", "family": "خانوادگی", "fantasy": "فانتزی", "history": "تاریخی",
+    "horror": "ترسناک", "music": "موسیقی", "mystery": "معمایی", "romance": "عاشقانه",
+    "science fiction": "علمی‌تخیلی", "thriller": "هیجانی", "war": "جنگی", "western": "وسترن",
+}
 
 # A draft can't be published (private -> public) with fewer items than this.
 MIN_ITEMS_TO_PUBLISH = 5
@@ -533,8 +543,9 @@ class ListService:
             return await self._to_candidates(
                 [e for e in found if e.id not in in_list][:limit], list_nodes, profile
             )
+        from_title = await self._title_hint_candidates(lst, entity_type, in_list, list_nodes, profile, limit)
         if not list_nodes:
-            return []
+            return from_title
 
         types = [entity_type] if entity_type else sorted({n.entity_type for n in list_nodes})
         people: set[uuid.UUID] = set()
@@ -566,9 +577,76 @@ class ListService:
         take(await self.repo.entities_with_genres(top_genres, titled, in_list, pool_size // 2))
 
         candidates = await self._to_candidates(list(pool.values()), list_nodes, profile)
-        scored = [c for c in candidates if c.reason and c.reason.strength > 0]
+        seen = {c.entity.id for c in from_title}
+        scored = [c for c in candidates if c.reason and c.reason.strength > 0 and c.entity.id not in seen]
         scored.sort(key=lambda c: (-c.reason.score, c.entity.title))
-        return scored[:limit]
+        return (from_title + scored)[:limit]
+
+    async def _resolve_title_people(self, phrases: list[str]) -> list:
+        """People whose name the list title spells out: a full multi-word
+        name («تیم برتون»), or a lone surname that only one person has
+        («نولان»). Words of a matched name are not matched again."""
+        people: list = []
+        used: set[str] = set()
+        for phrase in phrases:
+            words = phrase.split()
+            if used & set(words):
+                continue
+            found = await find_entities_by_title(self.db, phrase, "person", 8)
+            names = [
+                (p, {normalize(p.title), normalize((p.attributes or {}).get("title_fa") or "")} - {""})
+                for p in found
+            ]
+            if len(words) > 1:
+                hit = next((p for p, ns in names if phrase in ns), None)
+            else:
+                surnamed = [p for p, ns in names if any(n.split()[-1] == phrase for n in ns)]
+                hit = surnamed[0] if len(surnamed) == 1 else None
+            if hit:
+                people.append(hit)
+                used.update(words)
+        return people
+
+    async def _title_hint_candidates(
+        self, lst, entity_type: str | None, in_list: set[uuid.UUID], list_nodes, profile, limit: int
+    ) -> list[ListCandidate]:
+        """Titles the list's own title asks for: «برترین فیلم‌های تیم برتون»
+        -> his films; «بهترین موزیکال‌های دهه ۱۹۹۰» -> music/musical titles of
+        that decade. Every constraint found in the title must hold, and these
+        come ahead of the suggestions drawn from the items already added."""
+        hints = parse_title_hints(lst.title)
+        if not hints:
+            return []
+        people = await self._resolve_title_people(hints.phrases)
+        genres = await self.repo.genres_by_title(hints.genres)
+        if not (people or genres or hints.decade):
+            return []
+        if hints.decade and not (people or genres):
+            # A decade alone is too loose («بهترین فیلم‌های دهه ۱۹۹۰» is every film).
+            return []
+        types = [entity_type] if entity_type else (
+            [lst.entity_type] if lst.entity_type and lst.entity_type != "person"
+            else sorted({n.entity_type for n in list_nodes if n.entity_type != "person"}) or ["movie", "tv_series"]
+        )
+        entities = await self.repo.entities_matching_hints(
+            {p.id for p in people}, {g.id for g in genres}, hints.decade, types, in_list,
+            settings.list_candidate_pool_size,
+        )
+        if not entities:
+            return []
+        labels = []
+        if people:
+            labels.append("، ".join((p.attributes or {}).get("title_fa") or p.title for p in people))
+        labels += [f"ژانر {_GENRE_FA.get(g.title.lower(), g.title)}" for g in genres]
+        if hints.decade:
+            labels.append(f"دهه {str(hints.decade).translate(_FA_DIGITS)}")
+        text = "مطابق عنوان فهرست: " + " · ".join(labels)
+        out = await self._to_candidates(entities, list_nodes, profile)
+        for c in out:
+            base = c.reason.score if c.reason else 0.0
+            c.reason = CandidateReason(strength=4, kind="title", text=text, score=base + 10)
+        out.sort(key=lambda c: (-c.reason.score, c.entity.title))
+        return out[:limit]
 
     async def remove_item(self, user_id: uuid.UUID, slug: str, item_id: uuid.UUID) -> None:
         lst = await self.repo.get_by_slug(slug)
