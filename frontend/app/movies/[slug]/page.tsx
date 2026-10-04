@@ -5,6 +5,7 @@ import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import DetailShareButton from "@/components/entities/detail-share-button";
 import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
+import WatchLaterButton from "@/components/entities/watch-later-button";
 import EntityScoreRow from "@/components/EntityScoreRow";
 import { MonoLabel, Chip } from "@/components/list-detail/ui";
 import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
@@ -157,6 +158,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <AddToListMenu entity={movie} />
+            <WatchLaterButton entityId={movie.id} />
             <BattleJumpButton />
           </div>
 
@@ -164,7 +166,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             <div className="mt-6">
               <div className="flex items-center gap-2">
                 <MonoLabel size="text-[10px]" className="text-dim">
-                  OVERVIEW
+                  SUMMARY
                 </MonoLabel>
                 <span className="text-xs text-muted">خلاصه</span>
               </div>

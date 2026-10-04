@@ -67,6 +67,11 @@ _PEOPLE_TTL = 600  # seconds
 _PEOPLE_CACHE: dict[tuple, tuple[float, tuple[list, int]]] = {}
 
 
+
+def _person_image(entity) -> str | None:
+    return ((entity.attributes or {}).get("media") or {}).get("image_url")
+
+
 class EntityService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -156,7 +161,7 @@ class EntityService:
         genre_edges = edges["has_genre"]
 
         directors = [
-            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), role="director")
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), image_url=_person_image(e.to_entity), role="director")
             for e in director_edges
         ]
         cast = [
@@ -165,6 +170,7 @@ class EntityService:
                 slug=e.to_entity.slug,
                 title=e.to_entity.title,
                 title_fa=(e.to_entity.attributes or {}).get("title_fa"),
+                image_url=_person_image(e.to_entity),
                 role=e.edge_metadata.get("character"),
             )
             for e in sorted(cast_edges, key=lambda e: e.edge_metadata.get("order", 99))
@@ -211,11 +217,11 @@ class EntityService:
         network_edges = edges["aired_on"]
 
         creators = [
-            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), role="creator")
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), image_url=_person_image(e.to_entity), role="creator")
             for e in creator_edges
         ]
         directors = [
-            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), role="director")
+            PersonSummary(id=e.to_entity.id, slug=e.to_entity.slug, title=e.to_entity.title, title_fa=(e.to_entity.attributes or {}).get("title_fa"), image_url=_person_image(e.to_entity), role="director")
             for e in director_edges
         ]
         cast = [
@@ -224,6 +230,7 @@ class EntityService:
                 slug=e.to_entity.slug,
                 title=e.to_entity.title,
                 title_fa=(e.to_entity.attributes or {}).get("title_fa"),
+                image_url=_person_image(e.to_entity),
                 role=e.edge_metadata.get("character"),
             )
             for e in sorted(cast_edges, key=lambda e: e.edge_metadata.get("order", 99))

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useWatchLater } from "@/contexts/WatchLaterContext";
 import { createList, addListItem, getMyLists } from "@/lib/api";
 import { MonoLabel } from "@/components/list-detail/ui";
 import { PlusIcon } from "@/components/list-detail/icons";
@@ -60,9 +59,8 @@ function CheckRow({
 /**
  * "+ افزودن به فهرست…" -- opens a "MY LISTS" popover, anchored to the
  * trigger's right edge and expanding leftward (matching RTL reading
- * direction): the "بعداً تماشا می‌کنم" shortcut first (favoriting already
- * has its own heart button in the action row, so it isn't duplicated
- * here), the user's own lists as checkbox rows (lazy-loaded on open), and
+ * direction): the user's own lists (favoriting and watch-later have their
+ * own buttons in the action row, so they aren't duplicated here) as checkbox rows (lazy-loaded on open), and
  * an inline quick-create row last. Mirrors SearchBox's dropdown shell
  * (relative container, absolute panel, click-outside-to-close).
  */
@@ -70,7 +68,6 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
   const router = useRouter();
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
-  const { isWatchLater, toggleWatchLater } = useWatchLater();
 
   const [open, setOpen] = useState(false);
   const [lists, setLists] = useState<MyListRow[] | null>(null);
@@ -155,8 +152,6 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
     }
   }
 
-  const watchingLater = isWatchLater(entity.id);
-
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -174,11 +169,7 @@ export default function AddToListMenu({ entity }: { entity: AddToListEntity }) {
             <span className="text-xs text-muted">فهرست‌های من</span>
           </div>
 
-          {entity.entity_type !== "person" && (
-            <CheckRow label="بعداً تماشا می‌کنم" checked={watchingLater} onClick={() => toggleWatchLater(entity.id)} />
-          )}
-
-          <div className={entity.entity_type !== "person" ? "border-t border-border-soft" : ""}>
+          <div>
             {loadingLists ? (
               <p className="px-3.5 py-2.5 text-xs text-muted">در حال بارگذاری...</p>
             ) : lists && lists.length > 0 ? (

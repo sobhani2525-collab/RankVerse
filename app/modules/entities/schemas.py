@@ -19,6 +19,7 @@ class PersonSummary(BaseModel):
     slug: str
     title: str  # person's name, reuses Entity.title
     title_fa: str | None = None  # Persian-script name (Iranian people), see normalizer.person_name_attrs
+    image_url: str | None = None  # profile photo (attributes.media.image_url)
     role: str | None = None  # 'director' | 'actor' (from edge metadata)
 
 

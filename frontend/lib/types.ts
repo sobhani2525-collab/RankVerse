@@ -18,6 +18,7 @@ export interface PersonSummary {
   slug: string;
   title: string;
   title_fa?: string | null;
+  image_url?: string | null;
   role: string | null;
 }
 
