@@ -3,3 +3,10 @@
 # keep it forever instead of revalidating on every page load.
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Logos are replaced by renaming, never in place, so a week of browser/edge
+# caching saves a revalidation round trip on every page load.
+/brand-logo.png
+  Cache-Control: public, max-age=604800
+/logo.png
+  Cache-Control: public, max-age=604800
