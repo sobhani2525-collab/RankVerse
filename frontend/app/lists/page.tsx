@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ListsExplorer from "@/components/lists/lists-explorer";
 import MarqueeSign from "@/components/lists/marquee-sign";
+import CreateListStrip from "@/components/lists/create-list-strip";
 import { discoverLists, LISTS_CACHE_TAG } from "@/lib/api";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
@@ -78,7 +79,10 @@ export default async function ListsPage() {
           <span className="num mt-1 block text-xs text-gold/70">{loadError}</span>
         </div>
       ) : (
-        <ListsExplorer initialLists={lists} />
+        <>
+          <ListsExplorer initialLists={lists} />
+          <CreateListStrip />
+        </>
       )}
     </main>
   );

@@ -8,6 +8,7 @@ import BattleArena from "@/components/home/BattleArena";
 import DailyBattle from "@/components/home/DailyBattle";
 import FeaturedList from "@/components/home/FeaturedList";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
+import ListCreatorPromo from "@/components/home/ListCreatorPromo";
 import {
   getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlug, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
 } from "@/lib/api";
@@ -148,6 +149,7 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+      <ListCreatorPromo />
       <PersonalUniverse startHref={`/movies/${leader.slug}`} />
     </main>
   );
