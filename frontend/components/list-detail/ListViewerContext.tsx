@@ -142,6 +142,14 @@ export function ListViewerProvider({
       if (syncTimer.current) clearTimeout(syncTimer.current);
       syncTimer.current = setTimeout(() => setSyncing(false), 20000);
       startRefresh(() => router.refresh());
+      // The effect above only refetches when initialDetail changes, which it doesn't
+      // on the draft page (client-held state); refetch here so syncing always ends.
+      if (token) {
+        getListBySlug(slug, token)
+          .then(applyDetail)
+          .catch(() => {})
+          .finally(stopSyncing);
+      }
     },
     syncing,
     setItemsDetail: setDetail,
