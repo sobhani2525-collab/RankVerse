@@ -1,3 +1,4 @@
+import { proxyTmdbUrl } from "./tmdb-image-url";
 import { toFaDigits } from "@/lib/format-number";
 
 /**
@@ -155,7 +156,7 @@ async function draw(input: StoryCardInput, withPoster: boolean): Promise<Blob> {
     document.fonts.load(`400 48px ${display}`, "قهرمان من"),
   ]).catch(() => undefined);
 
-  const img = withPoster && input.posterPath ? await loadImage(`https://image.tmdb.org/t/p/w780${input.posterPath}`) : null;
+  const img = withPoster && input.posterPath ? await loadImage(proxyTmdbUrl(`https://image.tmdb.org/t/p/w780${input.posterPath}`)) : null;
 
   if (withPoster && input.posterPath && !img) console.warn("story card: poster failed to load, drawing without it");
 
