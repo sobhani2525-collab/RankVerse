@@ -6,18 +6,13 @@ import LiveRanking from "@/components/home/LiveRanking";
 import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
 import BattleArena from "@/components/home/BattleArena";
 import DailyBattle from "@/components/home/DailyBattle";
-import VoteShift from "@/components/home/VoteShift";
-import HomeSearch from "@/components/home/HomeSearch";
 import FeaturedList from "@/components/home/FeaturedList";
-import GenreUniverse from "@/components/home/GenreUniverse";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
-import FinalCta from "@/components/home/FinalCta";
-import SectionHeading from "@/components/home/SectionHeading";
 import {
   getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlug, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
 } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
-import { clusterByGenre, toHomeTitle } from "@/lib/home-data";
+import { toHomeTitle } from "@/lib/home-data";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { ListDetail, ListSummary, MovieDetail, MovieListItem } from "@/lib/types";
 
@@ -75,14 +70,9 @@ export default async function HomePage() {
   // details chain off the movie list alone, so they don't wait for the
   // other two reads.
   const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
-  const [movieRes, tvRes, listsRes, extrasRes, featuredListRes, heroPoolRes] = await Promise.allSettled([
+  const [movieRes, tvRes, extrasRes, featuredListRes, heroPoolRes] = await Promise.allSettled([
     moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
-    // آخرین فهرست‌های ساخته‌شده توسط کاربرها. اگه گرفتنش خطا بده،
-    // این بخش بی‌سروصدا مخفی می‌شه و مانع لود بقیهٔ صفحه نمی‌شه.
-    // Cached as long as the rest of the page, so this read doesn't pull the
-    // whole home page down to the lists TTL.
-    discoverLists({ sort: "newest", page_size: 6 }, RANKING_TTL, [LISTS_CACHE_TAG]),
     moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
     // فهرست‌های برگزیدهٔ ادمین؛ اگر نبود، پرلایک‌ترین فهرست باکیفیت (فیلتر کیفیت پیش‌فرض بک‌اند).
     loadFeatured(),
@@ -103,7 +93,6 @@ export default async function HomePage() {
       : null;
   const tvSeries: MovieListItem[] = tvRes.status === "fulfilled" ? tvRes.value.items : [];
   const tvTotal = tvRes.status === "fulfilled" ? tvRes.value.total : null;
-  const latestLists = listsRes.status === "fulfilled" ? listsRes.value : [];
   const featuredList = featuredListRes.status === "fulfilled" ? featuredListRes.value.main : null;
   const otherFeatured = featuredListRes.status === "fulfilled" ? featuredListRes.value.others : [];
 
@@ -113,13 +102,8 @@ export default async function HomePage() {
 
   const titles = movies.map((m, i) => toHomeTitle(m, i + 1, detailById.get(m.id)));
   const top10 = titles.slice(0, 10);
-  const detailed = titles.filter((t) => t.hasDetail);
   const tvTitles = tvSeries.map((m, i) => toHomeTitle(m, i + 1));
   const leader = titles[0] ?? null;
-
-  const searchSuggestions = leader
-    ? [leader.title_fa ?? leader.title, leader.directors[0]?.title, leader.genres[0]?.title].filter((s): s is string => !!s)
-    : [];
 
   if (loadError || !leader) {
     return (
@@ -137,7 +121,6 @@ export default async function HomePage() {
             </div>
           )}
         </section>
-        <HomeSearch suggestions={[]} />
       </main>
     );
   }
@@ -146,11 +129,9 @@ export default async function HomePage() {
     <main>
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} />
       <DailyBattle />
-      {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <LiveRanking movies={top10} tvSeries={tvTitles} />
       <BattleArena />
-      <VoteShift guestPreview={top10} />
-      <HomeSearch suggestions={searchSuggestions} />
+      {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       {featuredList && <FeaturedList list={featuredList} />}
       {otherFeatured.length > 0 && (
         <section className="mx-auto -mt-16 max-w-7xl px-6 pb-16">
@@ -167,29 +148,7 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-      <GenreUniverse clusters={clusterByGenre(detailed)} sampleSize={detailed.length} />
       <PersonalUniverse startHref={`/movies/${leader.slug}`} />
-
-      {latestLists.length > 0 && (
-        <section className="mx-auto max-w-7xl px-6 py-24">
-          <SectionHeading
-            kicker="Curated by the community"
-            title="آخرین فهرست‌ها"
-            action={
-              <Link href="/lists" className="text-sm text-teal hover:underline">
-                همه فهرست‌ها
-              </Link>
-            }
-          />
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {latestLists.map((list) => (
-              <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <FinalCta />
     </main>
   );
 }

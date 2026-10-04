@@ -45,6 +45,8 @@ export default function PersonalUniverse({ startHref }: { startHref: string }) {
   }, [isAuthenticated, inView, getToken]);
 
   const signedIn = !authLoading && isAuthenticated;
+  // Guests get no placeholder card: the section only exists for a signed-in user.
+  if (!signedIn) return null;
   const ready = signedIn && state.status === "ready" ? state : null;
   const ratings = ready?.ratings ?? [];
 
