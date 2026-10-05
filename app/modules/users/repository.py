@@ -32,6 +32,11 @@ class UserRepository:
         user.hashed_password = hashed_password
         await self.db.flush()
 
+    async def update_profile(self, user: User, fields: dict) -> None:
+        for name, value in fields.items():
+            setattr(user, name, value)
+        await self.db.flush()
+
     async def mark_email_verified(self, user: User) -> None:
         if user.email_verified_at is None:
             user.email_verified_at = datetime.now(timezone.utc)

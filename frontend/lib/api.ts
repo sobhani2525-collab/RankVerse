@@ -191,7 +191,30 @@ export async function loginUser(payload: { email: string; password: string }) {
 }
 
 export async function getMe(token: string) {
-  return authFetch<{ id: string; email: string; username: string; email_verified: boolean }>("/auth/me", token);
+  return authFetch<{
+    id: string;
+    email: string;
+    username: string;
+    email_verified: boolean;
+    display_name: string | null;
+    bio: string | null;
+    avatar_key: string | null;
+  }>("/auth/me", token);
+}
+
+export interface ProfileUpdate {
+  display_name?: string | null;
+  bio?: string | null;
+  avatar_key?: string | null;
+}
+
+/** Only the fields present change; null (or blank text) clears one. */
+export async function updateMyProfile(token: string, update: ProfileUpdate) {
+  return authFetch<{ id: string; email: string; username: string; email_verified: boolean } & ProfileUpdate>(
+    "/users/me",
+    token,
+    { method: "PATCH", body: update }
+  );
 }
 
 export async function verifyEmail(token: string) {

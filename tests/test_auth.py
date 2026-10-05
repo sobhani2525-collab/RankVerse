@@ -142,3 +142,43 @@ async def test_verify_rejects_wrong_type_and_changed_email(client):
 
     stale = create_email_verification_token(user_id, "old-address@example.com")
     assert (await client.post("/api/v1/auth/verify-email", json={"token": stale})).status_code == 401
+
+
+# --- Profile (display name / bio / avatar) ---
+
+def test_profile_update_cleans_text_and_rejects_unknown_avatar():
+    import pytest
+    from pydantic import ValidationError
+
+    from app.modules.users.schemas import ProfileUpdate
+
+    p = ProfileUpdate(display_name="  علی   رضایی \n", bio="  سینما\tدوست  ", avatar_key="a3")
+    assert p.display_name == "علی رضایی"
+    assert p.bio == "سینما دوست"
+
+    # Blank clears (None) and is still counted as "sent".
+    blank = ProfileUpdate(display_name="   ")
+    assert blank.display_name is None and "display_name" in blank.model_fields_set
+    assert "bio" not in blank.model_fields_set
+
+    with pytest.raises(ValidationError):
+        ProfileUpdate(avatar_key="evil.png")
+    with pytest.raises(ValidationError):
+        ProfileUpdate(bio="x" * 301)
+
+
+async def test_patch_me_updates_only_sent_fields(client, auth_headers):
+    res = await client.patch("/api/v1/users/me", json={"display_name": "نام تست", "avatar_key": "a2"}, headers=auth_headers)
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert data["display_name"] == "نام تست" and data["avatar_key"] == "a2" and data["bio"] is None
+
+    res = await client.patch("/api/v1/users/me", json={"bio": "سلام"}, headers=auth_headers)
+    data = res.json()["data"]
+    assert data["bio"] == "سلام" and data["display_name"] == "نام تست"  # untouched
+
+    res = await client.patch("/api/v1/users/me", json={"display_name": None}, headers=auth_headers)
+    assert res.json()["data"]["display_name"] is None and res.json()["data"]["bio"] == "سلام"
+
+    assert (await client.patch("/api/v1/users/me", json={"avatar_key": "nope"}, headers=auth_headers)).status_code == 422
+    assert (await client.patch("/api/v1/users/me", json={"bio": "x"})).status_code == 401

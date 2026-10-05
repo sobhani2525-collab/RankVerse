@@ -17,6 +17,7 @@ import { AuthorAvatar } from "@/components/lists/list-card";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import StatTile from "@/components/profile/stat-tile";
+import ProfileEditor from "@/components/profile/profile-editor";
 import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
 import { StarIcon, ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { toFaDigits } from "@/lib/format-number";
@@ -30,6 +31,7 @@ export default function ProfilePage() {
   const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toggleWatchLater } = useWatchLater();
+  const [editing, setEditing] = useState(false);
 
   const [ratings, setRatings] = useState<UserRating[] | null>(null);
   const [loadingRatings, setLoadingRatings] = useState(true);
@@ -227,17 +229,28 @@ export default function ProfilePage() {
       {/* --- Hero --- */}
       <div className="flex items-center gap-5 border-b border-border-soft pb-10">
         <AuthorAvatar
-          author={{ username: user.username }}
+          author={{ username: user.username, avatarKey: user.avatar_key }}
           sizeClassName="h-20 w-20 md:h-24 md:w-24"
-          textClassName="text-2xl md:text-3xl"
+          textClassName="text-3xl md:text-4xl"
         />
-        <div>
-          <h1 className="font-display text-3xl text-ink md:text-4xl">{user.username}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-3xl text-ink md:text-4xl">{user.display_name || user.username}</h1>
           <p className="num mt-1.5 text-right text-sm text-muted" dir="ltr">
+            {user.display_name ? `@${user.username} · ` : ""}
             {user.email}
           </p>
+          {user.bio && <p className="mt-3 max-w-xl whitespace-pre-line text-[15px] leading-8 text-ink/85">{user.bio}</p>}
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            aria-expanded={editing}
+            className="mt-4 rounded-lg border border-border px-4 py-1.5 text-sm text-ink transition hover:border-gold/40 hover:text-gold"
+          >
+            {editing ? "بستن" : "ویرایش پروفایل"}
+          </button>
         </div>
       </div>
+      {editing && <ProfileEditor onDone={() => setEditing(false)} />}
 
       {/* --- Stats: ratings + activity/contribution merged into one strip -- */}
       <div className="mt-10">

@@ -49,12 +49,18 @@ export default async function PublicProfilePage({
     <main className="mx-auto max-w-[1440px] px-4 pb-24 pt-10 lg:px-20 lg:pt-16">
       <div className="flex items-center gap-5 border-b border-border-soft pb-10">
         <AuthorAvatar
-          author={{ username: user.username }}
+          author={{ username: user.username, avatarKey: user.avatar_key }}
           sizeClassName="h-20 w-20 md:h-24 md:w-24"
-          textClassName="text-2xl md:text-3xl"
+          textClassName="text-3xl md:text-4xl"
         />
-        <div>
-          <h1 className="font-display text-3xl text-ink md:text-4xl">{user.username}</h1>
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl text-ink md:text-4xl">{user.display_name || user.username}</h1>
+          {user.display_name && (
+            <p dir="ltr" className="mt-1 text-right text-sm text-muted">
+              @{user.username}
+            </p>
+          )}
+          {user.bio && <p className="mt-3 max-w-xl whitespace-pre-line text-[15px] leading-8 text-ink/85">{user.bio}</p>}
         </div>
       </div>
 

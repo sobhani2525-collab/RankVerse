@@ -97,7 +97,7 @@ export default function Header() {
           <div className="flex h-9 items-center">
             {!loading &&
               (isAuthenticated && user ? (
-                <UserMenu username={user.username} onLogout={logout} />
+                <UserMenu username={user.username} avatarKey={user.avatar_key} onLogout={logout} />
               ) : (
                 // The login modal links to /register, so one button covers both.
                 <button onClick={openLoginModal} className="btn-primary whitespace-nowrap text-sm hover:opacity-90">

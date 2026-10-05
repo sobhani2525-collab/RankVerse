@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, model_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator, model_validator
 
 
 class UserCreate(BaseModel):
@@ -30,6 +30,9 @@ class UserPublic(BaseModel):
     email: str
     username: str
     email_verified: bool = False
+    display_name: str | None = None
+    bio: str | None = None
+    avatar_key: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -41,8 +44,42 @@ class UserPublic(BaseModel):
                 "email": data.email,
                 "username": data.username,
                 "email_verified": data.email_verified_at is not None,
+                "display_name": data.display_name,
+                "bio": data.bio,
+                "avatar_key": data.avatar_key,
             }
         return data
+
+
+# The preset avatars the frontend ships (lib/avatars.ts); keep the two in sync.
+PROFILE_AVATAR_KEYS = frozenset(f"a{i}" for i in range(1, 13))
+
+
+def _clean_text(value: str | None) -> str | None:
+    """Collapses whitespace/control characters; empty becomes None (= cleared)."""
+    if value is None:
+        return None
+    cleaned = " ".join("".join(ch if ch.isprintable() or ch in "\n" else " " for ch in value).split())
+    return cleaned or None
+
+
+class ProfileUpdate(BaseModel):
+    """PATCH /users/me: only the fields that are sent change; null or blank clears one."""
+    display_name: str | None = Field(default=None, max_length=50)
+    bio: str | None = Field(default=None, max_length=300)
+    avatar_key: str | None = Field(default=None, max_length=20)
+
+    @field_validator("display_name", "bio", mode="before")
+    @classmethod
+    def _clean(cls, v):
+        return _clean_text(v) if isinstance(v, str) else v
+
+    @field_validator("avatar_key")
+    @classmethod
+    def _known_avatar(cls, v):
+        if v is not None and v not in PROFILE_AVATAR_KEYS:
+            raise ValueError("Unknown avatar")
+        return v
 
 
 class VerifyEmailRequest(BaseModel):
@@ -57,6 +94,9 @@ class UserProfilePublic(BaseModel):
     id: uuid.UUID
     username: str
     created_at: datetime
+    display_name: str | None = None
+    bio: str | None = None
+    avatar_key: str | None = None
 
 
 class TokenPair(BaseModel):

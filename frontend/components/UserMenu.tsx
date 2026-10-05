@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { avatarByKey } from "@/lib/avatars";
 
 // Round avatar (username initial) that opens the signed-in user's menu.
 // Closes on outside click, Escape, or choosing an item.
-export default function UserMenu({ username, onLogout }: { username: string; onLogout: () => void }) {
+export default function UserMenu({ username, avatarKey, onLogout }: { username: string; avatarKey?: string | null; onLogout: () => void }) {
+  const preset = avatarByKey(avatarKey);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -36,9 +38,12 @@ export default function UserMenu({ username, onLogout }: { username: string; onL
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="منوی کاربر"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-surface2 text-sm font-bold uppercase text-gold transition hover:border-gold"
+        style={preset ? { backgroundImage: `linear-gradient(135deg, ${preset.from}, ${preset.to})` } : undefined}
+        className={`flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-sm font-bold uppercase transition hover:border-gold ${
+          preset ? "" : "bg-surface2 text-gold"
+        }`}
       >
-        {username.charAt(0)}
+        {preset ? preset.glyph : username.charAt(0)}
       </button>
 
       {open && (

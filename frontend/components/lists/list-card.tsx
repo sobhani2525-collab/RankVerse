@@ -1,4 +1,5 @@
 "use client";
+import { avatarByKey } from "@/lib/avatars";
 import { listHref } from "@/lib/list-url";
 import { useState } from "react";
 import Link from "next/link";
@@ -23,6 +24,8 @@ export interface ListCardItem {
 export interface ListCardAuthor {
   username: string;
   avatarUrl?: string | null;
+  /** A preset avatar (lib/avatars.ts), chosen on the profile page. */
+  avatarKey?: string | null;
   /** Only rendered as a real <Link> when present -- callers that don't
    *  have a username to build /profile/[username] from should leave this
    *  undefined rather than pointing at a dead URL. */
@@ -187,6 +190,19 @@ export function AuthorAvatar({
   sizeClassName?: string;
   textClassName?: string;
 }) {
+  const preset = avatarByKey(author.avatarKey);
+  if (preset) {
+    return (
+      <div
+        aria-hidden="true"
+        style={{ backgroundImage: `linear-gradient(135deg, ${preset.from}, ${preset.to})` }}
+        className={`flex ${sizeClassName} shrink-0 items-center justify-center rounded-full ${textClassName}`}
+      >
+        {preset.glyph}
+      </div>
+    );
+  }
+
   if (author.avatarUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- a small avatar isn't worth next/image's overhead here

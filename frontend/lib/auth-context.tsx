@@ -14,6 +14,9 @@ interface User {
   email: string;
   username: string;
   email_verified: boolean;
+  display_name?: string | null;
+  bio?: string | null;
+  avatar_key?: string | null;
 }
 
 interface AuthContextType {

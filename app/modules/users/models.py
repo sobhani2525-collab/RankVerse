@@ -19,6 +19,10 @@ class User(Base):
     # NULL until the address is confirmed via the emailed link (or a password
     # reset, which proves the same thing). Informational: nothing is blocked on it.
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Optional profile fields (see PROFILE_AVATAR_KEYS in users/schemas.py).
+    display_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    avatar_key: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

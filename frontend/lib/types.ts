@@ -11,6 +11,9 @@ export interface PublicUser {
   id: string;
   username: string;
   created_at: string;
+  display_name?: string | null;
+  bio?: string | null;
+  avatar_key?: string | null;
 }
 
 export interface PersonSummary {

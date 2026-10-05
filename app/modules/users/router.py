@@ -7,10 +7,25 @@ from app.core.schemas import envelope
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import FavoritePublic, RatingCreate, RatingPublic, UserProfilePublic
+from app.modules.users.schemas import (
+    FavoritePublic, ProfileUpdate, RatingCreate, RatingPublic, UserProfilePublic, UserPublic,
+)
 from app.modules.users.service import UserService
 
 router = APIRouter(tags=["users"])
+
+
+@router.patch("/users/me")
+async def update_my_profile(
+    payload: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Only fields the client actually sent (an explicit null clears one).
+    fields = {name: getattr(payload, name) for name in payload.model_fields_set}
+    await UserRepository(db).update_profile(current_user, fields)
+    await db.commit()
+    return envelope(data=UserPublic.model_validate(current_user).model_dump())
 
 
 @router.get("/users/{username}")
