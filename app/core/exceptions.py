@@ -1,5 +1,7 @@
 import logging
 
+import sentry_sdk
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -53,6 +55,9 @@ async def rankverse_exception_handler(request: Request, exc: RankVerseError) -> 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    # This handler swallows the exception, so Sentry's ASGI integration never
+    # sees it; report it here (a no-op when Sentry isn't initialised).
+    sentry_sdk.capture_exception(exc)
     return JSONResponse(
         status_code=500,
         content={

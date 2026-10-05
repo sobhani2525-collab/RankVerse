@@ -12,6 +12,17 @@ from app.core.exceptions import (
 )
 
 
+if settings.sentry_dsn:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.sentry_environment or settings.environment,
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+        # Never attach request bodies, cookies or IPs: they carry passwords and tokens.
+        send_default_pii=False,
+    )
+
 app = FastAPI(
     title="RankVerse Core Engine",
     description="Knowledge-graph-based ranking platform for cultural entities (movies, books, music...)",

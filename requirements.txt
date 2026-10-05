@@ -16,6 +16,7 @@ greenlet==3.1.1
 bcrypt==4.0.1
 pgvector==0.3.6
 openai==1.54.4
+sentry-sdk[fastapi]==2.71.0
 
 pytest==8.3.3
 pytest-asyncio==0.24.0

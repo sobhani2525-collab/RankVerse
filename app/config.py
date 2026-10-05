@@ -52,6 +52,11 @@ class Settings(BaseSettings):
 
     internal_api_key: str = ""
 
+    # Error reporting (see app/main.py). Empty DSN = disabled.
+    sentry_dsn: str = ""
+    sentry_environment: str = ""  # defaults to ENVIRONMENT
+    sentry_traces_sample_rate: float = 0.0
+
     # Used only by scripts/translate_overviews.py (machine-translating
     # English TMDb overviews to Persian). Empty falls back to the SDK's own
     # credential resolution (ANTHROPIC_API_KEY env var, `ant auth login`).
