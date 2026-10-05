@@ -46,7 +46,7 @@ export default function Header() {
   }
 
   return (
-    <header className="relative z-40 border-b border-border bg-surface px-4 py-[16.5px] sm:px-6">
+    <header className="relative z-40 border-b border-border bg-surface px-4 py-3 sm:px-6 sm:py-[16.5px]">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-3 sm:gap-x-4 md:flex-nowrap">
         <Link href="/" aria-label="سینماگزین" className="shrink-0">
           <Image

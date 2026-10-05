@@ -104,7 +104,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         {/* Deliberately bigger than any related-entity card (max ~227px wide
             at the lg:grid-cols-5 breakpoint of a max-w-7xl page) so the
             movie's own poster always reads as the primary image on the page. */}
-        <div className="h-[480px] w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
+        <div className="h-[330px] w-[220px] sm:h-[480px] sm:w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
           {posterUrl ? (
             <Image
               src={posterUrl}

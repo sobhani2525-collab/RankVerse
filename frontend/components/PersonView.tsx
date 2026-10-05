@@ -42,7 +42,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
 
       <div className="mt-6 flex flex-col gap-8 sm:flex-row">
         {/* Same hero photo block as the movie page. */}
-        <div className="h-[480px] w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
+        <div className="h-[330px] w-[220px] sm:h-[480px] sm:w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
           {posterUrl ? (
             <Image
               src={posterUrl}
