@@ -1,3 +1,5 @@
+import { avatarByKey } from "@/lib/avatars";
+import { AuthorAvatar } from "@/components/lists/list-card";
 import Link from "next/link";
 import type { ListDetail } from "@/lib/types";
 import { relativeTimeFa } from "@/lib/relative-time";
@@ -26,15 +28,23 @@ export default function ListHero({ detail }: { detail: ListDetail }) {
             href={`/profile/${encodeURIComponent(detail.owner_username)}`}
             className="flex min-h-[44px] items-center gap-2.5 text-ink lg:gap-3"
           >
-            <span
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-violet-light bg-surface-2 font-extrabold uppercase text-violet-light lg:h-11 lg:w-11"
-              aria-hidden="true"
-            >
-              {detail.owner_username.charAt(0)}
-            </span>
+            {avatarByKey(detail.owner_avatar_key) ? (
+              <AuthorAvatar
+                author={{ username: detail.owner_username, avatarKey: detail.owner_avatar_key }}
+                sizeClassName="h-10 w-10 lg:h-11 lg:w-11"
+                textClassName="text-xl"
+              />
+            ) : (
+              <span
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-violet-light bg-surface-2 font-extrabold uppercase text-violet-light lg:h-11 lg:w-11"
+                aria-hidden="true"
+              >
+                {detail.owner_username.charAt(0)}
+              </span>
+            )}
             <span className="flex flex-col">
-              <span dir="ltr" className="text-sm font-bold lg:text-[15px]">
-                @{detail.owner_username}
+              <span className="text-sm font-bold lg:text-[15px]">
+                {detail.owner_display_name || <span dir="ltr">@{detail.owner_username}</span>}
               </span>
               <span className="text-xs text-muted lg:text-[13px]">سازنده فهرست</span>
             </span>

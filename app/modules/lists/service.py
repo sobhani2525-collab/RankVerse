@@ -317,6 +317,8 @@ class ListService:
             created_at=lst.created_at,
             updated_at=lst.updated_at,
             owner_username=lst.owner.username if lst.owner else None,
+            owner_avatar_key=lst.owner.avatar_key if lst.owner else None,
+            owner_display_name=lst.owner.display_name if lst.owner else None,
             items=items,
             is_liked=is_liked,
             is_following=is_following,
@@ -445,6 +447,8 @@ class ListService:
         already be eager-loaded (see ListRepository.discover)."""
         summary = ListSummary.model_validate(lst)
         summary.owner_username = lst.owner.username if lst.owner else None
+        summary.owner_avatar_key = lst.owner.avatar_key if lst.owner else None
+        summary.owner_display_name = lst.owner.display_name if lst.owner else None
         summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:5]]
         return summary
 

@@ -1,3 +1,5 @@
+import { avatarByKey } from "@/lib/avatars";
+import { AuthorAvatar } from "@/components/lists/list-card";
 import Image from "next/image";
 import Link from "next/link";
 import { entityTypeLabel } from "@/lib/constants";
@@ -17,6 +19,7 @@ export interface TicketCardList {
   /** Items in rank order; only the first 5 are drawn. */
   posters: TicketCardPoster[];
   username?: string | null;
+  avatarKey?: string | null;
   likeCount: number;
   commentCount: number;
   saveCount: number;
@@ -116,9 +119,13 @@ export default function ListTicketCard({ list }: { list: TicketCardList }) {
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#1B2138] pt-3.5">
           {list.username ? (
             <span className="flex min-w-0 items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-[#0B0F1A]">
-                {list.username.charAt(0).toUpperCase()}
-              </span>
+              {avatarByKey(list.avatarKey) ? (
+                <AuthorAvatar author={{ username: list.username, avatarKey: list.avatarKey }} sizeClassName="h-7 w-7" textClassName="text-sm" />
+              ) : (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-[#0B0F1A]">
+                  {list.username.charAt(0).toUpperCase()}
+                </span>
+              )}
               <span dir="ltr" className="truncate text-xs text-[#C7CCE0]">
                 @{list.username}
               </span>

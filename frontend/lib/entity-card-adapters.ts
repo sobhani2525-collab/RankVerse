@@ -63,7 +63,7 @@ export function listSummaryToListCard(list: ListSummary): ListCardList {
     likesCount: list.like_count,
     updatedAt: list.created_at,
     author: list.owner_username
-      ? { username: list.owner_username, profileHref: `/profile/${list.owner_username}` }
+      ? { username: list.owner_username, avatarKey: list.owner_avatar_key, profileHref: `/profile/${list.owner_username}` }
       : null,
   };
 }
@@ -82,6 +82,7 @@ export function listSummaryToTicketCard(list: ListSummary): TicketCardList {
       posterUrl: entity.media?.image_url ?? resolveEntityMiniPosterUrl(entity),
     })),
     username: list.owner_username,
+    avatarKey: list.owner_avatar_key,
     likeCount: list.like_count,
     commentCount: list.comment_count,
     saveCount: list.follower_count,
