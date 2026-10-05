@@ -147,3 +147,19 @@ def auth_token(test_user):
 @pytest.fixture
 def auth_headers(auth_token):
     return {"Authorization": f"Bearer {auth_token}"}
+
+
+@pytest.fixture(autouse=True)
+def _isolated_rate_limits(monkeypatch):
+    """Auth endpoints are rate-limited; keep tests off real Redis and give each a clean counter."""
+    from redis.exceptions import RedisError
+
+    from app.core import rate_limit
+
+    async def _no_redis():
+        raise RedisError("disabled in tests")
+
+    monkeypatch.setattr(rate_limit, "get_redis", _no_redis)
+    rate_limit._local.clear()
+    yield
+    rate_limit._local.clear()

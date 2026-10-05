@@ -21,6 +21,17 @@ class Settings(BaseSettings):
     # -- override via env for whichever origin should receive the click.
     frontend_base_url: str = "http://localhost:3000"
 
+    # Transactional email (see app/core/email.py). "log" only logs messages.
+    email_provider: str = "log"  # "log" | "smtp"
+    email_from: str = ""
+    email_from_name: str = "سینماگزین"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = True  # STARTTLS on the (usually 587) connection
+    smtp_use_ssl: bool = False  # implicit TLS (usually 465); overrides STARTTLS
+
     tmdb_api_key: str = ""
     tmdb_base_url: str = "https://api.themoviedb.org/3"
     # TMDb credits TV directing per episode, so a long-running show can have

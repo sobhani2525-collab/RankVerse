@@ -62,14 +62,10 @@ class UserService:
         token = create_password_reset_token(str(user.id))
         reset_link = f"{settings.frontend_base_url}/reset-password?token={token}"
 
-        # No transactional email provider is wired up yet, so this is a
-        # stand-in: log the link, and -- outside production -- also hand it
-        # back in the API response so the flow is fully testable today.
-        # Swap this for a real send_password_reset_email(user.email, reset_link)
-        # call once a provider is configured; nothing else here should need
-        # to change.
-        logger.info("Password reset link for %s: %s", email, reset_link)
-        return reset_link if settings.environment != "production" else None
+        # The router emails the link in the background (so response time
+        # doesn't reveal whether the address exists) and, outside
+        # production without real email, also returns it for local testing.
+        return reset_link
 
     async def reset_password(self, token: str, new_password: str) -> None:
         payload = decode_token(token)
