@@ -4,14 +4,18 @@ used by the shared result page's "تو هم نبرد کن" link).
 
 Run with: TEST_DATABASE_URL=... pytest tests/test_themed_battle.py
 """
+from app.modules.entities.models import EntityRanking
 from app.modules.entities.repository import EntityRepository
 
 
 async def _movie(repo, slug: str, year: int):
-    return await repo.create_entity(
+    movie = await repo.create_entity(
         entity_type="movie", external_id=None, external_source=None,
         title=slug, slug=slug, attributes={"poster_path": "/x.jpg", "year": year},
     )
+    # The guest pool (random theme) only draws from ranked movies.
+    repo.db.add(EntityRanking(entity_id=movie.id, computed_score=7.0, total_votes=0))
+    return movie
 
 
 async def _seed_decade(db_session, count: int, year: int = 1994, prefix: str = "tb"):

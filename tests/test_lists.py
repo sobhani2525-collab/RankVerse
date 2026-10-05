@@ -230,7 +230,10 @@ async def test_list_detail_returns_constellation(client, auth_headers, db_sessio
         ("genre", "Drama"),
     ]
     assert data["backlinks"] == [
-        {"rank": 3, "target_position": 1, "person_name": "Leonardo DiCaprio", "person_slug": "leonardo-dicaprio"}
+        {
+            "rank": 3, "target_position": 1, "person_name": "Leonardo DiCaprio",
+            "person_name_fa": None, "person_slug": "leonardo-dicaprio",
+        }
     ]
     assert data["dna"]["type_counts"] == {"movie": 3}
     assert {h["entity"]["title"] for h in data["dna"]["hubs"]} == {"Christopher Nolan", "Leonardo DiCaprio"}
