@@ -43,7 +43,7 @@ class TMDbClient:
     async def get_movie(self, tmdb_id: int, language: str = "en-US") -> dict:
         return await self._get_with_retry(
             f"{self.base_url}/movie/{tmdb_id}",
-            params={"api_key": self.api_key, "append_to_response": "credits", "language": language},
+            params={"api_key": self.api_key, "append_to_response": "credits,videos", "language": language},
         )
 
     async def get_person(self, tmdb_id: int) -> dict:
@@ -90,7 +90,7 @@ class TMDbClient:
                 "api_key": self.api_key,
                 # external_ids for imdb_id -- unlike /movie/{id}, /tv/{id}
                 # has no top-level imdb_id field.
-                "append_to_response": "credits,aggregate_credits,external_ids",
+                "append_to_response": "credits,aggregate_credits,external_ids,videos",
                 "language": language,
             },
         )

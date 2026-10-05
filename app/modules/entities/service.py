@@ -7,6 +7,7 @@ from app.core.exceptions import NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.schemas import (
     AlbumSummary,
+    CastMember,
     EntityCommentCreate,
     EntityCommentPublic,
     MediaInfo,
@@ -70,6 +71,18 @@ _PEOPLE_CACHE: dict[tuple, tuple[float, tuple[list, int]]] = {}
 
 def _person_image(entity) -> str | None:
     return ((entity.attributes or {}).get("media") or {}).get("image_url")
+
+
+def _more_cast(attributes: dict) -> list[CastMember]:
+    return [
+        CastMember(
+            name=c["name"],
+            character=c.get("character"),
+            image_url=f"https://image.tmdb.org/t/p/w185{c['profile_path']}" if c.get("profile_path") else None,
+        )
+        for c in (attributes.get("more_cast") or [])
+        if c.get("name")
+    ]
 
 
 class EntityService:
@@ -199,6 +212,8 @@ class EntityService:
             media=_extract_media(entity.attributes),
             directors=directors,
             cast=cast,
+            more_cast=_more_cast(entity.attributes),
+            trailer_key=entity.attributes.get("trailer_key"),
             genres=genres,
         )
 
@@ -268,6 +283,8 @@ class EntityService:
             creators=creators,
             directors=directors,
             cast=cast,
+            more_cast=_more_cast(entity.attributes),
+            trailer_key=entity.attributes.get("trailer_key"),
             genres=genres,
             networks=networks,
         )

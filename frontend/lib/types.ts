@@ -59,6 +59,13 @@ export interface ImdbInfo {
   imdb_votes: number | null;
 }
 
+// Billed cast beyond the linked top 5: name/role/photo only, no person page.
+export interface CastMember {
+  name: string;
+  character: string | null;
+  image_url: string | null;
+}
+
 export interface MovieDetail extends MovieListItem, ImdbInfo {
   id:string;
   overview: string | null;
@@ -66,6 +73,8 @@ export interface MovieDetail extends MovieListItem, ImdbInfo {
   country: string | null;
   directors: PersonSummary[];
   cast: PersonSummary[];
+  more_cast?: CastMember[];
+  trailer_key?: string | null; // YouTube video id
   genres: GenreSummary[];
 }
 
@@ -80,6 +89,8 @@ export interface TvSeriesDetail extends MovieListItem, ImdbInfo {
   creators: PersonSummary[];
   directors: PersonSummary[];
   cast: PersonSummary[];
+  more_cast?: CastMember[];
+  trailer_key?: string | null; // YouTube video id
   genres: GenreSummary[];
   networks: GenreSummary[];
 }

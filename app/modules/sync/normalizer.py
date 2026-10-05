@@ -119,6 +119,36 @@ def _credit(c: dict, **extra) -> dict:
     return {"external_id": str(c["id"]), "name": c["name"], "profile_path": c.get("profile_path"), **extra}
 
 
+MAX_EXTRA_CAST = 20  # billed cast kept for display, beyond the 5 that become graph edges
+
+
+def media_extras(raw: dict) -> dict:
+    """Display-only extras from a /movie or /tv response: a YouTube trailer key
+    and the billed cast beyond the top 5 (those become graph edges, see
+    top_cast; the rest are never turned into person entities). Keys are left
+    out when TMDb has nothing, so a re-sync can't blank existing data."""
+    extras: dict = {}
+
+    videos = [
+        v for v in ((raw.get("videos") or {}).get("results") or [])
+        if v.get("site") == "YouTube" and v.get("type") == "Trailer" and v.get("key")
+    ]
+    if videos:
+        # Official first, then newest.
+        videos.sort(key=lambda v: (bool(v.get("official")), v.get("published_at") or ""), reverse=True)
+        extras["trailer_key"] = videos[0]["key"]
+
+    cast = sorted(((raw.get("credits") or {}).get("cast") or []), key=lambda c: c.get("order", 999))
+    more = [
+        {"name": c["name"], "character": c.get("character") or None, "profile_path": c.get("profile_path")}
+        for c in cast[5:MAX_EXTRA_CAST]
+        if c.get("name")
+    ]
+    if more:
+        extras["more_cast"] = more
+    return extras
+
+
 def _overview_attrs(raw: dict, raw_fa: dict | None) -> dict:
     """
     overview is what the site displays: TMDb's fa-IR synopsis when it has
@@ -164,6 +194,7 @@ def normalize_movie(raw: dict, raw_fa: dict | None = None) -> dict:
         "poster_path": poster_path,
         "title_fa": title_fa,
         **_overview_attrs(raw, raw_fa),
+        **media_extras(raw),
         "imdb_id": raw.get("imdb_id") or None,
         "original_language": raw.get("original_language"),
         "runtime": raw.get("runtime"),

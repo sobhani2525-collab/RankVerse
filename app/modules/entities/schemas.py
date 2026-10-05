@@ -23,6 +23,13 @@ class PersonSummary(BaseModel):
     role: str | None = None  # 'director' | 'actor' (from edge metadata)
 
 
+class CastMember(BaseModel):
+    """Billed cast beyond the linked top 5: no person page, just name/role/photo."""
+    name: str
+    character: str | None = None
+    image_url: str | None = None
+
+
 class GenreSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -62,6 +69,8 @@ class MovieDetail(MovieListItem, ImdbInfo):
     country: str | None = None
     directors: list[PersonSummary] = []
     cast: list[PersonSummary] = []
+    more_cast: list[CastMember] = []
+    trailer_key: str | None = None  # YouTube video id
     genres: list[GenreSummary] = []
 
 
@@ -77,6 +86,8 @@ class TVSeriesDetail(MovieListItem, ImdbInfo):
     creators: list[PersonSummary] = []
     directors: list[PersonSummary] = []
     cast: list[PersonSummary] = []
+    more_cast: list[CastMember] = []
+    trailer_key: str | None = None  # YouTube video id
     genres: list[GenreSummary] = []
     networks: list[GenreSummary] = []
 

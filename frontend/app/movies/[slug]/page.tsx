@@ -20,6 +20,7 @@ import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { MovieListItem } from "@/lib/types";
+import EntityExtras from "@/components/entities/entity-extras";
 import JsonLd from "@/components/JsonLd";
 import { movieJsonLd, movieMetadata } from "@/lib/seo";
 
@@ -220,6 +221,13 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           }
         />
       </div>
+
+      <EntityExtras
+        entityId={movie.id}
+        title={displayTitle(movie)}
+        trailerKey={movie.trailer_key ?? null}
+        moreCast={movie.more_cast ?? []}
+      />
 
       <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
         <span>امتیاز ترکیبی از رأی جامعه (میانگین بیزی)، روند محبوبیت و نتایج نبردها محاسبه می‌شود.</span>

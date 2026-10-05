@@ -1,6 +1,7 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
+import EntityExtras from "@/components/entities/entity-extras";
 import { tvJsonLd, tvMetadata } from "@/lib/seo";
 import Image from "next/image";
 import Link from "next/link";
@@ -268,6 +269,13 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           }
         />
       </div>
+
+      <EntityExtras
+        entityId={tv.id}
+        title={displayTitle(tv)}
+        trailerKey={tv.trailer_key ?? null}
+        moreCast={tv.more_cast ?? []}
+      />
 
       <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
         <span>امتیاز ترکیبی از رأی جامعه (میانگین بیزی)، روند محبوبیت و نتایج نبردها محاسبه می‌شود.</span>
