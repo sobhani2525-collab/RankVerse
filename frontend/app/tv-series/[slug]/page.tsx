@@ -274,7 +274,6 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         entityId={tv.id}
         title={displayTitle(tv)}
         trailerKey={tv.trailer_key ?? null}
-        moreCast={tv.more_cast ?? []}
       />
 
       <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">

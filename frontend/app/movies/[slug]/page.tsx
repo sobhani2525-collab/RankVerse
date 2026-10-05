@@ -226,7 +226,6 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         entityId={movie.id}
         title={displayTitle(movie)}
         trailerKey={movie.trailer_key ?? null}
-        moreCast={movie.more_cast ?? []}
       />
 
       <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
