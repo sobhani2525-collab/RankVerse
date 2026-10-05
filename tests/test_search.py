@@ -78,3 +78,48 @@ async def test_search_matches_persian_title_with_arabic_keyboard_variants(client
         results = res.json()["data"]
         assert [r["slug"] for r in results] == ["silent-search-test"]
         assert results[0]["title_fa"] == "سایلنت کوچک"
+
+
+# --- Ranking within a match tier (pure, no DB) ---
+
+def _entity(title, entity_type="movie"):
+    from app.modules.entities.models import Entity
+
+    return Entity(entity_type=entity_type, title=title, slug=title.lower().replace(" ", "-"), attributes={})
+
+
+def test_better_match_tier_beats_popularity():
+    from app.modules.search.router import rerank
+
+    exact, famous_substring = _entity("Nolan"), _entity("Big Nolan Movie")
+    assert rerank([(famous_substring, 2, 9.9), (exact, 0, 0.0)], 5) == [exact, famous_substring]
+
+
+def test_within_a_tier_more_prominent_entity_wins():
+    from app.modules.search.router import popularity, rerank
+
+    obscure = _entity("Nolan Nobody", "person")
+    famous = _entity("Christopher Nolan", "person")
+    rows = [
+        (obscure, 1, popularity(obscure, None, 1)),
+        (famous, 1, popularity(famous, None, 15)),
+    ]
+    assert rerank(rows, 5) == [famous, obscure]
+
+
+def test_popularity_scales_people_logarithmically_and_caps():
+    from app.modules.search.router import PERSON_CREDITS_CAP, popularity
+
+    person = _entity("P", "person")
+    assert popularity(person, None, 0) == 0
+    assert popularity(person, None, 5) > popularity(person, None, 1)
+    assert popularity(person, None, PERSON_CREDITS_CAP) == popularity(person, None, 500) == 10
+    assert popularity(_entity("M"), 8.4, 0) == 8.4
+    assert popularity(_entity("M"), None, 0) == 0
+
+
+def test_rerank_respects_limit_and_title_length_tiebreak():
+    from app.modules.search.router import rerank
+
+    short, long_ = _entity("Up"), _entity("Up in the Air")
+    assert rerank([(long_, 1, 5.0), (short, 1, 5.0)], 1) == [short]
