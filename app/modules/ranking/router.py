@@ -12,6 +12,9 @@ from app.modules.sync.dependencies import verify_internal_api_key
 router = APIRouter(tags=["ranking"])
 
 
+RANKING_EXCLUDED_MOVIE_GENRES = ("tv-movie",)
+
+
 @router.get("/rankings/movies")
 async def top_movies(
     page: int = Query(1, ge=1),
@@ -24,7 +27,12 @@ async def top_movies(
     db: AsyncSession = Depends(get_read_db),
 ):
     service = EntityService(db)
-    items, total = await service.list_movies(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin)
+    # Made-for-TV films (stand-up specials, TV episodes released as "movies")
+    # are fan-voted far above theatrical films; keep them out of the movie ranking.
+    items, total = await service.list_movies(
+        page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin,
+        exclude_genre_slugs=RANKING_EXCLUDED_MOVIE_GENRES,
+    )
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),
@@ -36,7 +44,7 @@ async def top_people(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     role: Literal["all", "director", "actor", "creator"] = "all",
-    sort: Literal["works", "score"] = "works",
+    sort: Literal["works", "score"] = "score",
     origin: Literal["all", "persian", "foreign"] = "all",
     db: AsyncSession = Depends(get_read_db),
 ):

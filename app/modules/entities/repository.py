@@ -9,6 +9,12 @@ from app.modules.entities.models import Entity, EntityComment, RelationshipEdge,
 from app.modules.users.models import User
 
 
+# People ranked "by score": credits' mean score is pulled toward this value
+# with the weight of this many extra credits.
+PEOPLE_SCORE_PRIOR = 7.0
+PEOPLE_SCORE_PRIOR_WEIGHT = 12
+
+
 def _persian_work(entity):
     """Persian-language title: TMDb original_language "fa" or Iranian origin
     (the same definition the catalog import uses, see sync/catalog.py)."""
@@ -70,6 +76,7 @@ class EntityRepository:
         sort_by: str = "score",
         entity_type: str = "movie",
         origin: str = "all",
+        exclude_genre_slugs: tuple[str, ...] = (),
     ) -> tuple[list[Entity], int]:
         stmt = select(Entity).where(Entity.entity_type == entity_type)
 
@@ -89,6 +96,17 @@ class EntityRepository:
             )
 
         stmt = _apply_origin(stmt, Entity, origin)
+
+        if exclude_genre_slugs:
+            excluded = (
+                select(RelationshipEdge.from_entity_id)
+                .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+                .where(
+                    RelationshipEdge.relation_type == "has_genre",
+                    Entity.slug.in_(exclude_genre_slugs),
+                )
+            )
+            stmt = stmt.where(Entity.id.not_in(excluded))
 
         if year_from:
             stmt = stmt.where(Entity.attributes["year"].as_integer() >= year_from)
@@ -158,9 +176,12 @@ class EntityRepository:
         ).where(Entity.entity_type == "person")
 
         if sort_by == "score":
-            stmt = stmt.where(credits.c.scored >= 3).order_by(
-                credits.c.avg_score.desc().nulls_last(), Entity.id
+            # Bayesian-shrunk mean: a few great credits don't outrank a long
+            # run of strong ones (same v/(v+k) idea as the title ranking).
+            shrunk = (credits.c.scored * credits.c.avg_score + PEOPLE_SCORE_PRIOR_WEIGHT * PEOPLE_SCORE_PRIOR) / (
+                credits.c.scored + PEOPLE_SCORE_PRIOR_WEIGHT
             )
+            stmt = stmt.where(credits.c.scored >= 3).order_by(shrunk.desc().nulls_last(), Entity.id)
         else:
             stmt = stmt.order_by(credits.c.works.desc(), Entity.title, Entity.id)
 

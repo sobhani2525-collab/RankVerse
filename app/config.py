@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     # -- override via env for whichever origin should receive the click.
     frontend_base_url: str = "http://localhost:3000"
 
+    # Browser origins allowed to call the API (comma-separated). frontend_base_url
+    # is always allowed too, so setting FRONTEND_BASE_URL for the real domain is
+    # enough; list extras here (e.g. a staging or workers.dev origin).
+    cors_origins: str = (
+        "https://cinemagozin.ir,https://www.cinemagozin.ir,"
+        "https://rankverse-frontend.sobhani2525.workers.dev,http://localhost:3000"
+    )
+
     # Transactional email (see app/core/email.py). "log" only logs messages.
     email_provider: str = "log"  # "log" | "smtp"
     email_from: str = ""
@@ -195,6 +203,14 @@ class Settings(BaseSettings):
     daily_battle_elo_window: int = 150
     daily_battle_no_repeat_days: int = 60
     daily_battle_guest_ip_limit: int = 20
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        origins = [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
+        base = self.frontend_base_url.strip().rstrip("/")
+        if base and base not in origins:
+            origins.append(base)
+        return origins
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

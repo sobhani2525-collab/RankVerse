@@ -24,8 +24,8 @@ const ORIGIN_OPTIONS = [
 ] as const;
 
 const SORT_OPTIONS = [
+  ["score", "بالاترین امتیاز آثار"],
   ["works", "بیشترین آثار"],
-  ["score", "بالاترین میانگین امتیاز"],
 ] as const;
 
 interface Filters {
@@ -38,7 +38,7 @@ function buildHref(page: number, f: Filters = {}): string {
   const qs = new URLSearchParams();
   if (f.role && f.role !== "all") qs.set("role", f.role);
   if (f.origin && f.origin !== "all") qs.set("origin", f.origin);
-  if (f.sort && f.sort !== "works") qs.set("sort", f.sort);
+  if (f.sort && f.sort !== "score") qs.set("sort", f.sort);
   if (page > 1) qs.set("page", String(page));
   const s = qs.toString();
   return s ? `/people?${s}` : "/people";
@@ -52,7 +52,7 @@ export async function generateMetadata({
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const role = ROLE_OPTIONS.find(([v]) => v === params.role && v !== "all");
-  const filtered = (params.origin ?? "all") !== "all" || (params.sort !== undefined && params.sort !== "works");
+  const filtered = (params.origin ?? "all") !== "all" || (params.sort !== undefined && params.sort !== "score");
   const canonical = buildHref(page, { role: role?.[0] });
   const base = role ? `${role[1]}‌های سینما` : "هنرمندان سینما";
   const title = page > 1 ? `${base} — صفحهٔ ${toFaDigits(page)}` : base;
@@ -74,7 +74,7 @@ export default async function PeoplePage({
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const role = ROLE_OPTIONS.some(([v]) => v === params.role) ? params.role! : "all";
-  const sort = SORT_OPTIONS.some(([v]) => v === params.sort) ? params.sort! : "works";
+  const sort = SORT_OPTIONS.some(([v]) => v === params.sort) ? params.sort! : "score";
   const origin = ORIGIN_OPTIONS.some(([v]) => v === params.origin) ? params.origin! : "all";
   const filters: Filters = { role, sort, origin };
 

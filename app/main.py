@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
+
 from app.api.v1.router import api_router
 from app.modules.entities.ego import warm_hero_pool
 from app.core.exceptions import (
@@ -18,7 +20,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,    
-    allow_origins=["https://rankverse-frontend.sobhani2525.workers.dev","http://localhost:3000"], 
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
