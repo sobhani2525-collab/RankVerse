@@ -10,6 +10,7 @@ from app.modules.battles.schemas import SuggestedBattleResponse, SuggestedBattle
 from app.modules.battles.suggested import SuggestedBattleService
 from app.modules.entities.ego import build_ego_graph, get_hero_pool
 from app.modules.entities.schemas import EntityCommentCreate
+from app.modules.entities.repository import EntityRepository
 from app.modules.entities.service import EntityService
 from app.modules.users.models import User
 
@@ -32,6 +33,25 @@ async def _suggested_battle_response(
             right=SuggestedBattleEntity(**pair.right),
         ).model_dump()
     )
+
+
+SITEMAP_TYPES = ("movie", "tv_series", "person", "genre")
+
+
+@router.get("/sitemap/entities/counts")
+async def entities_sitemap_counts(db: AsyncSession = Depends(get_read_db)):
+    return envelope(data=await EntityRepository(db).sitemap_counts(SITEMAP_TYPES))
+
+
+@router.get("/sitemap/entities")
+async def entities_sitemap(
+    type: str = Query(..., pattern="^(movie|tv_series|person|genre)$"),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10000, ge=1, le=50000),
+    db: AsyncSession = Depends(get_read_db),
+):
+    rows = await EntityRepository(db).sitemap_entries(type, offset, limit)
+    return envelope(data=[{"slug": slug, "updated_at": updated_at} for slug, updated_at in rows])
 
 
 @router.get("/movies")

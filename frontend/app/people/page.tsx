@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import PersonCard from "@/components/PersonCard";
 import RankingFilters from "@/components/RankingFilters";
 import { getPeoplePage } from "@/lib/api";
 import { toFaDigits } from "@/lib/format-number";
+import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 1800;
 
@@ -40,6 +42,28 @@ function buildHref(page: number, f: Filters = {}): string {
   if (page > 1) qs.set("page", String(page));
   const s = qs.toString();
   return s ? `/people?${s}` : "/people";
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; role?: string; sort?: string; origin?: string }>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const role = ROLE_OPTIONS.find(([v]) => v === params.role && v !== "all");
+  const filtered = (params.origin ?? "all") !== "all" || (params.sort !== undefined && params.sort !== "works");
+  const canonical = buildHref(page, { role: role?.[0] });
+  const base = role ? `${role[1]}‌های سینما` : "هنرمندان سینما";
+  const title = page > 1 ? `${base} — صفحهٔ ${toFaDigits(page)}` : base;
+  const description = "کارگردانان، بازیگران و سازندگان فیلم و سریال، بر اساس تعداد آثار و امتیاز آثارشان در سینماگزین.";
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    robots: filtered ? { index: false, follow: true } : { index: true, follow: true },
+    openGraph: { type: "website", url: canonical, siteName: SITE_NAME, locale: SITE_LOCALE, title, description },
+  };
 }
 
 export default async function PeoplePage({

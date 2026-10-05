@@ -164,3 +164,25 @@ async def test_get_movie_by_slug_endpoint(client, db_session):
 async def test_get_movie_by_slug_404_when_missing(client):
     res = await client.get("/api/v1/movies/does-not-exist")
     assert res.status_code == 404
+
+
+async def test_sitemap_counts_and_pages(db_session):
+    repo = EntityRepository(db_session)
+    for i in range(3):
+        await repo.create_entity(
+            entity_type="movie", external_id=f"sm-{i}", external_source="tmdb",
+            title=f"Sitemap Movie {i}", slug=f"sitemap-movie-{i}", attributes={},
+        )
+    await repo.create_entity(
+        entity_type="genre", external_id="sm-g", external_source="tmdb",
+        title="Sitemap Genre", slug="sitemap-genre", attributes={},
+    )
+    await db_session.commit()
+
+    counts = await repo.sitemap_counts(("movie", "genre", "person"))
+    assert counts["movie"] >= 3 and counts["genre"] >= 1 and counts["person"] >= 0
+
+    first = await repo.sitemap_entries("movie", 0, 2)
+    rest = await repo.sitemap_entries("movie", 2, 1000)
+    slugs = [s for s, _ in first] + [s for s, _ in rest]
+    assert len(slugs) == len(set(slugs)) == counts["movie"]

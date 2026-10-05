@@ -628,3 +628,37 @@ class EntityRepository:
                     source=source,
                     update_metadata_on_conflict=True,
                 )
+
+    # --- Sitemap ---
+
+    @staticmethod
+    def _sitemap_filter(entity_type: str):
+        """Persons with no credits at all are thin pages the frontend noindexes; keep them out."""
+        cond = Entity.entity_type == entity_type
+        if entity_type == "person":
+            cond = and_(
+                cond,
+                or_(
+                    select(RelationshipEdge.id).where(RelationshipEdge.to_entity_id == Entity.id).exists(),
+                    select(RelationshipEdge.id).where(RelationshipEdge.from_entity_id == Entity.id).exists(),
+                ),
+            )
+        return cond
+
+    async def sitemap_counts(self, entity_types: tuple[str, ...]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for t in entity_types:
+            stmt = select(func.count(Entity.id)).where(self._sitemap_filter(t))
+            counts[t] = (await self.db.execute(stmt)).scalar_one()
+        return counts
+
+    async def sitemap_entries(self, entity_type: str, offset: int, limit: int):
+        """(slug, updated_at) for one stable, id-ordered page of an entity type."""
+        stmt = (
+            select(Entity.slug, Entity.updated_at)
+            .where(self._sitemap_filter(entity_type))
+            .order_by(Entity.id)
+            .offset(offset)
+            .limit(limit)
+        )
+        return [(slug, updated) for slug, updated in (await self.db.execute(stmt)).all()]

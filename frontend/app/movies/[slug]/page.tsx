@@ -1,3 +1,5 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,6 +20,21 @@ import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { MovieListItem } from "@/lib/types";
+import JsonLd from "@/components/JsonLd";
+import { movieJsonLd, movieMetadata } from "@/lib/seo";
+
+// One API read shared by generateMetadata and the page.
+const loadMovie = cache((slug: string) => getMovieBySlug(slug));
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    return movieMetadata(await loadMovie(slug), `/movies/${slug}`);
+  } catch (err) {
+    if (isNotFoundError(err)) return { title: "فیلم پیدا نشد", robots: { index: false, follow: false } };
+    return {};
+  }
+}
 
 export const revalidate = 3600;
 
@@ -36,7 +53,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   const rankingsPromise = getMovieRankings(slug).catch((): RankingHighlight[] => []);
   let movie;
   try {
-    movie = await getMovieBySlug(slug);
+    movie = await loadMovie(slug);
   } catch (err) {
     // Only a real 404 is a 404: a timeout or 5xx rethrows, so ISR keeps
     // the last good page instead of caching "not found" for an hour.
@@ -77,6 +94,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
+      <JsonLd data={movieJsonLd(movie, `/movies/${slug}`)} />
       <Link href="/" className="text-sm text-muted hover:text-gold">
         بازگشت به فهرست
       </Link>

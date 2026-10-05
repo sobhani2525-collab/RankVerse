@@ -1,3 +1,7 @@
+import { cache } from "react";
+import type { Metadata } from "next";
+import JsonLd from "@/components/JsonLd";
+import { tvJsonLd, tvMetadata } from "@/lib/seo";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,6 +24,19 @@ import { toFaDigits } from "@/lib/format-number";
 import { MovieListItem, PersonSummary } from "@/lib/types";
 
 export const revalidate = 3600;
+
+// One API read shared by generateMetadata and the page.
+const loadTv = cache((slug: string) => getTvSeriesBySlug(slug));
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    return tvMetadata(await loadTv(slug), `/tv-series/${slug}`);
+  } catch (err) {
+    if (isNotFoundError(err)) return { title: "سریال پیدا نشد", robots: { index: false, follow: false } };
+    return {};
+  }
+}
 
 // No paths are prerendered at build; each one is rendered on its first
 // visit and then served from the ISR cache. Without this export the route
@@ -55,7 +72,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   const rankingsPromise = getTvSeriesRankings(slug).catch((): RankingHighlight[] => []);
   let tv;
   try {
-    tv = await getTvSeriesBySlug(slug);
+    tv = await loadTv(slug);
   } catch (err) {
     // Only a real 404 is a 404: a timeout or 5xx rethrows, so ISR keeps
     // the last good page instead of caching "not found" for an hour.
@@ -98,6 +115,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
+      <JsonLd data={tvJsonLd(tv, `/tv-series/${slug}`)} />
       <Link href="/" className="text-sm text-muted hover:text-gold">
         بازگشت به فهرست
       </Link>

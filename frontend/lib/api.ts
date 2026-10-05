@@ -382,6 +382,23 @@ export async function getListsSitemap(): Promise<{ slug: string; updated_at: str
   return fetchEnvelope<{ slug: string; updated_at: string | null }[]>(`/sitemap/lists`, 3600);
 }
 
+export type SitemapEntityType = "movie" | "tv_series" | "person" | "genre";
+
+export async function getEntitySitemapCounts(): Promise<Record<SitemapEntityType, number>> {
+  return fetchEnvelope<Record<SitemapEntityType, number>>(`/sitemap/entities/counts`, 3600);
+}
+
+export async function getEntitySitemapPage(
+  type: SitemapEntityType,
+  offset: number,
+  limit: number,
+): Promise<{ slug: string; updated_at: string | null }[]> {
+  return fetchEnvelope<{ slug: string; updated_at: string | null }[]>(
+    `/sitemap/entities?type=${type}&offset=${offset}&limit=${limit}`,
+    3600,
+  );
+}
+
 export async function getListComments(slug: string): Promise<ListComment[]> {
   // Uncached: the list page is rendered per request anyway (its list read is
   // no-store), and a freshly posted comment should show on the next load.

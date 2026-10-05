@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import PosterCard from "@/components/entities/poster-card";
 import RankingFilters from "@/components/RankingFilters";
 import { getRankingsPage, RankingsPage } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
+import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 1800;
 
@@ -51,10 +53,41 @@ function buildHref(type: RankingType, page: number, f: Filters = {}): string {
   return s ? `/rankings?${s}` : "/rankings";
 }
 
+type RankingsSearchParams = { type?: string; page?: string; genre?: string; sort?: string; decade?: string; origin?: string };
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<RankingsSearchParams> }): Promise<Metadata> {
+  const params = await searchParams;
+  const type: RankingType = params.type === "tv_series" ? "tv_series" : "movie";
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const genre = GENRES.includes(params.genre ?? "") ? params.genre : undefined;
+  const decadeParam = Number.parseInt(params.decade ?? "", 10);
+  const decade = DECADES.includes(decadeParam) ? decadeParam : undefined;
+  const plural = type === "tv_series" ? "سریال‌ها" : "فیلم‌ها";
+  // Genre/decade pages are real landing pages ("بهترین فیلم‌های ترسناک دهه ۹۰").
+  // Re-sorted or origin-filtered views duplicate them, so they stay out of the index.
+  const duplicate = (params.sort !== undefined && params.sort !== "score") || (params.origin ?? "all") !== "all";
+  const canonical = buildHref(type, page, { genre, decade });
+
+  const parts = [`بهترین ${plural}`];
+  if (genre) parts[0] = `بهترین ${plural.replace("ها", "های")} ${genreLabel(genre)}`;
+  if (decade) parts.push(`دهه ${toFaDigits(decade)}`);
+  const base = parts.join(" ");
+  const title = page > 1 ? `${base} — صفحهٔ ${toFaDigits(page)}` : base;
+  const description = `رتبه‌بندی ${base} بر اساس امتیاز ترکیبی ${SITE_NAME}: رأی کاربران، امتیاز بیرونی و نتایج نبردها.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    robots: duplicate ? { index: false, follow: true } : { index: true, follow: true },
+    openGraph: { type: "website", url: canonical, siteName: SITE_NAME, locale: SITE_LOCALE, title, description },
+  };
+}
+
 export default async function RankingsPageRoute({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; page?: string; genre?: string; sort?: string; decade?: string; origin?: string }>;
+  searchParams: Promise<RankingsSearchParams>;
 }) {
   const params = await searchParams;
   const type: RankingType = params.type === "tv_series" ? "tv_series" : "movie";
