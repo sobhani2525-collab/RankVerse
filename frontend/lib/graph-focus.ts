@@ -23,7 +23,18 @@ export const GRAPH_SECTION_ID = "universe";
 // section top keeps the heading from eating the viewport.
 export const GRAPH_CANVAS_ID = "universe-graph";
 
+// The explorer's search box; the "کاوش" buttons scroll to it and focus it.
+export const GRAPH_SEARCH_ID = "universe-search";
+
 export function scrollToGraph(opts: { onlyIfHidden?: boolean } = {}): void {
+  const search = opts.onlyIfHidden ? null : document.getElementById(GRAPH_SEARCH_ID);
+  if (search) {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    search.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    // Not on touch devices: focusing would pop the keyboard over the graph.
+    if (window.matchMedia("(hover: hover)").matches) search.querySelector("input")?.focus({ preventScroll: true });
+    return;
+  }
   const target = document.getElementById(GRAPH_CANVAS_ID) ?? document.getElementById(GRAPH_SECTION_ID);
   if (!target) return;
   if (opts.onlyIfHidden) {

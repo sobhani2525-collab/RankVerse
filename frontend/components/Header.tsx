@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import SearchBox from "@/components/SearchBox";
 import UserMenu from "@/components/UserMenu";
+import { GRAPH_SECTION_ID, scrollToGraph } from "@/lib/graph-focus";
 
 const NAV_LINKS = [
   { href: "/#universe", label: "کاوش", match: null },
@@ -37,6 +38,13 @@ export default function Header() {
   const isActive = (match: string | null) =>
     !!match && !!pathname?.startsWith(match) && (match !== "/battles" || !pathname.startsWith("/battles/daily"));
 
+  // On the home page the "کاوش" link glides to the explorer instead of jumping.
+  function onNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+    if (href !== `/#${GRAPH_SECTION_ID}` || pathname !== "/" || !document.getElementById(GRAPH_SECTION_ID)) return;
+    e.preventDefault();
+    scrollToGraph();
+  }
+
   return (
     <header className="relative z-40 border-b border-border bg-surface px-4 py-[16.5px] sm:px-6">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-3 sm:gap-x-4 md:flex-nowrap">
@@ -56,6 +64,7 @@ export default function Header() {
             <Link
               key={l.label}
               href={l.href}
+              onClick={(e) => onNavClick(e, l.href)}
               aria-current={isActive(l.match) ? "page" : undefined}
               className={`rounded-lg px-3 py-1.5 text-sm transition ${
                 l.accent
@@ -110,7 +119,10 @@ export default function Header() {
               <li key={l.label}>
                 <Link
                   href={l.href}
-                  onClick={() => setMenuOpen(false)}
+                  onClick={(e) => {
+                    setMenuOpen(false);
+                    onNavClick(e, l.href);
+                  }}
                   aria-current={isActive(l.match) ? "page" : undefined}
                   className={`block rounded-lg px-3 py-3 text-base transition ${
                     l.accent

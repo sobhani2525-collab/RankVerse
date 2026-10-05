@@ -4,14 +4,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SectionHeading from "./SectionHeading";
+import { useAuth } from "@/lib/auth-context";
 import { HomeTitle, posterUrlFor } from "@/lib/home-data";
-import { getGenreBySlug, getMovieBySlug, getPersonBySlug, getTvSeriesBySlug } from "@/lib/api";
+import { getGenreBySlug, getMovieBySlug, getPersonBySlug, getTvSeriesBySlug, getWatchLaterItems } from "@/lib/api";
 import { MovieDetail, MovieListItem, TvSeriesDetail } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 import { detailPathFor } from "@/lib/entity-routes";
-import { GRAPH_CANVAS_ID, GRAPH_FOCUS_EVENT, GRAPH_SECTION_ID, GraphFocusRequest } from "@/lib/graph-focus";
+import HeroGraphSearch from "./HeroGraphSearch";
+import {
+  GRAPH_CANVAS_ID,
+  GRAPH_FOCUS_EVENT,
+  GRAPH_FOCUS_KINDS,
+  GRAPH_SEARCH_ID,
+  GRAPH_SECTION_ID,
+  GraphFocusKind,
+  GraphFocusRequest,
+  getHeroCenter,
+  scrollToGraph,
+} from "@/lib/graph-focus";
 
 type Kind = "movie" | "tv_series" | "person" | "genre" | "year";
 
@@ -22,6 +34,8 @@ interface Satellite {
   label: string;
   relation: string;
   posterUrl?: string | null;
+  // Nodes without their own graph page (a year) link out instead.
+  href?: string;
 }
 
 interface Focus {
@@ -41,7 +55,15 @@ const KIND_STYLE: Record<Kind, { dot: string; ring: string; text: string; stroke
   year: { dot: "bg-muted", ring: "border-border", text: "text-muted", stroke: "#8A93A6" },
 };
 
-const MAX_SATELLITES = 8;
+const MAX_SATELLITES = 12; // loaded per focus
+const DEFAULT_SATELLITES = 8; // shown until "نمایش بیشتر"
+const DECADES_WITH_RANKINGS = new Set([1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]);
+
+function yearHref(year: number, kind: "movie" | "tv_series"): string | undefined {
+  const decade = Math.floor(year / 10) * 10;
+  if (!DECADES_WITH_RANKINGS.has(decade)) return undefined;
+  return `/rankings?${kind === "tv_series" ? "type=tv_series&" : ""}decade=${decade}`;
+}
 
 function titleSatellite(item: MovieListItem, relation: string): Satellite {
   const kind: Kind = item.entity_type === "tv_series" ? "tv_series" : "movie";
@@ -62,9 +84,9 @@ function focusFromTitle(t: {
   const sats: Satellite[] = [
     ...(t.creators ?? []).slice(0, 1).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title_fa ?? p.title, relation: "سازنده" })),
     ...t.directors.slice(0, 2).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title_fa ?? p.title, relation: "کارگردان" })),
-    ...t.genres.slice(0, 3).map((g) => ({ key: `genre:${g.slug}`, kind: "genre" as Kind, slug: g.slug, label: genreLabel(g.title), relation: "ژانر" })),
-    ...(t.year ? [{ key: `year:${t.year}`, kind: "year" as Kind, label: toFaDigits(t.year), relation: "سال" }] : []),
-    ...t.cast.slice(0, 4).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title_fa ?? p.title, relation: "بازیگر" })),
+    ...t.genres.slice(0, 4).map((g) => ({ key: `genre:${g.slug}`, kind: "genre" as Kind, slug: g.slug, label: genreLabel(g.title), relation: "ژانر" })),
+    ...(t.year ? [{ key: `year:${t.year}`, kind: "year" as Kind, label: toFaDigits(t.year), relation: "سال", href: yearHref(t.year, t.kind) }] : []),
+    ...t.cast.slice(0, 6).map((p) => ({ key: `person:${p.slug}`, kind: "person" as Kind, slug: p.slug, label: p.title_fa ?? p.title, relation: "بازیگر" })),
   ];
   const unique = sats.filter((s, i) => sats.findIndex((o) => o.key === s.key) === i);
   return {
@@ -138,6 +160,10 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [personalBusy, setPersonalBusy] = useState(false);
+  const { isAuthenticated, getToken } = useAuth();
+  const inflight = useRef(new Set<string>());
   const cache = useRef(new Map<string, Focus>([[`${initial.kind}:${initial.slug}`, initial]]));
 
   const focus = trail[trail.length - 1];
@@ -185,6 +211,93 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
     });
   }, []);
 
+  // The focused entity lives in the URL (?focus=kind:slug) so a view can be
+  // shared and Back steps through it. Applied on load and on popstate; pushed
+  // whenever the focus changes to something the URL doesn't already say.
+  const pendingUrlFocus = useRef<string | null>(null);
+  // Focus set by the hero's random centre: shown, but not worth a URL/history entry.
+  const silentFocus = useRef<string | null>(null);
+  const seedKey = `${initial.kind}:${initial.slug}`;
+  const focusKey = `${focus.kind}:${focus.slug}`;
+
+  useEffect(() => {
+    function fromUrl() {
+      const raw = new URLSearchParams(window.location.search).get("focus");
+      const i = raw ? raw.indexOf(":") : -1;
+      const kind = raw && i > 0 ? raw.slice(0, i) : "";
+      const slug = raw && i > 0 ? raw.slice(i + 1) : "";
+      if (GRAPH_FOCUS_KINDS.has(kind) && slug) return { kind: kind as GraphFocusKind, slug };
+      return null;
+    }
+    const target = fromUrl();
+    if (target) {
+      pendingUrlFocus.current = `${target.kind}:${target.slug}`;
+      focusOn(target.kind, target.slug, true);
+      if (!window.location.hash) window.setTimeout(() => scrollToGraph(), 300);
+    }
+    function onPop() {
+      const t = fromUrl();
+      if (t) focusOn(t.kind, t.slug, true);
+      else {
+        const home = getHeroCenter() ?? { kind: seedKey.split(":")[0] as GraphFocusKind, slug: seedKey.slice(seedKey.indexOf(":") + 1) };
+        silentFocus.current = `${home.kind}:${home.slug}`;
+        focusOn(home.kind, home.slug, true);
+      }
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // seedKey is stable for the page's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusOn]);
+
+  useEffect(() => {
+    // A focus from the URL is still loading: don't overwrite it with the seed.
+    if (pendingUrlFocus.current) {
+      if (pendingUrlFocus.current !== focusKey) return;
+      pendingUrlFocus.current = null;
+    }
+    if (silentFocus.current === focusKey) return;
+    silentFocus.current = null;
+    const current = new URLSearchParams(window.location.search).get("focus");
+    if (current === focusKey || (!current && focusKey === seedKey)) return;
+    const [kind, ...rest] = focusKey.split(":");
+    const url = `${window.location.pathname}?focus=${kind}:${encodeURIComponent(rest.join(":"))}#${GRAPH_SECTION_ID}`;
+    window.history.pushState(null, "", url);
+  }, [focusKey, seedKey]);
+
+  // Hovering a node warms the cache so the click lands instantly.
+  function prefetch(sat: Satellite) {
+    if (sat.kind === "year" || !sat.slug) return;
+    const key = `${sat.kind}:${sat.slug}`;
+    if (cache.current.has(key) || inflight.current.has(key)) return;
+    inflight.current.add(key);
+    loadFocus(sat.kind, sat.slug)
+      .then((f) => cache.current.set(key, f))
+      .catch(() => {})
+      .finally(() => inflight.current.delete(key));
+  }
+
+  // Start from something the signed-in visitor saved (watch-later list).
+  async function startFromMyTaste() {
+    const token = getToken();
+    if (!token || personalBusy) return;
+    setPersonalBusy(true);
+    setError(null);
+    try {
+      const items = (await getWatchLaterItems(token)).filter((i) => GRAPH_FOCUS_KINDS.has(i.entity_type));
+      if (items.length === 0) {
+        setError("هنوز چیزی در «بعداً می‌بینم» نداری. چند عنوان اضافه کن تا گراف از سلیقهٔ تو شروع شود.");
+      } else {
+        const pick = items[Math.floor(Math.random() * items.length)];
+        await focusOn(pick.entity_type as GraphFocusKind, pick.slug, true);
+      }
+    } catch {
+      setError("دریافت فهرست تو ممکن نشد. دوباره امتحان کنید.");
+    } finally {
+      setPersonalBusy(false);
+    }
+  }
+
   function open(sat: Satellite) {
     if (sat.kind === "year" || !sat.slug || loadingKey) return;
     focusOn(sat.kind, sat.slug);
@@ -194,6 +307,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
   useEffect(() => {
     function onRequest(e: Event) {
       const { kind, slug, reset } = (e as CustomEvent<GraphFocusRequest>).detail;
+      if (reset) silentFocus.current = `${kind}:${slug}`;
       focusOn(kind, slug, reset);
     }
     window.addEventListener(GRAPH_FOCUS_EVENT, onRequest);
@@ -244,8 +358,9 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
     };
   }, []);
 
-  const n = focus.satellites.length;
-  const placed = focus.satellites.map((s, i) => {
+  const visible = showMore ? focus.satellites : focus.satellites.slice(0, DEFAULT_SATELLITES);
+  const n = visible.length;
+  const placed = visible.map((s, i) => {
     const angle = ((-90 + (360 / Math.max(n, 1)) * i) * Math.PI) / 180;
     // Rounded: server vs browser trig can differ in the last digits (hydration).
     return { s, x: Math.round((50 + 37 * Math.cos(angle)) * 100) / 100, y: Math.round((50 + 37 * Math.sin(angle)) * 100) / 100 };
@@ -260,6 +375,8 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
           title="همه‌چیز به هم وصل است."
           lead="روی هر گره بزنید تا مرکز کهکشان شود: کارگردان به فیلم‌هایش، ژانر به عنوان‌هایش، فیلم به هنرمندانش و ژانرهایش."
         />
+
+        <HeroGraphSearch id={GRAPH_SEARCH_ID} inGraph className="-mt-6 mb-10 max-w-xl" placeholder="اسم فیلم، سریال یا هنرمند محبوبت را تایپ کن و در گراف کاوش کن..." />
 
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)]">
           <div id={GRAPH_CANVAS_ID} className="relative mx-auto aspect-square w-full max-w-[600px]">
@@ -307,6 +424,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
             {placed.map(({ s, x, y }) => {
               const style = KIND_STYLE[s.kind];
               const interactive = s.kind !== "year" && !!s.slug;
+              const linkOut = !interactive && !!s.href;
               const isLoading = loadingKey === `${s.kind}:${s.slug}`;
               const content = (
                 <>
@@ -332,6 +450,8 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                   key={`${focus.slug}-${s.key}`}
                   type="button"
                   onClick={() => open(s)}
+                  onMouseEnter={() => prefetch(s)}
+                  onFocus={() => prefetch(s)}
                   disabled={!!loadingKey}
                   aria-label={`${s.relation}: ${s.label}`}
                   className={`${common} group rounded-xl p-1 hover:scale-105 disabled:cursor-wait`}
@@ -339,6 +459,16 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                 >
                   {content}
                 </button>
+              ) : linkOut ? (
+                <Link
+                  key={`${focus.slug}-${s.key}`}
+                  href={s.href!}
+                  aria-label={`${s.relation}: ${s.label}`}
+                  className={`${common} rounded-xl p-1 hover:scale-105`}
+                  style={pos}
+                >
+                  {content}
+                </Link>
               ) : (
                 <div key={`${focus.slug}-${s.key}`} className={common} style={pos}>
                   {content}
@@ -348,6 +478,19 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
           </div>
 
           <div className="flex flex-col gap-6">
+            <div className="flex flex-wrap gap-2">
+              {isAuthenticated && (
+                <button type="button" onClick={startFromMyTaste} disabled={personalBusy || !!loadingKey} className="rounded-full border border-violet-soft/40 px-4 py-1.5 text-xs text-violet-soft transition hover:bg-violet/10 disabled:opacity-50">
+                  شروع از سلیقهٔ من
+                </button>
+              )}
+              {focus.satellites.length > DEFAULT_SATELLITES && (
+                <button type="button" onClick={() => setShowMore((v) => !v)} className="rounded-full border border-border px-4 py-1.5 text-xs text-muted transition hover:text-ink">
+                  {showMore ? "نمایش کمتر" : "نمایش بیشتر"}
+                </button>
+              )}
+            </div>
+
             <div>
               <p className="kicker text-muted/70">Path</p>
               <ol className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
@@ -406,7 +549,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
               </p>
             )}
 
-            <ul className="flex flex-wrap gap-3 text-[11px] text-muted">
+            <ul className="flex flex-wrap gap-2 text-[11px] text-muted">
               {(
                 [
                   ["movie", "فیلم"],
@@ -416,7 +559,7 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                   ["year", "سال"],
                 ] as const
               ).map(([k, label]) => (
-                <li key={k} className="flex items-center gap-1.5">
+                <li key={k} className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1">
                   <span className={`h-2 w-2 rounded-full ${KIND_STYLE[k].dot}`} />
                   {label}
                 </li>

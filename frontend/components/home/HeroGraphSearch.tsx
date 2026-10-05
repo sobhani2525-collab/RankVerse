@@ -28,7 +28,19 @@ function resultLabel(r: SearchResult): string {
  * isn't on the page (it's hidden when the #1 title's details failed to
  * load), the result's own detail page is opened instead.
  */
-export default function HeroGraphSearch() {
+export default function HeroGraphSearch({
+  className = "mt-8 max-w-md",
+  placeholder = "بگرد و روی کهکشان ببین؛ فیلم، سریال، هنرمند یا ژانر…",
+  inGraph = false,
+  id,
+}: {
+  className?: string;
+  placeholder?: string;
+  // Rendered inside the graph section itself: skip the scroll, the graph is
+  // already on screen.
+  inGraph?: boolean;
+  id?: string;
+} = {}) {
   const router = useRouter();
   const listboxId = useId();
   const [query, setQuery] = useState("");
@@ -90,7 +102,7 @@ export default function HeroGraphSearch() {
       return;
     }
     requestGraphFocus({ kind: r.type as GraphFocusKind, slug: r.slug });
-    scrollToGraph();
+    if (!inGraph) scrollToGraph();
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -114,7 +126,7 @@ export default function HeroGraphSearch() {
   const showList = open && query.trim().length > 0 && !loading;
 
   return (
-    <div ref={containerRef} className="relative mt-8 max-w-md">
+    <div id={id} ref={containerRef} className={`relative ${className}`}>
       <label htmlFor={`${listboxId}-input`} className="sr-only">
         جست‌وجو روی گراف
       </label>
@@ -145,7 +157,7 @@ export default function HeroGraphSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim() && setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="بگرد و روی کهکشان ببین؛ فیلم، سریال، هنرمند یا ژانر…"
+          placeholder={placeholder}
           autoComplete="off"
           className="w-full rounded-2xl border border-white/10 bg-[#05070D]/80 py-3.5 pl-10 pr-11 text-sm text-ink backdrop-blur placeholder:text-muted/60 focus:border-gold/50 focus:outline-none"
         />

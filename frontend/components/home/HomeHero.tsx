@@ -1,6 +1,4 @@
-import Link from "next/link";
 import HeroConstellation from "./HeroConstellation";
-import HeroGraphSearch from "./HeroGraphSearch";
 import HeroExploreButton from "./HeroExploreButton";
 import { HomeTitle } from "@/lib/home-data";
 import type { EgoGraph } from "@/lib/api";
@@ -40,18 +38,12 @@ export default function HomeHero({
             <span className="gradient-text">کهکشان تو.</span>
           </h1>
           <p className="mt-6 max-w-md text-base leading-8 text-muted sm:text-lg">
-            فیلم‌ها فقط یک رتبه نیستند؛
-            <br />
-            جهان‌هایی‌اند که به هم وصل‌اند.
+            در کهکشان سینما بگرد، فیلم و سریال‌ها را درو کن و فهرست خودت را بساز؛ قطعا از رابطه بین آنها شگفت‌زده خواهی شد.
           </p>
 
-          <HeroGraphSearch />
 
           <div className="mt-6 flex flex-wrap gap-3">
             <HeroExploreButton className="btn-primary text-sm hover:opacity-90" />
-            <Link href="/rankings" className="btn-secondary text-sm transition hover:border-gold/40 hover:text-gold">
-              دیدن رتبه‌بندی
-            </Link>
           </div>
 
           {(movieTotal !== null || tvTotal !== null) && (

@@ -174,7 +174,8 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
     const center = { kind: c.entity_type as GraphFocusKind, slug: c.slug };
     setHeroCenter(center);
     // The explorer below starts on the same entity as the hero.
-    requestGraphFocus({ ...center, reset: true });
+    // ...unless the URL (?focus=) already says where the explorer should be.
+    if (!new URLSearchParams(window.location.search).get("focus")) requestGraphFocus({ ...center, reset: true });
   }, [graph]);
 
     const placed = useMemo(() => (graph ? layout(graph) : null), [graph]);
