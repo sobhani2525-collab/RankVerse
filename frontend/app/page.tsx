@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import HomeHero from "@/components/home/HomeHero";
-import LiveRanking from "@/components/home/LiveRanking";
 import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
 import BattleArena from "@/components/home/BattleArena";
 import DailyBattle from "@/components/home/DailyBattle";
@@ -92,7 +91,6 @@ export default async function HomePage() {
         ? movieRes.reason.message
         : "خطا در دریافت اطلاعات"
       : null;
-  const tvSeries: MovieListItem[] = tvRes.status === "fulfilled" ? tvRes.value.items : [];
   const tvTotal = tvRes.status === "fulfilled" ? tvRes.value.total : null;
   const featuredList = featuredListRes.status === "fulfilled" ? featuredListRes.value.main : null;
   const otherFeatured = featuredListRes.status === "fulfilled" ? featuredListRes.value.others : [];
@@ -102,8 +100,6 @@ export default async function HomePage() {
   extras.details.forEach((d) => detailById.set(d.id, d));
 
   const titles = movies.map((m, i) => toHomeTitle(m, i + 1, detailById.get(m.id)));
-  const top10 = titles.slice(0, 10);
-  const tvTitles = tvSeries.map((m, i) => toHomeTitle(m, i + 1));
   const leader = titles[0] ?? null;
 
   if (loadError || !leader) {
@@ -130,9 +126,8 @@ export default async function HomePage() {
     <main>
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} />
       <DailyBattle />
-      <LiveRanking movies={top10} tvSeries={tvTitles} />
-      <BattleArena />
       {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
+      <BattleArena />
       {featuredList && <FeaturedList list={featuredList} />}
       {otherFeatured.length > 0 && (
         <section className="mx-auto -mt-16 max-w-7xl px-6 pb-16">

@@ -76,7 +76,7 @@ export function BattleArenaBody({
 
   const signedIn = !authLoading && isAuthenticated;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (avoid?: ThemedBattle["theme"]) => {
     setLoading(true);
     setError(null);
     loadedSignedIn.current = signedIn;
@@ -85,7 +85,14 @@ export function BattleArenaBody({
     const theme = first ? null : firstTheme.current;
     firstTheme.current = null;
     try {
-      setBattle(await getThemedBattle(signedIn ? getToken() : null, first, theme));
+      const token = signedIn ? getToken() : null;
+      let next = await getThemedBattle(token, first, theme);
+      // "Skip this battle": the pool is random, so ask again (a few times at
+      // most) until it isn't the theme the visitor just passed on.
+      for (let i = 0; i < 4 && avoid && next.theme.kind === avoid.kind && next.theme.value === avoid.value; i++) {
+        next = await getThemedBattle(token, null, null);
+      }
+      setBattle(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : "دریافت نبرد ممکن نشد");
       setBattle(null);
@@ -104,17 +111,17 @@ export function BattleArenaBody({
         {error && (
           <div role="alert" className="mx-auto mb-6 max-w-md rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-400">
             {error}
-            <button type="button" onClick={load} className="mr-2 underline">
+            <button type="button" onClick={() => load()} className="mr-2 underline">
               تلاش دوباره
             </button>
           </div>
         )}
 
         {battle && !loading ? (
-          <ThemedRun key={battle.items.map((i) => i.id).join(",")} battle={battle} signedIn={signedIn} onNext={load} />
+          <ThemedRun key={battle.items.map((i) => i.id).join(",")} battle={battle} signedIn={signedIn} onNext={() => load()} onSkipTheme={() => load(battle.theme)} />
         ) : (
           !error && (
-            <div className="mx-auto grid max-w-2xl grid-cols-2 gap-4 sm:gap-10">
+            <div className="mx-auto grid max-w-xl grid-cols-2 gap-4 sm:gap-10">
               <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
               <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
             </div>
@@ -133,7 +140,17 @@ export function BattleArenaBody({
   );
 }
 
-function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedIn: boolean; onNext: () => void }) {
+function ThemedRun({
+  battle,
+  signedIn,
+  onNext,
+  onSkipTheme,
+}: {
+  battle: ThemedBattle;
+  signedIn: boolean;
+  onNext: () => void;
+  onSkipTheme: () => void;
+}) {
   const { getToken } = useAuth();
   const { openLoginModal } = useAuthGate();
   const { items, category, theme } = battle;
@@ -206,7 +223,7 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
   );
 
   const progress = (
-    <div className="relative mx-auto mt-8 h-[3px] w-full max-w-2xl overflow-hidden rounded-full bg-surface2" aria-hidden="true">
+    <div className="relative mx-auto mt-8 h-[3px] w-full max-w-xl overflow-hidden rounded-full bg-surface2" aria-hidden="true">
       <div
         className="absolute inset-y-0 start-0 rounded-full bg-violet-light transition-[width] duration-300 ease-out motion-reduce:transition-none"
         style={{ width: `${(Math.min(step - 1, items.length - 1) / (items.length - 1)) * 100}%` }}
@@ -216,7 +233,7 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
 
   if (done) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-xl">
         {reason}
         {progress}
         <div className="rv-rise mt-8 flex flex-col items-center gap-3 text-center">
@@ -270,7 +287,7 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
   ];
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-xl">
       {reason}
 
       {/* RTL grid: the champion (the vote's left_item) sits on the right. */}
@@ -314,7 +331,7 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
 
       {progress}
 
-      <div className="mt-4 flex items-center justify-center gap-4">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
         <span className="text-xs text-dim">
           جفت <span className="num">{toFaDigits(step)}</span> از <span className="num">{toFaDigits(items.length - 1)}</span>
         </span>
@@ -324,6 +341,13 @@ function ThemedRun({ battle, signedIn, onNext }: { battle: ThemedBattle; signedI
           className="rounded-full border border-border px-5 py-2 text-sm text-muted transition hover:bg-surface2"
         >
           رد کردن این جفت
+        </button>
+        <button
+          type="button"
+          onClick={onSkipTheme}
+          className="rounded-full border border-violet-light/40 px-5 py-2 text-sm text-violet-light transition hover:bg-violet-light/10"
+        >
+          رد کردن این نبرد
         </button>
       </div>
       {error && <p className="mt-3 text-center text-xs text-gold">{error}</p>}

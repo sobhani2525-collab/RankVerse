@@ -109,7 +109,7 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
         />
 
         {status === "loading" && (
-          <div className={`mx-auto grid grid-cols-2 gap-4 sm:gap-10 ${large ? "max-w-xl" : "max-w-md"}`} aria-busy="true">
+          <div className={`mx-auto grid grid-cols-2 gap-4 sm:gap-10 max-w-xl`} aria-busy="true">
             <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
             <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
           </div>
@@ -168,18 +168,20 @@ function DailyBody({
   ];
 
   return (
-    <div className={`mx-auto ${large ? "max-w-xl" : "max-w-md"}`}>
+    <div className={`mx-auto max-w-xl`}>
       <p className="mb-6 flex items-center justify-center gap-2 text-center text-[13px] text-violet-light">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
         {reasonOf({ ...data.theme, personalized: false })}
       </p>
 
-      {/* RTL grid: left_item sits on the right, like the battle arena. */}
+      {/* RTL grid: left_item sits on the right, like the battle arena. The VS
+          badge sits in the posters-only grid so it centers on the posters,
+          not on poster + title. */}
       <div className="relative grid grid-cols-2 gap-4 sm:gap-10">
         {sides.map(([side, film]) => {
           const chosen = mine === side;
           return (
-            <div key={side} className="flex flex-col gap-3">
+            <div key={side}>
               <button
                 type="button"
                 disabled={voted || voting}
@@ -205,14 +207,18 @@ function DailyBody({
                   <span className="absolute start-3 top-3 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">انتخاب تو</span>
                 )}
               </button>
-              <div className="text-center">
-                <p className="line-clamp-2 text-sm font-medium text-ink">{displayTitle(film)}</p>
-                {film.year != null && <p className="num text-xs text-gold">{toFaDigits(film.year)}</p>}
-              </div>
             </div>
           );
         })}
         <VsBadge />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-4 sm:gap-10">
+        {sides.map(([side, film]) => (
+          <div key={side} className="text-center">
+            <p className="line-clamp-2 text-sm font-medium text-ink">{displayTitle(film)}</p>
+            {film.year != null && <p className="num text-xs text-gold">{toFaDigits(film.year)}</p>}
+          </div>
+        ))}
       </div>
 
       {voted ? (

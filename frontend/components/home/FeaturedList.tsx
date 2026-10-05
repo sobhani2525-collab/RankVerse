@@ -43,7 +43,7 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
                   )}
                   <span className="absolute inset-0 bg-gradient-to-t from-[#05070D]/90 via-transparent to-transparent opacity-70 transition group-hover:opacity-100" />
                   <span className="num absolute right-3 top-3 rounded-full bg-[#05070D]/80 px-2 py-0.5 text-xs text-muted backdrop-blur">
-                    #{toFaDigits(item.position)}
+                    #{toFaDigits(i + 1)}
                   </span>
                 </span>
                 <span className="mt-3 block line-clamp-2 text-sm leading-6 text-ink">{displayTitle(item.entity)}</span>

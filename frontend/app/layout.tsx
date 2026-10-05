@@ -1,4 +1,5 @@
 import ConditionalHeader from "@/components/ConditionalHeader";
+import ConditionalFooter from "@/components/ConditionalFooter";
 import AuthGateModal from "@/components/AuthGateModal";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
@@ -60,6 +61,7 @@ export default function RootLayout({
               <WatchLaterProvider>
                 <ConditionalHeader />
                 {children}
+                <ConditionalFooter />
                 <AuthGateModal />
               </WatchLaterProvider>
             </FavoritesProvider>
