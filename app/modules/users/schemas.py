@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, model_validator
 
 
 class UserCreate(BaseModel):
@@ -29,6 +29,24 @@ class UserPublic(BaseModel):
     id: uuid.UUID
     email: str
     username: str
+    email_verified: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _derive_verified(cls, data):
+        # Built from the ORM User: expose the flag, not the timestamp.
+        if hasattr(data, "email_verified_at"):
+            return {
+                "id": data.id,
+                "email": data.email,
+                "username": data.username,
+                "email_verified": data.email_verified_at is not None,
+            }
+        return data
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
 
 
 # Deliberately excludes email -- served from a public, unauthenticated

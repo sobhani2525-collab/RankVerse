@@ -60,6 +60,19 @@ def create_password_reset_token(user_id: str) -> str:
     )
 
 
+def create_email_verification_token(user_id: str, email: str) -> str:
+    """Bound to the address, so changing the email invalidates old links."""
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "sub": user_id,
+        "email": email,
+        "type": "email_verify",
+        "iat": now,
+        "exp": now + timedelta(hours=settings.email_verification_token_expire_hours),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
 def decode_token(token: str) -> dict[str, Any] | None:
     try:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])

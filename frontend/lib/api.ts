@@ -191,7 +191,19 @@ export async function loginUser(payload: { email: string; password: string }) {
 }
 
 export async function getMe(token: string) {
-  return authFetch<{ id: string; email: string; username: string }>("/auth/me", token);
+  return authFetch<{ id: string; email: string; username: string; email_verified: boolean }>("/auth/me", token);
+}
+
+export async function verifyEmail(token: string) {
+  return postEnvelope<{ verified: boolean }>("/auth/verify-email", { token });
+}
+
+export async function resendVerificationEmail(token: string) {
+  return authFetch<{ sent?: boolean; already_verified?: boolean; dev_verify_link?: string }>(
+    "/auth/resend-verification",
+    token,
+    { method: "POST" }
+  );
 }
 
 export async function requestPasswordReset(email: string) {

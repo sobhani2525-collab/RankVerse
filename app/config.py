@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 30
     admin_access_token_expire_minutes: int = 30
     password_reset_token_expire_minutes: int = 30
+    email_verification_token_expire_hours: int = 48
 
     # Used to build the link inside a password-reset email. No transactional
     # email provider is wired up yet (see UserService.request_password_reset)

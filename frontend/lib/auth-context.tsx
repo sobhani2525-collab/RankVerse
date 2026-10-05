@@ -13,6 +13,7 @@ interface User {
   id: string;
   email: string;
   username: string;
+  email_verified: boolean;
 }
 
 interface AuthContextType {
@@ -23,6 +24,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Re-reads the signed-in user (e.g. after confirming their email). */
+  refreshUser: () => Promise<void>;
   /**
    * Reads the token from a ref instead of the reactive `token` above.
    * Use this inside a callback that might run as an AuthGate
@@ -87,6 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login(email, password);
   }
 
+  async function refreshUser() {
+    const current = tokenRef.current;
+    if (!current) return;
+    try {
+      setUser(await getMe(current));
+    } catch {
+      // Keep the stale user; the next page load re-syncs.
+    }
+  }
+
   function logout() {
     localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
@@ -104,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        refreshUser,
         getToken: () => tokenRef.current,
       }}
     >

@@ -52,6 +52,27 @@ async def send_email(to: str, subject: str, text: str, html: str | None = None) 
         return False
 
 
+def verification_email(link: str) -> tuple[str, str, str]:
+    """(subject, text, html) of the confirm-your-address message."""
+    hours = settings.email_verification_token_expire_hours
+    subject = "تأیید ایمیل در سینماگزین"
+    text = (
+        "به سینماگزین خوش آمدید! برای تأیید ایمیل خود روی لینک زیر بزنید:\n"
+        f"{link}\n\n"
+        f"این لینک {hours} ساعت معتبر است. اگر شما ثبت‌نام نکرده‌اید، این پیام را نادیده بگیرید."
+    )
+    html = (
+        '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;line-height:1.9;font-size:15px">'
+        "<p>به سینماگزین خوش آمدید! برای تأیید ایمیل خود روی دکمهٔ زیر بزنید:</p>"
+        f'<p><a href="{link}" style="display:inline-block;background:#E8B34A;color:#111;padding:10px 22px;'
+        'border-radius:8px;text-decoration:none;font-weight:bold">تأیید ایمیل</a></p>'
+        f'<p style="color:#666;font-size:13px">این لینک {hours} ساعت معتبر است. '
+        "اگر شما ثبت‌نام نکرده‌اید، این پیام را نادیده بگیرید.</p>"
+        "</div>"
+    )
+    return subject, text, html
+
+
 def password_reset_email(link: str) -> tuple[str, str, str]:
     """(subject, text, html) of the password-reset message."""
     minutes = settings.password_reset_token_expire_minutes

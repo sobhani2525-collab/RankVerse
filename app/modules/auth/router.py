@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.database import get_db
-from app.core.email import email_enabled, password_reset_email, send_email
+from app.core.email import email_enabled, password_reset_email, send_email, verification_email
 from app.core.rate_limit import client_ip, enforce
 from app.core.schemas import envelope
 from app.core.security import create_access_token, decode_token
@@ -11,7 +11,7 @@ from app.core.exceptions import UnauthorizedError
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
 from app.modules.users.schemas import (
-    UserCreate, UserLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest,
+    UserCreate, UserLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest,
 )
 from app.modules.users.service import UserService
 
@@ -25,13 +25,22 @@ LOGIN_EMAIL_LIMIT = 8  # attempts per account per 10 min
 FORGOT_IP_LIMIT = 10
 FORGOT_EMAIL_LIMIT = 3  # reset emails per address per hour
 RESET_IP_LIMIT = 15
+VERIFY_IP_LIMIT = 30
+RESEND_VERIFY_LIMIT = 3  # per account per hour
 
 
 @router.post("/register")
-async def register(payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)):
+async def register(
+    payload: UserCreate,
+    request: Request,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     await enforce("register", client_ip(request), REGISTER_LIMIT, HOUR)
     service = UserService(db)
     user = await service.register(payload)
+    subject, text, html = verification_email(service.email_verification_link(user))
+    background.add_task(send_email, user.email, subject, text, html)
     return envelope(data=UserPublic.model_validate(user).model_dump())
 
 
@@ -58,6 +67,32 @@ async def refresh(refresh_token: str):
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)):
     return envelope(data=UserPublic.model_validate(current_user).model_dump())
+
+
+@router.post("/verify-email")
+async def verify_email(payload: VerifyEmailRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await enforce("verify-ip", client_ip(request), VERIFY_IP_LIMIT, HOUR)
+    await UserService(db).verify_email(payload.token)
+    return envelope(data={"verified": True})
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    background: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.email_verified_at is not None:
+        return envelope(data={"already_verified": True})
+    await enforce("resend-verify", str(current_user.id), RESEND_VERIFY_LIMIT, HOUR)
+    service = UserService(db)
+    link = service.email_verification_link(current_user)
+    subject, text, html = verification_email(link)
+    background.add_task(send_email, current_user.email, subject, text, html)
+    data: dict = {"sent": True}
+    if settings.environment != "production" and not email_enabled():
+        data["dev_verify_link"] = link
+    return envelope(data=data)
 
 
 @router.post("/forgot-password")

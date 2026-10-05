@@ -92,3 +92,53 @@ async def test_me_with_valid_token_returns_current_user(client, test_user, auth_
     res = await client.get("/api/v1/auth/me", headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["data"]["email"] == test_user.email
+
+
+# --- Email verification ---
+
+def test_email_verification_token_roundtrip():
+    from app.core.security import create_email_verification_token
+
+    payload = decode_token(create_email_verification_token("u-1", "a@example.com"))
+    assert payload is not None
+    assert payload["type"] == "email_verify"
+    assert payload["sub"] == "u-1"
+    assert payload["email"] == "a@example.com"
+
+
+async def test_register_starts_unverified_and_link_verifies(client):
+    from app.core.security import create_email_verification_token
+
+    res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "verify@example.com", "username": "verifyuser", "password": "Sup3rSecret!1"},
+    )
+    assert res.status_code == 200
+    assert res.json()["data"]["email_verified"] is False
+    user_id = res.json()["data"]["id"]
+
+    token = create_email_verification_token(user_id, "verify@example.com")
+    ok = await client.post("/api/v1/auth/verify-email", json={"token": token})
+    assert ok.status_code == 200
+    assert ok.json()["data"] == {"verified": True}
+
+    login = await client.post("/api/v1/auth/login", json={"email": "verify@example.com", "password": "Sup3rSecret!1"})
+    access = login.json()["data"]["access_token"]
+    me = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access}"})
+    assert me.json()["data"]["email_verified"] is True
+
+
+async def test_verify_rejects_wrong_type_and_changed_email(client):
+    from app.core.security import create_access_token, create_email_verification_token
+
+    res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "other@example.com", "username": "otheruser", "password": "Sup3rSecret!1"},
+    )
+    user_id = res.json()["data"]["id"]
+
+    wrong_type = await client.post("/api/v1/auth/verify-email", json={"token": create_access_token(user_id)})
+    assert wrong_type.status_code == 401
+
+    stale = create_email_verification_token(user_id, "old-address@example.com")
+    assert (await client.post("/api/v1/auth/verify-email", json={"token": stale})).status_code == 401

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +31,11 @@ class UserRepository:
     async def update_password(self, user: User, hashed_password: str) -> None:
         user.hashed_password = hashed_password
         await self.db.flush()
+
+    async def mark_email_verified(self, user: User) -> None:
+        if user.email_verified_at is None:
+            user.email_verified_at = datetime.now(timezone.utc)
+            await self.db.flush()
 
     async def get_rating(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> UserRating | None:
         result = await self.db.execute(

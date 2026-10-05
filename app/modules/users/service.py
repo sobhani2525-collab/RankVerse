@@ -11,6 +11,7 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     create_password_reset_token,
+    create_email_verification_token,
     decode_token,
 )
 from app.modules.entities.repository import EntityRepository
@@ -77,6 +78,25 @@ class UserService:
             raise UnauthorizedError("Invalid or expired reset link")
 
         await self.repo.update_password(user, hash_password(new_password))
+        # Opening the emailed reset link proves control of the address.
+        await self.repo.mark_email_verified(user)
+        await self.db.commit()
+
+    def email_verification_link(self, user) -> str:
+        token = create_email_verification_token(str(user.id), user.email)
+        return f"{settings.frontend_base_url}/verify-email?token={token}"
+
+    async def verify_email(self, token: str) -> None:
+        payload = decode_token(token)
+        if not payload or payload.get("type") != "email_verify":
+            raise UnauthorizedError("Invalid or expired verification link")
+
+        user = await self.repo.get_by_id(uuid.UUID(payload["sub"]))
+        # A link issued for an old address stops working once it changes.
+        if not user or user.email != payload.get("email"):
+            raise UnauthorizedError("Invalid or expired verification link")
+
+        await self.repo.mark_email_verified(user)
         await self.db.commit()
 
     async def _update_contribution_stats(self, user_id: uuid.UUID) -> None:
