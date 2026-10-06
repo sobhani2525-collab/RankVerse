@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # is always allowed too, so setting FRONTEND_BASE_URL for the real domain is
     # enough; list extras here (e.g. a staging or workers.dev origin).
     cors_origins: str = (
+        "https://cinemagozin.ir,https://www.cinemagozin.ir,"
         "https://cinemagozinbk.ir,https://www.cinemagozinbk.ir,"
         "https://rankverse-frontend.sobhani2525.workers.dev,http://localhost:3000"
     )
