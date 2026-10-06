@@ -1,0 +1,60 @@
+name: Deploy frontend to Liara
+
+# Deploys frontend/ (Dockerfile + liara.json inside it) to the Liara app
+# "cinemagozin-web" whenever frontend code changes on main. Needs the repo
+# secret LIARA_API_TOKEN (Liara panel -> API tokens). Runtime env vars
+# (e.g. ADMIN_JWT_SECRET) live in the Liara app settings, not here.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits instead of cancelling a build mid-way.
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Typecheck and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Don't ship code that doesn't typecheck (the image build itself runs on Liara).
+      - name: Typecheck
+        working-directory: frontend
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+
+      - name: Install Liara CLI
+        run: npm i -g @liara/cli@9
+
+      - name: Deploy
+        env:
+          LIARA_TOKEN: ${{ secrets.LIARA_API_TOKEN }}
+        run: |
+          if [ -z "$LIARA_TOKEN" ]; then
+            echo "::error::Repository secret LIARA_API_TOKEN is not set"
+            exit 1
+          fi
+          liara deploy \
+            --app="cinemagozin-web" \
+            --platform="docker" \
+            --port=3000 \
+            --path="frontend" \
+            --api-token="$LIARA_TOKEN" \
+            --no-app-logs
