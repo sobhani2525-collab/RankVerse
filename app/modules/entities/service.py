@@ -3,7 +3,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ForbiddenError, NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.schemas import (
     AlbumSummary,
@@ -375,6 +375,15 @@ class EntityService:
         return EntityCommentPublic(
             id=comment.id, user_id=user_id, username=username, body=comment.body, created_at=comment.created_at
         )
+
+    async def delete_comment(self, user_id: uuid.UUID, entity_id: uuid.UUID, comment_id: uuid.UUID) -> None:
+        comment = await self.repo.get_comment(comment_id)
+        if comment is None or comment.entity_id != entity_id:
+            raise NotFoundError("Comment not found")
+        if comment.user_id != user_id:
+            raise ForbiddenError("You can only delete your own comments")
+        await self.repo.delete_comment(comment)
+        await self.db.commit()
 
     async def list_comments(self, entity_id: uuid.UUID) -> list[EntityCommentPublic]:
         rows = await self.repo.list_comments(entity_id)

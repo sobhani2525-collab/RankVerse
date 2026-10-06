@@ -5,7 +5,7 @@ from app.modules.lists.models import UserList, UserListItem, ContributionMode, L
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.exceptions import NotFoundError, AlreadyExistsError, UnauthorizedError, ValidationError
+from app.core.exceptions import NotFoundError, AlreadyExistsError, ForbiddenError, UnauthorizedError, ValidationError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.service import _extract_media
 from app.modules.lists.repository import ListRepository
@@ -770,6 +770,22 @@ class ListService:
         await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
         await self.db.commit()
         return CommentPublic.model_validate(comment)
+
+    async def delete_comment(self, user_id: uuid.UUID, slug: str, comment_id: uuid.UUID) -> None:
+        """The author can delete their comment; so can the list's owner (moderating their own list)."""
+        lst = await self.repo.get_by_slug(slug)
+        if not lst:
+            raise NotFoundError(f"List '{slug}' not found")
+        comment = await self.repo.get_comment(comment_id)
+        if comment is None or comment.list_id != lst.id:
+            raise NotFoundError("Comment not found")
+        if user_id not in (comment.user_id, lst.user_id):
+            raise ForbiddenError("You can only delete your own comments")
+
+        author_id = comment.user_id
+        await self.repo.delete_comment_thread(comment)
+        await ContributionStatsComputer(self.db).compute_contribution_stats(author_id)
+        await self.db.commit()
 
     async def list_comments(self, slug: str) -> list[CommentPublic]:
         lst = await self.repo.get_by_slug(slug)

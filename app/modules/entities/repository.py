@@ -223,6 +223,13 @@ class EntityRepository:
         await self.db.flush()
         return comment
 
+    async def get_comment(self, comment_id: uuid.UUID) -> EntityComment | None:
+        return await self.db.get(EntityComment, comment_id)
+
+    async def delete_comment(self, comment: EntityComment) -> None:
+        await self.db.delete(comment)
+        await self.db.flush()
+
     async def list_comments(self, entity_id: uuid.UUID) -> list[tuple[EntityComment, str]]:
         stmt = (
             select(EntityComment, User.username)

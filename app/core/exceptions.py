@@ -32,6 +32,13 @@ class UnauthorizedError(RankVerseError):
         super().__init__(message, status_code=401, code="unauthorized")
 
 
+class ForbiddenError(RankVerseError):
+    """Authenticated, but not allowed to do this (a bad token is UnauthorizedError)."""
+
+    def __init__(self, message: str = "You don't have permission to do this"):
+        super().__init__(message, status_code=403, code="forbidden")
+
+
 class ValidationError(RankVerseError):
     def __init__(self, message: str = "Invalid request"):
         super().__init__(message, status_code=400, code="validation_error")

@@ -140,6 +140,17 @@ async def get_track(slug: str, db: AsyncSession = Depends(get_read_db)):
     return envelope(data=track.model_dump())
 
 
+@router.delete("/entities/{entity_id}/comments/{comment_id}")
+async def delete_entity_comment(
+    entity_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await EntityService(db).delete_comment(current_user.id, entity_id, comment_id)
+    return envelope(data={"deleted": True})
+
+
 @router.get("/entities/{entity_id}/comments")
 async def list_entity_comments(entity_id: uuid.UUID, db: AsyncSession = Depends(get_read_db)):
     comments = await EntityService(db).list_comments(entity_id)

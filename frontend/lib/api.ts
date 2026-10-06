@@ -594,6 +594,14 @@ export async function addListComment(
   return authFetch(`/lists/${encodeListSlug(slug)}/comments`, token, { method: "POST", body: payload });
 }
 
+export async function deleteListComment(token: string, slug: string, commentId: string): Promise<{ deleted: boolean }> {
+  return authFetch(`/lists/${encodeListSlug(slug)}/comments/${commentId}`, token, { method: "DELETE" });
+}
+
+export async function deleteEntityComment(token: string, entityId: string, commentId: string): Promise<{ deleted: boolean }> {
+  return authFetch(`/entities/${entityId}/comments/${commentId}`, token, { method: "DELETE" });
+}
+
 export async function getEntityComments(entityId: string): Promise<ListComment[]> {
   return fetchEnvelope<ListComment[]>(`/entities/${entityId}/comments`, 0);
 }

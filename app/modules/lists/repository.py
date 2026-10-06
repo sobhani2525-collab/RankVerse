@@ -650,6 +650,28 @@ class ListRepository:
         await self.db.flush()
         return comment
 
+    async def get_comment(self, comment_id: uuid.UUID) -> ListComment | None:
+        return await self.db.get(ListComment, comment_id)
+
+    async def delete_comment_thread(self, comment: ListComment) -> int:
+        """Deletes a comment and every reply under it; returns how many comments went."""
+        ids = [comment.id]
+        frontier = [comment.id]
+        while frontier:
+            result = await self.db.execute(
+                select(ListComment.id).where(ListComment.parent_comment_id.in_(frontier))
+            )
+            frontier = [row for row in result.scalars().all() if row not in ids]
+            ids.extend(frontier)
+        await self.db.execute(delete(ListComment).where(ListComment.id.in_(ids)))
+        await self.db.execute(
+            update(UserList)
+            .where(UserList.id == comment.list_id)
+            .values(comment_count=func.greatest(UserList.comment_count - len(ids), 0), **_KEEP_UPDATED_AT)
+        )
+        await self.db.flush()
+        return len(ids)
+
     async def list_comments(self, list_id: uuid.UUID) -> list[ListComment]:
         stmt = (
             select(ListComment)

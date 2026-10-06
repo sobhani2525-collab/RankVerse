@@ -200,7 +200,7 @@ export default async function ListDetailPage({
           <aside className="flex shrink-0 flex-col gap-10 lg:w-[380px] lg:gap-7">
             <ListBattlePreview />
             <RelatedLists slug={detail.slug} />
-            <ListComments slug={detail.slug} initialComments={comments} />
+            <ListComments slug={detail.slug} initialComments={comments} ownerUsername={detail.owner_username} />
           </aside>
         </div>
 

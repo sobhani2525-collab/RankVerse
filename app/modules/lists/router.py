@@ -282,6 +282,18 @@ async def add_comment(
     return envelope(data=comment.model_dump())
 
 
+@router.delete("/lists/{slug}/comments/{comment_id}")
+async def delete_comment(
+    slug: str,
+    comment_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ListService(db)
+    await service.delete_comment(current_user.id, slug, comment_id)
+    return envelope(data={"deleted": True})
+
+
 @router.get("/lists/{slug}/comments")
 async def list_comments(slug: str, db: AsyncSession = Depends(get_read_db)):
     service = ListService(db)

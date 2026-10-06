@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { addEntityComment, addListComment } from "@/lib/api";
+import { addEntityComment, addListComment, deleteEntityComment, deleteListComment } from "@/lib/api";
 import { ListComment } from "@/lib/types";
 import { toFaDigits } from "@/lib/format-number";
 import { SectionHeading } from "@/components/list-detail/ui";
@@ -17,8 +17,11 @@ export default function ListComments({
   entityId,
   initialComments,
   tone,
+  ownerUsername,
 }: {
   tone?: string;
+  /** A list's owner may delete anyone's comment on it. */
+  ownerUsername?: string | null;
   /** A list's slug... */
   slug?: string;
   /** ...or the id of an entity (person page) whose comments these are. */
@@ -31,6 +34,7 @@ export default function ListComments({
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   async function postComment() {
     const token = getToken();
@@ -48,6 +52,40 @@ export default function ListComments({
       setSubmitting(false);
     }
   }
+
+  async function removeComment(id: string) {
+    const token = getToken();
+    if (!token || deleting) return;
+    if (!window.confirm("این نظر حذف شود؟")) return;
+    setDeleting(id);
+    setError(null);
+    try {
+      if (entityId) await deleteEntityComment(token, entityId, id);
+      else await deleteListComment(token, slug ?? "", id);
+      // Replies under a deleted list comment are removed with it.
+      setComments((prev) => {
+        const gone = new Set([id]);
+        let grew = true;
+        while (grew) {
+          grew = false;
+          for (const c of prev) {
+            if (c.parent_comment_id && gone.has(c.parent_comment_id) && !gone.has(c.id)) {
+              gone.add(c.id);
+              grew = true;
+            }
+          }
+        }
+        return prev.filter((c) => !gone.has(c.id));
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "حذف نظر ممکن نشد");
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  const canDelete = (c: ListComment) =>
+    !!user && (c.user_id === user.id || (!!ownerUsername && user.username === ownerUsername));
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,7 +130,23 @@ export default function ListComments({
                 ) : (
                   <span className="text-sm font-medium text-teal">@کاربر</span>
                 )}
-                <span className="num text-xs text-muted">{formatDate(c.created_at)}</span>
+                <span className="flex items-center gap-3">
+                  {canDelete(c) && (
+                    <button
+                      type="button"
+                      onClick={() => void removeComment(c.id)}
+                      disabled={deleting === c.id}
+                      aria-label="حذف این نظر"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 px-2.5 py-1 text-xs font-medium text-red-300 transition hover:bg-red-400/10 hover:text-red-200 disabled:opacity-50"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />
+                      </svg>
+                      {deleting === c.id ? "در حال حذف…" : "حذف نظر"}
+                    </button>
+                  )}
+                  <span className="num text-xs text-muted">{formatDate(c.created_at)}</span>
+                </span>
               </div>
               <p className="whitespace-pre-line text-sm leading-[1.8] text-ink-dim">{c.body}</p>
             </div>
