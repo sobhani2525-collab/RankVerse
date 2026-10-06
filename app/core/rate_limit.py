@@ -32,7 +32,8 @@ def client_ip(request: Request) -> str:
     return (ip or "unknown")[:64]
 
 
-def _hit_local(key: str, window: int) -> int:
+def hit_local(key: str, window: int) -> int:
+    """Counts one hit in this process's memory (the Redis-less fallback); returns the count in the current window."""
     now = time.monotonic()
     if len(_local) > _LOCAL_MAX_KEYS:
         for k in [k for k, (start, _) in _local.items() if now - start >= window]:
@@ -55,7 +56,7 @@ async def _hit(key: str, window: int) -> int:
         return count
     except (RedisError, OSError):
         logger.warning("Redis unavailable, using in-process rate limit for %s", key.split(":")[1])
-        return _hit_local(key, window)
+        return hit_local(key, window)
 
 
 async def enforce(scope: str, identity: str, limit: int, window_seconds: int) -> None:

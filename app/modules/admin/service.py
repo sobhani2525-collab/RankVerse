@@ -7,6 +7,7 @@ from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, RateLimitedError, UnauthorizedError, ValidationError
+from app.core.rate_limit import hit_local
 from app.core.security import create_admin_access_token, hash_password, verify_password
 from app.modules.admin.models import AdminAccount
 from app.modules.admin.repository import AdminAccountRepository, AdminListRepository
@@ -63,19 +64,12 @@ class AdminAuthService:
             if attempts == 1:
                 await redis.expire(key, PASSWORD_CHANGE_RATE_WINDOW_SECONDS)
         except RedisError:
-            # This endpoint already sits behind get_current_admin (a valid JWT
-            # required), so the rate limit is a secondary defense, not the
-            # only thing standing between an attacker and this route -- unlike
-            # /auth/login, which is unauthenticated. Failing open here (skip
-            # the limit rather than 500 the whole request) is the safer
-            # trade-off until Redis is actually provisioned in this
-            # environment. Once genuine unauthenticated rate limiting (e.g.
-            # on /auth/login) is needed, that's the point to provision Redis
-            # for real rather than extend this fail-open behavior to it.
+            # Redis is optional: count in this process's memory so the limit
+            # still holds (per process, reset on restart) instead of vanishing.
             logger.warning(
-                "Redis unavailable, skipping password-change rate limit for admin_id=%s", admin_id
+                "Redis unavailable, using in-process password-change rate limit for admin_id=%s", admin_id
             )
-            return
+            attempts = hit_local(key, PASSWORD_CHANGE_RATE_WINDOW_SECONDS)
 
         if attempts > PASSWORD_CHANGE_RATE_LIMIT:
             raise RateLimitedError("Too many password change attempts. Try again later.")

@@ -4,6 +4,7 @@ import uuid
 from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
+from app.core.rate_limit import hit_local
 from redis.asyncio import Redis
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -337,15 +338,17 @@ class DailyBattleService:
 
     async def _enforce_guest_ip_limit(self, redis: Redis | None, ip: str | None, today: date) -> None:
         if redis is None or not ip:
-            return
+            return  # no IP to count (or no limiter wired in)
         key = f"dbv:{today.isoformat()}:{ip}"
         try:
             count = await redis.incr(key)
             if count == 1:
                 await redis.expire(key, GUEST_IP_KEY_TTL_SECONDS)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("daily battle guest IP limit skipped, Redis unavailable: %r", exc)
-            return
+            # Redis is optional: count in this process's memory instead (per
+            # process and reset on restart, but the cap still holds).
+            logger.warning("daily battle guest IP limit using in-process counter, Redis unavailable: %r", exc)
+            count = hit_local(key, GUEST_IP_KEY_TTL_SECONDS)
         if count > settings.daily_battle_guest_ip_limit:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

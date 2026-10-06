@@ -470,3 +470,19 @@ async def test_auto_pick_falls_back_after_admin_row_deleted(client, db_session, 
     res = await client.post(ADMIN_URL, headers=admin_headers, json={"battle_date": future_day.isoformat(), "left_id": str(a.id), "right_id": str(b.id)})
     await client.delete(f"{ADMIN_URL}/{res.json()['data']['id']}", headers=admin_headers)
     assert await DailyBattleService(db_session).get_by_date(future_day) is None
+
+
+async def test_guest_ip_limit_still_holds_when_redis_is_down(client, db_session, fake_redis, monkeypatch):
+    # Redis is optional: with it unreachable the cap is counted in-process, not dropped.
+    monkeypatch.setattr(settings, "daily_battle_guest_ip_limit", 2)
+    fake_redis.broken = True
+    await _movies(db_session, 12)
+    body = await _today(client)
+    statuses = []
+    for n in range(1, 4):
+        res = await client.post(
+            f"{URL}/vote", headers={**_guest(n), "CF-Connecting-IP": "203.0.113.77"},
+            json={"daily_battle_id": body["daily_battle_id"], "choice": "left"},
+        )
+        statuses.append(res.status_code)
+    assert statuses == [200, 200, 429]

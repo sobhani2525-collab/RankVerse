@@ -61,3 +61,23 @@ def test_engine_pool_stays_under_the_shared_connection_cap():
     assert engine.pool._max_overflow == settings.db_max_overflow
     # One process must not be able to take the whole 15-connection pooler budget.
     assert settings.db_pool_size + settings.db_max_overflow <= 12
+
+
+async def test_admin_password_change_limit_holds_without_redis():
+    import uuid
+
+    from redis.exceptions import RedisError
+
+    from app.modules.admin.service import PASSWORD_CHANGE_RATE_LIMIT, AdminAuthService
+
+    class BrokenRedis:
+        async def incr(self, key):
+            raise RedisError("down")
+
+    admin_id = uuid.uuid4()
+    for _ in range(PASSWORD_CHANGE_RATE_LIMIT):
+        await AdminAuthService._enforce_password_change_rate_limit(BrokenRedis(), admin_id)
+    with pytest.raises(RateLimitedError):
+        await AdminAuthService._enforce_password_change_rate_limit(BrokenRedis(), admin_id)
+    # another admin is unaffected
+    await AdminAuthService._enforce_password_change_rate_limit(BrokenRedis(), uuid.uuid4())
