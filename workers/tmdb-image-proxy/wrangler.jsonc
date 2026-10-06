@@ -1,0 +1,9 @@
+{
+  // Optional: for `wrangler deploy` from this folder. The dashboard route
+  // (Workers & Pages -> Create -> paste index.js) needs none of this.
+  "$schema": "../../frontend/node_modules/wrangler/config-schema.json",
+  "name": "tmdb-image-proxy",
+  "main": "index.js",
+  "compatibility_date": "2026-09-20",
+  "routes": [{ "pattern": "img.cinemagozin.ir", "custom_domain": true }]
+}
