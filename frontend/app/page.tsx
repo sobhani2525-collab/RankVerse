@@ -9,7 +9,7 @@ import FeaturedList from "@/components/home/FeaturedList";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import ListCreatorPromo from "@/components/home/ListCreatorPromo";
 import {
-  getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlug, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
+  getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlugCached, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
 } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import { toHomeTitle } from "@/lib/home-data";
@@ -58,10 +58,10 @@ async function loadFeatured(): Promise<{ main: ListDetail | null; others: ListSu
   // All featured lists, shuffled: the page is ISR-cached, so the pick changes each time it regenerates.
   const featured = shuffled(await getFeaturedLists(20));
   if (featured.length > 0) {
-    return { main: await getListBySlug(featured[0].slug), others: featured.slice(1, 1 + OTHER_FEATURED) };
+    return { main: await getListBySlugCached(featured[0].slug), others: featured.slice(1, 1 + OTHER_FEATURED) };
   }
   const [popular] = await discoverLists({ sort: "popular", page_size: 1 }, RANKING_TTL, [LISTS_CACHE_TAG]);
-  return { main: popular ? await getListBySlug(popular.slug) : null, others: [] };
+  return { main: popular ? await getListBySlugCached(popular.slug) : null, others: [] };
 }
 
 export default async function HomePage() {

@@ -414,6 +414,15 @@ export async function getListBySlug(slug: string, token?: string | null): Promis
   return json.data;
 }
 
+/**
+ * Same read as getListBySlug (public, no token) but cacheable, for server
+ * pages that can be ISR-cached (the home page's featured list). The list
+ * detail page keeps the no-store variant above so likes/comments are fresh.
+ */
+export async function getListBySlugCached(slug: string, revalidateSeconds: number = COMMUNITY_TTL): Promise<ListDetail> {
+  return fetchEnvelope<ListDetail>(`/lists/${encodeListSlug(slug)}`, revalidateSeconds, [LISTS_CACHE_TAG]);
+}
+
 /** Public, non-empty lists for sitemap.xml. */
 export async function getListsSitemap(): Promise<{ slug: string; updated_at: string | null }[]> {
   return fetchEnvelope<{ slug: string; updated_at: string | null }[]>(`/sitemap/lists`, 3600);

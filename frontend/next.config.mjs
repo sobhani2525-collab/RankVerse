@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Self-contained server (.next/standalone) for the Docker image that runs on Liara.
+  output: "standalone",
   images: {
     // Every next/image src is a TMDb poster; the loader picks TMDb's own
     // pre-sized file per srcset width instead of going through /_next/image.

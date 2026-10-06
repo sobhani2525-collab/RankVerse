@@ -1,0 +1,5 @@
+{
+  "app": "cinemagozin-web",
+  "platform": "docker",
+  "port": 3000
+}

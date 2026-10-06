@@ -1,0 +1,9 @@
+node_modules
+.next
+.open-next
+.wrangler
+.env.local
+.env*.local
+.git
+*.log
+tsconfig.tsbuildinfo
