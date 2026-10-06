@@ -25,7 +25,7 @@ if settings.sentry_dsn:
 
 app = FastAPI(
     title="RankVerse Core Engine",
-    description="Knowledge-graph-based ranking platform for cultural entities (movies, books, music...)",
+    description="Knowledge-graph-based ranking platform for movies, series and artists",
     version="0.1.0",
 )
 
