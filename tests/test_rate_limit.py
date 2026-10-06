@@ -51,3 +51,13 @@ def test_password_reset_email_contains_link():
     assert "https://example.com/reset-password?token=abc" in text
     assert "https://example.com/reset-password?token=abc" in html
     assert subject
+
+
+def test_engine_pool_stays_under_the_shared_connection_cap():
+    from app.config import settings
+    from app.core.database import engine
+
+    assert engine.pool.size() == settings.db_pool_size
+    assert engine.pool._max_overflow == settings.db_max_overflow
+    # One process must not be able to take the whole 15-connection pooler budget.
+    assert settings.db_pool_size + settings.db_max_overflow <= 12

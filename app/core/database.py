@@ -17,7 +17,16 @@ from app.config import settings
 #   the level on an asyncpg connection is client-side only, no round trip.
 #   Public read-only endpoints use get_read_db instead, which stays in
 #   autocommit and so skips the per-request BEGIN and ROLLBACK too.
-engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True, isolation_level="AUTOCOMMIT")
+engine = create_async_engine(
+    settings.database_url,
+    echo=False,
+    pool_pre_ping=True,
+    isolation_level="AUTOCOMMIT",
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_timeout=settings.db_pool_timeout,
+    pool_recycle=settings.db_pool_recycle,
+)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine.execution_options(isolation_level="READ COMMITTED"),

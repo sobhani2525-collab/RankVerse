@@ -9,6 +9,16 @@ class Settings(BaseSettings):
     bulk_database_url: str = ""
     redis_url: str = "redis://localhost:6379/0"
 
+    # Connection pool of ONE backend process. Supabase's session pooler caps ALL
+    # clients (this API, local dev servers, scripts) at 15 connections, so the
+    # SQLAlchemy default (5 + 10 overflow = 15) lets a single process use the
+    # whole budget. Keep this process well under it and fail fast, instead of
+    # hanging a request for 30s, when the pool is exhausted.
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
+    db_pool_timeout: int = 15  # seconds to wait for a free connection
+    db_pool_recycle: int = 300  # drop connections the pooler may have closed
+
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
