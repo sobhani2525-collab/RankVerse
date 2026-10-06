@@ -29,6 +29,20 @@ GENRE_WORDS_EN: dict[str, str] = {
     "mystery": "mystery", "romance": "romance", "thriller": "thriller", "war": "war", "western": "western",
 }
 
+# Demonyms/country names in list titles -> ISO 3166-1 country code («ایرانی»
+# is a country, not the surname of Boman Irani).
+COUNTRY_WORDS_FA: dict[str, str] = {
+    "ایرانی": "IR", "ایران": "IR", "هندی": "IN", "هند": "IN", "کره‌ای": "KR", "کره ای": "KR", "کره": "KR",
+    "ژاپنی": "JP", "ژاپن": "JP", "فرانسوی": "FR", "فرانسه": "FR", "ایتالیایی": "IT", "ایتالیا": "IT",
+    "آلمانی": "DE", "آلمان": "DE", "اسپانیایی": "ES", "اسپانیا": "ES", "ترکیه‌ای": "TR", "ترکی": "TR",
+    "روسی": "RU", "روسیه": "RU", "چینی": "CN", "چین": "CN", "بریتانیایی": "GB", "انگلیسی": "GB",
+    "آمریکایی": "US", "هالیوودی": "US", "هالیوود": "US", "مکزیکی": "MX", "برزیلی": "BR",
+    "سوئدی": "SE", "دانمارکی": "DK", "لهستانی": "PL", "کانادایی": "CA", "استرالیایی": "AU",
+}
+# Words saying the list is made of people, not titles.
+PEOPLE_WORDS_FA = {"شخصیت", "بازیگر", "هنرمند", "کارگردان", "چهره", "ستاره", "فیلمساز", "کمدین", "خواننده"}
+_FILLER = {"محبوب", "محبوبترین", "محبوب‌ترین", "معروف", "مشهور", "معروفترین", "مشهورترین", "بزرگ", "بزرگترین", "تاریخ", "همه", "دنیا", "جهان"}
+
 _DECADE_WORDS = {"شصت": 1960, "هفتاد": 1970, "هشتاد": 1980, "نود": 1990}
 _WORD_STEM = re.compile(r"(?:های|ها)$")
 _DECADE_4 = re.compile(r"(?:دهه\s*)?\b(1[89]\d0|20[0-2]0)\s*(?:s|ها)?\b")
@@ -42,9 +56,11 @@ class TitleHints:
     decade: int | None = None  # first year of the decade, e.g. 1990
     genres: set[str] = field(default_factory=set)  # lower-cased English genre titles
     phrases: list[str] = field(default_factory=list)  # candidate person names, longest first
+    countries: set[str] = field(default_factory=set)  # ISO codes
+    wants_people: bool = False  # the title speaks of people («شخصیت‌ها», «بازیگران»)
 
     def __bool__(self) -> bool:
-        return bool(self.decade or self.genres or self.phrases)
+        return bool(self.decade or self.genres or self.phrases or self.countries)
 
 
 def _two_digit_decade(two: int) -> int | None:
@@ -81,11 +97,21 @@ def parse_title_hints(title: str) -> TitleHints:
         if key in text:
             genres.add(genre)
             text = text.replace(key, " ")
+    countries: set[str] = set()
+    wants_people = False
     words: list[str] = []
     for word in text.split():
         stem = _WORD_STEM.sub("", word) if len(word) > 4 else word
+        # plural «بازیگران»/«کارگردانان» -> singular
+        singular = re.sub(r"(?:ان|ها)$", "", stem) if len(stem) > 5 else stem
         if stem in GENRE_WORDS_EN:
             genres.add(GENRE_WORDS_EN[stem])
+        elif stem in COUNTRY_WORDS_FA or normalize(stem) in COUNTRY_WORDS_FA:
+            countries.add(COUNTRY_WORDS_FA.get(stem) or COUNTRY_WORDS_FA[normalize(stem)])
+        elif stem in PEOPLE_WORDS_FA or singular in PEOPLE_WORDS_FA:
+            wants_people = True
+        elif stem in _FILLER or word in _FILLER:
+            continue
         else:
             words.append(word)
 
@@ -103,4 +129,6 @@ def parse_title_hints(title: str) -> TitleHints:
                 phrase = " ".join(run[start:start + size])
                 if size > 1 or len(phrase) >= 3:
                     phrases.append(phrase)
-    return TitleHints(decade=decade, genres=genres, phrases=phrases[:14])
+    return TitleHints(
+        decade=decade, genres=genres, phrases=phrases[:14], countries=countries, wants_people=wants_people
+    )

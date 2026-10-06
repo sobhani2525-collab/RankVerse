@@ -35,6 +35,11 @@ WATCH_LATER_TITLE = "تماشا خواهم کرد"
 RESERVED_LIST_SLUGS = {"new"}
 
 _FA_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+_COUNTRY_FA = {
+    "IR": "ایران", "IN": "هند", "KR": "کره", "JP": "ژاپن", "FR": "فرانسه", "IT": "ایتالیا", "DE": "آلمان",
+    "ES": "اسپانیا", "TR": "ترکیه", "RU": "روسیه", "CN": "چین", "GB": "بریتانیا", "US": "آمریکا",
+    "MX": "مکزیک", "BR": "برزیل", "SE": "سوئد", "DK": "دانمارک", "PL": "لهستان", "CA": "کانادا", "AU": "استرالیا",
+}
 # Genre entity title (lower-cased) -> Persian name for the "why" line.
 _GENRE_FA = {
     "action": "اکشن", "adventure": "ماجراجویی", "animation": "انیمیشن", "comedy": "کمدی", "crime": "جنایی",
@@ -624,18 +629,46 @@ class ListService:
             return []
         people = await self._resolve_title_people(hints.phrases)
         genres = await self.repo.genres_by_title(hints.genres)
-        if not (people or genres or hints.decade):
+        if not (people or genres or hints.decade or hints.countries):
             return []
-        if hints.decade and not (people or genres):
+        if hints.decade and not (people or genres or hints.countries):
             # A decade alone is too loose («بهترین فیلم‌های دهه ۱۹۹۰» is every film).
             return []
+        person_nodes = sum(1 for n in list_nodes if n.entity_type == "person")
+        people_list = (
+            entity_type == "person"
+            or (not entity_type and (
+                lst.entity_type == "person"
+                or (list_nodes and person_nodes * 2 > len(list_nodes))
+                or (hints.wants_people and not list_nodes)
+            ))
+        )
+        if people_list:
+            # «محبوب‌ترین شخصیت‌های طنز ایرانی»: people who acted in titles
+            # of that genre/country/decade -- never the titles themselves.
+            entities = await self.repo.people_matching_hints(
+                {g.id for g in genres}, hints.countries, hints.decade, in_list,
+                settings.list_candidate_pool_size,
+            )
+            if people and not (genres or hints.countries or hints.decade):
+                return []
+            labels = [f"ژانر {_GENRE_FA.get(g.title.lower(), g.title)}" for g in genres]
+            labels += [_COUNTRY_FA.get(c, c) for c in sorted(hints.countries)]
+            if hints.decade:
+                labels.append(f"دهه {str(hints.decade).translate(_FA_DIGITS)}")
+            text = "بازیگر مطابق عنوان فهرست: " + " · ".join(labels)
+            out = await self._to_candidates(entities, list_nodes, profile)
+            for rank, c in enumerate(out):
+                base = c.reason.score if c.reason else 0.0
+                c.reason = CandidateReason(strength=4, kind="title", text=text, score=base + 10 - rank * 1e-3)
+            return out[:limit]
         types = [entity_type] if entity_type else (
             [lst.entity_type] if lst.entity_type and lst.entity_type != "person"
             else sorted({n.entity_type for n in list_nodes if n.entity_type != "person"}) or ["movie", "tv_series"]
         )
         entities = await self.repo.entities_matching_hints(
             {p.id for p in people}, {g.id for g in genres}, hints.decade, types, in_list,
-            settings.list_candidate_pool_size,
+            settings.list_candidate_pool_size, countries=hints.countries,
         )
         if not entities:
             return []
@@ -643,6 +676,7 @@ class ListService:
         if people:
             labels.append("، ".join((p.attributes or {}).get("title_fa") or p.title for p in people))
         labels += [f"ژانر {_GENRE_FA.get(g.title.lower(), g.title)}" for g in genres]
+        labels += [_COUNTRY_FA.get(c, c) for c in sorted(hints.countries)]
         if hints.decade:
             labels.append(f"دهه {str(hints.decade).translate(_FA_DIGITS)}")
         text = "مطابق عنوان فهرست: " + " · ".join(labels)

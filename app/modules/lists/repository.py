@@ -427,11 +427,13 @@ class ListRepository:
         entity_types: list[str],
         exclude_ids: set[uuid.UUID],
         limit: int,
+        countries: set[str] | None = None,
     ) -> list[Entity]:
         """Best-ranked entities satisfying every given constraint: linked to
         any of `person_ids` (director, creator or actor), tagged with any of
-        `genre_ids`, released in the decade starting `decade`."""
-        if not (person_ids or genre_ids or decade) or not entity_types:
+        `genre_ids`, made in one of `countries`, released in the decade
+        starting `decade`."""
+        if not (person_ids or genre_ids or decade or countries) or not entity_types:
             return []
         stmt = select(Entity)
         if person_ids:
@@ -448,9 +450,54 @@ class ListRepository:
                     RelationshipEdge.relation_type == "has_genre",
                 )
             ))
+        if countries:
+            stmt = stmt.where(Entity.attributes["country"].as_string().in_(countries))
         if decade:
             stmt = stmt.where(Entity.attributes["year"].as_integer().between(decade, decade + 9))
         return await self._ranked(stmt, entity_types, exclude_ids, limit)
+
+    async def people_matching_hints(
+        self,
+        genre_ids: set[uuid.UUID],
+        countries: set[str],
+        decade: int | None,
+        exclude_ids: set[uuid.UUID],
+        limit: int,
+    ) -> list[Entity]:
+        """People (actors first) credited on titles that satisfy every given
+        constraint (genre, country, decade); those with the most matching
+        titles, then the best-ranked, first."""
+        if not (genre_ids or countries or decade):
+            return []
+        titles = select(Entity.id).where(Entity.entity_type.in_(["movie", "tv_series"]))
+        if genre_ids:
+            titles = titles.where(Entity.id.in_(
+                select(RelationshipEdge.from_entity_id).where(
+                    RelationshipEdge.to_entity_id.in_(genre_ids),
+                    RelationshipEdge.relation_type == "has_genre",
+                )
+            ))
+        if countries:
+            titles = titles.where(Entity.attributes["country"].as_string().in_(countries))
+        if decade:
+            titles = titles.where(Entity.attributes["year"].as_integer().between(decade, decade + 9))
+        matching = func.count(func.distinct(RelationshipEdge.from_entity_id))
+        stmt = (
+            select(Entity)
+            .join(RelationshipEdge, RelationshipEdge.to_entity_id == Entity.id)
+            .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
+            .where(
+                RelationshipEdge.from_entity_id.in_(titles),
+                RelationshipEdge.relation_type == "acted_in",
+                Entity.entity_type == "person",
+            )
+            .group_by(Entity.id, EntityRanking.computed_score)
+            .order_by(matching.desc(), EntityRanking.computed_score.desc().nulls_last(), Entity.title)
+            .limit(limit)
+        )
+        if exclude_ids:
+            stmt = stmt.where(Entity.id.not_in(exclude_ids))
+        return list((await self.db.execute(stmt)).scalars().all())
 
     async def co_credited_people(
         self, work_ids: set[uuid.UUID], exclude_ids: set[uuid.UUID], limit: int
