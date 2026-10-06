@@ -10,10 +10,10 @@ import RelatedEntities from "@/components/RelatedEntities";
 import PersonCard from "@/components/PersonCard";
 import { MonoLabel, SectionHeading } from "@/components/list-detail/ui";
 import EntityLists from "@/components/EntityLists";
-import ListComments from "@/components/ListComments";
+import EntityComments from "@/components/entities/entity-comments";
 import PersonBattle from "@/components/PersonBattle";
-import { getEntityComments, getRelatedEntities, RelatedEntity } from "@/lib/api";
-import { ListComment, PersonDetail } from "@/lib/types";
+import { getRelatedEntities, RelatedEntity } from "@/lib/api";
+import { PersonDetail } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 
 export default async function PersonView({ data }: { data: PersonDetail }) {
@@ -22,13 +22,6 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
     related = await getRelatedEntities(data.id);
   } catch {
     related = [];
-  }
-
-  let comments: ListComment[] = [];
-  try {
-    comments = await getEntityComments(data.id);
-  } catch {
-    comments = [];
   }
 
   const posterUrl = data.media?.image_url ?? null;
@@ -129,7 +122,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
         <aside className="flex shrink-0 flex-col gap-10 lg:mt-14 lg:w-[380px] lg:gap-7">
           <PersonBattle directed={data.directed} created={data.created} actedIn={data.acted_in} />
           <EntityLists entityId={data.id} variant="sidebar" />
-          <ListComments entityId={data.id} initialComments={comments} tone="text-gold" />
+          <EntityComments entityId={data.id} />
         </aside>
       </div>
     </main>
