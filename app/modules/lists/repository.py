@@ -250,6 +250,7 @@ class ListRepository:
         tag: str | None = None,
         sort_by: str = "newest",
         quality_only: bool = False,
+        q: str | None = None,
     ) -> tuple[list[UserList], int]:
         # A window-function count rides along with the page query instead of
         # a separate round trip, and the owner (a single row per list) is
@@ -264,6 +265,18 @@ class ListRepository:
             stmt = stmt.where(UserList.entity_type == entity_type)
         if tag:
             stmt = stmt.where(UserList.tags.contains([tag]))
+        if q:
+            # Same Persian folding as the global search (ي/ك, آ/ا, half-space).
+            from app.modules.search.router import _FOLD_TABLE, _escape_like, _fold_sql
+
+            term = _escape_like(" ".join(q.translate(_FOLD_TABLE).split()))
+            if term:
+                stmt = stmt.where(
+                    or_(
+                        _fold_sql(UserList.title).ilike(f"%{term}%"),
+                        _fold_sql(func.coalesce(UserList.description, "")).ilike(f"%{term}%"),
+                    )
+                )
         if quality_only:
             item_count = (
                 select(func.count(UserListItem.id))

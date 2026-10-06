@@ -411,8 +411,9 @@ class ListService:
         tag: str | None,
         sort_by: str,
         quality_only: bool = False,
+        q: str | None = None,
     ) -> tuple[list[ListSummary], int]:
-        lists, total = await self.repo.discover(page, page_size, entity_type, tag, sort_by, quality_only)
+        lists, total = await self.repo.discover(page, page_size, entity_type, tag, sort_by, quality_only, q)
         return [self._to_summary_with_preview(lst) for lst in lists], total
 
     async def featured(self, limit: int) -> list[ListSummary]:

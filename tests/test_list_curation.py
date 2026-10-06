@@ -139,3 +139,22 @@ async def test_admin_item_control(client, db_session, test_user, admin_headers):
     res = await client.delete(f"{base}/{ids[0]}", headers=admin_headers)
     assert res.status_code == 200 and len(res.json()["data"]) == 2
     assert (await client.get(base)).status_code == 401
+
+
+async def test_discover_search_matches_title_and_description_with_persian_folding(client, db_session, test_user):
+    nolan = await _make_list(db_session, test_user, "Nolan Best", 3, slug="nolan-best")
+    await _make_list(db_session, test_user, "Comedy Night", 3, slug="comedy-night")
+    persian = await _make_list(db_session, test_user, "برترین‌های نولان", 3, slug="persian-nolan")
+    nolan.description = "Mind-bending films"
+    persian.description = "ياد آن روزها"  # Arabic yeh in the stored text
+    await db_session.commit()
+
+    base = "/api/v1/lists?quality_only=false&q="
+    assert set(await _slugs(client, base + "nolan")) == {"nolan-best"}
+    assert set(await _slugs(client, base + "NOLAN")) == {"nolan-best"}  # case-insensitive
+    assert set(await _slugs(client, base + "mind-bending")) == {"nolan-best"}  # description
+    assert set(await _slugs(client, base + "برترین های")) == {"persian-nolan"}  # ZWNJ typed as a space
+    assert set(await _slugs(client, base + "یاد")) == {"persian-nolan"}  # Persian yeh finds Arabic yeh
+    assert await _slugs(client, base + "zzz-nothing") == []
+    # A literal % or _ in the query is not a wildcard.
+    assert await _slugs(client, base + "%25") == []

@@ -37,10 +37,11 @@ async def discover_lists(
     tag: str | None = None,
     sort: str = Query("newest", pattern="^(newest|popular)$"),
     quality_only: bool = True,
+    q: str | None = Query(None, max_length=80, description="Search in list title/description"),
     db: AsyncSession = Depends(get_read_db),
 ):
     service = ListService(db)
-    items, total = await service.discover(page, page_size, entity_type, tag, sort, quality_only)
+    items, total = await service.discover(page, page_size, entity_type, tag, sort, quality_only, q)
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),

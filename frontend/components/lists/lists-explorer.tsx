@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { discoverLists } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
@@ -32,22 +32,29 @@ const chipActive = "border-[#E8B34A] bg-[#E8B34A]/[.12] font-bold text-[#E8B34A]
 export default function ListsExplorer({ initialLists }: { initialLists: ListSummary[] }) {
   const [sort, setSort] = useState<ListSort>("newest");
   const [type, setType] = useState<ListTypeFilter>("all");
+  const [query, setQuery] = useState("");
   const [lists, setLists] = useState(initialLists);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(initialLists.length === PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const requestId = useRef(0);
-  const lastRequest = useRef<[ListSort, ListTypeFilter, number]>(["newest", "all", 1]);
+  const lastRequest = useRef<[ListSort, ListTypeFilter, number, string]>(["newest", "all", 1, ""]);
 
-  async function load(nextSort: ListSort, nextType: ListTypeFilter, nextPage: number) {
+  async function load(nextSort: ListSort, nextType: ListTypeFilter, nextPage: number, nextQuery: string = query.trim()) {
     const id = ++requestId.current;
-    lastRequest.current = [nextSort, nextType, nextPage];
+    lastRequest.current = [nextSort, nextType, nextPage, nextQuery];
     setLoading(true);
     setError(false);
     try {
       const rows = await discoverLists(
-        { page: nextPage, page_size: PAGE_SIZE, sort: nextSort, entity_type: nextType === "all" ? undefined : nextType },
+        {
+          page: nextPage,
+          page_size: PAGE_SIZE,
+          sort: nextSort,
+          entity_type: nextType === "all" ? undefined : nextType,
+          q: nextQuery || undefined,
+        },
         0,
       );
       if (id !== requestId.current) return; // a newer request superseded this one
@@ -61,6 +68,17 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
     }
   }
 
+  // Search as the visitor types, after a short pause. The first run (empty
+  // query, nothing typed yet) keeps the server-rendered list.
+  const typed = useRef(false);
+  useEffect(() => {
+    if (!typed.current) return;
+    const t = setTimeout(() => void load(sort, type, 1, query.trim()), 350);
+    return () => clearTimeout(t);
+    // load/sort/type are read at fire time; only a new query should re-arm the timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
   function pick(nextSort: ListSort, nextType: ListTypeFilter) {
     if (nextSort === sort && nextType === type) return;
     setSort(nextSort);
@@ -70,6 +88,24 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
 
   return (
     <>
+      <div className="mb-6">
+        <label htmlFor="lists-search" className="sr-only">
+          جستجوی فهرست‌ها
+        </label>
+        <input
+          id="lists-search"
+          type="search"
+          value={query}
+          onChange={(e) => {
+            typed.current = true;
+            setQuery(e.target.value);
+          }}
+          maxLength={80}
+          placeholder="جستجوی فهرست‌ها: عنوان یا توضیح…"
+          className="w-full max-w-md rounded-2xl border border-[#232A42] bg-[#0B0F1A] px-5 py-3 text-sm text-ink placeholder:text-muted/60 focus:border-gold/50 focus:outline-none"
+        />
+      </div>
+
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:gap-10">
         <Group label="SORT">
           {SORT_OPTIONS.map((o) => (
@@ -98,7 +134,7 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
 
       {lists.length === 0 && !loading && !error ? (
         <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-          {type === "all" ? "هنوز فهرستی ساخته نشده. اولین نفر باشید!" : "فهرستی با این فیلتر پیدا نشد."}
+          {type === "all" && !query.trim() ? "هنوز فهرستی ساخته نشده. اولین نفر باشید!" : "فهرستی با این جستجو یا فیلتر پیدا نشد."}
         </div>
       ) : (
         <div className={`grid grid-cols-1 gap-8 transition-opacity md:grid-cols-2 lg:grid-cols-3 ${loading && page === 1 ? "opacity-50" : ""}`}>

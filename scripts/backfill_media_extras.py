@@ -6,13 +6,16 @@ people, no titles/overviews/ratings. New syncs already write both (see
 normalizer.media_extras); this is for titles synced before that.
 
 Run from the repo root with the venv active:
-    python scripts/backfill_media_extras.py [--type movie|tv_series] [--limit N] [--dry-run] [--delay S]
+    python scripts/backfill_media_extras.py [--type movie|tv_series] [--limit N] [--dry-run] [--delay S] [--prod]
+
+--prod runs against BULK_DATABASE_URL (the production transaction pooler, one
+sequential connection, so it doesn't starve the live site's pool); without it
+the script uses DATABASE_URL, i.e. whatever .env points at locally.
 
 Titles are taken best-ranked first, skipping any that already have a
 trailer_key or more_cast, so it can be re-run (or stopped and resumed) and
 `--limit 2000` fills the pages people actually visit. --dry-run fetches but
-writes nothing. A failure on one title is logged and skipped. Writes to
-whatever DATABASE_URL .env points at.
+writes nothing. A failure on one title is logged and skipped.
 """
 import sys
 from pathlib import Path
@@ -23,15 +26,16 @@ import asyncio
 
 from sqlalchemy import select
 
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, make_bulk_sessionmaker
 from app.modules.entities.models import Entity, EntityRanking
 from app.modules.sync.normalizer import media_extras
 from app.modules.sync.tmdb_client import TMDbClient
 
 
-async def main(entity_type: str, limit: int, delay: float, dry_run: bool) -> None:
+async def main(entity_type: str, limit: int, delay: float, dry_run: bool, prod: bool) -> None:
     client = TMDbClient()
-    async with AsyncSessionLocal() as db:
+    session_factory = make_bulk_sessionmaker() if prod else AsyncSessionLocal
+    async with session_factory() as db:
         rows = (await db.execute(
             select(Entity.id, Entity.title, Entity.external_id)
             .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
@@ -79,5 +83,6 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=500)
     parser.add_argument("--delay", type=float, default=0.3)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--prod", action="store_true", help="use BULK_DATABASE_URL (production)")
     args = parser.parse_args()
-    asyncio.run(main(args.type, args.limit, args.delay, args.dry_run))
+    asyncio.run(main(args.type, args.limit, args.delay, args.dry_run, args.prod))

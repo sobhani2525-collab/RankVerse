@@ -368,6 +368,7 @@ export async function discoverLists(params: {
   entity_type?: string;
   tag?: string;
   sort?: "newest" | "popular";
+  q?: string;
 } = {}, revalidateSeconds: number = COMMUNITY_TTL, tags?: string[]): Promise<ListSummary[]> {
   const qs = new URLSearchParams();
   if (params.page) qs.set("page", String(params.page));
@@ -375,6 +376,7 @@ export async function discoverLists(params: {
   if (params.entity_type) qs.set("entity_type", params.entity_type);
   if (params.tag) qs.set("tag", params.tag);
   if (params.sort) qs.set("sort", params.sort);
+  if (params.q) qs.set("q", params.q);
   return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, revalidateSeconds, tags);
 }
 
