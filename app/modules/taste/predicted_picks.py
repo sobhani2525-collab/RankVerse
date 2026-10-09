@@ -17,7 +17,7 @@ on that response.
 """
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -25,6 +25,7 @@ from app.config import settings
 from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.taste.repository import TasteRepository
 from app.modules.users.models import UserRating
+
 
 # Battles are movie-vs-movie or tv-vs-tv only (see BattleService._validate_matchup);
 # predicted picks draws from the same two entity types users actually rate.
@@ -51,55 +52,100 @@ class PredictedPicksService:
         self.dimension_weight = settings.taste_predicted_picks_dimension_weight
         self.ranking_weight = settings.taste_predicted_picks_ranking_weight
 
-    async def get_predicted_picks(self, user_id: uuid.UUID, limit: int = 3) -> list[PredictedPick]:
-        dimensions = await self.taste_repo.list_dimensions(user_id, dimension_type="genre")
-        if not dimensions:
+    
+    async def get_predicted_picks(
+        self, user_id: uuid.UUID, limit: int = 3
+    ) -> list[PredictedPick]:
+        dimensions = await self.taste_repo.list_dimensions(
+            user_id, dimension_type="genre"
+        )
+        if not dimensions or limit <= 0:
             return []
-        dimension_scores = {d.dimension_key: d.score for d in dimensions}
-
+    
+        dimension_scores = {
+            d.dimension_key: d.score for d in dimensions
+        }
+    
         GenreEntity = aliased(Entity)
-        rated_entity_ids = select(UserRating.entity_id).where(UserRating.user_id == user_id)
-
+    
+        rated_entity_ids = select(UserRating.entity_id).where(
+            UserRating.user_id == user_id
+        )
+    
+        # Map each matching genre to its Taste DNA score, then
+        # calculate the mean score per candidate inside PostgreSQL.
+        genre_score = case(
+            dimension_scores,
+            value=GenreEntity.slug,
+            else_=None,
+        )
+    
         stmt = (
-            select(Entity, GenreEntity.slug, EntityRanking.computed_score)
+            select(
+                Entity.id.label("entity_id"),
+                func.avg(genre_score).label("dimension_match"),
+                EntityRanking.computed_score.label("computed_score"),
+            )
             .join(
                 RelationshipEdge,
                 (RelationshipEdge.from_entity_id == Entity.id)
                 & (RelationshipEdge.relation_type == "has_genre"),
             )
-            .join(GenreEntity, GenreEntity.id == RelationshipEdge.to_entity_id)
-            .join(EntityRanking, EntityRanking.entity_id == Entity.id)
+            .join(
+                GenreEntity,
+                GenreEntity.id == RelationshipEdge.to_entity_id,
+            )
+            .join(
+                EntityRanking,
+                EntityRanking.entity_id == Entity.id,
+            )
             .where(
                 Entity.entity_type.in_(CANDIDATE_ENTITY_TYPES),
-                GenreEntity.slug.in_(dimension_scores.keys()),
+                GenreEntity.slug.in_(list(dimension_scores)),
                 EntityRanking.computed_score.isnot(None),
                 ~Entity.id.in_(rated_entity_ids),
             )
+            .group_by(Entity.id, EntityRanking.computed_score)
         )
+    
         rows = (await self.db.execute(stmt)).all()
-
-        # A candidate can match more than one qualifying genre (e.g. a
-        # drama+thriller movie when both dimensions qualify) -- group by
-        # entity so it's scored once, from the mean of every dimension it
-        # matched, not counted (and potentially returned) once per genre.
-        matched: dict[uuid.UUID, dict] = {}
-        for entity, genre_slug, computed_score in rows:
-            bucket = matched.setdefault(
-                entity.id, {"entity": entity, "computed_score": computed_score, "scores": []}
+    
+        # Preserve the existing Python scoring and rounding behavior.
+        scored = []
+        for row in rows:
+            dimension_match = float(row.dimension_match)
+            ranking_normalized = max(
+                0.0,
+                min(
+                    100.0,
+                    row.computed_score * RANKING_SCORE_SCALE,
+                ),
             )
-            bucket["scores"].append(dimension_scores[genre_slug])
-
-        picks = []
-        for bucket in matched.values():
-            dimension_match = sum(bucket["scores"]) / len(bucket["scores"])
-            ranking_normalized = max(0.0, min(100.0, bucket["computed_score"] * RANKING_SCORE_SCALE))
             match_score = round(
-                self.dimension_weight * dimension_match + self.ranking_weight * ranking_normalized, 1
+                self.dimension_weight * dimension_match
+                + self.ranking_weight * ranking_normalized,
+                1,
             )
-            picks.append(PredictedPick(entity=bucket["entity"], match_score=match_score))
+            scored.append((row.entity_id, match_score))
+    
+        scored.sort(key=lambda item: (-item[1], str(item[0])))
+        top_scored = scored[:limit]
+    
+        if not top_scored:
+            return []
+    
+        # Load full Entity objects only for the final recommendations.
+        entity_ids = [entity_id for entity_id, _ in top_scored]
+        entities_result = await self.db.execute(
+            select(Entity).where(Entity.id.in_(entity_ids))
+        )
+        entities_by_id = {
+            entity.id: entity for entity in entities_result.scalars().all()
+        }
+    
+        return [
+            PredictedPick(entity=entities_by_id[entity_id], match_score=score)
+            for entity_id, score in top_scored
+            if entity_id in entities_by_id
+        ]
 
-        # Deterministic tiebreak, same pattern as _dimension_sort_key in
-        # compute.py: score desc, then a stable identifier so ties don't
-        # depend on dict/query iteration order.
-        picks.sort(key=lambda p: (-p.match_score, str(p.entity.id)))
-        return picks[:limit]
