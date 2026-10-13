@@ -36,7 +36,7 @@ export default function Footer() {
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div className="max-w-xs">
           <Link href="/" aria-label={SITE_NAME}>
-            <Image src="/brand-logo.png" alt={SITE_NAME} width={454} height={160} className="h-11 w-auto" />
+            <Image src="/brand-logo.png" alt={SITE_NAME} width={462} height={160} className="h-11 w-auto" />
           </Link>
           <p className="mt-4 text-sm font-bold text-ink">{SITE_TAGLINE}</p>
           <p className="mt-2 text-sm leading-7 text-muted">

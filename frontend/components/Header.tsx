@@ -52,7 +52,7 @@ export default function Header() {
           <Image
             src="/brand-logo.png"
             alt="سینماگزین"
-            width={454}
+            width={462}
             height={160}
             priority
             className="h-11 w-auto md:h-12"
