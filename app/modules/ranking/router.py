@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -5,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.cache import cached
-from app.core.database import get_db, get_read_db
+from app.core.database import AsyncSessionLocal, get_db, get_read_db
 from app.core.schemas import envelope, Meta
 from app.modules.entities.service import EntityService
+from app.modules.entities.person_stats import is_refreshing, refresh_person_stats
 from app.modules.ranking.service import RankingService
 from app.modules.sync.dependencies import verify_internal_api_key
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["ranking"])
 
 
@@ -115,3 +119,29 @@ async def recompute_rankings(entity_type: str = "movie", db: AsyncSession = Depe
     service = RankingService(db)
     count = await service.recompute_all(entity_type)
     return envelope(data={"recomputed": count})
+
+
+_refresh_tasks: set[asyncio.Task] = set()
+
+
+async def _refresh_in_background() -> None:
+    try:
+        async with AsyncSessionLocal() as session:
+            await refresh_person_stats(session)
+    except Exception:
+        logger.exception("person_stats refresh failed")
+
+
+@router.post("/internal/rankings/people/refresh", dependencies=[Depends(verify_internal_api_key)])
+async def refresh_people_ranking(wait: bool = False, db: AsyncSession = Depends(get_db)):
+    """Rebuild the person_stats table behind /rankings/people. The aggregation
+    takes a while, so by default it runs in the background (202-style reply);
+    wait=true runs it inline."""
+    if is_refreshing():
+        return envelope(data={"started": False, "already_running": True})
+    if wait:
+        return envelope(data={"started": True, "rows": await refresh_person_stats(db)})
+    task = asyncio.create_task(_refresh_in_background())
+    _refresh_tasks.add(task)
+    task.add_done_callback(_refresh_tasks.discard)
+    return envelope(data={"started": True})

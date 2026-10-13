@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import aliased, contains_eager, joinedload, load_only, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.entities.models import Entity, EntityComment, RelationshipEdge, EntityRanking
+from app.modules.entities.models import Entity, EntityComment, PersonStats, RelationshipEdge, EntityRanking
 from app.modules.users.models import User
 
 
@@ -29,6 +29,43 @@ def _persian_work(entity):
             entity.attributes["country"].as_string() == "IR",
         ),
         false(),
+    )
+
+
+PEOPLE_ROLE_TYPES = {
+    "director": ["directed_by"],
+    "actor": ["acted_in"],
+    "creator": ["creator"],
+    "all": ["directed_by", "acted_in", "creator"],
+}
+
+
+def credit_stats_query(role: str, origin: str):
+    """Per-person credit aggregate: (person_id, works, avg_score, scored).
+    `role` narrows which credit edges count; `origin` counts only credits on
+    titles of that origin. The one expensive scan behind the people ranking."""
+    work = aliased(Entity)
+    q = (
+        select(
+            RelationshipEdge.to_entity_id.label("person_id"),
+            func.count(RelationshipEdge.id).label("works"),
+            func.avg(EntityRanking.computed_score).label("avg_score"),
+            func.count(EntityRanking.computed_score).label("scored"),
+        )
+        .outerjoin(EntityRanking, EntityRanking.entity_id == RelationshipEdge.from_entity_id)
+        .where(RelationshipEdge.relation_type.in_(PEOPLE_ROLE_TYPES.get(role, PEOPLE_ROLE_TYPES["all"])))
+    )
+    if origin != "all":
+        q = q.join(work, work.id == RelationshipEdge.from_entity_id)
+        q = _apply_origin(q, work, origin)
+    return q.group_by(RelationshipEdge.to_entity_id)
+
+
+def shrunk_score(scored, avg_score):
+    """Bayesian-shrunk mean: a few great credits don't outrank a long run of
+    strong ones (same v/(v+k) idea as the title ranking)."""
+    return (scored * avg_score + PEOPLE_SCORE_PRIOR_WEIGHT * PEOPLE_SCORE_PRIOR) / (
+        scored + PEOPLE_SCORE_PRIOR_WEIGHT
     )
 
 
@@ -154,28 +191,13 @@ class EntityRepository:
         such credits and avg_score the mean computed_score of the credited
         titles that have one. sort_by "score" only admits people with at
         least 3 scored titles so a single hit doesn't top the list."""
-        role_types = {
-            "director": ["directed_by"],
-            "actor": ["acted_in"],
-            "creator": ["creator"],
-        }.get(role, ["directed_by", "acted_in", "creator"])
+        if role not in PEOPLE_ROLE_TYPES:
+            role = "all"
+        # Hot path: the precomputed person_stats table, once it's been filled.
+        if (await self.db.execute(select(PersonStats.person_id).limit(1))).first() is not None:
+            return await self._list_people_from_stats(page, page_size, role, sort_by, origin)
 
-        work = aliased(Entity)
-        credits_q = (
-            select(
-                RelationshipEdge.to_entity_id.label("person_id"),
-                func.count(RelationshipEdge.id).label("works"),
-                func.avg(EntityRanking.computed_score).label("avg_score"),
-                func.count(EntityRanking.computed_score).label("scored"),
-            )
-            .outerjoin(EntityRanking, EntityRanking.entity_id == RelationshipEdge.from_entity_id)
-            .where(RelationshipEdge.relation_type.in_(role_types))
-        )
-        if origin != "all":
-            # Only credits on titles of the requested origin count.
-            credits_q = credits_q.join(work, work.id == RelationshipEdge.from_entity_id)
-            credits_q = _apply_origin(credits_q, work, origin)
-        credits = credits_q.group_by(RelationshipEdge.to_entity_id).subquery()
+        credits = credit_stats_query(role, origin).subquery()
         stmt = (
             select(Entity, credits.c.works, credits.c.avg_score, func.count().over().label("total"))
             .options(load_only(*_CARD_COLUMNS))
@@ -186,9 +208,7 @@ class EntityRepository:
         if sort_by == "score":
             # Bayesian-shrunk mean: a few great credits don't outrank a long
             # run of strong ones (same v/(v+k) idea as the title ranking).
-            shrunk = (credits.c.scored * credits.c.avg_score + PEOPLE_SCORE_PRIOR_WEIGHT * PEOPLE_SCORE_PRIOR) / (
-                credits.c.scored + PEOPLE_SCORE_PRIOR_WEIGHT
-            )
+            shrunk = shrunk_score(credits.c.scored, credits.c.avg_score)
             stmt = stmt.where(credits.c.scored >= 3).order_by(shrunk.desc().nulls_last(), Entity.id)
         else:
             stmt = stmt.order_by(credits.c.works.desc(), Entity.title, Entity.id)
@@ -197,6 +217,30 @@ class EntityRepository:
         if not rows:
             return [], 0
         return [(e, int(w), float(a) if a is not None else None) for e, w, a, _ in rows], rows[0][3]
+
+    async def _list_people_from_stats(
+        self, page: int, page_size: int, role: str, sort_by: str, origin: str
+    ) -> tuple[list[tuple[Entity, int, float | None]], int]:
+        """list_people served from person_stats: same filters and ordering,
+        no aggregation. The total is a plain count over the same slice."""
+        slice_ = (PersonStats.role == role, PersonStats.origin == origin)
+        stmt = (
+            select(Entity, PersonStats.works, PersonStats.avg_score)
+            .options(load_only(*_CARD_COLUMNS))
+            .join(PersonStats, PersonStats.person_id == Entity.id)
+            .where(*slice_, Entity.entity_type == "person")
+        )
+        count_stmt = select(func.count()).select_from(PersonStats).where(*slice_)
+        if sort_by == "score":
+            stmt = stmt.where(PersonStats.scored >= 3).order_by(PersonStats.shrunk.desc().nulls_last(), Entity.id)
+            count_stmt = count_stmt.where(PersonStats.scored >= 3)
+        else:
+            stmt = stmt.order_by(PersonStats.works.desc(), Entity.title, Entity.id)
+        rows = (await self.db.execute(stmt.offset((page - 1) * page_size).limit(page_size))).all()
+        if not rows:
+            return [], 0
+        total = (await self.db.execute(count_stmt)).scalar_one()
+        return [(e, int(w), float(a) if a is not None else None) for e, w, a in rows], total
 
     async def list_collaborators(
         self, person_id: uuid.UUID, limit: int

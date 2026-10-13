@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, String, Text, DateTime, UniqueConstraint, func
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, DateTime, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -76,6 +76,32 @@ class EntityRanking(Base):
     )
 
     entity: Mapped["Entity"] = relationship(back_populates="ranking")
+
+
+class PersonStats(Base):
+    """Precomputed credit totals per (person, role, origin) for the people
+    ranking, so list_people reads an index instead of aggregating every credit
+    edge. Rebuilt by app/modules/entities/person_stats.py (see
+    scripts/refresh_person_stats.py)."""
+    __tablename__ = "person_stats"
+    __table_args__ = (
+        Index("ix_person_stats_works", "role", "origin", text("works DESC"), "person_id"),
+        Index(
+            "ix_person_stats_shrunk", "role", "origin", text("shrunk DESC"), "person_id",
+            postgresql_where=text("scored >= 3"),
+        ),
+    )
+
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True
+    )
+    role: Mapped[str] = mapped_column(String(20), primary_key=True)    # all | director | actor | creator
+    origin: Mapped[str] = mapped_column(String(20), primary_key=True)  # all | persian | foreign
+    works: Mapped[int] = mapped_column(Integer, nullable=False)
+    scored: Mapped[int] = mapped_column(Integer, nullable=False)       # credited titles that have a score
+    avg_score: Mapped[float | None] = mapped_column(nullable=True)
+    shrunk: Mapped[float | None] = mapped_column(nullable=True)        # Bayesian-shrunk mean, for sort=score
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class EntityComment(Base):
