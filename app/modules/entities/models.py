@@ -27,7 +27,7 @@ class Entity(Base):
     slug: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     attributes: Mapped[dict] = mapped_column(JSONB, default=dict)
     
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True, deferred=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
