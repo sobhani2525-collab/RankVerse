@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, func, case, update, delete, or_, exists, union
+from sqlalchemy import select, func, case, update, delete, or_, exists, union, null, false
 from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,19 +56,21 @@ class ListRepository:
 
     async def get_detail_by_slug(self, slug: str) -> UserList | None:
         """get_by_slug plus each item entity's ranking row (for the
-        composite score on the list detail page)."""
+        composite score on the list detail page). One joined query rather
+        than a selectinload per level: every extra round trip costs ~130ms+
+        against the remote DB."""
         stmt = (
             select(UserList)
             .options(
-                selectinload(UserList.items)
-                .selectinload(UserListItem.entity)
-                .selectinload(Entity.ranking),
-                selectinload(UserList.owner),
+                joinedload(UserList.items)
+                .joinedload(UserListItem.entity)
+                .joinedload(Entity.ranking),
+                joinedload(UserList.owner),
             )
             .where(_matches_slug(slug))
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.unique().scalar_one_or_none()
 
     async def graph_edges_for_entities(
         self, entity_ids: list[uuid.UUID], relation_types: list[str]
@@ -641,6 +643,54 @@ class ListRepository:
         )
         result = await self.db.execute(stmt)
         return {row[0]: row[1] for row in result.all()}
+
+    async def item_vote_summary(
+        self, list_id: uuid.UUID, user_id: uuid.UUID | None
+    ) -> dict[uuid.UUID, tuple[int, int, bool | None]]:
+        """item_vote_counts_for_list and user_item_votes_for_list in one query:
+        item id -> (likes, dislikes, the viewer's own vote or None)."""
+        if user_id is None:
+            my_vote = null()
+        else:
+            my_vote = func.max(
+                case((ListItemLike.user_id == user_id, case((ListItemLike.is_like.is_(True), 1), else_=0)))
+            )
+        stmt = (
+            select(
+                ListItemLike.list_item_id,
+                func.sum(case((ListItemLike.is_like.is_(True), 1), else_=0)),
+                func.sum(case((ListItemLike.is_like.is_(False), 1), else_=0)),
+                my_vote,
+            )
+            .join(UserListItem, UserListItem.id == ListItemLike.list_item_id)
+            .where(UserListItem.list_id == list_id)
+            .group_by(ListItemLike.list_item_id)
+        )
+        return {
+            row[0]: (int(row[1] or 0), int(row[2] or 0), None if row[3] is None else bool(row[3]))
+            for row in (await self.db.execute(stmt)).all()
+        }
+
+    async def social_summary(self, list_id: uuid.UUID, user_id: uuid.UUID | None) -> tuple[int, bool, bool]:
+        """(contributor count, viewer liked the list, viewer follows it) in one
+        statement instead of three round trips."""
+        users = union(
+            select(UserListItem.added_by_user_id.label("uid")).where(UserListItem.list_id == list_id),
+            select(ListItemLike.user_id.label("uid"))
+            .join(UserListItem, UserListItem.id == ListItemLike.list_item_id)
+            .where(UserListItem.list_id == list_id),
+            select(ListLike.user_id.label("uid")).where(ListLike.list_id == list_id),
+            select(ListFollow.user_id.label("uid")).where(ListFollow.list_id == list_id),
+            select(ListComment.user_id.label("uid")).where(ListComment.list_id == list_id),
+        ).subquery()
+        contributors = select(func.count()).select_from(users).where(users.c.uid.is_not(None)).scalar_subquery()
+        if user_id is None:
+            liked, following = false(), false()
+        else:
+            liked = exists().where(ListLike.list_id == list_id, ListLike.user_id == user_id)
+            following = exists().where(ListFollow.list_id == list_id, ListFollow.user_id == user_id)
+        row = (await self.db.execute(select(contributors, liked, following))).one()
+        return int(row[0]), bool(row[1]), bool(row[2])
 
     async def count_contributors(self, list_id: uuid.UUID) -> int:
         """Distinct users who took part in the list: added an item, voted on

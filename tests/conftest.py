@@ -118,10 +118,32 @@ async def db_session(test_engine):
 
 
 @pytest_asyncio.fixture
-async def client(db_session):
+async def client(db_session, monkeypatch):
     """An httpx client wired to the FastAPI app, sharing db_session's transaction."""
+    from contextlib import asynccontextmanager
+
     from app.core.database import get_db, get_read_db
     from app.main import app
+    from app.modules.lists import router as lists_router
+    from app.modules.lists import service as lists_service
+    from app.modules.lists.repository import ListRepository
+
+    # The list page overlaps queries on extra connections and counts views in
+    # a background session; in tests everything must stay on the one
+    # transaction, so run it inline and in sequence.
+    @asynccontextmanager
+    async def _side_session():
+        yield db_session
+
+    async def _sequential(*aws):
+        return [await a for a in aws]
+
+    async def _record_view(list_id):
+        await ListRepository(db_session).increment_view(list_id)
+
+    monkeypatch.setattr(lists_service, "_side_session", _side_session)
+    monkeypatch.setattr(lists_service, "_gather", _sequential)
+    monkeypatch.setattr(lists_router, "record_list_view", _record_view)
 
     async def _override_get_db():
         yield db_session

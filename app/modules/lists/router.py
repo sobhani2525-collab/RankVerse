@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -15,7 +15,7 @@ from app.modules.lists.schemas import (
     ListCreate, ListUpdate, ListItemCreate, ListItemReorder, ListItemLikeCreate, CommentCreate,
     WatchLaterToggle,
 )
-from app.modules.lists.service import ListService
+from app.modules.lists.service import ListService, record_list_view
 
 router = APIRouter(tags=["lists"])
 
@@ -84,11 +84,13 @@ async def similar_lists(
 @router.get("/lists/{slug}")
 async def get_list(
     slug: str,
+    background_tasks: BackgroundTasks,
     current_user: User | None = Depends(get_current_user_optional),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ):
     service = ListService(db)
     detail = await service.get_list_detail(slug, current_user.id if current_user else None)
+    background_tasks.add_task(record_list_view, detail.id)
     return envelope(data=detail.model_dump())
 
 

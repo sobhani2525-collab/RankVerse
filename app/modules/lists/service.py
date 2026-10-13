@@ -1,10 +1,14 @@
+import asyncio
+import logging
 import uuid
+from contextlib import asynccontextmanager
 
 from app.core.slug import persian_slugify
 from app.modules.lists.models import UserList, UserListItem, ContributionMode, ListType
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.database import AsyncSessionLocal, ReadSessionLocal
 from app.core.exceptions import NotFoundError, AlreadyExistsError, ForbiddenError, UnauthorizedError, ValidationError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.service import _extract_media
@@ -24,6 +28,32 @@ from app.modules.lists.schemas import (
 )
 from app.modules.search.router import find_entities_by_title
 from app.modules.taste.compute import ContributionStatsComputer
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def _side_session():
+    """A short-lived read-only session, so independent queries of one request
+    can overlap on separate connections (an AsyncSession runs one at a time)."""
+    async with ReadSessionLocal() as session:
+        yield session
+
+
+async def _gather(*aws):
+    return await asyncio.gather(*aws)
+
+
+async def record_list_view(list_id: uuid.UUID) -> None:
+    """Count one page view. Runs after the response, on its own session, so
+    the reader doesn't wait on a write and a commit."""
+    try:
+        async with AsyncSessionLocal() as db:
+            await ListRepository(db).increment_view(list_id)
+            await db.commit()
+    except Exception:
+        logger.warning("could not record view for list %s", list_id, exc_info=True)
+
 
 # Relation types the list-detail constellation reads (see graph.py).
 GRAPH_RELATION_TYPES = ["directed_by", "creator", "acted_in", "has_genre"]
@@ -254,29 +284,34 @@ class ListService:
         if lst.visibility == "private" and (not current_user_id or current_user_id != lst.user_id):
             raise NotFoundError(f"List '{slug}' not found")
 
-        await self.repo.increment_view(lst.id)
-        await self.db.commit()
-
-        is_liked = False
-        is_following = False
         is_owner = (current_user_id == lst.user_id) if current_user_id else False
-        my_votes: dict[uuid.UUID, bool] = {}
-        if current_user_id:
-            is_liked = (await self.repo.get_like(lst.id, current_user_id)) is not None
-            is_following = (await self.repo.get_follow(lst.id, current_user_id)) is not None
-            my_votes = await self.repo.user_item_votes_for_list(lst.id, current_user_id)
-
-        vote_counts = await self.repo.item_vote_counts_for_list(lst.id)
-
         ordered = _display_order(lst)
-
         entities = [item.entity for item in ordered]
-        graph_rows = await self.repo.graph_edges_for_entities(
-            [e.id for e in entities], GRAPH_RELATION_TYPES
+
+        # The view itself is counted after the response (record_list_view);
+        # the page shows the count including this visit, as before.
+        view_count = lst.view_count + 1
+
+        async def graph_branch():
+            graph_rows = await self.repo.graph_edges_for_entities(
+                [e.id for e in entities], GRAPH_RELATION_TYPES
+            )
+            return _build_graph_items(entities, graph_rows, await self._person_graph_data(entities))
+
+        async def social_branch():
+            async with _side_session() as side:
+                side_repo = ListRepository(side)
+                social = await side_repo.social_summary(lst.id, current_user_id)
+                votes = await side_repo.item_vote_summary(lst.id, current_user_id)
+            return social, votes
+
+        # Independent of each other, so they overlap: ~2-3 sequential round
+        # trips instead of one per statement.
+        graph_items, ((contributor_count, is_liked, is_following), votes) = await _gather(
+            graph_branch(), social_branch()
         )
-        graph_items = _build_graph_items(
-            entities, graph_rows, await self._person_graph_data(entities)
-        )
+        vote_counts = {item_id: (likes, dislikes) for item_id, (likes, dislikes, _) in votes.items()}
+        my_votes = {item_id: mine for item_id, (_, _, mine) in votes.items() if mine is not None}
 
         items = []
         for item, node in zip(ordered, graph_items):
@@ -301,8 +336,6 @@ class ListService:
         cast_depth = settings.list_graph_cast_depth
         priority = [p.strip() for p in settings.list_graph_edge_priority.split(",") if p.strip()]
 
-        contributor_count = await self.repo.count_contributors(lst.id)
-
         return ListDetail(
             id=lst.id,
             slug=lst.slug,
@@ -315,7 +348,7 @@ class ListService:
             tags=lst.tags,
             list_type=lst.list_type,
             contribution_mode=lst.contribution_mode,
-            view_count=lst.view_count,
+            view_count=view_count,
             like_count=lst.like_count,
             comment_count=lst.comment_count,
             follower_count=lst.follower_count,

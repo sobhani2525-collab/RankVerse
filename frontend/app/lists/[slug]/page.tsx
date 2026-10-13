@@ -1,4 +1,4 @@
-import { cache } from "react";
+import { Suspense, cache } from "react";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
@@ -156,24 +156,21 @@ export default async function ListDetailPage({
 }) {
   const slug = decodeListSlug((await params).slug);
 
-  let detail: ListDetail;
-  try {
-    detail = await loadList(slug);
-  } catch {
-    notFound();
-  }
+  // The list and its comments are independent API calls (each a slow round
+  // trip), so start both at once; the backend resolves old slugs for comments too.
+  const [listResult, commentsResult] = await Promise.allSettled([
+    loadList(slug),
+    getListComments(slug),
+  ]);
+  if (listResult.status === "rejected") notFound();
+  const detail: ListDetail = listResult.value;
 
   // An old slug (after a rename, or a pre-Persian Finglish one) resolves
   // server-side; send it to the canonical URL. Outside the try/catch on
   // purpose: permanentRedirect works by throwing.
   if (detail.slug !== slug) permanentRedirect(listHref(detail.slug));
 
-  let comments: ListComment[] = [];
-  try {
-    comments = await getListComments(detail.slug);
-  } catch {
-    comments = [];
-  }
+  const comments: ListComment[] = commentsResult.status === "fulfilled" ? commentsResult.value : [];
 
   return (
     <ListViewerProvider slug={detail.slug} initialDetail={detail}>
@@ -199,7 +196,9 @@ export default async function ListDetailPage({
 
           <aside className="flex shrink-0 flex-col gap-10 lg:w-[380px] lg:gap-7">
             <ListBattlePreview />
-            <RelatedLists slug={detail.slug} />
+            <Suspense fallback={null}>
+              <RelatedLists slug={detail.slug} />
+            </Suspense>
             <ListComments slug={detail.slug} initialComments={comments} ownerUsername={detail.owner_username} />
           </aside>
         </div>
