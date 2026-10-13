@@ -227,6 +227,8 @@ class Settings(BaseSettings):
     cache_ttl_lists: int = 300  # movie/tv lists, rankings, genres, highlights
     cache_ttl_people: int = 900
     cache_ttl_sitemap: int = 3600
+    # Background rebuild of the person_stats table (people ranking); 0 disables.
+    person_stats_refresh_hours: int = 6
 
     @property
     def cors_origin_list(self) -> list[str]:

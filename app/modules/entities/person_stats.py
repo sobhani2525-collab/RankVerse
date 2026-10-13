@@ -6,11 +6,13 @@ either the old table or the new one, never a half-built mix.
 """
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, func, insert, literal, select
+from sqlalchemy import delete, func, insert, literal, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import cache
+from app.core.database import AsyncSessionLocal
 from app.modules.entities.models import Entity, PersonStats
 from app.modules.entities.repository import PEOPLE_ROLE_TYPES, credit_stats_query, shrunk_score
 
@@ -19,15 +21,26 @@ logger = logging.getLogger(__name__)
 ORIGINS = ("all", "persian", "foreign")
 
 _refresh_lock = asyncio.Lock()
+# Postgres advisory lock key: only one process (script, endpoint, or any app
+# instance's background loop) rebuilds the table at a time.
+_ADVISORY_KEY = 7_421_930_001
+_STARTUP_DELAY_SECONDS = 60
+_CHECK_EVERY_SECONDS = 1800
 
 
 def is_refreshing() -> bool:
     return _refresh_lock.locked()
 
 
-async def refresh_person_stats(db: AsyncSession) -> int:
-    """Replace person_stats with fresh totals; returns the row count."""
+async def refresh_person_stats(db: AsyncSession) -> int | None:
+    """Replace person_stats with fresh totals; returns the row count, or None
+    when another process is already rebuilding it."""
     async with _refresh_lock:
+        # Transaction-scoped: released by the commit below (or any failure).
+        got = (await db.execute(text("SELECT pg_try_advisory_xact_lock(:k)"), {"k": _ADVISORY_KEY})).scalar_one()
+        if not got:
+            await db.rollback()
+            return None
         await db.execute(delete(PersonStats))
         for role in PEOPLE_ROLE_TYPES:
             for origin in ORIGINS:
@@ -53,3 +66,28 @@ async def refresh_person_stats(db: AsyncSession) -> int:
         await db.commit()
         cache.clear()  # this worker's cached people lists predate the rebuild
         return (await db.execute(select(func.count()).select_from(PersonStats))).scalar_one()
+
+
+async def refresh_if_stale(max_age: timedelta) -> bool:
+    """Rebuild unless the table was built within max_age. True if it rebuilt."""
+    async with AsyncSessionLocal() as db:
+        built = (await db.execute(select(func.max(PersonStats.updated_at)))).scalar_one()
+        if built is not None and datetime.now(timezone.utc) - built < max_age:
+            return False
+        return await refresh_person_stats(db) is not None
+
+
+async def refresh_loop(interval_hours: int) -> None:
+    """Keeps person_stats fresh from inside the app (no cron on Liara). Every
+    instance runs this; the table's own updated_at and the advisory lock make
+    sure the aggregation runs about once per interval overall."""
+    await asyncio.sleep(_STARTUP_DELAY_SECONDS)
+    while True:
+        try:
+            if await refresh_if_stale(timedelta(hours=interval_hours)):
+                logger.info("person_stats refreshed in background")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("person_stats background refresh failed")
+        await asyncio.sleep(_CHECK_EVERY_SECONDS)

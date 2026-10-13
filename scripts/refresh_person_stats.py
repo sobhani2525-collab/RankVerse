@@ -22,6 +22,9 @@ async def main() -> None:
     start = time.monotonic()
     async with AsyncSessionLocal() as db:
         rows = await refresh_person_stats(db)
+    if rows is None:
+        print("another process is already rebuilding person_stats; nothing to do")
+        return
     print(f"person_stats rebuilt: {rows} rows in {time.monotonic() - start:.1f}s")
 
 

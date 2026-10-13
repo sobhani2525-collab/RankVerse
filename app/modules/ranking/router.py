@@ -140,7 +140,10 @@ async def refresh_people_ranking(wait: bool = False, db: AsyncSession = Depends(
     if is_refreshing():
         return envelope(data={"started": False, "already_running": True})
     if wait:
-        return envelope(data={"started": True, "rows": await refresh_person_stats(db)})
+        rows = await refresh_person_stats(db)
+        if rows is None:
+            return envelope(data={"started": False, "already_running": True})
+        return envelope(data={"started": True, "rows": rows})
     task = asyncio.create_task(_refresh_in_background())
     _refresh_tasks.add(task)
     task.add_done_callback(_refresh_tasks.discard)

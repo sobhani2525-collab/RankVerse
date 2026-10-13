@@ -68,3 +68,43 @@ async def test_refresh_endpoint_requires_internal_key(client, monkeypatch):
     assert (await client.post(url)).status_code == 401
     res = await client.post(url, headers={"X-Internal-API-Key": "k"})
     assert res.status_code == 200 and res.json()["data"]["started"] is True
+
+
+class _SessionCtx:
+    def __init__(self, session):
+        self.session = session
+
+    async def __aenter__(self):
+        return self.session
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+async def test_refresh_if_stale_builds_then_skips_while_fresh(db_session, monkeypatch):
+    from datetime import timedelta
+
+    from app.modules.entities import person_stats
+
+    monkeypatch.setattr(person_stats, "AsyncSessionLocal", lambda: _SessionCtx(db_session))
+    await _seed(db_session)
+
+    assert await person_stats.refresh_if_stale(timedelta(hours=6)) is True  # empty table
+    assert await person_stats.refresh_if_stale(timedelta(hours=6)) is False  # just built
+    await db_session.execute(PersonStats.__table__.update().values(updated_at=func.now() - timedelta(hours=7)))
+    assert await person_stats.refresh_if_stale(timedelta(hours=6)) is True
+
+
+async def test_refresh_skips_when_another_process_holds_the_lock(db_session, test_engine):
+    from sqlalchemy import text
+
+    from app.modules.entities import person_stats
+
+    await _seed(db_session)
+    async with test_engine.connect() as other:
+        await other.execute(text("SELECT pg_advisory_lock(:k)"), {"k": person_stats._ADVISORY_KEY})
+        try:
+            assert await refresh_person_stats(db_session) is None
+        finally:
+            await other.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": person_stats._ADVISORY_KEY})
+    assert await refresh_person_stats(db_session) > 0

@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,6 +7,7 @@ from app.config import settings
 
 from app.api.v1.router import api_router
 from app.modules.entities.ego import warm_hero_pool
+from app.modules.entities.person_stats import refresh_loop
 from app.core.exceptions import (
     RankVerseError,
     rankverse_exception_handler,
@@ -48,6 +51,14 @@ async def _warm_hero_pool():
     # Index the home hero's graphs in the background so the first visitor
     # doesn't wait for them.
     warm_hero_pool()
+
+
+@app.on_event("startup")
+async def _start_person_stats_refresh():
+    # The people ranking reads the person_stats summary table; rebuild it
+    # periodically so it doesn't go stale (see entities/person_stats.py).
+    if settings.person_stats_refresh_hours > 0:
+        app.state.person_stats_task = asyncio.create_task(refresh_loop(settings.person_stats_refresh_hours))
 
 
 @app.get("/health")
