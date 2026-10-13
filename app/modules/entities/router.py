@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
 import uuid
@@ -40,7 +42,11 @@ SITEMAP_TYPES = ("movie", "tv_series", "person", "genre")
 
 @router.get("/sitemap/entities/counts")
 async def entities_sitemap_counts(db: AsyncSession = Depends(get_read_db)):
-    return envelope(data=await EntityRepository(db).sitemap_counts(SITEMAP_TYPES))
+    data = await cached(
+        ("sitemap-counts",), settings.cache_ttl_sitemap,
+        lambda: EntityRepository(db).sitemap_counts(SITEMAP_TYPES),
+    )
+    return envelope(data=data)
 
 
 @router.get("/sitemap/entities")
@@ -64,11 +70,15 @@ async def list_movies(
     sort: str = Query("score", pattern="^(score|newest)$"),
     db: AsyncSession = Depends(get_read_db),
 ):
-    service = EntityService(db)
-    items, total = await service.list_movies(page, page_size, genre, year_from, year_to, sort)
-    return envelope(
-        data=[i.model_dump() for i in items],
-        meta=Meta(page=page, page_size=page_size, total=total),
+    async def load():
+        items, total = await EntityService(db).list_movies(page, page_size, genre, year_from, year_to, sort)
+        return envelope(
+            data=[i.model_dump() for i in items],
+            meta=Meta(page=page, page_size=page_size, total=total),
+        )
+
+    return await cached(
+        ("movies", page, page_size, genre, year_from, year_to, sort), settings.cache_ttl_lists, load
     )
 
 
@@ -111,9 +121,10 @@ async def get_tv_series_suggested_battle(
 
 @router.get("/people/{slug}")
 async def get_person(slug: str, db: AsyncSession = Depends(get_read_db)):
-    service = EntityService(db)
-    person = await service.get_person_detail(slug)
-    return envelope(data=person.model_dump())
+    async def load():
+        return envelope(data=(await EntityService(db).get_person_detail(slug)).model_dump())
+
+    return await cached(("person", slug), settings.cache_ttl_people, load)
 
 
 @router.get("/graph/hero-pool")
@@ -128,9 +139,10 @@ async def get_ego_graph(slug: str, db: AsyncSession = Depends(get_read_db)):
 
 @router.get("/genres/{slug}")
 async def get_genre(slug: str, db: AsyncSession = Depends(get_read_db)):
-    service = EntityService(db)
-    genre = await service.get_genre_detail(slug)
-    return envelope(data=genre.model_dump())
+    async def load():
+        return envelope(data=(await EntityService(db).get_genre_detail(slug)).model_dump())
+
+    return await cached(("genre", slug), settings.cache_ttl_lists, load)
 
 
 @router.get("/tracks/{slug}")

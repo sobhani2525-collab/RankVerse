@@ -75,7 +75,9 @@ async def test_featured_list_bypasses_quality_bar_and_hidden_list_is_dropped(
     assert "big-list" not in [e["slug"] for e in sitemap.json()["data"]]
 
 
-async def test_featured_endpoint_order_and_reorder(client, db_session, test_user, admin_headers):
+async def test_featured_endpoint_order_and_reorder(client, db_session, test_user, admin_headers, monkeypatch):
+    # Ordering is under test, not the response cache.
+    monkeypatch.setattr("app.config.settings.cache_enabled", False)
     a = await _make_list(db_session, test_user, "List Alpha", 3)
     b = await _make_list(db_session, test_user, "List Bravo", 3)
     for lst in (a, b):

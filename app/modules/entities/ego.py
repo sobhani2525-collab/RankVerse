@@ -19,6 +19,7 @@ from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.config import settings
 from app.core.database import ReadSessionLocal
 from app.core.exceptions import NotFoundError
 from app.modules.entities.models import Entity, RelationshipEdge
@@ -204,7 +205,7 @@ async def build_ego_graph(db: AsyncSession, slug: str) -> dict:
 # Hero pool: the entities the home hero rotates through, indexed once.
 # ---------------------------------------------------------------------------
 
-HERO_TTL_SECONDS = 1800
+HERO_TTL_SECONDS = settings.cache_ttl_hero_pool
 # (entity_type, persian?, how many, min IMDb votes). Iranian titles have far
 # fewer IMDb votes than foreign ones, hence the separate floors.
 HERO_TITLE_SLOTS = (

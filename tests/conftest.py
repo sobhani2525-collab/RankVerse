@@ -85,6 +85,16 @@ def test_engine():
 
 
 @pytest.fixture(autouse=True)
+def _fresh_response_cache():
+    """The in-process response cache outlives a test's rolled-back data."""
+    from app.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def _inline_taste_refresh(monkeypatch):
     """Taste DNA normally refreshes in a background task on its own session
     (app/modules/taste/refresh.py), which would open real DATABASE_URL

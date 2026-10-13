@@ -3,6 +3,8 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope, Meta
@@ -61,9 +63,11 @@ async def featured_lists(
 ):
     """Admin-curated featured lists, in curated order. Declared before
     /lists/{slug} so "featured" isn't read as a slug."""
-    service = ListService(db)
-    items = await service.featured(limit)
-    return envelope(data=[i.model_dump() for i in items])
+    async def load():
+        items = await ListService(db).featured(limit)
+        return envelope(data=[i.model_dump() for i in items])
+
+    return await cached(("featured", limit), settings.cache_ttl_featured, load)
 
 
 @router.get("/lists/similar")

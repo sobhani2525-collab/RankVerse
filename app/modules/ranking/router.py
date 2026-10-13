@@ -3,6 +3,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
 from app.modules.entities.service import EntityService
@@ -26,16 +28,20 @@ async def top_movies(
     origin: Literal["all", "persian", "foreign"] = "all",
     db: AsyncSession = Depends(get_read_db),
 ):
-    service = EntityService(db)
-    # Made-for-TV films (stand-up specials, TV episodes released as "movies")
-    # are fan-voted far above theatrical films; keep them out of the movie ranking.
-    items, total = await service.list_movies(
-        page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin,
-        exclude_genre_slugs=RANKING_EXCLUDED_MOVIE_GENRES,
-    )
-    return envelope(
-        data=[i.model_dump() for i in items],
-        meta=Meta(page=page, page_size=page_size, total=total),
+    async def load():
+        # Made-for-TV films (stand-up specials, TV episodes released as "movies")
+        # are fan-voted far above theatrical films; keep them out of the movie ranking.
+        items, total = await EntityService(db).list_movies(
+            page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin,
+            exclude_genre_slugs=RANKING_EXCLUDED_MOVIE_GENRES,
+        )
+        return envelope(
+            data=[i.model_dump() for i in items],
+            meta=Meta(page=page, page_size=page_size, total=total),
+        )
+
+    return await cached(
+        ("rank-movies", page, page_size, genre, year_from, year_to, sort, origin), settings.cache_ttl_lists, load
     )
 
 
@@ -48,8 +54,8 @@ async def top_people(
     origin: Literal["all", "persian", "foreign"] = "all",
     db: AsyncSession = Depends(get_read_db),
 ):
-    service = EntityService(db)
-    items, total = await service.list_people(page, page_size, role=role, sort_by=sort, origin=origin)
+    # list_people is itself cached (people TTL) inside EntityService.
+    items, total = await EntityService(db).list_people(page, page_size, role=role, sort_by=sort, origin=origin)
     return envelope(
         data=[i.model_dump() for i in items],
         meta=Meta(page=page, page_size=page_size, total=total),
@@ -59,12 +65,12 @@ async def top_people(
 @router.get("/movies/{slug}/rankings")
 async def movie_ranking_highlights(slug: str, db: AsyncSession = Depends(get_read_db)):
     """Where this movie ranks within each automatic ranking group it belongs to (genre, director, ...)."""
-    entity_service = EntityService(db)
-    entity = await entity_service.get_movie_entity(slug)
+    async def load():
+        entity = await EntityService(db).get_movie_entity(slug)
+        highlights = await RankingService(db).get_entity_highlights(entity)
+        return envelope(data=[h.model_dump() for h in highlights])
 
-    service = RankingService(db)
-    highlights = await service.get_entity_highlights(entity)
-    return envelope(data=[h.model_dump() for h in highlights])
+    return await cached(("highlights", "movie", slug), settings.cache_ttl_lists, load)
 
 
 @router.get("/rankings/tv-series")
@@ -78,23 +84,29 @@ async def top_tv_series(
     origin: Literal["all", "persian", "foreign"] = "all",
     db: AsyncSession = Depends(get_read_db),
 ):
-    service = EntityService(db)
-    items, total = await service.list_tv_series(page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin)
-    return envelope(
-        data=[i.model_dump() for i in items],
-        meta=Meta(page=page, page_size=page_size, total=total),
+    async def load():
+        items, total = await EntityService(db).list_tv_series(
+            page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin
+        )
+        return envelope(
+            data=[i.model_dump() for i in items],
+            meta=Meta(page=page, page_size=page_size, total=total),
+        )
+
+    return await cached(
+        ("rank-tv", page, page_size, genre, year_from, year_to, sort, origin), settings.cache_ttl_lists, load
     )
 
 
 @router.get("/tv-series/{slug}/rankings")
 async def tv_series_ranking_highlights(slug: str, db: AsyncSession = Depends(get_read_db)):
     """Where this tv_series ranks within each automatic ranking group it belongs to (genre, creator, ...)."""
-    entity_service = EntityService(db)
-    entity = await entity_service.get_tv_series_entity(slug)
+    async def load():
+        entity = await EntityService(db).get_tv_series_entity(slug)
+        highlights = await RankingService(db).get_entity_highlights(entity)
+        return envelope(data=[h.model_dump() for h in highlights])
 
-    service = RankingService(db)
-    highlights = await service.get_entity_highlights(entity)
-    return envelope(data=[h.model_dump() for h in highlights])
+    return await cached(("highlights", "tv_series", slug), settings.cache_ttl_lists, load)
 
 
 @router.post("/internal/rankings/recompute", dependencies=[Depends(verify_internal_api_key)])

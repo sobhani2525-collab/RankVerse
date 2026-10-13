@@ -1,8 +1,9 @@
-import time
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.core.cache import cached
 from app.core.exceptions import ForbiddenError, NotFoundError
 from app.modules.entities.repository import EntityRepository
 from app.modules.entities.schemas import (
@@ -64,9 +65,6 @@ def _by_score_desc(item: MovieListItem):
     return (item.computed_score is None, -(item.computed_score or 0))
 
 
-_PEOPLE_TTL = 600  # seconds
-_PEOPLE_CACHE: dict[tuple, tuple[float, tuple[list, int]]] = {}
-
 
 
 def _person_image(entity) -> str | None:
@@ -112,15 +110,11 @@ class EntityService:
     ) -> tuple[list[PersonListItem], int]:
         # The credit aggregation behind this scans every credit edge (seconds
         # on a big catalog) and changes slowly, so recent answers are reused.
-        key = (page, page_size, role, sort_by, origin)
-        hit = _PEOPLE_CACHE.get(key)
-        if hit and time.monotonic() - hit[0] < _PEOPLE_TTL:
-            return hit[1]
-        result = await self._list_people_uncached(page, page_size, role, sort_by, origin)
-        if len(_PEOPLE_CACHE) > 200:
-            _PEOPLE_CACHE.clear()
-        _PEOPLE_CACHE[key] = (time.monotonic(), result)
-        return result
+        return await cached(
+            ("people", page, page_size, role, sort_by, origin),
+            settings.cache_ttl_people,
+            lambda: self._list_people_uncached(page, page_size, role, sort_by, origin),
+        )
 
     async def _list_people_uncached(
         self, page: int, page_size: int, role: str, sort_by: str, origin: str

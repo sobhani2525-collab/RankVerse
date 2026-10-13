@@ -220,6 +220,14 @@ class Settings(BaseSettings):
     daily_battle_no_repeat_days: int = 60
     daily_battle_guest_ip_limit: int = 20
 
+    # In-process response cache (app/core/cache.py); TTLs in seconds.
+    cache_enabled: bool = True
+    cache_ttl_hero_pool: int = 600
+    cache_ttl_featured: int = 300
+    cache_ttl_lists: int = 300  # movie/tv lists, rankings, genres, highlights
+    cache_ttl_people: int = 900
+    cache_ttl_sitemap: int = 3600
+
     @property
     def cors_origin_list(self) -> list[str]:
         origins = [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
