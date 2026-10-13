@@ -2,11 +2,16 @@ import uuid
 
 from sqlalchemy import and_, bindparam, delete, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import aliased, contains_eager, joinedload, selectinload
+from sqlalchemy.orm import aliased, contains_eager, joinedload, load_only, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity, EntityComment, RelationshipEdge, EntityRanking
 from app.modules.users.models import User
+
+
+# Columns the list/card responses read from an Entity (attributes carries
+# poster, year, title_fa, media); external ids and timestamps stay unloaded.
+_CARD_COLUMNS = (Entity.id, Entity.entity_type, Entity.title, Entity.slug, Entity.attributes)
 
 
 # People ranked "by score": credits' mean score is pulled toward this value
@@ -171,9 +176,12 @@ class EntityRepository:
             credits_q = credits_q.join(work, work.id == RelationshipEdge.from_entity_id)
             credits_q = _apply_origin(credits_q, work, origin)
         credits = credits_q.group_by(RelationshipEdge.to_entity_id).subquery()
-        stmt = select(Entity, credits.c.works, credits.c.avg_score, func.count().over().label("total")).join(
-            credits, credits.c.person_id == Entity.id
-        ).where(Entity.entity_type == "person")
+        stmt = (
+            select(Entity, credits.c.works, credits.c.avg_score, func.count().over().label("total"))
+            .options(load_only(*_CARD_COLUMNS))
+            .join(credits, credits.c.person_id == Entity.id)
+            .where(Entity.entity_type == "person")
+        )
 
         if sort_by == "score":
             # Bayesian-shrunk mean: a few great credits don't outrank a long
@@ -432,6 +440,7 @@ class EntityRepository:
 
         stmt = (
             select(Entity, shared_count)
+            .options(load_only(*_CARD_COLUMNS))
             .join(RelationshipEdge, RelationshipEdge.from_entity_id == Entity.id)
             .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
             .where(

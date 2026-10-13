@@ -186,3 +186,30 @@ async def test_sitemap_counts_and_pages(db_session):
     rest = await repo.sitemap_entries("movie", 2, 1000)
     slugs = [s for s, _ in first] + [s for s, _ in rest]
     assert len(slugs) == len(set(slugs)) == counts["movie"]
+
+
+async def test_card_queries_load_only_needed_columns(db_session):
+    from sqlalchemy import inspect
+
+    repo = EntityRepository(db_session)
+    mk = lambda t, s, **kw: repo.create_entity(
+        entity_type=t, external_id="x-" + s, external_source="tmdb", title=s, slug=s, attributes={"year": 2001}, **kw
+    )
+    genre = await mk("genre", "drama")
+    a, b = await mk("movie", "movie-a"), await mk("movie", "movie-b")
+    person = await mk("person", "some-person")
+    await db_session.commit()
+    await repo.create_relationship(a.id, genre.id, "has_genre")
+    await repo.create_relationship(b.id, genre.id, "has_genre")
+    await repo.create_relationship(a.id, person.id, "directed_by")
+    await db_session.commit()
+    db_session.expunge_all()
+
+    similar = await repo.find_similar_by_genre(a.id, "movie", exclude_ids=[a.id])
+    assert [e.slug for e in similar] == ["movie-b"]
+    assert "external_id" in inspect(similar[0]).unloaded
+    assert similar[0].attributes["year"] == 2001
+
+    people, total = await repo.list_people(1, 10, "all", "works")
+    assert total == 1 and people[0][0].slug == "some-person" and people[0][1] == 1
+    assert "external_id" in inspect(people[0][0]).unloaded
