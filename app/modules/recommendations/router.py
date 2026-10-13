@@ -2,6 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.core.cache import cached
 from app.core.database import get_read_db
 from app.modules.entities.repository import EntityRepository
 from app.modules.recommendations.schemas import RelatedEntityOut
@@ -35,6 +37,14 @@ async def get_related_entities(
     limit: int = 6,
     db: AsyncSession = Depends(get_read_db),
 ):
+    return await cached(
+        ("related", entity_id, limit),
+        settings.cache_ttl_lists,
+        lambda: _related_entities(db, entity_id, limit),
+    )
+
+
+async def _related_entities(db: AsyncSession, entity_id: uuid.UUID, limit: int):
     repo = EntityRepository(db)
     entity = await repo.get_by_id(entity_id)
     if not entity:

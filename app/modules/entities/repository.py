@@ -77,6 +77,11 @@ def _apply_origin(stmt, entity, origin: str):
     return stmt
 
 
+# Once person_stats has been seen populated it stays so (it is only ever
+# rebuilt in one transaction), so the check isn't repeated on every request.
+_person_stats_ready = False
+
+
 class EntityRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -194,7 +199,10 @@ class EntityRepository:
         if role not in PEOPLE_ROLE_TYPES:
             role = "all"
         # Hot path: the precomputed person_stats table, once it's been filled.
-        if (await self.db.execute(select(PersonStats.person_id).limit(1))).first() is not None:
+        global _person_stats_ready
+        if not _person_stats_ready:
+            _person_stats_ready = (await self.db.execute(select(PersonStats.person_id).limit(1))).first() is not None
+        if _person_stats_ready:
             return await self._list_people_from_stats(page, page_size, role, sort_by, origin)
 
         credits = credit_stats_query(role, origin).subquery()

@@ -166,3 +166,43 @@ async def test_discover_endpoint_is_cached_but_searches_are_not(client, monkeypa
     await client.get("/api/v1/lists?q=abc")
     await client.get("/api/v1/lists?q=abc")
     assert calls == 3
+
+
+async def test_related_endpoint_is_cached(client, db_session, monkeypatch):
+    from app.modules.entities.repository import EntityRepository
+
+    movie = await EntityRepository(db_session).create_entity(
+        entity_type="movie", external_id=None, external_source=None, title="R", slug="r", attributes={}
+    )
+    await db_session.commit()
+
+    calls = 0
+    orig = EntityRepository.get_related
+
+    async def counting(self, *a, **kw):
+        nonlocal calls
+        calls += 1
+        return await orig(self, *a, **kw)
+
+    monkeypatch.setattr(EntityRepository, "get_related", counting)
+    for _ in range(3):
+        assert (await client.get(f"/api/v1/entities/{movie.id}/related")).status_code == 200
+    assert calls == 1
+    assert (await client.get("/api/v1/entities/00000000-0000-0000-0000-000000000000/related")).status_code == 404
+
+
+async def test_sitemap_counts_endpoint_is_cached(client, monkeypatch):
+    from app.modules.entities.repository import EntityRepository
+
+    calls = 0
+    orig = EntityRepository.sitemap_counts
+
+    async def counting(self, types):
+        nonlocal calls
+        calls += 1
+        return await orig(self, types)
+
+    monkeypatch.setattr(EntityRepository, "sitemap_counts", counting)
+    r1 = await client.get("/api/v1/sitemap/entities/counts")
+    r2 = await client.get("/api/v1/sitemap/entities/counts")
+    assert r1.status_code == 200 and r1.json() == r2.json() and calls == 1

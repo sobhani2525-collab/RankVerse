@@ -12,7 +12,7 @@ from sqlalchemy import delete, func, insert, literal, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import cache
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.modules.entities.models import Entity, PersonStats
 from app.modules.entities.repository import PEOPLE_ROLE_TYPES, credit_stats_query, shrunk_score
 
@@ -68,13 +68,28 @@ async def refresh_person_stats(db: AsyncSession) -> int | None:
         return (await db.execute(select(func.count()).select_from(PersonStats))).scalar_one()
 
 
+async def vacuum_person_stats() -> None:
+    """VACUUM ANALYZE after a rebuild: the DELETE + INSERT leaves ~240k dead
+    rows that make every scan of the table slow until autovacuum catches up,
+    and the planner statistics start out describing the old contents. Needs
+    a connection outside a transaction (the engine is AUTOCOMMIT)."""
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("VACUUM (ANALYZE) person_stats"))
+    except Exception:
+        logger.warning("VACUUM ANALYZE person_stats failed", exc_info=True)
+
+
 async def refresh_if_stale(max_age: timedelta) -> bool:
     """Rebuild unless the table was built within max_age. True if it rebuilt."""
     async with AsyncSessionLocal() as db:
         built = (await db.execute(select(func.max(PersonStats.updated_at)))).scalar_one()
         if built is not None and datetime.now(timezone.utc) - built < max_age:
             return False
-        return await refresh_person_stats(db) is not None
+        rebuilt = await refresh_person_stats(db) is not None
+    if rebuilt:
+        await vacuum_person_stats()
+    return rebuilt
 
 
 async def refresh_loop(interval_hours: int) -> None:

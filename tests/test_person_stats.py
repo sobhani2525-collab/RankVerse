@@ -86,13 +86,20 @@ async def test_refresh_if_stale_builds_then_skips_while_fresh(db_session, monkey
 
     from app.modules.entities import person_stats
 
+    vacuums = []
+
+    async def fake_vacuum():
+        vacuums.append(1)
+
     monkeypatch.setattr(person_stats, "AsyncSessionLocal", lambda: _SessionCtx(db_session))
+    monkeypatch.setattr(person_stats, "vacuum_person_stats", fake_vacuum)
     await _seed(db_session)
 
     assert await person_stats.refresh_if_stale(timedelta(hours=6)) is True  # empty table
     assert await person_stats.refresh_if_stale(timedelta(hours=6)) is False  # just built
     await db_session.execute(PersonStats.__table__.update().values(updated_at=func.now() - timedelta(hours=7)))
     assert await person_stats.refresh_if_stale(timedelta(hours=6)) is True
+    assert vacuums == [1, 1]  # vacuumed after each rebuild, not after the skipped check
 
 
 async def test_refresh_skips_when_another_process_holds_the_lock(db_session, test_engine):

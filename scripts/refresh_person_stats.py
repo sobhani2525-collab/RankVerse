@@ -15,7 +15,7 @@ import asyncio
 import time
 
 from app.core.database import AsyncSessionLocal
-from app.modules.entities.person_stats import refresh_person_stats
+from app.modules.entities.person_stats import refresh_person_stats, vacuum_person_stats
 
 
 async def main() -> None:
@@ -25,6 +25,7 @@ async def main() -> None:
     if rows is None:
         print("another process is already rebuilding person_stats; nothing to do")
         return
+    await vacuum_person_stats()
     print(f"person_stats rebuilt: {rows} rows in {time.monotonic() - start:.1f}s")
 
 

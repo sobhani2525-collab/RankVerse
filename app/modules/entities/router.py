@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core import database as _database
 from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
@@ -42,9 +43,15 @@ SITEMAP_TYPES = ("movie", "tv_series", "person", "genre")
 
 @router.get("/sitemap/entities/counts")
 async def entities_sitemap_counts(db: AsyncSession = Depends(get_read_db)):
+    async def load():
+        # Own session: a stale value is refreshed after this request is over.
+        async with _database.background_read_session() as session:
+            return await EntityRepository(session).sitemap_counts(SITEMAP_TYPES)
+
+    # The person count (EXISTS over relationships) takes seconds, and a
+    # sitemap that is a day behind is harmless, so serve stale and refresh.
     data = await cached(
-        ("sitemap-counts",), settings.cache_ttl_sitemap,
-        lambda: EntityRepository(db).sitemap_counts(SITEMAP_TYPES),
+        ("sitemap-counts",), settings.cache_ttl_sitemap, load, stale_for=settings.cache_ttl_sitemap
     )
     return envelope(data=data)
 

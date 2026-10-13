@@ -11,7 +11,7 @@ from app.core import database as _database
 from app.core.database import AsyncSessionLocal, get_db, get_read_db
 from app.core.schemas import envelope, Meta
 from app.modules.entities.service import EntityService
-from app.modules.entities.person_stats import is_refreshing, refresh_person_stats
+from app.modules.entities.person_stats import is_refreshing, refresh_person_stats, vacuum_person_stats
 from app.modules.ranking.service import RankingService
 from app.modules.sync.dependencies import verify_internal_api_key
 
@@ -139,7 +139,9 @@ _refresh_tasks: set[asyncio.Task] = set()
 async def _refresh_in_background() -> None:
     try:
         async with AsyncSessionLocal() as session:
-            await refresh_person_stats(session)
+            rebuilt = await refresh_person_stats(session) is not None
+        if rebuilt:
+            await vacuum_person_stats()
     except Exception:
         logger.exception("person_stats refresh failed")
 
