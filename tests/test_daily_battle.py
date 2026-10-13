@@ -486,3 +486,51 @@ async def test_guest_ip_limit_still_holds_when_redis_is_down(client, db_session,
         )
         statuses.append(res.status_code)
     assert statuses == [200, 200, 429]
+
+
+async def test_today_serves_public_part_from_cache_and_stays_correct_per_viewer(client, db_session):
+    from sqlalchemy import event
+
+    await _movies(db_session, 12)
+    first = await _today(client, _guest())  # builds + caches today's pair
+
+    statements: list[str] = []
+    sync_engine = db_session.get_bind()
+
+    @event.listens_for(sync_engine, "before_cursor_execute")
+    def _count(conn, cursor, statement, *a):
+        if "SAVEPOINT" not in statement:
+            statements.append(statement)
+
+    try:
+        again = await _today(client, _guest(2))
+        assert len(statements) == 1, statements  # just this guest's own vote lookup
+        statements.clear()
+        assert len(await _today_status(client)) >= 1 and not statements  # no guest id: nothing per-viewer
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", _count)
+
+    assert again["daily_battle_id"] == first["daily_battle_id"] and again["my_choice"] is None
+    # Voting is reflected immediately: the cached part has no vote data.
+    await client.post(f"{URL}/vote", headers=_guest(2), json={"daily_battle_id": first["daily_battle_id"], "choice": "right"})
+    assert (await _today(client, _guest(2)))["results"]["right_votes"] == 1
+
+
+async def _today_status(client):
+    return (await client.get(f"{URL}/today")).text
+
+
+async def test_precreate_once_builds_todays_battle(db_session, monkeypatch):
+    from app.modules.daily_battle import precreate
+
+    class Ctx:
+        async def __aenter__(self):
+            return db_session
+
+        async def __aexit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(precreate, "AsyncSessionLocal", lambda: Ctx())
+    await _movies(db_session, 12)
+    assert await precreate.precreate_once() is True
+    assert await precreate.precreate_once() is True  # idempotent

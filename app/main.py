@@ -7,6 +7,7 @@ from app.config import settings
 
 from app.api.v1.router import api_router
 from app.modules.entities.ego import warm_hero_pool
+from app.modules.daily_battle.precreate import precreate_loop
 from app.modules.entities.person_stats import refresh_loop
 from app.core.exceptions import (
     RankVerseError,
@@ -59,6 +60,12 @@ async def _start_person_stats_refresh():
     # periodically so it doesn't go stale (see entities/person_stats.py).
     if settings.person_stats_refresh_hours > 0:
         app.state.person_stats_task = asyncio.create_task(refresh_loop(settings.person_stats_refresh_hours))
+
+
+@app.on_event("startup")
+async def _start_daily_battle_precreate():
+    if settings.daily_battle_precreate:
+        app.state.daily_battle_task = asyncio.create_task(precreate_loop())
 
 
 @app.get("/health")

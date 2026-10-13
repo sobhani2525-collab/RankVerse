@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import cache
 from app.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from app.modules.admin.models import AdminAccount
 from app.modules.entities.models import Entity
@@ -113,6 +114,7 @@ class AdminDailyBattleService:
         except IntegrityError:
             raise AlreadyExistsError(DATE_TAKEN)
         await self.db.commit()
+        cache.clear()  # today's public part may be cached
         logger.info("admin %s scheduled daily battle %s for %s", admin.id, row.id, row.battle_date)
         return (await self._rows([row]))[0]
 
@@ -155,6 +157,7 @@ class AdminDailyBattleService:
             await self.db.rollback()
             raise AlreadyExistsError(DATE_TAKEN)
         await self.db.commit()
+        cache.clear()
         logger.info(
             "admin %s edited daily battle %s: %s",
             admin.id, battle_id, payload.model_dump(exclude_unset=True, mode="json"),
@@ -169,4 +172,5 @@ class AdminDailyBattleService:
             raise AlreadyExistsError("این نبرد رأی دارد و قابل حذف نیست")
         await self.db.delete(battle)
         await self.db.commit()
+        cache.clear()
         logger.info("admin %s DELETED daily battle %s (%s)", admin.id, battle_id, battle.battle_date)

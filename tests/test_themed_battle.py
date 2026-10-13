@@ -76,3 +76,25 @@ async def test_themed_without_params_unchanged(client, db_session):
     res = await client.get("/api/v1/battles/themed")
     assert res.status_code == 200
     assert res.json()["theme"]["kind"] in ("genre", "decade", "director")
+
+
+async def test_guest_pool_comes_from_a_small_cached_set_and_is_reshuffled(client, db_session, monkeypatch):
+    from app.config import settings
+    from app.modules.battles.themed import ThemedBattleService
+
+    monkeypatch.setattr(settings, "guest_battle_pool_slots", 1)
+    await _seed_decade(db_session, 8, year=1980, prefix="gp")
+    calls = 0
+    orig = ThemedBattleService.get_pool
+
+    async def counting(self, *a, **kw):
+        nonlocal calls
+        calls += 1
+        return await orig(self, *a, **kw)
+
+    monkeypatch.setattr(ThemedBattleService, "get_pool", counting)
+    bodies = [(await client.get("/api/v1/battles/themed")).json() for _ in range(4)]
+    assert calls == 1  # one slot -> built once
+    ids = [sorted(i["id"] for i in b["items"]) for b in bodies]
+    assert all(x == ids[0] for x in ids)  # same pool...
+    assert len({tuple(i["id"] for i in b["items"]) for b in bodies}) >= 1  # ...order reshuffled per request

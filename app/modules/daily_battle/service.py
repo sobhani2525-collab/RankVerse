@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.cache import cached
 from app.modules.battles.models import EntityEloScore
 from app.modules.battles.repository import BattleRepository
 from app.modules.battles.schemas import CastVoteRequest, VoteOutcomeSchema
@@ -267,10 +268,58 @@ class DailyBattleService:
         )
 
     async def today(self, user_id, guest_id, now: datetime | None = None) -> DailyBattleToday:
+        """The page's read. Today's pair, its films, the theme and yesterday's
+        result are the same for everybody, so they come from a short-lived
+        cache; only the viewer's own vote (with the live counters once they
+        have voted) and streak are read per request."""
+        day = tehran.tehran_today(now)
+        public = await cached(
+            ("daily-battle-public", day), settings.cache_ttl_daily_battle, lambda: self._public_part(now)
+        )
+        my_choice, results = await self._my_state(public["id"], user_id, guest_id)
+        return DailyBattleToday(
+            battle_date=public["date"],
+            daily_battle_id=public["id"],
+            left=public["left"],
+            right=public["right"],
+            theme=public["theme"],
+            my_choice=my_choice,
+            results=results,
+            seconds_until_next=tehran.seconds_until_next_day(now),
+            streak=await self._streak(user_id, day) if user_id is not None else None,
+            previous=public["previous"],
+        )
+
+    async def _public_part(self, now: datetime | None) -> dict:
         battle = await self.get_or_create_today(now)
         if battle is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="نبردی برای امروز نیست")
-        return await self.build_today(battle, user_id, guest_id, now)
+        films = await self.films(battle.left_id, battle.right_id)
+        return {
+            "id": battle.id,
+            "date": battle.battle_date,
+            "left": films[battle.left_id],
+            "right": films[battle.right_id],
+            "theme": DailyTheme(kind=battle.theme_kind, value=battle.theme_value),
+            "previous": await self._previous(tehran.tehran_today(now)),
+        }
+
+    async def _my_state(self, battle_id: uuid.UUID, user_id, guest_id) -> tuple[str | None, DailyResults | None]:
+        """The viewer's vote and, once they have one, the current counters --
+        a single query (a viewer who hasn't voted gets no results)."""
+        if user_id is None and not guest_id:
+            return None, None
+        row = (
+            await self.db.execute(
+                select(DailyBattleVote.choice, DailyBattle.left_votes, DailyBattle.right_votes)
+                .join(DailyBattle, DailyBattle.id == DailyBattleVote.daily_battle_id)
+                .where(DailyBattleVote.daily_battle_id == battle_id, self._voter_clause(user_id, guest_id))
+            )
+        ).first()
+        if row is None:
+            return None, None
+        choice, left_votes, right_votes = row
+        return choice, DailyResults(left_votes=left_votes, right_votes=right_votes, total=left_votes + right_votes)
 
     # -- voting ------------------------------------------------------------
 

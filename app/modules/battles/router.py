@@ -1,3 +1,4 @@
+import random
 import uuid
 from typing import Literal
 
@@ -5,6 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Adjust these two imports to match your project's actual paths.
+from app.config import settings
+from app.core import database as _database
+from app.core.cache import cached
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_user, get_current_user_optional
 
@@ -97,15 +101,34 @@ async def get_themed_battle(
     that named theme instead, falling back to the usual pool if it's unknown
     or too small. Votes still go through POST /battles/vote.
     """
-    pool = await ThemedBattleService(db, category).get_pool(
-        current_user.id if current_user else None, left_id, right_id, theme_kind, theme_value
-    )
-    if pool is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not enough movies to form a battle")
+    if current_user is None and category == CATEGORY and not (left_id or right_id or theme_kind or theme_value):
+        # A guest's random run is rebuilt from scratch (4 sequential queries)
+        # every time; instead keep a few such pools around and hand out one at
+        # random, reshuffled -- still varied, and nobody waits after the first.
+        async def build():
+            async with _database.background_read_session() as session:
+                built = await ThemedBattleService(session, category).get_pool(None)
+            if built is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not enough movies to form a battle")
+            return built
+
+        slot = random.randrange(max(settings.guest_battle_pool_slots, 1))
+        pool = await cached(
+            ("guest-battle-pool", category, slot), settings.cache_ttl_guest_battle, build,
+            stale_for=settings.cache_stale_seconds,
+        )
+        items = ThemedBattleService._shuffled(pool.items)
+    else:
+        pool = await ThemedBattleService(db, category).get_pool(
+            current_user.id if current_user else None, left_id, right_id, theme_kind, theme_value
+        )
+        if pool is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not enough movies to form a battle")
+        items = pool.items
     return ThemedBattleResponse(
         category=category,
         theme=ThemedBattleTheme(kind=pool.theme.kind, value=pool.theme.value, personalized=pool.personalized),
-        items=pool.items,
+        items=items,
     )
 
 

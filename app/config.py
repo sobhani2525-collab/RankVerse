@@ -227,6 +227,11 @@ class Settings(BaseSettings):
     cache_ttl_lists: int = 300  # movie/tv lists, rankings, genres, highlights
     cache_ttl_people: int = 900
     cache_ttl_sitemap: int = 86400
+    cache_ttl_daily_battle: int = 120  # today's pair + yesterday's result (per-viewer parts are never cached)
+    cache_ttl_guest_battle: int = 600  # guest battle pools reused from a small rotating set
+    guest_battle_pool_slots: int = 6
+    # Create today's daily battle ahead of the first visitor (see daily_battle/precreate.py).
+    daily_battle_precreate: bool = True
     cache_ttl_discover: int = 60  # GET /lists (new lists should show up quickly)
     # Rankings are served stale for up to this long past their TTL while one
     # background load refreshes them, so no visitor waits on a cold query.

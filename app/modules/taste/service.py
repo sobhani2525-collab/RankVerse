@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import parallel
 from app.modules.taste.repository import TasteRepository
 from app.modules.taste.schemas import (
     ContributionStatsPublic,
@@ -25,11 +26,22 @@ class TasteService:
         lists just mean the background job hasn't computed this user's
         profile yet, not an error.
         """
-        snapshot = await self.repo.get_snapshot(user_id, entity_scope)
-        dimensions = await self.repo.list_dimensions(user_id)
-        anchor_rows = await self.repo.list_anchors_with_entities(user_id)
-        insight = await self.repo.get_insight(user_id)
-        contribution_stats = await self.repo.get_contribution_stats(user_id)
+        async def own_reads():
+            return (
+                await self.repo.get_snapshot(user_id, entity_scope),
+                await self.repo.list_dimensions(user_id),
+                await self.repo.list_anchors_with_entities(user_id),
+            )
+
+        async def side_reads():
+            async with parallel.side_session() as side:
+                side_repo = TasteRepository(side)
+                return await side_repo.get_insight(user_id), await side_repo.get_contribution_stats(user_id)
+
+        # Five independent reads: 3 sequential round trips instead of 5.
+        (snapshot, dimensions, anchor_rows), (insight, contribution_stats) = await parallel.gather(
+            own_reads(), side_reads()
+        )
 
         return TasteProfile(
             snapshot=TasteSnapshotPublic.model_validate(snapshot) if snapshot else None,

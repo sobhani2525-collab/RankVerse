@@ -146,6 +146,10 @@ async def client(db_session, monkeypatch):
 
     from app.core import database as database_module
 
+    from app.core import parallel
+
+    monkeypatch.setattr(parallel, "side_session", _side_session)
+    monkeypatch.setattr(parallel, "gather", _sequential)
     monkeypatch.setattr(database_module, "background_read_session", lambda: _side_session())
     monkeypatch.setattr(lists_service, "_side_session", _side_session)
     monkeypatch.setattr(lists_service, "_gather", _sequential)
