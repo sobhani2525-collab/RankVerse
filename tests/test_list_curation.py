@@ -53,7 +53,8 @@ async def test_quality_filter_drops_small_and_short_title_lists(client, db_sessi
 
 async def test_featured_list_bypasses_quality_bar_and_hidden_list_is_dropped(
     client, db_session, test_user, admin_headers
-):
+, monkeypatch):
+    monkeypatch.setattr("app.config.settings.cache_enabled", False)
     small = await _make_list(db_session, test_user, "Tiny List", 1)
     big = await _make_list(db_session, test_user, "Big List", 4)
 

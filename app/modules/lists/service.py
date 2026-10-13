@@ -855,11 +855,11 @@ class ListService:
         await self.db.commit()
 
     async def list_comments(self, slug: str) -> list[CommentPublic]:
-        lst = await self.repo.get_by_slug(slug)
-        if not lst:
+        list_id = await self.repo.get_id_by_slug(slug)
+        if list_id is None:
             raise NotFoundError(f"List '{slug}' not found")
 
-        comments = await self.repo.list_comments(lst.id)
+        comments = await self.repo.list_comments(list_id)
         return [CommentPublic.model_validate(c) for c in comments]
 
     # --- Related lists ---
@@ -868,7 +868,7 @@ class ListService:
         """Public lists that share items with this one (most shared first),
         topped up with lists sharing a tag. Every result carries its reason;
         a list with neither overlap isn't related and isn't returned."""
-        lst = await self.repo.get_by_slug(slug)
+        lst = await self.repo.get_with_item_ids(slug)
         if not lst:
             raise NotFoundError(f"List '{slug}' not found")
         limit = settings.list_related_limit
@@ -876,13 +876,18 @@ class ListService:
         shared_counts = dict(await self.repo.lists_sharing_items(
             lst.id, [item.entity_id for item in lst.items], limit
         ))
-        by_items = await self.repo.get_many_with_items(list(shared_counts))
-        by_items.sort(key=lambda r: (-shared_counts[r.id], -r.like_count))
-
         own_tags = lst.tags or []
-        by_tags = await self.repo.lists_sharing_tags(
-            [lst.id, *shared_counts], own_tags, limit - len(by_items)
-        )
+
+        async def tags_branch():
+            # Needs only the ids above, not the by-item lists, so it overlaps.
+            async with _side_session() as side:
+                return await ListRepository(side).lists_sharing_tags(
+                    [lst.id, *shared_counts], own_tags, limit - len(shared_counts)
+                )
+
+        by_items, by_tags = await _gather(self.repo.get_many_with_items(list(shared_counts)), tags_branch())
+        by_items.sort(key=lambda r: (-shared_counts[r.id], -r.like_count))
+        by_tags = by_tags[: max(limit - len(by_items), 0)]
 
         results = []
         for related in [*by_items, *by_tags]:

@@ -227,6 +227,10 @@ class Settings(BaseSettings):
     cache_ttl_lists: int = 300  # movie/tv lists, rankings, genres, highlights
     cache_ttl_people: int = 900
     cache_ttl_sitemap: int = 3600
+    cache_ttl_discover: int = 60  # GET /lists (new lists should show up quickly)
+    # Rankings are served stale for up to this long past their TTL while one
+    # background load refreshes them, so no visitor waits on a cold query.
+    cache_stale_seconds: int = 3600
     # Background rebuild of the person_stats table (people ranking); 0 disables.
     person_stats_refresh_hours: int = 6
 

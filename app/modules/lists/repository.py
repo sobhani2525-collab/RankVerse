@@ -54,6 +54,16 @@ class ListRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_id_by_slug(self, slug: str) -> uuid.UUID | None:
+        """Just the list's id (current slug or an old one): one cheap query
+        for callers that don't need the list itself."""
+        return (await self.db.execute(select(UserList.id).where(_matches_slug(slug)))).scalar_one_or_none()
+
+    async def get_with_item_ids(self, slug: str) -> UserList | None:
+        """The list with its items (no entities, no owner) in one query."""
+        stmt = select(UserList).options(joinedload(UserList.items)).where(_matches_slug(slug))
+        return (await self.db.execute(stmt)).unique().scalar_one_or_none()
+
     async def get_detail_by_slug(self, slug: str) -> UserList | None:
         """get_by_slug plus each item entity's ranking row (for the
         composite score on the list detail page). One joined query rather
@@ -820,14 +830,14 @@ class ListRepository:
                 UserList.tags.op("?|")(sa_array(tags)),
             )
             .options(
-                selectinload(UserList.owner),
-                selectinload(UserList.items).selectinload(UserListItem.entity),
+                joinedload(UserList.owner),
+                joinedload(UserList.items).joinedload(UserListItem.entity),
             )
             .order_by(UserList.like_count.desc())
             .limit(limit)
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        return list(result.unique().scalars().all())
 
     async def get_many_with_items(self, list_ids: list[uuid.UUID]) -> list[UserList]:
         """Lists by id (owner + items eager-loaded), in no particular order."""
@@ -837,12 +847,12 @@ class ListRepository:
             select(UserList)
             .where(UserList.id.in_(list_ids))
             .options(
-                selectinload(UserList.owner),
-                selectinload(UserList.items).selectinload(UserListItem.entity),
+                joinedload(UserList.owner),
+                joinedload(UserList.items).joinedload(UserListItem.entity),
             )
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        return list(result.unique().scalars().all())
 
     async def find_lists_containing_entity(
         self, entity_id: uuid.UUID, limit: int = 20

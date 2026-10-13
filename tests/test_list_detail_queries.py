@@ -132,3 +132,27 @@ async def test_overlapped_queries_match_sequential_result(test_engine, monkeypat
             await s.commit()
             leftovers = (await s.execute(select(UserList).where(UserList.id == ids["list"]))).first()
             assert leftovers is None
+
+
+async def test_comments_and_related_use_few_statements(client, auth_headers, db_session):
+    slug = await _make_public_list(client, auth_headers, db_session)
+
+    statements: list[str] = []
+    sync_engine = db_session.get_bind()
+
+    @event.listens_for(sync_engine, "before_cursor_execute")
+    def _count(conn, cursor, statement, *a):
+        if "SAVEPOINT" not in statement:
+            statements.append(statement)
+
+    try:
+        res = await client.get(f"/api/v1/lists/{slug}/comments")
+        assert res.status_code == 200 and res.json()["data"] == []
+        assert len(statements) == 2, statements  # id lookup + comments (was 5)
+
+        statements.clear()
+        res = await client.get(f"/api/v1/lists/{slug}/related")
+        assert res.status_code == 200
+        assert len(statements) <= 3, statements  # list+item ids, sharing items, tags
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", _count)

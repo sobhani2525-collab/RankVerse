@@ -41,6 +41,12 @@ ReadSessionLocal = async_sessionmaker(
 )
 
 
+def background_read_session() -> AsyncSession:
+    """A read session for cache loaders that may outlive the request that
+    triggered them. A function so tests can point it at the test transaction."""
+    return ReadSessionLocal()
+
+
 def make_bulk_sessionmaker() -> async_sessionmaker[AsyncSession]:
     """
     Sessions for long-running bulk scripts (scripts/import_tmdb_catalog.py)

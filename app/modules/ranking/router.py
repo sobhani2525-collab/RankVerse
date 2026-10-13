@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.cache import cached
+from app.core import database as _database
 from app.core.database import AsyncSessionLocal, get_db, get_read_db
 from app.core.schemas import envelope, Meta
 from app.modules.entities.service import EntityService
@@ -30,22 +31,25 @@ async def top_movies(
     year_to: int | None = Query(None, ge=1800, le=2100),
     sort: Literal["score", "votes", "year_desc", "year_asc"] = "score",
     origin: Literal["all", "persian", "foreign"] = "all",
-    db: AsyncSession = Depends(get_read_db),
 ):
     async def load():
-        # Made-for-TV films (stand-up specials, TV episodes released as "movies")
-        # are fan-voted far above theatrical films; keep them out of the movie ranking.
-        items, total = await EntityService(db).list_movies(
-            page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin,
-            exclude_genre_slugs=RANKING_EXCLUDED_MOVIE_GENRES,
-        )
+        # Own session: a stale entry is refreshed in the background, after
+        # this request (and its dependency session) is gone.
+        async with _database.background_read_session() as db:
+            # Made-for-TV films (stand-up specials, TV episodes released as "movies")
+            # are fan-voted far above theatrical films; keep them out of the movie ranking.
+            items, total = await EntityService(db).list_movies(
+                page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort,
+                origin=origin, exclude_genre_slugs=RANKING_EXCLUDED_MOVIE_GENRES,
+            )
         return envelope(
             data=[i.model_dump() for i in items],
             meta=Meta(page=page, page_size=page_size, total=total),
         )
 
     return await cached(
-        ("rank-movies", page, page_size, genre, year_from, year_to, sort, origin), settings.cache_ttl_lists, load
+        ("rank-movies", page, page_size, genre, year_from, year_to, sort, origin),
+        settings.cache_ttl_lists, load, stale_for=settings.cache_stale_seconds,
     )
 
 
@@ -56,13 +60,20 @@ async def top_people(
     role: Literal["all", "director", "actor", "creator"] = "all",
     sort: Literal["works", "score"] = "score",
     origin: Literal["all", "persian", "foreign"] = "all",
-    db: AsyncSession = Depends(get_read_db),
 ):
-    # list_people is itself cached (people TTL) inside EntityService.
-    items, total = await EntityService(db).list_people(page, page_size, role=role, sort_by=sort, origin=origin)
-    return envelope(
-        data=[i.model_dump() for i in items],
-        meta=Meta(page=page, page_size=page_size, total=total),
+    async def load():
+        async with _database.background_read_session() as db:
+            items, total = await EntityService(db).list_people(
+                page, page_size, role=role, sort_by=sort, origin=origin
+            )
+        return envelope(
+            data=[i.model_dump() for i in items],
+            meta=Meta(page=page, page_size=page_size, total=total),
+        )
+
+    return await cached(
+        ("rank-people", page, page_size, role, sort, origin),
+        settings.cache_ttl_people, load, stale_for=settings.cache_stale_seconds,
     )
 
 
@@ -86,19 +97,20 @@ async def top_tv_series(
     year_to: int | None = Query(None, ge=1800, le=2100),
     sort: Literal["score", "votes", "year_desc", "year_asc"] = "score",
     origin: Literal["all", "persian", "foreign"] = "all",
-    db: AsyncSession = Depends(get_read_db),
 ):
     async def load():
-        items, total = await EntityService(db).list_tv_series(
-            page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin
-        )
+        async with _database.background_read_session() as db:
+            items, total = await EntityService(db).list_tv_series(
+                page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort, origin=origin
+            )
         return envelope(
             data=[i.model_dump() for i in items],
             meta=Meta(page=page, page_size=page_size, total=total),
         )
 
     return await cached(
-        ("rank-tv", page, page_size, genre, year_from, year_to, sort, origin), settings.cache_ttl_lists, load
+        ("rank-tv", page, page_size, genre, year_from, year_to, sort, origin),
+        settings.cache_ttl_lists, load, stale_for=settings.cache_stale_seconds,
     )
 
 

@@ -141,6 +141,9 @@ async def client(db_session, monkeypatch):
     async def _record_view(list_id):
         await ListRepository(db_session).increment_view(list_id)
 
+    from app.core import database as database_module
+
+    monkeypatch.setattr(database_module, "background_read_session", lambda: _side_session())
     monkeypatch.setattr(lists_service, "_side_session", _side_session)
     monkeypatch.setattr(lists_service, "_gather", _sequential)
     monkeypatch.setattr(lists_router, "record_list_view", _record_view)

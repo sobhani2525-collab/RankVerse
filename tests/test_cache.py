@@ -107,3 +107,62 @@ async def test_endpoint_is_cached(client, monkeypatch):
     assert calls == 1
     await client.get("/api/v1/lists/featured?limit=2")
     assert calls == 2  # query params are part of the key
+
+
+async def test_stale_while_revalidate_serves_stale_and_refreshes_once():
+    c = TTLCache()
+    n = 0
+
+    async def loader():
+        nonlocal n
+        n += 1
+        await asyncio.sleep(0.05)
+        return n
+
+    assert await c.get_or_set("k", 0.01, loader, stale_for=60) == 1  # cold: blocks
+    await asyncio.sleep(0.03)  # expired, inside the stale window
+    started = asyncio.get_running_loop().time()
+    results = [await c.get_or_set("k", 0.01, loader, stale_for=60) for _ in range(5)]
+    assert results == [1] * 5  # nobody waited for the reload
+    assert asyncio.get_running_loop().time() - started < 0.04
+    await asyncio.sleep(0.12)
+    assert n == 2  # exactly one background refresh for five stale reads
+    assert c._data["k"][1] == 2
+
+
+async def test_stale_refresh_failure_keeps_serving_stale():
+    c = TTLCache()
+    calls = 0
+
+    async def loader():
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise RuntimeError("db down")
+        return "old"
+
+    await c.get_or_set("k", 0.01, loader, stale_for=60)
+    await asyncio.sleep(0.03)
+    assert await c.get_or_set("k", 0.01, loader, stale_for=60) == "old"
+    await asyncio.sleep(0.05)
+    assert await c.get_or_set("k", 0.01, loader, stale_for=60) == "old"
+
+
+async def test_discover_endpoint_is_cached_but_searches_are_not(client, monkeypatch):
+    from app.modules.lists.service import ListService
+
+    calls = 0
+    orig = ListService.discover
+
+    async def counting(self, *a, **kw):
+        nonlocal calls
+        calls += 1
+        return await orig(self, *a, **kw)
+
+    monkeypatch.setattr(ListService, "discover", counting)
+    await client.get("/api/v1/lists")
+    await client.get("/api/v1/lists")
+    assert calls == 1
+    await client.get("/api/v1/lists?q=abc")
+    await client.get("/api/v1/lists?q=abc")
+    assert calls == 3
