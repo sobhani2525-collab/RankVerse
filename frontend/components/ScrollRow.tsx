@@ -5,29 +5,22 @@ import { useCallback, useEffect, useRef, useState, type ElementType, type ReactN
 type Props = {
   as?: ElementType;
   className?: string;
-  /** Visibility classes for the arrows, e.g. "sm:hidden" when the row turns into a grid. */
+  /** Visibility classes for the arrow, e.g. "sm:hidden" when the row turns into a grid. */
   arrowClassName?: string;
   children: ReactNode;
 };
 
-// Horizontal scroller with left/right arrow buttons. Works in RTL (scrollLeft is
-// negative there), so position is judged by distance from both edges.
+// Horizontal scroller with a single left-arrow hint (the page is RTL, so more
+// items hide off the left edge). The arrow fades out once the user scrolls.
 export default function ScrollRow({ as: Tag = "div", className = "", arrowClassName = "", children }: Props) {
   const ref = useRef<HTMLElement>(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   const update = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    const max = el.scrollWidth - el.clientWidth;
-    const pos = Math.abs(el.scrollLeft);
-    const atStart = pos < 4;
-    const atEnd = pos > max - 4;
-    const rtl = getComputedStyle(el).direction === "rtl";
-    // In RTL the start edge is the right side, so "left" means towards the end.
-    setCanLeft(max > 4 && (rtl ? !atEnd : !atStart));
-    setCanRight(max > 4 && (rtl ? !atStart : !atEnd));
+    const overflow = el.scrollWidth - el.clientWidth > 8;
+    setVisible(overflow && Math.abs(el.scrollLeft) < 24);
   }, []);
 
   useEffect(() => {
@@ -39,30 +32,31 @@ export default function ScrollRow({ as: Tag = "div", className = "", arrowClassN
     return () => ro.disconnect();
   }, [update]);
 
-  const scrollBy = (dir: 1 | -1) => {
+  const scrollLeft = () => {
     const el = ref.current;
     if (!el) return;
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+    el.scrollBy({ left: -el.clientWidth * 0.8, behavior: "smooth" });
   };
-
-  const btn =
-    "absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#05070D]/85 text-lg text-ink shadow-lg backdrop-blur transition hover:border-gold/40 hover:text-gold";
 
   return (
     <div className="relative">
       <Tag ref={ref} onScroll={update} className={className}>
         {children}
       </Tag>
-      {canLeft && (
-        <button type="button" aria-label="اسکرول به چپ" onClick={() => scrollBy(-1)} className={`${btn} left-2 ${arrowClassName}`}>
-          ‹
-        </button>
-      )}
-      {canRight && (
-        <button type="button" aria-label="اسکرول به راست" onClick={() => scrollBy(1)} className={`${btn} right-2 ${arrowClassName}`}>
-          ›
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label="مشاهدهٔ آیتم‌های بیشتر"
+        aria-hidden={!visible}
+        tabIndex={visible ? 0 : -1}
+        onClick={scrollLeft}
+        className={`absolute left-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#05070D]/70 text-ink shadow-[0_6px_20px_rgba(0,0,0,0.55)] backdrop-blur-md transition-opacity duration-300 hover:border-gold/40 hover:text-gold ${
+          visible ? "opacity-100" : "pointer-events-none opacity-0"
+        } ${arrowClassName}`}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M15 5l-7 7 7 7" />
+        </svg>
+      </button>
     </div>
   );
 }
