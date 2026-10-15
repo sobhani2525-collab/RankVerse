@@ -136,7 +136,10 @@ def test_english_source_for_legacy_row_without_overview_en():
 
 def test_english_source_skips_titles_already_in_persian():
     assert english_source({"overview": FA_OVERVIEW, "overview_en": "x", "overview_source": "tmdb_fa"}) is None
-    assert english_source({"overview": FA_OVERVIEW, "overview_en": "x", "overview_source": "machine"}) is None
+    assert english_source({"overview": FA_OVERVIEW, "overview_en": "x", "overview_source": "machine", "overview_translation_v": 2}) is None
+    assert english_source({"overview": FA_OVERVIEW, "overview_en": "x", "overview_source": "manual"}) is None
+    # machine translation from an older prompt version is queued again
+    assert english_source({"overview": FA_OVERVIEW, "overview_en": "x", "overview_source": "machine"}) == "x"
     assert english_source({"overview": "x", "overview_en": "x", "overview_source": "en"}) == "x"
 
 

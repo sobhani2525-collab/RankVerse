@@ -149,6 +149,26 @@ def media_extras(raw: dict) -> dict:
     return extras
 
 
+def translated_overview(raw: dict, iso_639_1: str = "fa") -> str | None:
+    """
+    The overview TMDb has in `iso_639_1` under /movie|/tv's appended
+    `translations` (see TMDbClient.get_movie), whatever its region: a
+    language=fa-IR request only matches the fa-IR entry, so a title with
+    just e.g. an fa-AF overview would otherwise look untranslated. The IR
+    entry wins when there are several; None if raw has no translations
+    (or none usable) for the language.
+    """
+    entries = [
+        t
+        for t in (raw.get("translations") or {}).get("translations", [])
+        if t.get("iso_639_1") == iso_639_1 and ((t.get("data") or {}).get("overview") or "").strip()
+    ]
+    if not entries:
+        return None
+    entries.sort(key=lambda t: t.get("iso_3166_1") != "IR")
+    return entries[0]["data"]["overview"].strip()
+
+
 def _overview_attrs(raw: dict, raw_fa: dict | None) -> dict:
     """
     overview is what the site displays: TMDb's fa-IR synopsis when it has
@@ -160,7 +180,7 @@ def _overview_attrs(raw: dict, raw_fa: dict | None) -> dict:
     step -- "machine".
     """
     overview_en = raw.get("overview") or None
-    overview_fa = (raw_fa or {}).get("overview") or None
+    overview_fa = (raw_fa or {}).get("overview") or translated_overview(raw) or None
     return {
         "overview": overview_fa or overview_en,
         "overview_en": overview_en,

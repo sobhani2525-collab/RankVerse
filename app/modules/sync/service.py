@@ -24,6 +24,9 @@ IMDB_ATTRIBUTE_KEYS = ("imdb_rating", "imdb_votes")
 
 def _merge_preserved_attributes(old: dict, new: dict) -> dict:
     """
+    - A manual overview (overview_source == "manual", written by an admin)
+      is always kept, whatever TMDb now returns; an admin removes it
+      explicitly (DELETE /admin/entities/{id}/overview).
     - A machine translation (overview_source == "machine", written by
       scripts/translate_overviews.py) is kept as long as TMDb still has no
       Persian overview and the English source text it was translated from
@@ -33,13 +36,18 @@ def _merge_preserved_attributes(old: dict, new: dict) -> dict:
       while the imdb_id is unchanged.
     """
     merged = dict(new)
-    if (
+    if old.get("overview_source") == "manual":
+        merged["overview"] = old.get("overview")
+        merged["overview_source"] = "manual"
+    elif (
         old.get("overview_source") == "machine"
         and new.get("overview_source") != "tmdb_fa"
         and old.get("overview_en") == new.get("overview_en")
     ):
         merged["overview"] = old.get("overview")
         merged["overview_source"] = "machine"
+        if "overview_translation_v" in old:
+            merged["overview_translation_v"] = old["overview_translation_v"]
     if old.get("imdb_id") and old.get("imdb_id") == new.get("imdb_id"):
         for key in IMDB_ATTRIBUTE_KEYS:
             if key in old:

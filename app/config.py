@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     # credential resolution (ANTHROPIC_API_KEY env var, `ant auth login`).
     anthropic_api_key: str = ""
     overview_translation_model: str = "claude-haiku-4-5"
+    # Titles originally in an Asian, Arabic or Turkish language (see
+    # sync/translation.LOW_PRIORITY_LANGUAGES) are only machine-translated
+    # when TMDb has at least this many votes for them, i.e. they are well known.
+    overview_translation_min_votes_asian: int = 3000
 
     # NOTE on the 1-5 rating scale (migrated from 1-10, see
     # alembic/versions/*_rescale_user_ratings_to_five_stars.py): every

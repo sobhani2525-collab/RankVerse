@@ -13,6 +13,7 @@ from app.modules.taste.router import router as taste_router
 from app.modules.admin.router import router as admin_router
 from app.modules.admin.users_router import router as admin_users_router
 from app.modules.admin.audit_router import router as admin_audit_router
+from app.modules.admin.entities_router import router as admin_entities_router
 from app.modules.daily_battle.router import router as daily_battle_router
 from app.modules.daily_battle.admin_router import router as admin_daily_battle_router
 
@@ -22,6 +23,7 @@ api_router.include_router(auth_router)
 api_router.include_router(admin_router)
 api_router.include_router(admin_users_router)
 api_router.include_router(admin_audit_router)
+api_router.include_router(admin_entities_router)
 api_router.include_router(admin_daily_battle_router)
 api_router.include_router(entities_router)
 api_router.include_router(ranking_router)

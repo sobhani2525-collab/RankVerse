@@ -43,7 +43,14 @@ class TMDbClient:
     async def get_movie(self, tmdb_id: int, language: str = "en-US") -> dict:
         return await self._get_with_retry(
             f"{self.base_url}/movie/{tmdb_id}",
-            params={"api_key": self.api_key, "append_to_response": "credits,videos", "language": language},
+            params={
+                "api_key": self.api_key,
+                # translations only on the default-language request: it's how
+                # the normalizer finds a Persian overview TMDb has under a
+                # region other than fa-IR (see normalizer.translated_overview).
+                "append_to_response": "credits,videos" + (",translations" if language == "en-US" else ""),
+                "language": language,
+            },
         )
 
     async def get_person(self, tmdb_id: int) -> dict:
@@ -90,7 +97,8 @@ class TMDbClient:
                 "api_key": self.api_key,
                 # external_ids for imdb_id -- unlike /movie/{id}, /tv/{id}
                 # has no top-level imdb_id field.
-                "append_to_response": "credits,aggregate_credits,external_ids,videos",
+                "append_to_response": "credits,aggregate_credits,external_ids,videos"
+                + (",translations" if language == "en-US" else ""),
                 "language": language,
             },
         )
