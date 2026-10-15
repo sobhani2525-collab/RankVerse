@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope
-from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.dependencies import get_current_user, get_current_user_read
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
@@ -84,8 +84,8 @@ async def unrate_tv_series(
 
 @router.get("/users/me/ratings")
 async def my_ratings(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user_read),
+    db: AsyncSession = Depends(get_read_db),
 ):
     ratings = await UserRepository(db).list_ratings_with_movies(current_user.id)
     return envelope(data=[RatingPublic.model_validate(r).model_dump() for r in ratings])

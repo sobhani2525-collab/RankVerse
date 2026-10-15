@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -8,7 +9,8 @@ from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope, Meta
-from app.modules.auth.dependencies import get_current_user, get_current_user_optional
+from app.modules.auth.dependencies import get_current_user, get_current_user_optional, get_current_user_read
+from app.modules.lists.models import UserList, UserListItem
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.lists.schemas import (
@@ -131,6 +133,51 @@ async def my_lists(
     service = ListService(db)
     lists = await service.list_user_lists(current_user.id)
     return envelope(data=[l.model_dump() for l in lists])
+
+
+@router.get("/users/me/list-stats")
+async def my_list_stats(
+    current_user: User = Depends(get_current_user_read),
+    db: AsyncSession = Depends(get_read_db),
+):
+    """Totals over the lists the user created (the private will-watch system
+    list excluded). Two aggregates instead of loading every list with its
+    preview items like /users/me/lists does."""
+    owned = (UserList.user_id == current_user.id) & (UserList.is_watch_later.is_(False))
+    lists_row = (
+        await db.execute(
+            select(
+                func.count(UserList.id),
+                func.coalesce(func.sum(UserList.view_count), 0),
+                func.coalesce(func.sum(UserList.like_count), 0),
+                func.coalesce(func.sum(UserList.follower_count), 0),
+            ).where(owned)
+        )
+    ).one()
+    items_count = (
+        await db.execute(
+            select(func.count(UserListItem.id))
+            .join(UserList, UserList.id == UserListItem.list_id)
+            .where(owned)
+        )
+    ).scalar_one()
+    watch_later_count = (
+        await db.execute(
+            select(func.count(UserListItem.id))
+            .join(UserList, UserList.id == UserListItem.list_id)
+            .where(UserList.user_id == current_user.id, UserList.is_watch_later.is_(True))
+        )
+    ).scalar_one()
+    return envelope(
+        data={
+            "watch_later_count": watch_later_count,
+            "lists_count": lists_row[0],
+            "items_count": items_count,
+            "views": lists_row[1],
+            "likes": lists_row[2],
+            "followers": lists_row[3],
+        }
+    )
 
 
 @router.get("/users/me/watch-later")

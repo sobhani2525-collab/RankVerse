@@ -169,6 +169,17 @@ export default function ProfilePage() {
     };
   }, [token]);
 
+  // Deep links like /profile#watch-later: the target renders only after its
+  // data loads, by which time the browser's own hash scroll has already run.
+  const [hashScrolled, setHashScrolled] = useState(false);
+  useEffect(() => {
+    if (hashScrolled || loadingTaste || loadingLists || loadingRatings || loadingWatchLater) return;
+    setHashScrolled(true);
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, [hashScrolled, loadingTaste, loadingLists, loadingRatings, loadingWatchLater]);
+
   const totalCount = ratings?.length ?? 0;
   const contribution = taste?.contribution_stats ?? null;
   const contributionScorePercent =
@@ -178,7 +189,7 @@ export default function ProfilePage() {
   // TASTE ANCHORS): a bordered card with a mono kicker, sitting right
   // after predicted picks -- see TasteDnaSection's afterPredictedPicks slot.
   const watchLaterSection = (
-    <div className="rounded-2xl border border-border-soft bg-surface/60 p-6">
+    <div id="watch-later" className="scroll-mt-24 rounded-2xl border border-border-soft bg-surface/60 p-6">
       <MonoLabel size="text-[10px]">WATCH LATER</MonoLabel>
       <h3 className="mt-1 text-base font-bold text-ink">تماشا خواهم کرد</h3>
 
@@ -317,7 +328,7 @@ export default function ProfilePage() {
       </section>
 
       {/* --- Lists --- */}
-      <section className="mt-16">
+      <section id="my-lists" className="mt-16 scroll-mt-24">
         <SectionHeading
           en="YOUR LISTS"
           fa="فهرست‌های شما"
@@ -357,7 +368,7 @@ export default function ProfilePage() {
       </section>
 
       {/* --- Ratings --- */}
-      <section className="mt-16">
+      <section id="my-ratings" className="mt-16 scroll-mt-24">
         <SectionHeading en="YOUR RATINGS" fa="رتبه‌بندی‌های شما" />
 
         <div className="mt-5">

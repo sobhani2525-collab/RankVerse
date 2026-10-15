@@ -4,7 +4,7 @@ from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, get_read_db
 from app.core.exceptions import UnauthorizedError
 from app.core.security import decode_token
 from app.modules.users.models import User
@@ -30,6 +30,16 @@ async def get_current_user(
         raise UnauthorizedError("User not found or inactive")
 
     return user
+
+async def get_current_user_read(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_read_db),
+) -> User:
+    """get_current_user for read-only endpoints: shares their no-transaction
+    read session, so auth plus the endpoint's own reads skip the BEGIN and
+    ROLLBACK round trips. Don't use it where the endpoint writes."""
+    return await get_current_user(credentials, db)
+
 
 async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),

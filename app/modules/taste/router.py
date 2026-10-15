@@ -6,7 +6,7 @@ from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope
-from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.dependencies import get_current_user_read
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.taste.predicted_picks import PredictedPicksService
@@ -19,8 +19,8 @@ router = APIRouter(tags=["taste"])
 @router.get("/users/me/taste-dna")
 async def my_taste_dna(
     entity_scope: str = Query("movie"),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user_read),
+    db: AsyncSession = Depends(get_read_db),
 ):
     service = TasteService(db)
     profile = await service.get_taste_profile(current_user.id, entity_scope)
@@ -30,8 +30,8 @@ async def my_taste_dna(
 @router.get("/users/me/predicted-picks")
 async def my_predicted_picks(
     limit: int = Query(3, ge=1, le=10),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user_read),
+    db: AsyncSession = Depends(get_read_db),
 ):
     """
     Separate from GET /users/me/taste-dna on purpose: that endpoint is a

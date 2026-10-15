@@ -36,6 +36,9 @@ CANDIDATE_ENTITY_TYPES = ("movie", "tv_series")
 # match_score on the same 0-100 scale the rest of Taste DNA's percentages use.
 RANKING_SCORE_SCALE = 10
 
+# How many of the best-ranked unrated titles in the user's genres get scored.
+CANDIDATE_POOL_SIZE = 600
+
 
 class PredictedPick:
     __slots__ = ("entity", "match_score")
@@ -80,6 +83,32 @@ class PredictedPicksService:
             else_=None,
         )
     
+        # Ranking is 40% of match_score, so only the best-ranked unrated titles
+        # in the user's genres can reach the top picks. Scoring just those
+        # keeps this from aggregating the whole catalog (it took ~7s).
+        in_user_genres = (
+            select(RelationshipEdge.id)
+            .join(GenreEntity, GenreEntity.id == RelationshipEdge.to_entity_id)
+            .where(
+                RelationshipEdge.from_entity_id == Entity.id,
+                RelationshipEdge.relation_type == "has_genre",
+                GenreEntity.slug.in_(list(dimension_scores)),
+            )
+            .exists()
+        )
+        candidate_ids = (
+            select(Entity.id)
+            .join(EntityRanking, EntityRanking.entity_id == Entity.id)
+            .where(
+                Entity.entity_type.in_(CANDIDATE_ENTITY_TYPES),
+                EntityRanking.computed_score.isnot(None),
+                ~Entity.id.in_(rated_entity_ids),
+                in_user_genres,
+            )
+            .order_by(EntityRanking.computed_score.desc())
+            .limit(CANDIDATE_POOL_SIZE)
+        )
+
         stmt = (
             select(
                 Entity.id.label("entity_id"),
@@ -103,7 +132,7 @@ class PredictedPicksService:
                 Entity.entity_type.in_(CANDIDATE_ENTITY_TYPES),
                 GenreEntity.slug.in_(list(dimension_scores)),
                 EntityRanking.computed_score.isnot(None),
-                ~Entity.id.in_(rated_entity_ids),
+                Entity.id.in_(candidate_ids),
             )
             .group_by(Entity.id, EntityRanking.computed_score)
         )

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import SectionHeading from "./SectionHeading";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useInView } from "@/lib/use-in-view";
-import { getMyPredictedPicks, getMyRatings, getMyTasteDna, UserRating } from "@/lib/api";
+import { getMyListStats, getMyPredictedPicks, getMyRatings, getMyTasteDna, MyListStats, UserRating } from "@/lib/api";
 import { PredictedPick, TasteProfile } from "@/lib/types";
+import { ListIcon, StarIcon, SwordsIcon } from "@/components/list-detail/icons";
 import TastePredictedPickRow from "@/components/TastePredictedPickRow";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
@@ -16,7 +16,7 @@ import { toFaDigits } from "@/lib/format-number";
 type State =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; ratings: UserRating[]; taste: TasteProfile | null };
+  | { status: "ready"; ratings: UserRating[]; taste: TasteProfile | null; listStats: MyListStats | null };
 
 /**
  * The signed-in visitor's own corner of the map, built only from what the
@@ -35,7 +35,7 @@ export default function PersonalUniverse({ startHref }: { startHref: string }) {
 }
 
 function PersonalUniverseInner({ startHref }: { startHref: string }) {
-  const { isAuthenticated, loading: authLoading, user, getToken } = useAuth();
+  const { isAuthenticated, loading: authLoading, getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const [ref, inView] = useInView<HTMLElement>("200px 0px");
   const [state, setState] = useState<State>({ status: "loading" });
@@ -51,8 +51,12 @@ function PersonalUniverseInner({ startHref }: { startHref: string }) {
     getMyPredictedPicks(token, 6)
       .then((p) => !cancelled && setPicks(p))
       .catch(() => {});
-    Promise.all([getMyRatings(token), getMyTasteDna(token).catch(() => null)])
-      .then(([ratings, taste]) => !cancelled && setState({ status: "ready", ratings, taste }))
+    Promise.all([
+      getMyRatings(token),
+      getMyTasteDna(token).catch(() => null),
+      getMyListStats(token).catch(() => null),
+    ])
+      .then(([ratings, taste, listStats]) => !cancelled && setState({ status: "ready", ratings, taste, listStats }))
       .catch(() => !cancelled && setState({ status: "error" }));
     return () => {
       cancelled = true;
@@ -95,13 +99,17 @@ function PersonalUniverseInner({ startHref }: { startHref: string }) {
           </div>
         )}
 
-        {ready && ratings.length > 0 && <Dashboard username={user?.username ?? ""} ratings={ratings} taste={ready.taste} />}
+        {ready && ratings.length > 0 && <Dashboard ratings={ratings} taste={ready.taste} listStats={ready.listStats} />}
 
         {ready && ratings.length > 0 && picks.length > 0 && (
           <div className="mt-12">
             <p className="kicker text-muted/70">For you</p>
             <h3 className="mt-1 text-lg font-bold text-ink">پیشنهاد برای تو، بر اساس سلیقه‌ات</h3>
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            <p className="mt-2 max-w-2xl text-xs leading-6 text-muted">
+              درصد روی هر پوستر نشان می‌دهد آن عنوان چقدر به سلیقهٔ تو نزدیک است (۱۰۰٪ یعنی کاملاً منطبق). این عدد از ژانرهای
+              موردعلاقه‌ات و جایگاه عنوان در رتبه‌بندی کل سایت حساب می‌شود.
+            </p>
+            <div className="mt-5 grid grid-cols-3 gap-3 sm:gap-4 lg:grid-cols-6">
               {picks.map((pick) => (
                 <TastePredictedPickRow key={pick.entity.id} pick={pick} />
               ))}
@@ -113,65 +121,47 @@ function PersonalUniverseInner({ startHref }: { startHref: string }) {
   );
 }
 
-function Dashboard({ username, ratings, taste }: { username: string; ratings: UserRating[]; taste: TasteProfile | null }) {
-  const avg = ratings.reduce((s, r) => s + r.score, 0) / ratings.length;
+function Dashboard({ ratings, taste, listStats }: { ratings: UserRating[]; taste: TasteProfile | null; listStats: MyListStats | null }) {
   const topGenres = (taste?.dimensions ?? [])
     .filter((d) => d.dimension_type === "genre")
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
   const stats = taste?.contribution_stats ?? null;
-
-  // Orbit: higher personal score = closer to you.
-  const orbit = ratings.slice(0, 10).map((r, i, arr) => {
-    const angle = ((-90 + (360 / arr.length) * i) * Math.PI) / 180;
-    const radius = 18 + (5 - r.score) * 6.5;
-    return { r, x: 50 + radius * Math.cos(angle), y: 50 + radius * Math.sin(angle) };
-  });
+  const hasLists = !!listStats && listStats.lists_count > 0;
 
   return (
-    <div className="grid items-center gap-10 lg:grid-cols-2">
-      <div className="relative mx-auto aspect-square w-full max-w-[440px]">
-        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
-          {[18, 31, 44].map((rad) => (
-            <circle key={rad} cx="50" cy="50" r={rad} fill="none" stroke="#F2F0E8" strokeOpacity="0.05" strokeWidth="0.2" />
-          ))}
-          {orbit.map(({ r, x, y }) => (
-            <line key={r.id} x1="50" y1="50" x2={x} y2={y} stroke="#9163f5" strokeOpacity="0.25" strokeWidth="0.2" />
-          ))}
-        </svg>
-        <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gold/50 bg-surface2 font-bold uppercase text-gold shadow-[0_0_50px_-10px_rgba(232,179,74,0.6)]">
-          {username.charAt(0)}
-        </span>
-        {orbit.map(({ r, x, y }) => (
-          <span
-            key={r.id}
-            title={`${r.movie_title} — ${r.score}/5`}
-            className="absolute h-10 w-10 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border border-white/15 bg-surface2"
-            style={{ left: `${x}%`, top: `${y}%` }}
-          >
-            {r.movie_poster_path && <Image src={`https://image.tmdb.org/t/p/w92${r.movie_poster_path}`} alt="" fill sizes="40px" className="object-cover" />}
-          </span>
-        ))}
-        <p className="absolute inset-x-0 bottom-0 text-center text-[11px] text-muted/70">نزدیک‌تر = امتیاز بالاتر تو</p>
-      </div>
+    <div className="space-y-5">
+      <StatGroup title="فعالیت سینمایی تو" tone="gold" cols="sm:grid-cols-3">
+        <Stat href="/profile#my-ratings" icon={<StarIcon size={22} />} value={ratings.length} label="فیلم امتیازداده‌شده" />
+        {listStats && (
+          <Stat href="/profile#watch-later" icon={<IconBookmark />} value={listStats.watch_later_count} label="فیلم در فهرست تماشا" />
+        )}
+        {stats && <Stat icon={<SwordsIcon size={22} />} value={stats.battles_count} label="نبرد رأی‌داده‌شده" accent="violet" />}
+      </StatGroup>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Metric kicker="Rated" label="فیلم امتیازداده‌شده" value={toFaDigits(ratings.length)} />
-        <Metric kicker="Average" label="میانگین امتیاز تو (از ۵)" value={toFaDigits(avg.toFixed(1))} />
-        {stats && <Metric kicker="Battles" label="نبرد رأی‌داده‌شده" value={toFaDigits(stats.battles_count)} />}
+      {hasLists && (
+        <StatGroup title="فهرست‌هایی که ساخته‌ای" tone="teal" cols="sm:grid-cols-4">
+          <Stat href="/profile#my-lists" icon={<ListIcon size={22} />} value={listStats.lists_count} label="فهرست" />
+          <Stat icon={<IconFilm />} value={listStats.items_count} label="عنوان در فهرست‌ها" />
+          <Stat icon={<IconHeart />} value={listStats.likes} label="پسند" />
+          <Stat icon={<IconUsers />} value={listStats.followers} label="دنبال‌کننده" />
+        </StatGroup>
+      )}
+
+      <div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-stretch">
         {topGenres.length > 0 && (
-          <div className="rounded-2xl border border-white/5 bg-surface/40 p-5 sm:col-span-2">
-            <p className="kicker text-muted/70">Favourite genres</p>
-            <div className="mt-3 flex flex-wrap gap-2">
+          <div className="rounded-3xl border border-white/5 bg-surface/40 p-6">
+            <h3 className="text-sm font-bold text-ink">ژانرهای مورد علاقه</h3>
+            <div className="mt-4 flex flex-wrap gap-2">
               {topGenres.map((g) => (
-                <span key={g.dimension_key} className="rounded-full border border-teal/40 bg-teal/10 px-3 py-1 text-sm text-teal">
+                <span key={g.dimension_key} className="rounded-full border border-teal/40 bg-teal/10 px-4 py-1.5 text-sm text-teal">
                   {genreLabel(g.dimension_key)}
                 </span>
               ))}
             </div>
           </div>
         )}
-        <Link href="/profile" className="btn-secondary justify-center text-sm hover:border-gold/40 hover:text-gold sm:col-span-2">
+        <Link href="/profile" className="btn-secondary justify-center px-8 text-sm hover:border-gold/40 hover:text-gold">
           پروفایل و DNA سلیقه
         </Link>
       </div>
@@ -179,15 +169,48 @@ function Dashboard({ username, ratings, taste }: { username: string; ratings: Us
   );
 }
 
-function Metric({ kicker, label, value }: { kicker: string; label: string; value: string }) {
+function StatGroup({ title, tone, cols, children }: { title: string; tone: "gold" | "teal"; cols: string; children: React.ReactNode }) {
+  const accent = tone === "gold" ? "from-gold/60" : "from-teal/60";
   return (
-    <div className="rounded-2xl border border-white/5 bg-surface/40 p-5">
-      <p className="kicker text-muted/70">{kicker}</p>
-      <p className="num mt-2 text-3xl text-ink">{value}</p>
-      <p className="mt-1 text-xs text-muted">{label}</p>
+    <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-surface/40 p-5 sm:p-6">
+      <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-l ${accent} to-transparent`} aria-hidden="true" />
+      <h3 className="text-sm font-bold text-ink">{title}</h3>
+      <div className={`mt-4 grid grid-cols-2 gap-3 ${cols}`}>{children}</div>
     </div>
   );
 }
+
+// Each tile: icon chip, big number, label right under it. Tiles that have a
+// page behind them are links and lift on hover.
+function Stat({
+  icon, value, label, href, accent = "gold",
+}: { icon: React.ReactNode; value: number; label: string; href?: string; accent?: "gold" | "violet" }) {
+  const chip =
+    accent === "violet"
+      ? "border-violet-strong/50 bg-violet-strong/10 text-violet-light"
+      : "border-gold/25 bg-gold/10 text-gold";
+  const body = (
+    <>
+      <span className={`flex h-11 w-11 items-center justify-center rounded-xl border ${chip}`}>{icon}</span>
+      <p className="mt-4 text-3xl font-bold leading-none text-ink">{toFaDigits(value)}</p>
+      <p className="mt-2 text-xs leading-5 text-muted">{label}</p>
+    </>
+  );
+  const cls = "rounded-2xl border border-white/5 bg-white/[0.03] p-4 transition";
+  return href ? (
+    <Link href={href} className={`${cls} hover:-translate-y-0.5 hover:border-gold/40 hover:bg-white/[0.06]`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
+const IconBookmark = () => <svg {...iconProps}><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>;
+const IconFilm = () => <svg {...iconProps}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" /></svg>;
+const IconHeart = () => <svg {...iconProps}><path d="M12 20s-7-4.4-9-9.2C1.8 7.600 3.900 4.500 7 4.500c2 0 3.400 1.100 5 3 1.600-1.900 3-3 5-3 3.100 0 5.200 3.100 4 6.300-2 4.800-9 9.200-9 9.200z" /></svg>;
+const IconUsers = () => <svg {...iconProps}><circle cx="9" cy="8" r="3.500" /><path d="M2.500 20c.6-3.400 3.100-5 6.500-5s5.900 1.600 6.500 5M16 4.700a3.500 3.500 0 0 1 0 6.600M18 15.300c2 .6 3.200 2 3.500 4.700" /></svg>;
 
 // Decorative empty orbit for the onboarding state (no data implied).
 function EmptyOrbit() {

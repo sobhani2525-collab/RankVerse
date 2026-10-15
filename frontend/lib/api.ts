@@ -260,6 +260,19 @@ export async function getMyTasteDna(token: string, entityScope: string = "movie"
   return authFetch<TasteProfile>(`/users/me/taste-dna?entity_scope=${entityScope}`, token);
 }
 
+export interface MyListStats {
+  watch_later_count: number;
+  lists_count: number;
+  items_count: number;
+  views: number;
+  likes: number;
+  followers: number;
+}
+
+export async function getMyListStats(token: string): Promise<MyListStats> {
+  return authFetch<MyListStats>("/users/me/list-stats", token);
+}
+
 export async function getMyPredictedPicks(token: string, limit?: number): Promise<PredictedPick[]> {
   return authFetch<PredictedPick[]>(`/users/me/predicted-picks${limit ? `?limit=${limit}` : ""}`, token);
 }
