@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, ForeignKey, SmallInteger, DateTime, func, UniqueConstraint, CheckConstraint
+from sqlalchemy import String, Text, ForeignKey, SmallInteger, DateTime, func, UniqueConstraint, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,7 +24,17 @@ class User(Base):
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
     avatar_key: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Admin-managed state (see app/modules/admin/users_service.py). Status is
+    # derived, never stored: deleted_at set -> "deleted", is_active false ->
+    # "blocked", otherwise "active".
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    blocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    blocked_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    blocked_by_admin_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class UserRating(Base):

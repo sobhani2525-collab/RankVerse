@@ -26,7 +26,7 @@ async def get_current_user(
 
     user_id = payload.get("sub")
     user = await UserRepository(db).get_by_id(uuid.UUID(user_id))
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.deleted_at is not None:
         raise UnauthorizedError("User not found or inactive")
 
     return user
@@ -54,7 +54,7 @@ async def get_current_user_optional(
 
     user_id = payload.get("sub")
     user = await UserRepository(db).get_by_id(uuid.UUID(user_id))
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.deleted_at is not None:
         return None
 
     return user

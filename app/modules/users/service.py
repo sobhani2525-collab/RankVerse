@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,7 +47,11 @@ class UserService:
         user = await self.repo.get_by_email(payload.email)
         if not user or not verify_password(payload.password, user.hashed_password):
             raise UnauthorizedError("Invalid email or password")
+        if not user.is_active or user.deleted_at is not None:
+            raise UnauthorizedError("This account is unavailable")
 
+        user.last_login_at = datetime.now(timezone.utc)
+        await self.db.commit()
         return TokenPair(
             access_token=create_access_token(str(user.id)),
             refresh_token=create_refresh_token(str(user.id)),
@@ -54,7 +59,7 @@ class UserService:
 
     async def request_password_reset(self, email: str) -> str | None:
         user = await self.repo.get_by_email(email)
-        if not user:
+        if not user or user.deleted_at is not None:
             # Don't reveal whether the email exists -- caller always gets
             # the same generic response regardless.
             logger.info("Password reset requested for unknown email: %s", email)
@@ -74,7 +79,7 @@ class UserService:
             raise UnauthorizedError("Invalid or expired reset link")
 
         user = await self.repo.get_by_id(uuid.UUID(payload["sub"]))
-        if not user:
+        if not user or user.deleted_at is not None:
             raise UnauthorizedError("Invalid or expired reset link")
 
         await self.repo.update_password(user, hash_password(new_password))

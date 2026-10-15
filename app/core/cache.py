@@ -25,6 +25,9 @@ class TTLCache:
         self._data.clear()
         self._locks.clear()
 
+    def invalidate(self, key: Hashable) -> None:
+        self._data.pop(key, None)
+
     def _evict(self) -> None:
         if len(self._data) < self.max_entries:
             return

@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +12,7 @@ from app.core.security import create_access_token, decode_token
 from app.core.exceptions import UnauthorizedError
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
+from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
     UserCreate, UserLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest,
 )
@@ -55,9 +58,13 @@ async def login(payload: UserLogin, request: Request, db: AsyncSession = Depends
 
 
 @router.post("/refresh")
-async def refresh(refresh_token: str):
+async def refresh(refresh_token: str, db: AsyncSession = Depends(get_db)):
     payload = decode_token(refresh_token)
     if payload is None or payload.get("type") != "refresh":
+        raise UnauthorizedError("Invalid or expired refresh token")
+    # A blocked or deleted account must not keep minting access tokens.
+    user = await UserRepository(db).get_by_id(uuid.UUID(payload["sub"]))
+    if user is None or not user.is_active or user.deleted_at is not None:
         raise UnauthorizedError("Invalid or expired refresh token")
 
     new_access = create_access_token(payload["sub"])
