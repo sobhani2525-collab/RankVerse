@@ -1,8 +1,12 @@
-from sqlalchemy import func, select, tuple_
+from bisect import bisect_left
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.config import settings
+from app.core import database as _database, parallel
+from app.core.cache import cached
 from app.modules.battles.models import EntityEloScore
 from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.ranking.schemas import RankingGroupRef, RankingHighlight
@@ -17,6 +21,24 @@ RANKING_DIMENSIONS: dict[str, str] = {
     # this a show would never get a "#N best <showrunner>" highlight at all.
     "creator": "creator",
 }
+
+
+class GroupScores:
+    """One ranking group's member scores, ready for rank lookups."""
+
+    def __init__(self, negated_scores: list[float], size: int):
+        self.negated = negated_scores  # scores of scored members, negated, ascending
+        self.size = size
+
+    @classmethod
+    def from_scores(cls, scores: list[float | None]) -> "GroupScores":
+        return cls(sorted(-s for s in scores if s is not None), len(scores))
+
+    def rank_of(self, score: float | None) -> int:
+        """RANK() OVER (ORDER BY score DESC NULLS LAST) for a member scoring `score`."""
+        if score is None:
+            return len(self.negated) + 1
+        return bisect_left(self.negated, -score) + 1
 
 
 # Elo's starting rating (see battles/models.py EntityEloScore) and the
@@ -193,74 +215,81 @@ class RankingService:
         Where an entity ranks within each automatic ranking group it belongs to
         (one group per outgoing edge type in RANKING_DIMENSIONS, e.g. its genres
         or its director's filmography), skipping groups smaller than the threshold.
+
+        Ranking a title inside "Drama" with a window function meant sorting
+        every drama on each page view. A group's scores change slowly, so the
+        sorted list per group is cached and the rank is a bisect: RANK() OVER
+        (ORDER BY score DESC NULLS LAST) == 1 + the number of members with a
+        strictly higher score (members without a score share the last rank).
         """
         min_group_size = min_group_size if min_group_size is not None else settings.ranking_group_min_size
-        member_entity = aliased(Entity)
         group_entity = aliased(Entity)
-        own_edge = aliased(RelationshipEdge)
-        relation_types = list(RANKING_DIMENSIONS)
 
-        # All dimensions in one query, and ranks computed only inside the
-        # groups this entity belongs to (its own genres, director, ...)
-        # rather than across every group of the type -- the per-dimension
-        # version cost 3 round trips plus ~350ms of window over all genres.
-        own_groups = select(own_edge.relation_type, own_edge.to_entity_id).where(
-            own_edge.from_entity_id == entity.id,
-            own_edge.relation_type.in_(relation_types),
-        )
-        ranked = (
-            select(
-                RelationshipEdge.relation_type.label("relation_type"),
-                RelationshipEdge.from_entity_id.label("member_id"),
-                RelationshipEdge.to_entity_id.label("group_id"),
-                func.rank()
-                .over(
-                    partition_by=(RelationshipEdge.relation_type, RelationshipEdge.to_entity_id),
-                    order_by=EntityRanking.computed_score.desc().nulls_last(),
+        own_groups = (
+            await self.db.execute(
+                select(
+                    RelationshipEdge.relation_type,
+                    group_entity.id,
+                    group_entity.slug,
+                    group_entity.title,
+                    group_entity.attributes["title_fa"].astext,
                 )
-                .label("rank"),
-                func.count()
-                .over(partition_by=(RelationshipEdge.relation_type, RelationshipEdge.to_entity_id))
-                .label("group_size"),
+                .join(group_entity, group_entity.id == RelationshipEdge.to_entity_id)
+                .where(
+                    RelationshipEdge.from_entity_id == entity.id,
+                    RelationshipEdge.relation_type.in_(list(RANKING_DIMENSIONS)),
+                )
             )
-            .join(member_entity, member_entity.id == RelationshipEdge.from_entity_id)
-            .outerjoin(EntityRanking, EntityRanking.entity_id == RelationshipEdge.from_entity_id)
-            .where(
-                tuple_(RelationshipEdge.relation_type, RelationshipEdge.to_entity_id).in_(own_groups),
-                member_entity.entity_type == entity.entity_type,
-            )
-            .subquery()
-        )
+        ).all()
+        if not own_groups:
+            return []
 
-        stmt = (
-            select(
-                ranked.c.relation_type,
-                ranked.c.rank,
-                ranked.c.group_size,
-                group_entity.id,
-                group_entity.slug,
-                group_entity.title,
-                group_entity.attributes["title_fa"].astext,
-            )
-            .join(group_entity, group_entity.id == ranked.c.group_id)
-            .where(ranked.c.member_id == entity.id, ranked.c.group_size >= min_group_size)
+        sizes_and_scores = await parallel.gather(
+            *(self._group_scores(rel, group_id, entity.entity_type) for rel, group_id, *_ in own_groups)
         )
-        result = await self.db.execute(stmt)
-        highlights: list[RankingHighlight] = [
-            RankingHighlight(
-                dimension=RANKING_DIMENSIONS[relation_type],
-                group=RankingGroupRef(id=group_id, slug=group_slug, title=group_title, title_fa=group_title_fa),
-                rank=rank,
-                group_size=group_size,
+        mine = entity.ranking.computed_score if entity.ranking is not None else None
+
+        highlights: list[RankingHighlight] = []
+        for (relation_type, group_id, slug, title, title_fa), group in zip(own_groups, sizes_and_scores):
+            if group.size < min_group_size:
+                continue
+            highlights.append(
+                RankingHighlight(
+                    dimension=RANKING_DIMENSIONS[relation_type],
+                    group=RankingGroupRef(id=group_id, slug=slug, title=title, title_fa=title_fa),
+                    rank=group.rank_of(mine),
+                    group_size=group.size,
+                )
             )
-            for relation_type, rank, group_size, group_id, group_slug, group_title, group_title_fa in result.all()
-        ]
 
         # Ties keep RANKING_DIMENSIONS order (genre, director, creator), as
         # when each dimension was queried and appended in turn.
         dimension_order = list(RANKING_DIMENSIONS.values())
         highlights.sort(key=lambda h: (h.rank, dimension_order.index(h.dimension)))
         return highlights
+
+    async def _group_scores(self, relation_type: str, group_id, entity_type: str) -> "GroupScores":
+        async def load() -> GroupScores:
+            # Own session: refreshed in the background once stale (see cache.py).
+            async with _database.background_read_session() as db:
+                member = aliased(Entity)
+                rows = await db.execute(
+                    select(EntityRanking.computed_score)
+                    .select_from(RelationshipEdge)
+                    .join(member, member.id == RelationshipEdge.from_entity_id)
+                    .outerjoin(EntityRanking, EntityRanking.entity_id == RelationshipEdge.from_entity_id)
+                    .where(
+                        RelationshipEdge.relation_type == relation_type,
+                        RelationshipEdge.to_entity_id == group_id,
+                        member.entity_type == entity_type,
+                    )
+                )
+                return GroupScores.from_scores([score for (score,) in rows.all()])
+
+        return await cached(
+            ("group-scores", relation_type, group_id, entity_type),
+            settings.cache_ttl_group_scores, load, stale_for=settings.cache_stale_seconds,
+        )
 
     async def recompute_all(self, entity_type: str = "movie") -> int:
         """Batch job: recompute rankings for every entity of a type. Meant to run on a schedule (e.g. hourly cron/Celery beat), not per-request."""

@@ -1,9 +1,12 @@
 ﻿import uuid
+from types import SimpleNamespace
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.cache import cached
+from app.core import database as _database
 from app.core.database import get_read_db
 from app.modules.entities.repository import EntityRepository
 from app.modules.recommendations.schemas import RelatedEntityOut
@@ -44,6 +47,36 @@ async def get_related_entities(
     )
 
 
+# How many titles a genre set's pool keeps: the caller's limit plus room for
+# the entity itself and its similar_to picks, which are filtered out afterwards.
+_POOL_HEADROOM = 24
+
+
+async def _same_genre_pool(repo: EntityRepository, entity_id: uuid.UUID, entity_type: str, limit: int) -> list:
+    """The best same-type titles for this entity's genre set. Computing them
+    aggregates every title in those genres (seconds for a big genre), but the
+    answer is the same for every title with that genre set, so it is cached
+    per (type, genre set) instead of recomputed per title."""
+    genre_ids = await repo.genre_ids_of(entity_id)
+    if not genre_ids:
+        return []
+    size = limit + _POOL_HEADROOM
+
+    async def load():
+        async with _database.background_read_session() as db:
+            found = await EntityRepository(db).top_by_shared_genres(genre_ids, entity_type, size)
+        # Plain data only: nothing ORM-bound outlives the session it came from.
+        return [
+            SimpleNamespace(id=e.id, entity_type=e.entity_type, title=e.title, slug=e.slug, attributes=dict(e.attributes or {}))
+            for e in found
+        ]
+
+    return await cached(
+        ("similar-genres", entity_type, tuple(sorted(str(g) for g in genre_ids)), size),
+        settings.cache_ttl_similar, load, stale_for=settings.cache_stale_seconds,
+    )
+
+
 async def _related_entities(db: AsyncSession, entity_id: uuid.UUID, limit: int):
     repo = EntityRepository(db)
     entity = await repo.get_by_id(entity_id)
@@ -61,10 +94,9 @@ async def _related_entities(db: AsyncSession, entity_id: uuid.UUID, limit: int):
     # has something to show, without ever duplicating a similar_to pick.
     fallback_entities = []
     if len(edges) < limit:
-        already_ids = [edge.to_entity.id for edge in edges]
-        fallback_entities = await repo.find_similar_by_genre(
-            entity_id, entity.entity_type, exclude_ids=[entity_id, *already_ids], limit=limit - len(edges)
-        )
+        skip = {entity_id, *(edge.to_entity.id for edge in edges)}
+        pool = await _same_genre_pool(repo, entity_id, entity.entity_type, limit)
+        fallback_entities = [e for e in pool if e.id not in skip][: limit - len(edges)]
 
     # Every pick's "why" in one query rather than one per pick.
     shared = await repo.get_shared_connections_many(

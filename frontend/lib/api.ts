@@ -260,8 +260,8 @@ export async function getMyTasteDna(token: string, entityScope: string = "movie"
   return authFetch<TasteProfile>(`/users/me/taste-dna?entity_scope=${entityScope}`, token);
 }
 
-export async function getMyPredictedPicks(token: string): Promise<PredictedPick[]> {
-  return authFetch<PredictedPick[]>("/users/me/predicted-picks", token);
+export async function getMyPredictedPicks(token: string, limit?: number): Promise<PredictedPick[]> {
+  return authFetch<PredictedPick[]>(`/users/me/predicted-picks${limit ? `?limit=${limit}` : ""}`, token);
 }
 
 function suggestedBattlePathFor(entityType: string, slug: string): string {

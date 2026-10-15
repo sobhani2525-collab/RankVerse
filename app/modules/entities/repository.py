@@ -1,5 +1,7 @@
 import uuid
 
+from app.config import settings
+from app.core.cache import cached
 from sqlalchemy import and_, bindparam, delete, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import aliased, contains_eager, joinedload, load_only, selectinload
@@ -247,8 +249,17 @@ class EntityRepository:
         rows = (await self.db.execute(stmt.offset((page - 1) * page_size).limit(page_size))).all()
         if not rows:
             return [], 0
-        total = (await self.db.execute(count_stmt)).scalar_one()
+        # The total is the same for every page of a ranking, and only changes
+        # when person_stats is rebuilt.
+        total = await cached(
+            ("people-total", role, origin, sort_by),
+            settings.cache_ttl_people,
+            lambda: self._scalar(count_stmt),
+        )
         return [(e, int(w), float(a) if a is not None else None) for e, w, a in rows], total
+
+    async def _scalar(self, stmt) -> int:
+        return (await self.db.execute(stmt)).scalar_one()
 
     async def list_collaborators(
         self, person_id: uuid.UUID, limit: int
@@ -508,6 +519,36 @@ class EntityRepository:
         )
         result = await self.db.execute(stmt)
         return [row[0] for row in result.all()]
+
+    async def genre_ids_of(self, entity_id: uuid.UUID) -> list[uuid.UUID]:
+        stmt = select(RelationshipEdge.to_entity_id).where(
+            RelationshipEdge.from_entity_id == entity_id, RelationshipEdge.relation_type == "has_genre"
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def top_by_shared_genres(
+        self, genre_ids: list[uuid.UUID], entity_type: str, limit: int
+    ) -> list[Entity]:
+        """The `limit` best titles of entity_type for a set of genres: most of
+        the genres shared first, then highest computed_score. Same ordering as
+        find_similar_by_genre, but for a genre set instead of one entity, so
+        the answer can be shared by every title with that set."""
+        shared_count = func.count(RelationshipEdge.to_entity_id).label("shared_genres")
+        stmt = (
+            select(Entity, shared_count)
+            .options(load_only(*_CARD_COLUMNS))
+            .join(RelationshipEdge, RelationshipEdge.from_entity_id == Entity.id)
+            .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
+            .where(
+                RelationshipEdge.relation_type == "has_genre",
+                RelationshipEdge.to_entity_id.in_(genre_ids),
+                Entity.entity_type == entity_type,
+            )
+            .group_by(Entity.id, EntityRanking.computed_score)
+            .order_by(shared_count.desc(), EntityRanking.computed_score.desc().nulls_last(), Entity.id)
+            .limit(limit)
+        )
+        return [row[0] for row in (await self.db.execute(stmt)).all()]
 
     async def get_related_ids(self, entity_id: uuid.UUID, limit: int = 30) -> list[uuid.UUID]:
         stmt = (

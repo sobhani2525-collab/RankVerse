@@ -98,6 +98,7 @@ async def test_refresh_if_stale_builds_then_skips_while_fresh(db_session, monkey
     assert await person_stats.refresh_if_stale(timedelta(hours=6)) is True  # empty table
     assert await person_stats.refresh_if_stale(timedelta(hours=6)) is False  # just built
     await db_session.execute(PersonStats.__table__.update().values(updated_at=func.now() - timedelta(hours=7)))
+    person_stats._known_fresh_until = None  # this process re-checks once its known-fresh window has passed
     assert await person_stats.refresh_if_stale(timedelta(hours=6)) is True
     assert vacuums == [1, 1]  # vacuumed after each rebuild, not after the skipped check
 

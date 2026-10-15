@@ -88,13 +88,15 @@ def test_engine():
 def _fresh_response_cache():
     """The in-process response cache outlives a test's rolled-back data."""
     from app.core.cache import cache
-    from app.modules.entities import repository
+    from app.modules.entities import person_stats, repository
 
     cache.clear()
     repository._person_stats_ready = False
+    person_stats._known_fresh_until = None
     yield
     cache.clear()
     repository._person_stats_ready = False
+    person_stats._known_fresh_until = None
 
 
 @pytest.fixture(autouse=True)

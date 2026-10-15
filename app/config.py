@@ -227,6 +227,8 @@ class Settings(BaseSettings):
     cache_ttl_lists: int = 300  # movie/tv lists, rankings, genres, highlights
     cache_ttl_people: int = 900
     cache_ttl_sitemap: int = 86400
+    cache_ttl_group_scores: int = 900  # per-group score lists behind the ranking highlights
+    cache_ttl_similar: int = 3600  # top same-genre titles per genre set (the /related fallback)
     cache_ttl_daily_battle: int = 120  # today's pair + yesterday's result (per-viewer parts are never cached)
     cache_ttl_guest_battle: int = 600  # guest battle pools reused from a small rotating set
     guest_battle_pool_slots: int = 6
@@ -237,7 +239,7 @@ class Settings(BaseSettings):
     # background load refreshes them, so no visitor waits on a cold query.
     cache_stale_seconds: int = 3600
     # Background rebuild of the person_stats table (people ranking); 0 disables.
-    person_stats_refresh_hours: int = 6
+    person_stats_refresh_hours: int = 12
 
     @property
     def cors_origin_list(self) -> list[str]:

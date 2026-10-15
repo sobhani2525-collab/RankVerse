@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope
@@ -40,10 +42,10 @@ async def my_predicted_picks(
     time). Keeping it separate means the core profile load never pays for
     this heavier query, and the frontend can fetch/show it lazily.
     """
-    service = PredictedPicksService(db)
-    picks = await service.get_predicted_picks(current_user.id, limit=limit)
-    return envelope(
-        data=[
+    async def load():
+        picks = await PredictedPicksService(db).get_predicted_picks(current_user.id, limit=limit)
+        # Plain dicts only: the cached value must not hold ORM objects.
+        return [
             PredictedPickPublic(
                 entity=TasteAnchorEntity(
                     id=pick.entity.id,
@@ -57,7 +59,15 @@ async def my_predicted_picks(
             ).model_dump()
             for pick in picks
         ]
+
+    # The candidate query scores every unrated title in the user's genres, so
+    # a short per-user cache keeps repeat home/profile loads off the database.
+    data = await cached(
+        ("predicted-picks", current_user.id, limit),
+        settings.cache_ttl_lists,
+        load,
     )
+    return envelope(data=data)
 
 
 @router.get("/users/{username}/taste-dna")

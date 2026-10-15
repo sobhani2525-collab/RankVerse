@@ -7,8 +7,9 @@ import SectionHeading from "./SectionHeading";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useInView } from "@/lib/use-in-view";
-import { getMyRatings, getMyTasteDna, UserRating } from "@/lib/api";
-import { TasteProfile } from "@/lib/types";
+import { getMyPredictedPicks, getMyRatings, getMyTasteDna, UserRating } from "@/lib/api";
+import { PredictedPick, TasteProfile } from "@/lib/types";
+import TastePredictedPickRow from "@/components/TastePredictedPickRow";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 
@@ -25,10 +26,20 @@ type State =
  * state that points at the real rating flow -- no placeholder numbers.
  */
 export default function PersonalUniverse({ startHref }: { startHref: string }) {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  // Guests get no placeholder card: the section only exists for a signed-in user.
+  // The inner component must mount only once signed in, so useInView's ref points
+  // at a real element when its effect runs (otherwise the observer never attaches).
+  if (authLoading || !isAuthenticated) return null;
+  return <PersonalUniverseInner startHref={startHref} />;
+}
+
+function PersonalUniverseInner({ startHref }: { startHref: string }) {
   const { isAuthenticated, loading: authLoading, user, getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const [ref, inView] = useInView<HTMLElement>("200px 0px");
   const [state, setState] = useState<State>({ status: "loading" });
+  const [picks, setPicks] = useState<PredictedPick[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated || !inView) return;
@@ -36,6 +47,10 @@ export default function PersonalUniverse({ startHref }: { startHref: string }) {
     if (!token) return;
     let cancelled = false;
     setState({ status: "loading" });
+    // Independent of the dashboard: a slow or failed picks call only hides its own row.
+    getMyPredictedPicks(token, 6)
+      .then((p) => !cancelled && setPicks(p))
+      .catch(() => {});
     Promise.all([getMyRatings(token), getMyTasteDna(token).catch(() => null)])
       .then(([ratings, taste]) => !cancelled && setState({ status: "ready", ratings, taste }))
       .catch(() => !cancelled && setState({ status: "error" }));
@@ -45,8 +60,6 @@ export default function PersonalUniverse({ startHref }: { startHref: string }) {
   }, [isAuthenticated, inView, getToken]);
 
   const signedIn = !authLoading && isAuthenticated;
-  // Guests get no placeholder card: the section only exists for a signed-in user.
-  if (!signedIn) return null;
   const ready = signedIn && state.status === "ready" ? state : null;
   const ratings = ready?.ratings ?? [];
 
@@ -83,6 +96,18 @@ export default function PersonalUniverse({ startHref }: { startHref: string }) {
         )}
 
         {ready && ratings.length > 0 && <Dashboard username={user?.username ?? ""} ratings={ratings} taste={ready.taste} />}
+
+        {ready && ratings.length > 0 && picks.length > 0 && (
+          <div className="mt-12">
+            <p className="kicker text-muted/70">For you</p>
+            <h3 className="mt-1 text-lg font-bold text-ink">پیشنهاد برای تو، بر اساس سلیقه‌ات</h3>
+            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              {picks.map((pick) => (
+                <TastePredictedPickRow key={pick.entity.id} pick={pick} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

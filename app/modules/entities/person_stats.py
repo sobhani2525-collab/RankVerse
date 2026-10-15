@@ -80,14 +80,25 @@ async def vacuum_person_stats() -> None:
         logger.warning("VACUUM ANALYZE person_stats failed", exc_info=True)
 
 
+_known_fresh_until: datetime | None = None  # this process already saw the table fresh until then
+
+
 async def refresh_if_stale(max_age: timedelta) -> bool:
-    """Rebuild unless the table was built within max_age. True if it rebuilt."""
+    """Rebuild unless the table was built within max_age. True if it rebuilt.
+    The freshness check scans the table, so a process that has seen it fresh
+    doesn't look again until that moment has passed."""
+    global _known_fresh_until
+    now = datetime.now(timezone.utc)
+    if _known_fresh_until is not None and now < _known_fresh_until:
+        return False
     async with AsyncSessionLocal() as db:
         built = (await db.execute(select(func.max(PersonStats.updated_at)))).scalar_one()
-        if built is not None and datetime.now(timezone.utc) - built < max_age:
+        if built is not None and now - built < max_age:
+            _known_fresh_until = built + max_age
             return False
         rebuilt = await refresh_person_stats(db) is not None
     if rebuilt:
+        _known_fresh_until = datetime.now(timezone.utc) + max_age
         await vacuum_person_stats()
     return rebuilt
 
