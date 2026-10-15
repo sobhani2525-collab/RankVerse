@@ -1,3 +1,4 @@
+import ScrollRow from "@/components/ScrollRow";
 import { SectionHeading } from "@/components/list-detail/ui";
 import RankingList from "@/components/RankingList";
 import PosterCard from "@/components/entities/poster-card";
@@ -22,11 +23,11 @@ export default function RelatedList({ title, en, items, display = "rows" }: Rela
       {title && <SectionHeading en={en ?? ""} fa={title} tone="text-gold" />}
       <div className="mt-4">
         {display === "cards" ? (
-          <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
+          <ScrollRow arrowClassName="sm:hidden" className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
             {items.map((item) => (
               <PosterCard key={item.id} entity={item} />
             ))}
-          </div>
+          </ScrollRow>
         ) : (
           <RankingList movies={items} />
         )}

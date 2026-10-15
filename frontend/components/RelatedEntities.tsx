@@ -1,3 +1,4 @@
+import ScrollRow from "@/components/ScrollRow";
 import PosterCard from "@/components/entities/poster-card";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { RelatedEntity } from "@/lib/api";
@@ -18,11 +19,11 @@ export default function RelatedEntities({ items, excludeIds = [], tone }: Relate
   return (
     <div>
       <SectionHeading en="IF YOU LIKED" fa="اگر این را دوست داشتی" tone={tone} />
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
+      <ScrollRow arrowClassName="sm:hidden" className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
         {shown.map((item) => (
           <PosterCard key={item.id} entity={item} />
         ))}
-      </div>
+      </ScrollRow>
     </div>
   );
 }

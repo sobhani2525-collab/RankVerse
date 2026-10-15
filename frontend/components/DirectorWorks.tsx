@@ -1,3 +1,4 @@
+import ScrollRow from "@/components/ScrollRow";
 import Link from "next/link";
 import PosterCard from "@/components/entities/poster-card";
 import { SectionHeading } from "@/components/list-detail/ui";
@@ -34,11 +35,11 @@ export default function DirectorWorks({
           </Link>
         }
       />
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
+      <ScrollRow arrowClassName="sm:hidden" className="mt-4 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 md:grid-cols-4">
         {items.slice(0, 8).map((item) => (
           <PosterCard key={item.id} entity={item} />
         ))}
-      </div>
+      </ScrollRow>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { listHref } from "@/lib/list-url";
 import Link from "next/link";
 import Image from "next/image";
 import SectionHeading from "./SectionHeading";
+import ScrollRow from "../ScrollRow";
 import { ListDetail } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
@@ -30,7 +31,7 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
 
       <div className="relative">
         <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[45%] h-px bg-gradient-to-l from-transparent via-white/10 to-transparent" />
-        <ul className="no-scrollbar mx-auto flex max-w-7xl snap-x snap-mandatory scroll-px-6 gap-5 overflow-x-auto px-6 pb-16 pt-2 [mask-image:linear-gradient(to_right,transparent,black_14%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_14%)]">
+        <ScrollRow as="ul" className="no-scrollbar mx-auto flex max-w-7xl snap-x snap-mandatory scroll-px-6 gap-5 overflow-x-auto px-6 pb-16 pt-2 [mask-image:linear-gradient(to_right,transparent,black_14%)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_14%)]">
           {list.items.map((item, i) => {
             const posterUrl = entityPosterUrl(item.entity);
             const card = (
@@ -68,7 +69,7 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
               </span>
             </Link>
           </li>
-        </ul>
+        </ScrollRow>
       </div>
     </section>
   );
