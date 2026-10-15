@@ -40,9 +40,17 @@ export default {
       });
     }
 
-    return new Response(upstream.body, {
+    // Buffer the image instead of streaming upstream.body: a streamed (chunked,
+    // no Content-Length) response stalled mid-image for clients on VPNs and
+    // lossy links, leaving half-drawn posters. Images are small (<~500KB), and
+    // a known Content-Length lets browsers detect and retry a cut-off download.
+    const body = request.method === "HEAD" ? null : await upstream.arrayBuffer();
+    const length = body ? body.byteLength : upstream.headers.get("Content-Length");
+
+    return new Response(body, {
       status: 200,
       headers: {
+        ...(length ? { "Content-Length": String(length) } : {}),
         "Content-Type": upstream.headers.get("Content-Type") || "image/jpeg",
         "Cache-Control": `public, max-age=${YEAR}, immutable`,
         // The share-card canvas draws these images and needs CORS to export them.
