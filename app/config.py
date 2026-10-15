@@ -43,6 +43,9 @@ class Settings(BaseSettings):
 
     # Transactional email (see app/core/email.py). "log" only logs messages.
     email_provider: str = "log"  # "log" | "smtp"
+    # Posting comments and publishing lists needs a confirmed email -- but only
+    # while real email is configured (otherwise nobody could ever confirm).
+    require_verified_email: bool = True
     email_from: str = ""
     email_from_name: str = "سینماگزین"
     smtp_host: str = ""

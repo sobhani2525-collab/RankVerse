@@ -5,12 +5,23 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, get_read_db
-from app.core.exceptions import UnauthorizedError
+from app.config import settings
+from app.core.email import email_enabled
+from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import decode_token
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+EMAIL_NOT_VERIFIED_MESSAGE = "برای این کار ابتدا ایمیل خود را تأیید کنید. لینک تأیید را از نوار بالای سایت دوباره بخواهید."
+
+
+def ensure_email_verified(user: User) -> None:
+    """Anti-spam gate for posting (comments, public lists): needs a confirmed email.
+    Off unless email delivery is configured, so a site without SMTP never locks users out."""
+    if settings.require_verified_email and email_enabled() and user.email_verified_at is None:
+        raise ForbiddenError(EMAIL_NOT_VERIFIED_MESSAGE)
 
 
 async def get_current_user(

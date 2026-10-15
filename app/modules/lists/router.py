@@ -9,7 +9,9 @@ from app.core.cache import cached
 from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import envelope, Meta
-from app.modules.auth.dependencies import get_current_user, get_current_user_optional, get_current_user_read
+from app.modules.auth.dependencies import (
+    ensure_email_verified, get_current_user, get_current_user_optional, get_current_user_read,
+)
 from app.modules.lists.models import UserList, UserListItem
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
@@ -28,6 +30,8 @@ async def create_list(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if payload.visibility == "public":
+        ensure_email_verified(current_user)  # private drafts are fine; publishing is what spam needs
     service = ListService(db)
     lst = await service.create_list(current_user.id, payload)
     return envelope(data={"id": str(lst.id), "slug": lst.slug})
@@ -109,6 +113,8 @@ async def update_list(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if payload.visibility == "public":
+        ensure_email_verified(current_user)
     service = ListService(db)
     lst = await service.update_list(current_user.id, slug, payload)
     return envelope(data={"id": str(lst.id), "slug": lst.slug})
@@ -336,6 +342,7 @@ async def add_comment(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    ensure_email_verified(current_user)
     service = ListService(db)
     comment = await service.add_comment(current_user.id, slug, payload)
     return envelope(data=comment.model_dump())

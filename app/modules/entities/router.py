@@ -8,7 +8,7 @@ from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
 import uuid
 
-from app.modules.auth.dependencies import get_current_user, get_current_user_optional
+from app.modules.auth.dependencies import ensure_email_verified, get_current_user, get_current_user_optional
 from app.modules.battles.schemas import SuggestedBattleResponse, SuggestedBattleEntity
 from app.modules.battles.suggested import SuggestedBattleService
 from app.modules.entities.ego import build_ego_graph, get_hero_pool
@@ -183,5 +183,6 @@ async def add_entity_comment(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    ensure_email_verified(current_user)
     comment = await EntityService(db).add_comment(current_user.id, current_user.username, entity_id, payload)
     return envelope(data=comment.model_dump())
