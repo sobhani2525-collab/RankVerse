@@ -41,9 +41,11 @@ class AdminUserRepository:
         )
 
     def _filters(
-        self, stmt: Select, *, q, status, email_verified, created_from, created_to,
-        last_login_from, last_login_to, never_logged_in,
+        self, stmt: Select, *, q=None, status=None, email_verified=None, created_from=None, created_to=None,
+        last_login_from=None, last_login_to=None, never_logged_in=None, ids=None,
     ) -> Select:
+        if ids is not None:
+            stmt = stmt.where(User.id.in_(ids))
         if q and q.strip():
             term = q.strip()
             like = f"%{_like_escape(term.lower())}%"
@@ -102,6 +104,19 @@ class AdminUserRepository:
 
         rows = (await self.db.execute(stmt)).all()
         return [r.User for r in rows], (rows[0].total if rows else 0)
+
+    async def get_many(self, ids: list[uuid.UUID]) -> list[User]:
+        if not ids:
+            return []
+        return list((await self.db.execute(select(User).where(User.id.in_(ids)))).scalars().all())
+
+    async def ids_matching(self, filters: dict, limit: int) -> list[uuid.UUID]:
+        stmt = self._filters(select(User.id), **filters).order_by(User.created_at.desc(), User.id).limit(limit)
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def count_matching(self, **filters) -> int:
+        stmt = self._filters(select(func.count()).select_from(User), **filters)
+        return (await self.db.execute(stmt)).scalar_one()
 
     async def counts_for(self, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, int]]:
         """ratings/lists/comments per user for one page: grouped queries, not N+1."""

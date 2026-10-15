@@ -12,6 +12,12 @@ import { StatCard } from "../_components/StatCard";
 import { StatusBadge } from "../_components/StatusBadge";
 import { ToastProvider, useToast } from "../_components/Toast";
 import { UserAvatar } from "../_components/UserAvatar";
+import { BulkReport } from "./BulkReport";
+import { ExportDialog, type ExportChoice } from "./ExportDialog";
+import {
+  MAX_BULK_IDS, downloadExport, filterBody, filterParams, runBulk,
+  type BulkAction, type BulkResult,
+} from "./bulk";
 
 const T = {
   searchPlaceholder: "جستجو: نام، ایمیل، username یا شناسه",
@@ -65,14 +71,17 @@ function fullDate(iso: string): string {
   return `${d.toLocaleString("fa-IR")} — ${d.toLocaleString("en-GB")}`;
 }
 
-function startOfDayIso(day: string): string {
-  return new Date(`${day}T00:00:00`).toISOString();
-}
-function endOfDayIso(day: string): string {
-  return new Date(`${day}T23:59:59.999`).toISOString();
-}
-
 type DialogState = { kind: "block" | "delete" | "reset"; user: AdminUserRow } | null;
+type BulkDialog = { action: BulkAction } | null;
+
+const BULK_LABEL: Record<BulkAction, { button: string; title: string; done: string; danger?: boolean }> = {
+  block: { button: "مسدود کردن", title: "مسدودسازی گروهی", done: "مسدودسازی گروهی انجام شد", danger: true },
+  unblock: { button: "رفع مسدودیت", title: "رفع مسدودیت گروهی", done: "رفع مسدودیت گروهی انجام شد" },
+  verify_email: { button: "تأیید ایمیل", title: "تأیید ایمیل گروهی", done: "تأیید ایمیل گروهی انجام شد" },
+  delete: { button: "حذف", title: "حذف گروهی", done: "حذف گروهی انجام شد", danger: true },
+  restore: { button: "بازیابی", title: "بازیابی گروهی", done: "بازیابی گروهی انجام شد" },
+};
+const BULK_ORDER: BulkAction[] = ["block", "unblock", "verify_email", "delete", "restore"];
 
 export function AdminUsersManager() {
   return (
@@ -97,6 +106,16 @@ function Manager() {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [busy, setBusy] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Bulk selection. Decision: ids survive page changes (so a few rows can be picked
+  // across pages) but are cleared whenever the filters / search / sort change, since
+  // the admin is then looking at a different result set. "allMatching" means "every
+  // row the current filters match", resolved server-side, not just the loaded ones.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [allMatching, setAllMatching] = useState(false);
+  const [bulkDialog, setBulkDialog] = useState<BulkDialog>(null);
+  const [report, setReport] = useState<{ title: string; result: BulkResult; names: Record<string, string> } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const get = (name: string) => searchParams.get(name) ?? "";
   const page = Math.max(1, Number(get("page")) || 1);
@@ -132,19 +151,27 @@ function Manager() {
 
   // --- data ---
   const apiQuery = useMemo(() => {
-    const p = new URLSearchParams();
-    for (const k of ["q", ...FILTER_KEYS, "sort", "order"]) {
+    const p = filterParams(new URLSearchParams(query));
+    for (const k of ["sort", "order"]) {
       const v = searchParams.get(k);
-      if (!v) continue;
-      if (k === "created_from" || k === "last_login_from") p.set(k, startOfDayIso(v));
-      else if (k === "created_to" || k === "last_login_to") p.set(k, endOfDayIso(v));
-      else p.set(k, v);
+      if (v) p.set(k, v);
     }
     p.set("page", String(page));
     p.set("page_size", String(pageSize));
     return p.toString();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+
+  const resultSetKey = useMemo(() => {
+    const p = new URLSearchParams(query);
+    p.delete("page");
+    p.delete("page_size");
+    return p.toString();
+  }, [query]);
+  useEffect(() => {
+    setSelected(new Set());
+    setAllMatching(false);
+  }, [resultSetKey]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -280,6 +307,96 @@ function Manager() {
     );
   }
 
+  // --- bulk selection / actions / export ---
+  const pageIds = rows.map((u) => u.id);
+  const allPageSelected = rows.length > 0 && pageIds.every((id) => selected.has(id));
+  const selectedCount = allMatching ? total : selected.size;
+  const tooManyIds = !allMatching && selected.size > MAX_BULK_IDS;
+
+  function toggleRow(id: string) {
+    setAllMatching(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function togglePage() {
+    setAllMatching(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+  const clearSelection = () => {
+    setSelected(new Set());
+    setAllMatching(false);
+  };
+
+  async function execBulk(action: BulkAction, reason?: string) {
+    setBusy(true);
+    try {
+      const target = allMatching ? { filter: filterBody(new URLSearchParams(query)) } : { ids: [...selected] };
+      const names = Object.fromEntries(rows.map((u) => [u.id, u.username]));
+      const result = await runBulk(action, target, reason);
+      setBulkDialog(null);
+      setReport({ title: BULK_LABEL[action].done, result, names });
+      clearSelection();
+      await refresh();
+    } catch (err) {
+      toast({ ok: false, text: err instanceof Error ? err.message : "انجام نشد" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function execExport(choice: ExportChoice) {
+    setBusy(true);
+    try {
+      const q = filterParams(new URLSearchParams(query));
+      q.set("sort", sort);
+      q.set("order", order);
+      q.set("format", choice.format);
+      if (choice.scope === "selected" && !allMatching) q.set("ids", [...selected].join(","));
+      await downloadExport(q);
+      toast({ text: "فایل خروجی آماده شد" });
+      setExportOpen(false);
+    } catch (err) {
+      toast({ ok: false, text: err instanceof Error ? err.message : "خروجی گرفته نشد" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function bulkConfirmDialog() {
+    if (!bulkDialog) return null;
+    const { action } = bulkDialog;
+    const meta = BULK_LABEL[action];
+    const count = selectedCount;
+    return (
+      <ConfirmDialog
+        title={meta.title}
+        description={
+          <>
+            این عملیات روی <b className="num text-ink">{toFaDigits(count)}</b> کاربر{allMatching ? " (همهٔ نتایج فیلترشده)" : ""} اجرا می‌شود.
+            {action === "delete" && " حذف نرم است و قابل بازیابی."}
+            {action === "block" && " فهرست‌ها و رای‌ها حذف نمی‌شود."}
+          </>
+        }
+        confirmLabel={`${meta.button} (${toFaDigits(count)})`}
+        danger={meta.danger}
+        busy={busy}
+        reason={action === "block" ? { label: "دلیل مسدودسازی (الزامی)" } : undefined}
+        requireText={meta.danger ? String(count) : undefined}
+        onCancel={() => !busy && setBulkDialog(null)}
+        onConfirm={(reason) => void execBulk(action, reason)}
+      />
+    );
+  }
+
   // --- derived UI state ---
   const activeTab =
     TABS.find((t) => {
@@ -359,6 +476,14 @@ function Manager() {
           {T.filters}
           {chips.filter((c) => c.key !== "q").length > 0 && <span className="num ms-2 text-gold">{toFaDigits(chips.filter((c) => c.key !== "q").length)}</span>}
         </button>
+        <button
+          type="button"
+          onClick={() => setExportOpen(true)}
+          disabled={total === 0}
+          className="ms-auto rounded-lg border border-border px-4 py-2 text-sm text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
+        >
+          خروجی
+        </button>
       </div>
 
       {showFilters && (
@@ -437,11 +562,35 @@ function Manager() {
         </div>
       ) : (
         <>
+          {allPageSelected && !allMatching && total > rows.length && (
+            <div role="status" className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-2 text-sm text-gold">
+              <span className="num">{toFaDigits(rows.length)}</span> کاربر این صفحه انتخاب شد.{" "}
+              <button type="button" onClick={() => setAllMatching(true)} className="font-bold underline">
+                همهٔ <span className="num">{toFaDigits(total)}</span> نتیجهٔ فیلترشده را انتخاب کن
+              </button>
+            </div>
+          )}
+          {allMatching && (
+            <div role="status" className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-2 text-sm text-gold">
+              همهٔ <span className="num">{toFaDigits(total)}</span> نتیجهٔ فیلترشده انتخاب شده‌اند.{" "}
+              <button type="button" onClick={clearSelection} className="font-bold underline">لغو انتخاب</button>
+            </div>
+          )}
+
           {/* Desktop table */}
           <div className={`hidden max-h-[70vh] overflow-auto rounded-xl border border-border bg-surface md:block ${loading && rows.length > 0 ? "opacity-60" : ""}`}>
             <table className="w-full text-right text-sm">
               <thead className="sticky top-0 z-10 border-b border-border bg-surface text-xs text-muted">
                 <tr>
+                  <th scope="col" className="w-10 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      aria-label="انتخاب همهٔ کاربران این صفحه"
+                      checked={allPageSelected || allMatching}
+                      onChange={togglePage}
+                      disabled={rows.length === 0}
+                    />
+                  </th>
                   {COLUMNS.map((c) => (
                     <th
                       key={c.key}
@@ -464,7 +613,7 @@ function Manager() {
               <tbody>
                 {loading && rows.length === 0 && Array.from({ length: 6 }, (_, i) => (
                   <tr key={i} className="border-b border-border/60">
-                    <td colSpan={COLUMNS.length} className="px-3 py-3">
+                    <td colSpan={COLUMNS.length + 1} className="px-3 py-3">
                       <div className="h-8 animate-pulse rounded bg-surface2" />
                     </td>
                   </tr>
@@ -473,8 +622,16 @@ function Manager() {
                   <tr
                     key={u.id}
                     onClick={() => router.push(detailHref(u))}
-                    className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-surface2/50"
+                    className={`cursor-pointer border-b border-border/60 last:border-0 hover:bg-surface2/50 ${selected.has(u.id) || allMatching ? "bg-gold/5" : ""}`}
                   >
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`انتخاب ${u.username}`}
+                        checked={selected.has(u.id) || allMatching}
+                        onChange={() => (allMatching ? clearSelection() : toggleRow(u.id))}
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-3">
                         <UserAvatar avatarKey={u.avatar_key} name={u.display_name || u.username} />
@@ -509,7 +666,7 @@ function Manager() {
                 ))}
                 {!loading && rows.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="px-3 py-12 text-center text-muted">
+                    <td colSpan={COLUMNS.length + 1} className="px-3 py-12 text-center text-muted">
                       <p className="font-bold text-ink">{T.emptyTitle}</p>
                       <p className="mt-1 text-xs">{T.emptyHint}</p>
                       {chips.length > 0 && (
@@ -530,6 +687,13 @@ function Manager() {
             {rows.map((u) => (
               <li key={u.id} className="rounded-xl border border-border bg-surface p-4">
                 <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    aria-label={`انتخاب ${u.username}`}
+                    checked={selected.has(u.id) || allMatching}
+                    onChange={() => (allMatching ? clearSelection() : toggleRow(u.id))}
+                    className="mt-3"
+                  />
                   <UserAvatar avatarKey={u.avatar_key} name={u.display_name || u.username} size={40} />
                   <Link href={detailHref(u)} className="min-w-0 flex-1">
                     <span className="block truncate font-bold text-ink">{u.display_name || u.username}</span>
@@ -572,6 +736,55 @@ function Manager() {
       )}
 
       {confirmDialog()}
+      {bulkConfirmDialog()}
+
+      {selectedCount > 0 && (
+        <div
+          role="toolbar"
+          aria-label="عملیات گروهی"
+          className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-gold/40 bg-surface p-3 shadow-2xl"
+        >
+          <span className="num text-sm font-bold text-ink">{toFaDigits(selectedCount)} انتخاب‌شده</span>
+          {tooManyIds && (
+            <span className="text-xs text-gold">حداکثر {toFaDigits(MAX_BULK_IDS)} مورد؛ برای بیشتر «همهٔ نتایج فیلترشده» را انتخاب کنید.</span>
+          )}
+          <div className="ms-auto flex flex-wrap gap-2">
+            {BULK_ORDER.map((action) => (
+              <button
+                key={action}
+                type="button"
+                disabled={busy || tooManyIds}
+                onClick={() => setBulkDialog({ action })}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-bold disabled:opacity-40 ${
+                  BULK_LABEL[action].danger ? "border-red-500/40 text-red-300 hover:bg-red-500/10" : "border-border text-ink hover:border-gold/40"
+                }`}
+              >
+                {BULK_LABEL[action].button}
+              </button>
+            ))}
+            <button type="button" disabled={busy} onClick={() => setExportOpen(true)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-ink hover:border-gold/40 disabled:opacity-40">
+              خروجی
+            </button>
+            <button type="button" onClick={clearSelection} aria-label="لغو انتخاب" className="rounded-lg px-2 py-1.5 text-xs text-muted hover:text-ink">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {exportOpen && (
+        <ExportDialog
+          selectedCount={selectedCount}
+          selectedDisabledReason={tooManyIds ? `خروجی بر اساس انتخاب حداکثر ${toFaDigits(MAX_BULK_IDS)} مورد است` : undefined}
+          resultCount={total}
+          busy={busy}
+          onConfirm={(c) => void execExport(c)}
+          onCancel={() => !busy && setExportOpen(false)}
+        />
+      )}
+      {report && (
+        <BulkReport title={report.title} result={report.result} nameOf={(id) => report.names[id] ?? id} onClose={() => setReport(null)} />
+      )}
     </div>
   );
 }

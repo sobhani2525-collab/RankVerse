@@ -32,6 +32,15 @@ async function forward(request: NextRequest, path: string[] | undefined) {
   } catch {
     return NextResponse.json({ data: null, meta: null, error: { code: "upstream_unreachable", message: "سرور در دسترس نیست" } }, { status: 502 });
   }
+  // Exports are files: pass the body through as a stream, untouched.
+  if ((res.headers.get("content-disposition") ?? "").startsWith("attachment")) {
+    const out = new Headers();
+    for (const h of ["content-type", "content-disposition", "cache-control"]) {
+      const v = res.headers.get(h);
+      if (v) out.set(h, v);
+    }
+    return new NextResponse(res.body, { status: res.status, headers: out });
+  }
   const json = await res.json().catch(() => ({ data: null, meta: null, error: { code: "bad_response", message: `خطا (${res.status})` } }));
   return NextResponse.json(json, { status: res.status });
 }

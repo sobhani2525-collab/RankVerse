@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 def _strip(value: str | None) -> str | None:
@@ -85,3 +86,47 @@ class AdminAuditLogRow(BaseModel):
     ip: str | None = None
     user_agent: str | None = None
     created_at: datetime
+
+
+class AdminUserFilter(BaseModel):
+    """The list endpoint's filters, as a body (bulk "select all matching")."""
+
+    q: str | None = Field(None, max_length=200)
+    status: Literal["active", "blocked", "deleted", "all"] | None = None
+    email_verified: bool | None = None
+    created_from: datetime | None = None
+    created_to: datetime | None = None
+    last_login_from: datetime | None = None
+    last_login_to: datetime | None = None
+    never_logged_in: bool | None = None
+
+
+class AdminUserBulk(BaseModel):
+    action: Literal["block", "unblock", "delete", "restore", "verify_email"]
+    ids: list[uuid.UUID] | None = Field(None, min_length=1, max_length=500)
+    filter: AdminUserFilter | None = None
+    reason: str | None = Field(None, max_length=300)
+
+    @field_validator("reason")
+    @classmethod
+    def _strip_reason(cls, v: str | None) -> str | None:
+        return (v or "").strip() or None
+
+    @model_validator(mode="after")
+    def _check(self):
+        if (self.ids is None) == (self.filter is None):
+            raise ValueError("send exactly one of ids or filter")
+        if self.action == "block" and not self.reason:
+            raise ValueError("reason is required to block")
+        return self
+
+
+class AdminUserBulkFailure(BaseModel):
+    id: uuid.UUID
+    reason: str
+
+
+class AdminUserBulkResult(BaseModel):
+    succeeded: list[uuid.UUID] = []
+    failed: list[AdminUserBulkFailure] = []
+    skipped: list[uuid.UUID] = []

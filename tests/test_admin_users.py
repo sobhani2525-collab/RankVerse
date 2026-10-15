@@ -96,7 +96,8 @@ async def test_list_search_filter_sort_paginate(client, db_session, admin_header
     assert await names(created_from=(now - timedelta(days=6)).isoformat()) == ["carol", "bobby"]
     assert await names(created_to=(now - timedelta(days=6)).isoformat()) == ["alice"]
     assert await names(last_login_from=(now - timedelta(days=2)).isoformat()) == ["alice"]
-    assert await names(sort="last_login_at", order="desc") == ["alice", "carol", "bobby"]
+    by_login = await names(sort="last_login_at", order="desc")
+    assert by_login[0] == "alice" and set(by_login) == {"alice", "carol", "bobby"}  # never-logged-in rows tie
 
     page2 = await client.get(BASE, headers=admin_headers, params={"page": 2, "page_size": 2})
     assert [r["username"] for r in page2.json()["data"]] == ["alice"]
@@ -373,3 +374,133 @@ async def test_activity(client, db_session, admin_headers, test_user):
 
     bad = await client.get(f"{BASE}/{test_user.id}/activity", headers=admin_headers, params={"kind": "nope"})
     assert bad.status_code == 422
+
+
+# --- bulk & export ----------------------------------------------------------
+
+import csv
+import io
+import json as _json
+
+
+async def _many(db, n, prefix="bulk"):
+    return [await _user(db, f"{prefix}{i}@example.com", f"{prefix}{i}") for i in range(n)]
+
+
+async def test_bulk_by_ids_reports_succeeded_skipped_failed(client, db_session, admin_headers):
+    a, b, c = await _many(db_session, 3)
+    b.is_active = False  # already blocked -> skipped
+    c.deleted_at = datetime.now(timezone.utc)  # deleted -> failed
+    await db_session.commit()
+    missing = "00000000-0000-0000-0000-000000000000"
+
+    res = await client.post(
+        f"{BASE}/bulk", headers=admin_headers,
+        json={"action": "block", "ids": [str(a.id), str(b.id), str(c.id), missing, str(a.id)], "reason": "spam wave"},
+    )
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert data["succeeded"] == [str(a.id)]
+    assert data["skipped"] == [str(b.id)]
+    assert {f["id"] for f in data["failed"]} == {str(c.id), missing}
+
+    await db_session.refresh(a)
+    assert a.is_active is False and a.blocked_reason == "spam wave"
+    logs = (await db_session.execute(select(AdminAuditLog).where(AdminAuditLog.action == "user.block"))).scalars().all()
+    assert len(logs) == 1 and logs[0].after["bulk"] is True and logs[0].target_id == str(a.id)
+
+
+async def test_bulk_validation(client, db_session, admin_headers):
+    (a,) = await _many(db_session, 1)
+    ids = [str(a.id)]
+    assert (await client.post(f"{BASE}/bulk", headers=admin_headers, json={"action": "block", "ids": ids})).status_code == 422
+    assert (await client.post(f"{BASE}/bulk", headers=admin_headers, json={"action": "delete"})).status_code == 422
+    both = {"action": "delete", "ids": ids, "filter": {}}
+    assert (await client.post(f"{BASE}/bulk", headers=admin_headers, json=both)).status_code == 422
+    too_many = {"action": "delete", "ids": [f"00000000-0000-0000-0000-{i:012d}" for i in range(501)]}
+    assert (await client.post(f"{BASE}/bulk", headers=admin_headers, json=too_many)).status_code == 422
+    assert (await client.post(f"{BASE}/bulk", json={"action": "delete", "ids": ids})).status_code == 401
+
+
+async def test_bulk_by_filter_covers_every_match(client, db_session, admin_headers):
+    users = await _many(db_session, 5, "grp")
+    await _user(db_session, "other@example.com", "other")
+
+    res = await client.post(f"{BASE}/bulk", headers=admin_headers, json={"action": "verify_email", "filter": {"q": "grp"}})
+    assert res.status_code == 200
+    assert sorted(res.json()["data"]["succeeded"]) == sorted(str(u.id) for u in users)
+    verified = (await client.get(BASE, headers=admin_headers, params={"email_verified": "true"})).json()["meta"]["total"]
+    assert verified == 5
+
+    res = await client.post(f"{BASE}/bulk", headers=admin_headers, json={"action": "delete", "filter": {"status": "active", "q": "grp"}})
+    assert len(res.json()["data"]["succeeded"]) == 5
+    res = await client.post(f"{BASE}/bulk", headers=admin_headers, json={"action": "restore", "filter": {"status": "deleted"}})
+    assert len(res.json()["data"]["succeeded"]) == 5
+    res = await client.post(f"{BASE}/bulk", headers=admin_headers, json={"action": "unblock", "filter": {"q": "grp"}})
+    assert len(res.json()["data"]["skipped"]) == 5
+
+
+async def test_bulk_filter_cap(client, db_session, admin_headers, monkeypatch):
+    monkeypatch.setattr("app.modules.admin.users_service.BULK_FILTER_CAP", 2)
+    await _many(db_session, 3)
+    res = await client.post(f"{BASE}/bulk", headers=admin_headers, json={"action": "delete", "filter": {}})
+    assert res.status_code == 400
+
+
+def _csv_rows(res):
+    assert res.content.startswith(b"\xef\xbb\xbf")  # UTF-8 BOM so Excel reads Persian text
+    return list(csv.DictReader(io.StringIO(res.content.decode("utf-8-sig"))))
+
+
+async def test_export_csv_respects_filters_and_hides_secrets(client, db_session, admin_headers):
+    await _user(db_session, "fa@example.com", "fa_user", display_name="علی رضایی")
+    await _user(db_session, "x@example.com", "xuser", display_name="=HYPERLINK(1)")
+    await _user(db_session, "gone@example.com", "gone", deleted_at=datetime.now(timezone.utc))
+
+    res = await client.get(f"{BASE}/export", headers=admin_headers, params={"sort": "username", "order": "asc"})
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/csv")
+    assert 'attachment; filename="rankverse-users-' in res.headers["content-disposition"]
+    rows = _csv_rows(res)
+    assert [r["username"] for r in rows] == ["fa_user", "xuser"]
+    assert rows[0]["display_name"] == "علی رضایی" and rows[0]["email"] == "fa@example.com"
+    assert rows[1]["display_name"] == "'=HYPERLINK(1)"  # formula neutralised
+    assert set(rows[0]) == {
+        "id", "email", "username", "display_name", "status", "email_verified",
+        "created_at", "last_login_at", "ratings_count", "lists_count", "comments_count",
+    }
+    _assert_no_secrets(res.text)
+
+    res = await client.get(f"{BASE}/export", headers=admin_headers, params={"q": "xuser", "columns": "username,status"})
+    assert _csv_rows(res) == [{"username": "xuser", "status": "active"}]
+    res = await client.get(f"{BASE}/export", headers=admin_headers, params={"status": "deleted", "columns": "username"})
+    assert [r["username"] for r in _csv_rows(res)] == ["gone"]
+
+
+async def test_export_json_selected_ids_and_audit(client, db_session, admin_headers):
+    a, b, _c = await _many(db_session, 3, "pick")
+    res = await client.get(
+        f"{BASE}/export", headers=admin_headers,
+        params={"format": "json", "ids": f"{a.id},{b.id}", "columns": "id,email,ratings_count", "sort": "email", "order": "asc"},
+    )
+    assert res.status_code == 200 and res.headers["content-type"].startswith("application/json")
+    assert _json.loads(res.content) == [
+        {"id": str(a.id), "email": a.email, "ratings_count": 0},
+        {"id": str(b.id), "email": b.email, "ratings_count": 0},
+    ]
+    log = (await db_session.execute(select(AdminAuditLog).where(AdminAuditLog.action == "user.export"))).scalar_one()
+    assert log.after["rows"] == 2 and log.after["format"] == "json" and log.after["selected_ids"] == 2
+
+    empty = await client.get(f"{BASE}/export", headers=admin_headers, params={"format": "json", "q": "nobody-matches"})
+    assert _json.loads(empty.content) == []
+
+
+async def test_export_guards(client, db_session, admin_headers, monkeypatch):
+    await _many(db_session, 3)
+    assert (await client.get(f"{BASE}/export")).status_code == 401
+    bad = await client.get(f"{BASE}/export", headers=admin_headers, params={"columns": "email,hashed_password"})
+    assert bad.status_code == 400
+    assert (await client.get(f"{BASE}/export", headers=admin_headers, params={"ids": "nope"})).status_code == 400
+    monkeypatch.setattr("app.modules.admin.users_service.EXPORT_ROW_CAP", 2)
+    over = await client.get(f"{BASE}/export", headers=admin_headers)
+    assert over.status_code == 400 and "limit" in over.json()["error"]["message"]
