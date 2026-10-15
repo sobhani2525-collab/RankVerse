@@ -1,6 +1,7 @@
 import ConditionalHeader from "@/components/ConditionalHeader";
 import EmailVerifyBanner from "@/components/EmailVerifyBanner";
 import Analytics from "@/components/Analytics";
+import TmdbImageFallback from "@/components/TmdbImageFallback";
 import ConditionalFooter from "@/components/ConditionalFooter";
 import AuthGateModal from "@/components/AuthGateModal";
 import { AuthProvider } from "@/lib/auth-context";
@@ -67,6 +68,7 @@ export default function RootLayout({
                 <ConditionalFooter />
                 <AuthGateModal />
                 <Analytics />
+                <TmdbImageFallback />
               </WatchLaterProvider>
             </FavoritesProvider>
           </AuthGateProvider>
