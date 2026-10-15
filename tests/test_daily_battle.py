@@ -333,7 +333,7 @@ async def test_guest_ip_limit(client, db_session, monkeypatch):
     statuses = []
     for n in range(1, 4):
         res = await client.post(
-            f"{URL}/vote", headers={**_guest(n), "CF-Connecting-IP": "203.0.113.9"},
+            f"{URL}/vote", headers={**_guest(n), "X-Forwarded-For": "203.0.113.9"},
             json={"daily_battle_id": body["daily_battle_id"], "choice": "left"},
         )
         statuses.append(res.status_code)
@@ -351,7 +351,7 @@ async def test_repeat_vote_does_not_spend_ip_quota(client, db_session, fake_redi
     body = await _today(client)
     for _ in range(3):
         await client.post(
-            f"{URL}/vote", headers={**_guest(), "CF-Connecting-IP": "203.0.113.9"},
+            f"{URL}/vote", headers={**_guest(), "X-Forwarded-For": "203.0.113.9"},
             json={"daily_battle_id": body["daily_battle_id"], "choice": "left"},
         )
     assert list(fake_redis.data.values()) == [1]
@@ -362,7 +362,7 @@ async def test_redis_down_fails_open(client, db_session, fake_redis):
     await _movies(db_session, 12)
     body = await _today(client)
     res = await client.post(
-        f"{URL}/vote", headers={**_guest(), "CF-Connecting-IP": "203.0.113.9"},
+        f"{URL}/vote", headers={**_guest(), "X-Forwarded-For": "203.0.113.9"},
         json={"daily_battle_id": body["daily_battle_id"], "choice": "left"},
     )
     assert res.status_code == 200
@@ -481,7 +481,7 @@ async def test_guest_ip_limit_still_holds_when_redis_is_down(client, db_session,
     statuses = []
     for n in range(1, 4):
         res = await client.post(
-            f"{URL}/vote", headers={**_guest(n), "CF-Connecting-IP": "203.0.113.77"},
+            f"{URL}/vote", headers={**_guest(n), "X-Forwarded-For": "203.0.113.77"},
             json={"daily_battle_id": body["daily_battle_id"], "choice": "left"},
         )
         statuses.append(res.status_code)

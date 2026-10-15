@@ -26,10 +26,7 @@ def parse_guest_id(raw: str | None) -> str | None:
 
 
 def client_ip(request: Request) -> str | None:
-    ip = request.headers.get("cf-connecting-ip")
-    if not ip:
-        ip = (request.headers.get("x-forwarded-for") or "").split(",")[0]
-    ip = ip.strip()
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
     if ip:
         return ip[:64]
     return request.client.host if request.client else None

@@ -34,11 +34,11 @@ class Settings(BaseSettings):
 
     # Browser origins allowed to call the API (comma-separated). frontend_base_url
     # is always allowed too, so setting FRONTEND_BASE_URL for the real domain is
-    # enough; list extras here (e.g. a staging or workers.dev origin).
+    # enough; list extras here (e.g. a staging origin).
     cors_origins: str = (
         "https://cinemagozin.ir,https://www.cinemagozin.ir,"
         "https://cinemagozinbk.ir,https://www.cinemagozinbk.ir,"
-        "https://rankverse-frontend.sobhani2525.workers.dev,http://localhost:3000"
+        "http://localhost:3000"
     )
 
     # Transactional email (see app/core/email.py). "log" only logs messages.

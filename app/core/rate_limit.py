@@ -24,9 +24,8 @@ _LOCAL_MAX_KEYS = 10_000
 
 
 def client_ip(request: Request) -> str:
-    """Caller's IP: Cloudflare's header first, then the first X-Forwarded-For hop."""
-    ip = request.headers.get("cf-connecting-ip") or (request.headers.get("x-forwarded-for") or "").split(",")[0]
-    ip = ip.strip()
+    """Caller's IP: the first X-Forwarded-For hop (set by Liara's proxy), else the socket peer."""
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
     if not ip and request.client:
         ip = request.client.host
     return (ip or "unknown")[:64]

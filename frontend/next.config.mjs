@@ -14,6 +14,11 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // Logos are replaced by renaming, never in place.
+      ...["/brand-logo.png", "/logo.png"].map((source) => ({
+        source,
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
+      })),
       {
         source: "/tmdb-img/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, s-maxage=31536000, immutable" }],

@@ -1,7 +1,6 @@
-// next/image loader (wired up in next.config.mjs). On Cloudflare Workers the
-// default /_next/image route can't resize without an IMAGES binding: it just
-// proxies the original through the Worker (~0.6s each, no Cache-Control), so
-// a 32px avatar downloaded the full w500 poster. TMDb's CDN already serves
+// next/image loader (wired up in next.config.mjs). The default
+// /_next/image route would re-encode every poster on our server (slow, and a
+// 32px avatar would still download the full w500 poster). TMDb's CDN already serves
 // every poster at fixed widths, so each srcset entry points straight at the
 // smallest one that covers it -- cached for a year by TMDb's headers. The
 // size in the src itself (e.g. w500) stays the ceiling: callers chose it as
