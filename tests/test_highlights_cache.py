@@ -3,10 +3,12 @@ window function over the whole group. They now bisect a cached, sorted score
 list per group; the result has to stay identical to RANK() OVER (ORDER BY score
 DESC NULLS LAST), including ties and unscored members."""
 import random
+from contextlib import asynccontextmanager
 
 from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import aliased
 
+from app.core import database as database_module
 from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.entities.repository import EntityRepository
 from app.modules.ranking.service import GroupScores, RankingService
@@ -56,7 +58,13 @@ async def _reference_ranks(db, entity):
     return {group_id: (rank, size) for group_id, rank, size in rows}
 
 
-async def test_highlights_equal_the_window_query_with_ties_and_nulls(db_session):
+async def test_highlights_equal_the_window_query_with_ties_and_nulls(db_session, monkeypatch):
+    # The group-score loader opens its own session; keep it on the test transaction.
+    @asynccontextmanager
+    async def _side_session():
+        yield db_session
+
+    monkeypatch.setattr(database_module, "background_read_session", lambda: _side_session())
     rng = random.Random(7)
     repo = EntityRepository(db_session)
     genres = [
