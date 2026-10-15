@@ -33,9 +33,9 @@ interface AdminEnvelope<T> {
   error?: { message: string } | null;
 }
 
-/** Calls /api/admin/users/... (the cookie-to-Bearer proxy); throws Error(message) on failure. */
-export async function adminUsersCall<T>(path: string, init?: RequestInit): Promise<AdminEnvelope<T>> {
-  const res = await fetch(`/api/admin/users${path}`, {
+/** Calls /api/admin/<area>/... (the cookie-to-Bearer proxy); throws Error(message) on failure. */
+export async function adminApiCall<T>(area: string, path: string, init?: RequestInit): Promise<AdminEnvelope<T>> {
+  const res = await fetch(`/api/admin/${area}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
@@ -58,27 +58,7 @@ export interface AdminUserDetail extends AdminUserRow {
   deleted_at: string | null;
 }
 
-export interface AdminAuditLogRow {
-  id: string;
-  admin_id: string | null;
-  admin_email: string;
-  action: string;
-  target_type: string;
-  target_id: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  ip: string | null;
-  user_agent: string | null;
-  created_at: string;
-}
+export const adminUsersCall = <T>(path: string, init?: RequestInit) => adminApiCall<T>("users", path, init);
 
-/** Persian label for each audit action (the audit-log page reuses this). */
-export const AUDIT_ACTION_LABELS: Record<string, string> = {
-  "user.update": "ویرایش کاربر",
-  "user.block": "مسدودسازی",
-  "user.unblock": "رفع مسدودیت",
-  "user.delete": "حذف کاربر",
-  "user.restore": "بازیابی کاربر",
-  "user.verify_email": "تأیید دستی ایمیل",
-  "user.send_password_reset": "ارسال بازیابی رمز",
-};
+export { AUDIT_ACTION_LABELS } from "./admin-audit";
+export type { AdminAuditLogRow } from "./admin-audit";

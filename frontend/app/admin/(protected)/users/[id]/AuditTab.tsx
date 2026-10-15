@@ -1,30 +1,11 @@
 "use client";
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { adminUsersCall, AUDIT_ACTION_LABELS, type AdminAuditLogRow } from "@/lib/admin-users";
+import { adminUsersCall } from "@/lib/admin-users";
+import { auditActionLabel, auditActionTone, type AdminAuditLogRow } from "@/lib/admin-audit";
 import { fullDate } from "@/lib/admin-format";
 import { relativeTimeFa } from "@/lib/relative-time";
+import { AuditDiff } from "../../_components/AuditDiff";
 import { Pagination } from "../../_components/Pagination";
-
-function show(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
-  return typeof value === "string" ? value : JSON.stringify(value);
-}
-
-function Diff({ row }: { row: AdminAuditLogRow }) {
-  const keys = Array.from(new Set([...Object.keys(row.before ?? {}), ...Object.keys(row.after ?? {})]));
-  if (keys.length === 0) return <p className="text-xs text-muted">جزئیاتی ثبت نشده است.</p>;
-  return (
-    <div dir="ltr" className="space-y-1.5 text-start font-mono text-xs">
-      {keys.map((k) => (
-        <div key={k} className="flex flex-wrap items-baseline gap-2">
-          <span className="text-muted">{k}</span>
-          {row.before && k in row.before && <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-red-300 line-through decoration-red-400/50">{show(row.before[k])}</span>}
-          {row.after && k in row.after && <span className="rounded bg-teal/15 px-1.5 py-0.5 text-teal">{show(row.after[k])}</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export function AuditTab({ userId, reloadKey }: { userId: string; reloadKey: string }) {
   const [page, setPage] = useState(1);
@@ -85,7 +66,7 @@ export function AuditTab({ userId, reloadKey }: { userId: string; reloadKey: str
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-muted" title={fullDate(row.created_at)}>{relativeTimeFa(row.created_at)}</td>
                   <td dir="ltr" className="px-3 py-2 text-start text-xs text-ink">{row.admin_email}</td>
                   <td className="px-3 py-2">
-                    <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-ink">{AUDIT_ACTION_LABELS[row.action] ?? row.action}</span>
+                    <span className={`rounded-full border px-2.5 py-0.5 text-xs ${auditActionTone(row.action)}`}>{auditActionLabel(row.action)}</span>
                   </td>
                   <td className="px-3 py-2">
                     <button
@@ -101,7 +82,7 @@ export function AuditTab({ userId, reloadKey }: { userId: string; reloadKey: str
                 {openId === row.id && (
                   <tr className="border-b border-border/60 bg-bg/60">
                     <td colSpan={4} className="px-4 py-3">
-                      <Diff row={row} />
+                      <AuditDiff row={row} />
                       {row.ip && <p dir="ltr" className="mt-2 text-start text-[11px] text-muted">IP: {row.ip}</p>}
                     </td>
                   </tr>

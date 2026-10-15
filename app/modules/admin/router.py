@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,9 +16,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/auth/login")
-async def login(payload: AdminLogin, db: AsyncSession = Depends(get_db)):
+async def login(payload: AdminLogin, request: Request, db: AsyncSession = Depends(get_db)):
     service = AdminAuthService(db)
-    tokens = await service.login(payload)
+    tokens = await service.login(payload, request)
     return envelope(data=tokens.model_dump())
 
 
@@ -38,12 +38,13 @@ async def me(current_admin: AdminAccount = Depends(get_current_admin)):
 @router.patch("/auth/password")
 async def change_password(
     payload: AdminPasswordChange,
+    request: Request,
     current_admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
     service = AdminAuthService(db)
-    await service.change_password(current_admin, payload, redis)
+    await service.change_password(current_admin, payload, redis, request)
     return envelope(data={"changed": True})
 
 
@@ -84,10 +85,11 @@ async def admin_featured_lists(
 @router.post("/lists/featured/reorder")
 async def admin_reorder_featured(
     payload: AdminFeaturedReorder,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    rows = await AdminListService(db).reorder_featured(admin, payload.ids)
+    rows = await AdminListService(db).reorder_featured(admin, payload.ids, request)
     return envelope(data=[r.model_dump(mode="json") for r in rows])
 
 
@@ -95,20 +97,22 @@ async def admin_reorder_featured(
 async def admin_update_list(
     list_id: uuid.UUID,
     payload: AdminListUpdate,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    row = await AdminListService(db).update(admin, list_id, payload)
+    row = await AdminListService(db).update(admin, list_id, payload, request)
     return envelope(data=row.model_dump(mode="json"))
 
 
 @router.delete("/lists/{list_id}")
 async def admin_delete_list(
     list_id: uuid.UUID,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await AdminListService(db).delete(admin, list_id)
+    await AdminListService(db).delete(admin, list_id, request)
     return envelope(data={"deleted": True})
 
 
@@ -126,10 +130,11 @@ async def admin_list_items(
 async def admin_remove_list_item(
     list_id: uuid.UUID,
     item_id: uuid.UUID,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    rows = await AdminListService(db).remove_item(admin, list_id, item_id)
+    rows = await AdminListService(db).remove_item(admin, list_id, item_id, request)
     return envelope(data=[r.model_dump(mode="json") for r in rows])
 
 
@@ -137,8 +142,9 @@ async def admin_remove_list_item(
 async def admin_reorder_list_items(
     list_id: uuid.UUID,
     payload: AdminItemsReorder,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    rows = await AdminListService(db).reorder_items(admin, list_id, payload.item_ids)
+    rows = await AdminListService(db).reorder_items(admin, list_id, payload.item_ids, request)
     return envelope(data=[r.model_dump(mode="json") for r in rows])

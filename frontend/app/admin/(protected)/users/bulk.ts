@@ -59,8 +59,8 @@ export async function runBulk(
  * this code). Fetch + blob rather than a plain link so a refusal (e.g. too
  * many rows) comes back as a readable error instead of a JSON page.
  */
-export async function downloadExport(query: URLSearchParams): Promise<void> {
-  const res = await fetch(`/api/admin/users/export?${query.toString()}`, { cache: "no-store" });
+export async function downloadExport(query: URLSearchParams, endpoint = "/api/admin/users/export"): Promise<void> {
+  const res = await fetch(`${endpoint}?${query.toString()}`, { cache: "no-store" });
   if (!res.ok) {
     const json = await res.json().catch(() => null);
     throw new Error(json?.error?.message || `خطا (${res.status})`);

@@ -2,12 +2,14 @@ import logging
 import uuid
 from datetime import date, timedelta
 
+from fastapi import Request
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import cache
 from app.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
+from app.modules.admin.audit import AuditLogService, diff
 from app.modules.admin.models import AdminAccount
 from app.modules.entities.models import Entity
 
@@ -96,7 +98,9 @@ class AdminDailyBattleService:
     def _theme(theme: AdminThemeIn | None) -> tuple[str, str]:
         return (theme.kind, theme.value.strip()) if theme else ("pair", "")
 
-    async def create(self, admin: AdminAccount, payload: AdminDailyBattleCreate) -> AdminDailyBattleRow:
+    async def create(
+        self, admin: AdminAccount, payload: AdminDailyBattleCreate, request: Request | None = None
+    ) -> AdminDailyBattleRow:
         if payload.battle_date < self._today():
             raise AlreadyExistsError("نمی‌شود برای روزهای گذشته نبرد گذاشت")
         if await self.daily.get_by_date(payload.battle_date) is not None:
@@ -113,10 +117,23 @@ class AdminDailyBattleService:
                 await self.db.flush()
         except IntegrityError:
             raise AlreadyExistsError(DATE_TAKEN)
+        await AuditLogService(self.db).record(
+            admin, "daily_battle.create", "daily_battle", row.id, after=self._snapshot(row), request=request
+        )
         await self.db.commit()
         cache.clear()  # today's public part may be cached
         logger.info("admin %s scheduled daily battle %s for %s", admin.id, row.id, row.battle_date)
         return (await self._rows([row]))[0]
+
+    @staticmethod
+    def _snapshot(battle: DailyBattle) -> dict:
+        return {
+            "battle_date": battle.battle_date.isoformat(),
+            "left_id": str(battle.left_id),
+            "right_id": str(battle.right_id),
+            "theme_kind": battle.theme_kind,
+            "theme_value": battle.theme_value,
+        }
 
     async def _locked(self, battle_id: uuid.UUID) -> DailyBattle:
         battle = (
@@ -127,7 +144,7 @@ class AdminDailyBattleService:
         return battle
 
     async def update(
-        self, admin: AdminAccount, battle_id: uuid.UUID, payload: AdminDailyBattleUpdate
+        self, admin: AdminAccount, battle_id: uuid.UUID, payload: AdminDailyBattleUpdate, request: Request | None = None
     ) -> AdminDailyBattleRow:
         battle = await self._locked(battle_id)
         if battle.left_votes + battle.right_votes > 0:
@@ -146,6 +163,7 @@ class AdminDailyBattleService:
         if (left_id, right_id) != (battle.left_id, battle.right_id):
             await self._check_pair(left_id, right_id)
 
+        snapshot_before = self._snapshot(battle)
         battle.battle_date, battle.left_id, battle.right_id = new_date, left_id, right_id
         if "theme" in payload.model_fields_set:
             battle.theme_kind, battle.theme_value = self._theme(payload.theme)
@@ -156,6 +174,12 @@ class AdminDailyBattleService:
         except IntegrityError:
             await self.db.rollback()
             raise AlreadyExistsError(DATE_TAKEN)
+        changed_before, changed_after = diff(snapshot_before, self._snapshot(battle))
+        if changed_after:
+            await AuditLogService(self.db).record(
+                admin, "daily_battle.update", "daily_battle", battle_id,
+                before=changed_before, after=changed_after, request=request,
+            )
         await self.db.commit()
         cache.clear()
         logger.info(
@@ -164,12 +188,15 @@ class AdminDailyBattleService:
         )
         return (await self._rows([battle]))[0]
 
-    async def delete(self, admin: AdminAccount, battle_id: uuid.UUID) -> None:
+    async def delete(self, admin: AdminAccount, battle_id: uuid.UUID, request: Request | None = None) -> None:
         battle = await self._locked(battle_id)
         if battle.battle_date <= self._today():
             raise AlreadyExistsError("فقط نبردهای روزهای آینده قابل حذف‌اند")
         if battle.left_votes + battle.right_votes > 0:
             raise AlreadyExistsError("این نبرد رأی دارد و قابل حذف نیست")
+        await AuditLogService(self.db).record(
+            admin, "daily_battle.delete", "daily_battle", battle_id, before=self._snapshot(battle), request=request
+        )
         await self.db.delete(battle)
         await self.db.commit()
         cache.clear()

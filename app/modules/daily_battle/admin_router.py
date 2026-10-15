@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -35,10 +35,11 @@ async def admin_list_daily_battles(
 @router.post("", status_code=201)
 async def admin_create_daily_battle(
     payload: AdminDailyBattleCreate,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    row = await AdminDailyBattleService(db).create(admin, payload)
+    row = await AdminDailyBattleService(db).create(admin, payload, request)
     return envelope(data=row.model_dump(mode="json"))
 
 
@@ -46,18 +47,20 @@ async def admin_create_daily_battle(
 async def admin_update_daily_battle(
     battle_id: uuid.UUID,
     payload: AdminDailyBattleUpdate,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    row = await AdminDailyBattleService(db).update(admin, battle_id, payload)
+    row = await AdminDailyBattleService(db).update(admin, battle_id, payload, request)
     return envelope(data=row.model_dump(mode="json"))
 
 
 @router.delete("/{battle_id}")
 async def admin_delete_daily_battle(
     battle_id: uuid.UUID,
+    request: Request,
     admin: AdminAccount = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await AdminDailyBattleService(db).delete(admin, battle_id)
+    await AdminDailyBattleService(db).delete(admin, battle_id, request)
     return envelope(data={"deleted": True})
