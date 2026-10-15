@@ -309,7 +309,8 @@ function Manager() {
     else setParams({ sort: key, order: key === "username" || key === "email" ? "asc" : "desc" }, true);
   }
 
-  const detailHref = (u: AdminUserRow) => `/admin/users/${u.id}`;
+  // The detail page's «back to list» restores these filters.
+  const detailHref = (u: AdminUserRow) => `/admin/users/${u.id}${query ? `?back=${encodeURIComponent(query)}` : ""}`;
 
   return (
     <div className="mt-6 space-y-5">
