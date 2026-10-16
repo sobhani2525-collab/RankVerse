@@ -1,39 +1,24 @@
-import { pageWindow } from "@/lib/pagination";
 import type { Metadata } from "next";
 import Link from "next/link";
+import RankingsPager from "@/components/RankingsPager";
 import PosterCard from "@/components/entities/poster-card";
 import RankingFilters from "@/components/RankingFilters";
 import { getRankingsPage, RankingsPage } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
+import {
+  DECADES, ORIGIN_OPTIONS, RANKING_PAGE_SIZE as PAGE_SIZE, SORT_OPTIONS, type RankingType,
+  parseDecade, parseOrigin, parsePage, parseRankingType, parseSort,
+} from "@/lib/ranking-options";
 
 export const revalidate = 1800;
-
-const PAGE_SIZE = 24;
-
-type RankingType = "movie" | "tv_series";
-
-const SORT_OPTIONS = [
-  ["score", "امتیاز RankVerse"],
-  ["votes", "بیشترین رأی"],
-  ["year_desc", "جدیدترین"],
-  ["year_asc", "قدیمی‌ترین"],
-] as const;
-
-const ORIGIN_OPTIONS = [
-  ["all", "همه"],
-  ["persian", "فارسی‌زبان"],
-  ["foreign", "خارجی"],
-] as const;
 
 const GENRES = [
   "action", "adventure", "animation", "comedy", "crime", "documentary", "drama", "family",
   "fantasy", "history", "horror", "music", "mystery", "romance", "science-fiction", "thriller", "war", "western",
 ];
 
-// First year of each decade; the last entry covers everything before 1950.
-const DECADES = [2020, 2010, 2000, 1990, 1980, 1970, 1960, 1950];
 
 interface Filters {
   genre?: string;
@@ -58,11 +43,10 @@ type RankingsSearchParams = { type?: string; page?: string; genre?: string; sort
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RankingsSearchParams> }): Promise<Metadata> {
   const params = await searchParams;
-  const type: RankingType = params.type === "tv_series" ? "tv_series" : "movie";
-  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const type = parseRankingType(params.type);
+  const page = parsePage(params.page);
   const genre = GENRES.includes(params.genre ?? "") ? params.genre : undefined;
-  const decadeParam = Number.parseInt(params.decade ?? "", 10);
-  const decade = DECADES.includes(decadeParam) ? decadeParam : undefined;
+  const decade = parseDecade(params.decade);
   const plural = type === "tv_series" ? "سریال‌ها" : "فیلم‌ها";
   // Genre/decade pages are real landing pages ("بهترین فیلم‌های ترسناک دهه ۹۰").
   // Re-sorted or origin-filtered views duplicate them, so they stay out of the index.
@@ -91,13 +75,12 @@ export default async function RankingsPageRoute({
   searchParams: Promise<RankingsSearchParams>;
 }) {
   const params = await searchParams;
-  const type: RankingType = params.type === "tv_series" ? "tv_series" : "movie";
-  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const type = parseRankingType(params.type);
+  const page = parsePage(params.page);
   const genre = params.genre?.trim() || undefined;
-  const sort = SORT_OPTIONS.some(([v]) => v === params.sort) ? params.sort! : "score";
-  const decadeParam = Number.parseInt(params.decade ?? "", 10);
-  const decade = DECADES.includes(decadeParam) ? decadeParam : undefined;
-  const origin = ORIGIN_OPTIONS.some(([v]) => v === params.origin) ? params.origin! : "all";
+  const sort = parseSort(params.sort);
+  const decade = parseDecade(params.decade);
+  const origin = parseOrigin(params.origin);
   const filters: Filters = { genre, sort, decade, origin };
 
   let result: RankingsPage = { items: [], total: null };
@@ -206,52 +189,7 @@ export default async function RankingsPageRoute({
         )}
       </div>
 
-      {!loadError && (page > 1 || hasNext) && (
-        <nav aria-label="صفحه‌بندی" className="mt-10 flex items-center justify-between gap-4">
-          {page > 1 ? (
-            <Link href={buildHref(type, page - 1, filters)} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
-              → قبلی
-            </Link>
-          ) : (
-            <span />
-          )}
-          {totalPages !== null ? (
-            <ol className="flex flex-wrap items-center justify-center gap-1.5" aria-label="شمارهٔ صفحه">
-              {pageWindow(page, totalPages).map((p, i) =>
-                p === null ? (
-                  <li key={`gap-${i}`} aria-hidden="true" className="px-1 text-muted">
-                    …
-                  </li>
-                ) : (
-                  <li key={p}>
-                    <Link
-                      href={buildHref(type, p, filters)}
-                      aria-current={p === page ? "page" : undefined}
-                      aria-label={`صفحهٔ ${toFaDigits(p)}`}
-                      className={`num flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm transition ${
-                        p === page ? "border-gold/50 bg-gold/15 text-gold" : "border-border text-muted hover:border-gold/40 hover:text-ink"
-                      }`}
-                    >
-                      {toFaDigits(p)}
-                    </Link>
-                  </li>
-                ),
-              )}
-            </ol>
-          ) : (
-            <span className="text-xs text-muted">
-              صفحهٔ <span className="num">{toFaDigits(page)}</span>
-            </span>
-          )}
-          {hasNext ? (
-            <Link href={buildHref(type, page + 1, filters)} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
-              بعدی ←
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
-      )}
+      {!loadError && <RankingsPager page={page} totalPages={totalPages} hasNext={hasNext} hrefFor={(p) => buildHref(type, p, filters)} />}
     </main>
   );
 }
