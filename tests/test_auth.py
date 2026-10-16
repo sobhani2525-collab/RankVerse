@@ -182,3 +182,93 @@ async def test_patch_me_updates_only_sent_fields(client, auth_headers):
 
     assert (await client.patch("/api/v1/users/me", json={"avatar_key": "nope"}, headers=auth_headers)).status_code == 422
     assert (await client.patch("/api/v1/users/me", json={"bio": "x"})).status_code == 401
+
+
+# --- Change password / delete account ---
+
+async def _register_and_login(client, email, username, password="Sup3rSecret!1"):
+    await client.post("/api/v1/auth/register", json={"email": email, "username": username, "password": password})
+    res = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    return {"Authorization": f"Bearer {res.json()['data']['access_token']}"}
+
+
+async def test_change_password_requires_login(client):
+    res = await client.post("/api/v1/auth/change-password", json={"current_password": "x", "new_password": "NewSecret!123"})
+    assert res.status_code == 401
+
+
+async def test_change_password_wrong_current_is_rejected_and_not_a_401(client):
+    headers = await _register_and_login(client, "cp1@example.com", "cpuser1")
+    res = await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "wrong-password", "new_password": "NewSecret!123"},
+        headers=headers,
+    )
+    # 400, not 401: the client must not mistake it for an expired session.
+    assert res.status_code == 400
+
+
+async def test_change_password_swaps_the_login_password(client):
+    headers = await _register_and_login(client, "cp2@example.com", "cpuser2")
+    res = await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "Sup3rSecret!1", "new_password": "NewSecret!123"},
+        headers=headers,
+    )
+    assert res.status_code == 200
+    old = await client.post("/api/v1/auth/login", json={"email": "cp2@example.com", "password": "Sup3rSecret!1"})
+    new = await client.post("/api/v1/auth/login", json={"email": "cp2@example.com", "password": "NewSecret!123"})
+    assert old.status_code == 401
+    assert new.status_code == 200
+
+
+async def test_change_password_same_password_is_rejected(client):
+    headers = await _register_and_login(client, "cp3@example.com", "cpuser3")
+    res = await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "Sup3rSecret!1", "new_password": "Sup3rSecret!1"},
+        headers=headers,
+    )
+    assert res.status_code == 400
+
+
+async def test_delete_account_wrong_password_keeps_account(client):
+    headers = await _register_and_login(client, "del1@example.com", "deluser1")
+    res = await client.post("/api/v1/auth/delete-account", json={"password": "nope"}, headers=headers)
+    assert res.status_code == 400
+    assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 200
+
+
+async def test_delete_account_erases_and_frees_identity(client):
+    headers = await _register_and_login(client, "del2@example.com", "deluser2")
+    res = await client.post("/api/v1/auth/delete-account", json={"password": "Sup3rSecret!1"}, headers=headers)
+    assert res.status_code == 200
+    # The old token and the old credentials are dead...
+    assert (await client.get("/api/v1/auth/me", headers=headers)).status_code == 401
+    login = await client.post("/api/v1/auth/login", json={"email": "del2@example.com", "password": "Sup3rSecret!1"})
+    assert login.status_code == 401
+    # ...the public profile is gone...
+    assert (await client.get("/api/v1/users/deluser2")).status_code == 404
+    # ...and the same email and username can be registered again.
+    again = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "del2@example.com", "username": "deluser2", "password": "Sup3rSecret!1"},
+    )
+    assert again.status_code == 200
+
+
+async def test_delete_account_removes_private_lists_but_keeps_public_ones(client, db_session):
+    from sqlalchemy import select
+    from app.modules.lists.models import UserList
+
+    headers = await _register_and_login(client, "del3@example.com", "deluser3")
+    for title, visibility in (("Open list", "public"), ("Secret list", "private")):
+        res = await client.post("/api/v1/lists", json={"title": title, "visibility": visibility}, headers=headers)
+        assert res.status_code in (200, 201), res.text
+
+    res = await client.post("/api/v1/auth/delete-account", json={"password": "Sup3rSecret!1"}, headers=headers)
+    assert res.status_code == 200
+
+    rows = (await db_session.execute(select(UserList.title))).scalars().all()
+    assert "Open list" in rows
+    assert "Secret list" not in rows

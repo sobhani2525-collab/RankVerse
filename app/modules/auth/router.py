@@ -14,7 +14,7 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
-    UserCreate, UserLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest,
+    UserCreate, UserLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest, ChangePasswordRequest, DeleteAccountRequest,
 )
 from app.modules.users.service import UserService
 
@@ -30,6 +30,7 @@ FORGOT_EMAIL_LIMIT = 3  # reset emails per address per hour
 RESET_IP_LIMIT = 15
 VERIFY_IP_LIMIT = 30
 RESEND_VERIFY_LIMIT = 3  # per account per hour
+ACCOUNT_SENSITIVE_LIMIT = 5  # password changes / deletion attempts per account per hour
 
 
 @router.post("/register")
@@ -130,3 +131,25 @@ async def reset_password(payload: ResetPasswordRequest, request: Request, db: As
     service = UserService(db)
     await service.reset_password(payload.token, payload.new_password)
     return envelope(data={"reset": True})
+
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await enforce("change-password", str(current_user.id), ACCOUNT_SENSITIVE_LIMIT, HOUR)
+    await UserService(db).change_password(current_user, payload.current_password, payload.new_password)
+    return envelope(data={"changed": True})
+
+
+@router.post("/delete-account")
+async def delete_account(
+    payload: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await enforce("delete-account", str(current_user.id), ACCOUNT_SENSITIVE_LIMIT, HOUR)
+    await UserService(db).delete_account(current_user, payload.password)
+    return envelope(data={"deleted": True})

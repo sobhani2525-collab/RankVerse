@@ -217,6 +217,18 @@ export async function updateMyProfile(token: string, update: ProfileUpdate) {
   );
 }
 
+export async function changeMyPassword(token: string, currentPassword: string, newPassword: string) {
+  return authFetch<{ changed: boolean }>("/auth/change-password", token, {
+    method: "POST",
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
+}
+
+/** Permanently erases the signed-in account (needs the account password). */
+export async function deleteMyAccount(token: string, password: string) {
+  return authFetch<{ deleted: boolean }>("/auth/delete-account", token, { method: "POST", body: { password } });
+}
+
 export async function verifyEmail(token: string) {
   return postEnvelope<{ verified: boolean }>("/auth/verify-email", { token });
 }

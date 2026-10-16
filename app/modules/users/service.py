@@ -2,10 +2,11 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedError
+from app.core.exceptions import AlreadyExistsError, NotFoundError, UnauthorizedError, ValidationError
 from app.core.security import (
     hash_password,
     verify_password,
@@ -85,6 +86,39 @@ class UserService:
         await self.repo.update_password(user, hash_password(new_password))
         # Opening the emailed reset link proves control of the address.
         await self.repo.mark_email_verified(user)
+        await self.db.commit()
+
+    async def change_password(self, user, current_password: str, new_password: str) -> None:
+        # ValidationError (400), not Unauthorized: a wrong current password must
+        # not look like an expired session to the client.
+        if not verify_password(current_password, user.hashed_password):
+            raise ValidationError("رمز عبور فعلی درست نیست")
+        if current_password == new_password:
+            raise ValidationError("رمز جدید باید با رمز فعلی فرق داشته باشد")
+        await self.repo.update_password(user, hash_password(new_password))
+        await self.db.commit()
+
+    async def delete_account(self, user, password: str) -> None:
+        """Self-service erasure: the account is soft-deleted (so it can't sign in or
+        be found) and its personal data is wiped. Email and username are replaced by
+        placeholders, which frees both for re-registration. Ratings, battle votes,
+        comments and public lists stay, now without a name."""
+        if not verify_password(password, user.hashed_password):
+            raise ValidationError("رمز عبور درست نیست")
+        # Everything the user kept to themselves goes with them (private and
+        # unlisted lists, the will-watch list); public lists stay, under the
+        # placeholder name below. Items, likes and follows cascade in the DB.
+        from app.modules.lists.models import UserList
+
+        await self.db.execute(
+            delete(UserList).where(UserList.user_id == user.id, UserList.visibility != "public")
+        )
+        tag = uuid.uuid4().hex[:12]
+        user.email = f"deleted-{tag}@deleted.invalid"
+        user.username = f"deleted-{tag}"
+        user.hashed_password = hash_password(uuid.uuid4().hex)
+        user.display_name = user.bio = user.avatar_key = None
+        user.deleted_at = datetime.now(timezone.utc)
         await self.db.commit()
 
     def email_verification_link(self, user) -> str:

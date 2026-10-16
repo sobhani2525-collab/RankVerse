@@ -18,6 +18,7 @@ import ListTicketCard from "@/components/lists/list-ticket-card";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import StatTile from "@/components/profile/stat-tile";
 import ProfileEditor from "@/components/profile/profile-editor";
+import AccountSettings from "@/components/profile/account-settings";
 import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
 import { StarIcon, ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { toFaDigits } from "@/lib/format-number";
@@ -32,6 +33,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toggleWatchLater } = useWatchLater();
   const [editing, setEditing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [ratings, setRatings] = useState<UserRating[] | null>(null);
   const [loadingRatings, setLoadingRatings] = useState(true);
@@ -259,9 +261,18 @@ export default function ProfilePage() {
           >
             {editing ? "بستن" : "ویرایش پروفایل"}
           </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen((o) => !o)}
+            aria-expanded={settingsOpen}
+            className="mr-2 mt-4 rounded-lg border border-border px-4 py-1.5 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
+          >
+            {settingsOpen ? "بستن تنظیمات" : "تنظیمات حساب"}
+          </button>
         </div>
       </div>
       {editing && <ProfileEditor onDone={() => setEditing(false)} />}
+      {settingsOpen && <AccountSettings />}
 
       {/* --- Stats: ratings + activity/contribution merged into one strip -- */}
       <div className="mt-10">
