@@ -9,7 +9,7 @@ import FeaturedList from "@/components/home/FeaturedList";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import ListCreatorPromo from "@/components/home/ListCreatorPromo";
 import {
-  getRankingsPage, getHeroGraphs, getMovieBySlug, discoverLists, getListBySlugCached, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
+  getRankingsPage, getHeroGraphs, getListsTotal, getPeoplePage, getMovieBySlug, discoverLists, getListBySlugCached, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
 } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import { toHomeTitle } from "@/lib/home-data";
@@ -70,7 +70,7 @@ export default async function HomePage() {
   // details chain off the movie list alone, so they don't wait for the
   // other two reads.
   const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
-  const [movieRes, tvRes, extrasRes, featuredListRes, heroPoolRes] = await Promise.allSettled([
+  const [movieRes, tvRes, extrasRes, featuredListRes, heroPoolRes, listTotalRes, peopleRes] = await Promise.allSettled([
     moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
     moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
@@ -79,7 +79,11 @@ export default async function HomePage() {
     // Pre-indexed ego graphs for the hero; failure just means the hero
     // fetches them itself in the browser.
     getHeroGraphs(),
+    getListsTotal(),
+    getPeoplePage({ page_size: 1 }),
   ]);
+  const listTotal = listTotalRes.status === "fulfilled" ? listTotalRes.value : null;
+  const artistTotal = peopleRes.status === "fulfilled" ? peopleRes.value.total : null;
   const heroGraphs = heroPoolRes.status === "fulfilled" ? heroPoolRes.value : [];
 
   const movies: MovieListItem[] = movieRes.status === "fulfilled" ? movieRes.value.items : [];
@@ -124,7 +128,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} />
+      <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} listTotal={listTotal} artistTotal={artistTotal} />
       <DailyBattle />
       {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <BattleArena />

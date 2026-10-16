@@ -2,19 +2,31 @@ import HeroConstellation from "./HeroConstellation";
 import HeroExploreButton from "./HeroExploreButton";
 import { HomeTitle } from "@/lib/home-data";
 import type { EgoGraph } from "@/lib/api";
-import { toFaDigits } from "@/lib/format-number";
+import CountUp from "./CountUp";
 
 export default function HomeHero({
   titles,
   graphs,
   movieTotal,
   tvTotal,
+  listTotal,
+  artistTotal,
 }: {
   titles: HomeTitle[];
   graphs: EgoGraph[];
   movieTotal: number | null;
   tvTotal: number | null;
+  listTotal?: number | null;
+  artistTotal?: number | null;
 }) {
+  const stats = (
+    [
+      ["فیلم", movieTotal],
+      ["سریال", tvTotal],
+      ["فهرست", listTotal],
+      ["هنرمند", artistTotal],
+    ] as [string, number | null | undefined][]
+  ).filter((s): s is [string, number] => typeof s[1] === "number");
   return (
     // overflow-x-clip (not overflow-hidden) so the search dropdown can hang
     // below the hero instead of being cut off.
@@ -46,20 +58,16 @@ export default function HomeHero({
             <HeroExploreButton className="btn-primary text-sm hover:opacity-90" />
           </div>
 
-          {(movieTotal !== null || tvTotal !== null) && (
-            <dl className="mt-10 flex gap-8 text-sm">
-              {movieTotal !== null && (
-                <div>
-                  <dt className="kicker text-muted/70">Films</dt>
-                  <dd className="num mt-1 text-2xl text-ink">{toFaDigits(movieTotal)}</dd>
+          {stats.length > 0 && (
+            <dl className="mt-10 flex flex-wrap gap-x-8 gap-y-4 text-sm">
+              {stats.map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs text-muted/70">{label}</dt>
+                  <dd className="num mt-1 text-2xl text-ink">
+                    <CountUp value={value} />
+                  </dd>
                 </div>
-              )}
-              {tvTotal !== null && (
-                <div>
-                  <dt className="kicker text-muted/70">Series</dt>
-                  <dd className="num mt-1 text-2xl text-ink">{toFaDigits(tvTotal)}</dd>
-                </div>
-              )}
+              ))}
             </dl>
           )}
         </div>

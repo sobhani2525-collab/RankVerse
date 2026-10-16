@@ -424,6 +424,20 @@ export async function discoverLists(params: {
   return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, revalidateSeconds, tags);
 }
 
+/** Total number of public lists (envelope meta.total of a one-item page). */
+export async function getListsTotal(revalidateSeconds: number = RANKING_TTL): Promise<number | null> {
+  const path = "/lists?page_size=1";
+  const res = await fetchWithTimeout(path, { next: { revalidate: revalidateSeconds, tags: [LISTS_CACHE_TAG] } });
+  if (!res.ok) {
+    throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
+  }
+  const json: Envelope<ListSummary[]> = await res.json();
+  if (json.error) {
+    throw new Error(json.error.message);
+  }
+  return json.meta?.total ?? null;
+}
+
 /** Cache tag for every public read that depends on admin list curation; the admin proxy revalidates it. */
 export const LISTS_CACHE_TAG = "lists";
 
