@@ -6,7 +6,8 @@ test.describe("accounts and sessions", () => {
     const user = uniqueUser("reg");
 
     await page.goto("/register");
-    await page.locator('input[type="text"]').fill(user.username);
+    // Scoped to the form: the header's search box is also a text input.
+    await page.locator('form input[type="text"]').fill(user.username);
     await page.locator('input[type="email"]').fill(user.email);
     await page.locator('input[type="password"]').fill(user.password);
     await page.getByRole("button", { name: "ثبت‌نام", exact: true }).click();
@@ -63,7 +64,7 @@ test.describe("accounts and sessions", () => {
     await page.getByLabel("رمز جدید", { exact: true }).fill("E2e-New-Secret-456");
     await page.getByLabel("تکرار رمز جدید").fill("E2e-New-Secret-456");
     await page.getByRole("button", { name: "تغییر رمز", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("رمز عبور تغییر کرد");
+    await expect(page.getByRole("status").filter({ hasText: "رمز عبور تغییر کرد" })).toBeVisible();
 
     // The other device's tokens no longer work...
     const stale = await request.get(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${otherDevice.access_token}` } });

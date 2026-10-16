@@ -7,7 +7,7 @@ test.describe("signed-in actions", () => {
     await signInWith(page, tokens);
     await page.goto(`/movies/${MOVIE_SLUG}`);
 
-    const star = page.getByRole("button", { name: "امتیاز 8 از 10" }).first();
+    const star = page.getByRole("button", { name: "امتیاز 4 از 5" }).first();
     // The session is read on the client; retry the click until it has loaded.
     await expect(async () => {
       await star.click();
@@ -15,7 +15,7 @@ test.describe("signed-in actions", () => {
     }).toPass({ timeout: 20_000 });
 
     await page.reload();
-    await expect(page.getByRole("button", { name: "امتیاز 8 از 10" }).first()).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "امتیاز 4 از 5" }).first()).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByText(/امتیاز شما ثبت شد/)).toBeVisible();
 
     // And the API agrees.

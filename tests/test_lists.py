@@ -376,3 +376,14 @@ async def test_similar_lists_flags_near_duplicate_titles(client, auth_headers):
     # Sharing only generic words («بهترین فیلم‌ها») isn't similar.
     unrelated = await client.get("/api/v1/lists/similar", params={"title": "بهترین فیلم‌های ترسناک"})
     assert unrelated.json()["data"] == []
+
+
+async def test_watch_later_for_a_brand_new_user_is_empty_not_a_500(client, auth_headers):
+    # The first call creates the user's list; its (empty) items must be readable right away.
+    ids = await client.get("/api/v1/users/me/watch-later", headers=auth_headers)
+    assert ids.status_code == 200, ids.text
+    assert ids.json()["data"]["entity_ids"] == []
+
+    items = await client.get("/api/v1/users/me/watch-later/items", headers=auth_headers)
+    assert items.status_code == 200, items.text
+    assert items.json()["data"] == []

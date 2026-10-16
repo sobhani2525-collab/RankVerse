@@ -230,7 +230,10 @@ class ListService:
             is_watch_later=True,
         )
         await self.db.commit()
-        return lst
+        # Re-read with items loaded: a freshly created list has an unloaded `items`
+        # relationship, and touching it lazily raises MissingGreenlet on an async
+        # session (it made GET /users/me/watch-later a 500 for every new user).
+        return await self.repo.get_watch_later_list(user_id)
 
     async def get_watch_later_entity_ids(self, user_id: uuid.UUID) -> list[uuid.UUID]:
         lst = await self.get_or_create_watch_later_list(user_id)
