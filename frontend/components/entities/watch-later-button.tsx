@@ -24,17 +24,23 @@ export default function WatchLaterButton({
         aria-label={label}
         title={label}
         onClick={() => toggleWatchLater(entityId)}
-        className="group absolute right-4 top-0 z-10 h-14 w-10 drop-shadow-[0_6px_10px_rgba(0,0,0,0.55)] transition-transform duration-200 hover:translate-y-0.5 focus-visible:outline-none"
+        className="group absolute right-4 top-0 z-10 h-[4.5rem] w-14 drop-shadow-[0_6px_10px_rgba(0,0,0,0.55)] focus-visible:outline-none"
       >
         <span
-          className={`flex h-full w-full items-start justify-center pt-3 transition-colors duration-200 group-focus-visible:ring-2 group-focus-visible:ring-gold ${
+          className={`flex h-full w-full items-start justify-center pt-4 transition-colors duration-200 group-focus-visible:ring-2 group-focus-visible:ring-gold ${
             active ? "bg-teal text-bg" : "bg-black/65 text-white backdrop-blur-sm group-hover:bg-black/80"
           }`}
           style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)" }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-          </svg>
+          {active ? (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          ) : (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+            </svg>
+          )}
         </span>
       </button>
     );
