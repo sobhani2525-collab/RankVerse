@@ -20,7 +20,7 @@ export interface TestUser {
 /** A user that no other test (or earlier run) has used. */
 export function uniqueUser(label: string): TestUser {
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
-  return { email: `${label}-${id}@e2e.test`, username: `${label}${id}`, password: PASSWORD };
+  return { email: `${label}-${id}@example.com`, username: `${label}${id}`, password: PASSWORD };
 }
 
 /** Creates the account through the API (fast) and returns the session tokens. */
