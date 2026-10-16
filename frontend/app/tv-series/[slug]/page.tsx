@@ -13,7 +13,6 @@ import AddToListMenu from "@/components/entities/add-to-list-menu";
 import WatchLaterButton from "@/components/entities/watch-later-button";
 import EntityScoreRow from "@/components/EntityScoreRow";
 import { MonoLabel, Chip } from "@/components/list-detail/ui";
-import MoreCast from "@/components/entities/more-cast";
 import { countryNameFa } from "@/lib/country";
 import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
@@ -247,8 +246,6 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           )}
         </div>
       </div>
-
-      <MoreCast cast={tv.more_cast ?? []} />
 
       <div className="mt-16">
         <EntityGraphWithSidebar
