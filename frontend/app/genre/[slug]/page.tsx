@@ -131,7 +131,7 @@ export default async function GenrePage({
   const href = (t: RankingType, p: number, f: Filters = filters) => buildHref(slug, t, p, f);
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-14">
+    <main className="mx-auto max-w-7xl px-6 py-14">
       <JsonLd
         data={{
           "@context": "https://schema.org",
