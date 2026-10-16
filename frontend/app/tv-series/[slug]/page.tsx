@@ -11,6 +11,7 @@ import DetailShareButton from "@/components/entities/detail-share-button";
 import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
 import WatchLaterButton from "@/components/entities/watch-later-button";
+import TrailerPlayer from "@/components/entities/trailer-player";
 import WatchedButton from "@/components/entities/watched-button";
 import WatchLinks from "@/components/entities/watch-links";
 import EntityScoreRow from "@/components/EntityScoreRow";
@@ -223,6 +224,18 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
           <WatchLinks links={tv.watch_links ?? []} />
 
+          {tv.trailer_key && (
+            <section aria-label="تریلر" className="mt-6 max-w-3xl">
+              <div className="mb-3 flex items-center gap-2">
+                <MonoLabel size="text-[10px]" className="text-dim">
+                  TRAILER
+                </MonoLabel>
+                <span className="text-xs text-muted">تریلر</span>
+              </div>
+              <TrailerPlayer youtubeKey={tv.trailer_key} title={displayTitle(tv)} />
+            </section>
+          )}
+
           {tv.overview && (
             <div className="mt-6">
               <div className="flex items-center gap-2">
@@ -279,11 +292,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         />
       </div>
 
-      <EntityExtras
-        entityId={tv.id}
-        title={displayTitle(tv)}
-        trailerKey={tv.trailer_key ?? null}
-      />
+      <EntityExtras entityId={tv.id} />
 
       <footer className="mt-14 flex flex-col gap-2 border-t border-border-soft pb-4 pt-6 text-xs leading-[1.8] text-dim lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:text-[13px]">
         <span>امتیاز ترکیبی از رأی جامعه (میانگین بیزی)، روند محبوبیت و نتایج نبردها محاسبه می‌شود.</span>
