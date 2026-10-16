@@ -23,8 +23,8 @@ export default function HomeHero({
     [
       ["فیلم", movieTotal],
       ["سریال", tvTotal],
-      ["فهرست", listTotal],
       ["هنرمند", artistTotal],
+      ["فهرست", listTotal],
     ] as [string, number | null | undefined][]
   ).filter((s): s is [string, number] => typeof s[1] === "number");
   return (
