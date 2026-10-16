@@ -13,6 +13,7 @@ import { toFaDigits } from "@/lib/format-number";
 import { reasonOf, resultPath, topicOf } from "@/lib/battle-theme";
 import { SITE_NAME, absoluteUrl } from "@/lib/site";
 import ShareMenu from "@/components/share/ShareMenu";
+import { PickMark, useBattlePick } from "@/components/battle/PickMark";
 import { renderStoryCard } from "@/lib/story-card";
 import { downloadBlob } from "@/lib/share";
 
@@ -194,25 +195,29 @@ function ThemedRun({
   const shareText = `${topic ? `قهرمان من در «${topic}»` : "قهرمان نبرد من"}: ${championName} 🏆 تو چه کسی را انتخاب می‌کنی؟`;
   const challengerItem = items[Math.min(step, items.length - 1)];
 
+  const pickAnim = useBattlePick<Side>();
+
   function pick(winner: Side) {
-    if (done) return;
+    if (done || pickAnim.busy) return;
     const token = getToken();
-    if (token) {
-      castBattleVote(token, {
-        category,
-        left_item: championItem.id,
-        right_item: challengerItem.id,
-        winner,
-      }).catch((e) => setError(e instanceof Error ? e.message : "ثبت رأی ممکن نشد"));
-    }
-    if (winner === "left") {
-      setStreak((n) => n + 1);
-    } else {
-      setChampion(step);
-      setStreak(1);
-    }
-    setVoted((n) => n + 1);
-    setStep((s) => s + 1);
+    const request = token
+      ? castBattleVote(token, {
+          category,
+          left_item: championItem.id,
+          right_item: challengerItem.id,
+          winner,
+        }).catch((e) => setError(e instanceof Error ? e.message : "ثبت رأی ممکن نشد"))
+      : null;
+    pickAnim.start(winner, request, () => {
+      if (winner === "left") {
+        setStreak((n) => n + 1);
+      } else {
+        setChampion(step);
+        setStreak(1);
+      }
+      setVoted((n) => n + 1);
+      setStep((s) => s + 1);
+    });
   }
 
   const reason = (
@@ -299,6 +304,7 @@ function ThemedRun({
               key={isChampion ? `champion-${champion}` : `challenger-${step}`}
               type="button"
               onClick={() => pick(side)}
+              disabled={pickAnim.busy}
               aria-label={`انتخاب ${displayTitle(item)}`}
               className={`group relative overflow-hidden rounded-2xl bg-surface/60 text-right transition ${
                 isChampion
@@ -310,6 +316,7 @@ function ThemedRun({
                 <Poster item={item} sizes="(max-width: 768px) 45vw, 320px" zoom />
                 <span className="absolute inset-0 bg-gradient-to-t from-[#05070D] via-transparent to-transparent" />
               </span>
+              {pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
               {isChampion && streak > 0 && (
                 <span className="absolute start-3 top-3 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
                   <span className="num">{toFaDigits(streak)}</span> برد

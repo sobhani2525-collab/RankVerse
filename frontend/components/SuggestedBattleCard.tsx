@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { castBattleVote } from "@/lib/api";
 import { publishEntityScore } from "@/components/LiveScore";
+import { PickMark } from "@/components/battle/PickMark";
 
 export interface BattleReason {
   text: string;
@@ -24,11 +25,13 @@ type Pick = "win" | "lose" | null;
 function PosterBox({
   entity,
   pick,
+  loading,
   disabled,
   onSelect,
 }: {
   entity: SuggestedBattleEntity;
   pick: Pick;
+  loading: boolean;
   disabled: boolean;
   onSelect: () => void;
 }) {
@@ -60,14 +63,8 @@ function PosterBox({
       ) : (
         <div className="flex h-full w-full items-center justify-center text-xs text-muted">بدون پوستر</div>
       )}
-      {pick === "win" && (
-        <span className="absolute inset-0 flex items-center justify-center bg-emerald-500/30" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" className="h-14 w-14 text-white drop-shadow-md">
-            <circle cx="12" cy="12" r="11" fill="currentColor" fillOpacity="0.15" />
-            <path d="M7 12.5l3.2 3.2L17 9" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      )}
+      {pick === "win" && <PickMark phase="done" />}
+      {loading && <PickMark phase="loading" />}
     </button>
   );
 }
@@ -110,6 +107,7 @@ export default function SuggestedBattleCard({
   const { requireAuth } = useAuthGate();
   const [picked, setPicked] = useState<Side | null>(null);
   const [voting, setVoting] = useState(false);
+  const [votingSide, setVotingSide] = useState<Side | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scores, setScores] = useState<{ left: number | null; right: number | null }>({
     left: battle.left.computed_score,
@@ -120,6 +118,7 @@ export default function SuggestedBattleCard({
     const token = getToken();
     if (!token || voting || picked) return;
     setVoting(true);
+    setVotingSide(side);
     setError(null);
     try {
       const result = await castBattleVote(token, {
@@ -138,6 +137,7 @@ export default function SuggestedBattleCard({
       setError(e instanceof Error ? e.message : "خطا در ثبت رأی");
     } finally {
       setVoting(false);
+      setVotingSide(null);
     }
   }
 
@@ -173,8 +173,8 @@ export default function SuggestedBattleCard({
 
       <div className="lg:max-w-[560px] lg:flex-1">
         <div className="relative grid grid-cols-2 gap-2.5">
-          <PosterBox entity={battle.left} pick={pickOf("left")} disabled={voting || picked != null} onSelect={() => select("left")} />
-          <PosterBox entity={battle.right} pick={pickOf("right")} disabled={voting || picked != null} onSelect={() => select("right")} />
+          <PosterBox entity={battle.left} pick={pickOf("left")} loading={votingSide === "left"} disabled={voting || picked != null} onSelect={() => select("left")} />
+          <PosterBox entity={battle.right} pick={pickOf("right")} loading={votingSide === "right"} disabled={voting || picked != null} onSelect={() => select("right")} />
           <div
             className="pointer-events-none absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[1.5px] border-violet-light bg-bg font-mono text-xs text-violet-light shadow-[0_0_0_6px_rgba(11,15,26,0.9)]"
             aria-hidden="true"

@@ -56,8 +56,17 @@
   .battle-swap {
     animation: battle-swap 0.34s ease-out both;
   }
+  /* Gold check on the chosen battle option. */
+  @keyframes battle-pick-pop {
+    0% { transform: scale(0.4); opacity: 0; }
+    60% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .battle-pick-pop {
+    animation: battle-pick-pop 0.4s ease-out both;
+  }
   @media (prefers-reduced-motion: reduce) {
-    .battle-swap { animation: none; }
+    .battle-swap, .battle-pick-pop { animation: none; }
   }
 }
 

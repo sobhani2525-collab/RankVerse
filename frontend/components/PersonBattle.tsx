@@ -10,6 +10,7 @@ import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { entityHref, entityPosterUrl } from "@/lib/list-constellation";
 import { SectionHeading } from "@/components/list-detail/ui";
+import { PickMark, useBattlePick } from "@/components/battle/PickMark";
 
 type Side = "left" | "right";
 
@@ -111,25 +112,29 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
   const championItem = items[champion];
   const challengerItem = items[challenger];
 
+  const pickAnim = useBattlePick<Side>();
+
   function choose(winner: Side) {
-    if (done) return;
+    if (done || pickAnim.busy) return;
     const token = getToken();
-    if (token) {
-      castBattleVote(token, {
-        category: championItem.entity_type,
-        left_item: championItem.id,
-        right_item: challengerItem.id,
-        winner,
-      }).catch((err) => setError(err instanceof Error ? err.message : "خطا در ثبت رأی"));
-    }
-    if (winner === "left") {
-      setStreak((n) => n + 1);
-    } else {
-      setChampion(challenger);
-      setStreak(1);
-    }
-    setVoted((n) => n + 1);
-    setStep((s) => s + 1);
+    const request = token
+      ? castBattleVote(token, {
+          category: championItem.entity_type,
+          left_item: championItem.id,
+          right_item: challengerItem.id,
+          winner,
+        }).catch((err) => setError(err instanceof Error ? err.message : "خطا در ثبت رأی"))
+      : null;
+    pickAnim.start(winner, request, () => {
+      if (winner === "left") {
+        setStreak((n) => n + 1);
+      } else {
+        setChampion(challenger);
+        setStreak(1);
+      }
+      setVoted((n) => n + 1);
+      setStep((s) => s + 1);
+    });
   }
 
   const heading = (
@@ -222,6 +227,7 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
               key={isChampion ? `champion-${champion}` : `challenger-${step}`}
               type="button"
               onClick={() => requireAuth(() => choose(side))}
+              disabled={pickAnim.busy}
               aria-label={`انتخاب ${displayTitle(item)}`}
               className={`relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-surface-2 transition ${
                 isChampion
@@ -230,6 +236,7 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
               }`}
             >
               {poster(item, "w500")}
+              {pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
               {isChampion && streak > 0 && (
                 <span className="absolute start-2 top-2 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
                   <span className="num">{toFaDigits(streak)}</span> برد

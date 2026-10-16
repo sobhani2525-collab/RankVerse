@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import SectionHeading from "./SectionHeading";
 import { Poster, VsBadge } from "./BattleArena";
 import ShareMenu from "@/components/share/ShareMenu";
+import { PickMark } from "@/components/battle/PickMark";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { castDailyVote, getDailyBattle } from "@/lib/api";
@@ -35,6 +36,7 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [voting, setVoting] = useState(false);
+  const [votingSide, setVotingSide] = useState<DailySide | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const deadline = useRef(0);
 
@@ -84,6 +86,7 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
   async function vote(choice: DailySide) {
     if (!data || data.my_choice || voting) return;
     setVoting(true);
+    setVotingSide(choice);
     setError(null);
     try {
       apply(await castDailyVote(signedIn ? getToken() : null, getGuestId(), { daily_battle_id: data.daily_battle_id, choice }));
@@ -93,6 +96,7 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
       void load();
     } finally {
       setVoting(false);
+      setVotingSide(null);
     }
   }
 
@@ -130,6 +134,7 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
             large={large}
             signedIn={signedIn}
             voting={voting}
+            votingSide={votingSide}
             secondsLeft={secondsLeft}
             error={error}
             onVote={vote}
@@ -146,6 +151,7 @@ function DailyBody({
   large,
   signedIn,
   voting,
+  votingSide,
   secondsLeft,
   error,
   onVote,
@@ -155,6 +161,7 @@ function DailyBody({
   large: boolean;
   signedIn: boolean;
   voting: boolean;
+  votingSide: DailySide | null;
   secondsLeft: number;
   error: string | null;
   onVote: (side: DailySide) => void;
@@ -198,6 +205,8 @@ function DailyBody({
               >
                 <Poster item={film} sizes={large ? "(max-width: 768px) 45vw, 280px" : "(max-width: 768px) 45vw, 220px"} zoom={!voted} />
                 <span className="absolute inset-0 bg-gradient-to-t from-[#05070D]/80 via-transparent to-transparent" />
+                {votingSide === side && <PickMark phase="loading" />}
+                {chosen && <PickMark phase="done" />}
                 {voted && (
                   <span className="num absolute inset-x-0 bottom-0 p-3 text-center text-2xl font-bold text-ink">
                     {toFaDigits(sharePercent(results, side))}٪
