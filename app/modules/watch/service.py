@@ -155,6 +155,10 @@ class WatchService:
         entity = await self._entity(payload.entity_id)
         link = await self._upsert(admin, entity, payload, "manual", request)
         await self.db.commit()
+        # commit expires both rows; reload them here, since reading an expired
+        # attribute lazily is not allowed on an async session.
+        await self.db.refresh(link)
+        await self.db.refresh(entity)
         return _admin_row(link, entity)
 
     async def delete(self, admin: AdminAccount, link_id: uuid.UUID, request: Request | None = None) -> None:
