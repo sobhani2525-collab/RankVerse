@@ -5,6 +5,7 @@ import {
   registerUser,
   getMe,
   onAccessTokenRefreshed,
+  onSessionEnded,
   ACCESS_TOKEN_STORAGE_KEY,
   REFRESH_TOKEN_STORAGE_KEY,
 } from "./api";
@@ -27,6 +28,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Switches to a freshly issued token pair (after a password change ends every older session). */
+  adoptTokens: (tokens: { access_token: string; refresh_token: string }) => void;
   /** Re-reads the signed-in user (e.g. after confirming their email). */
   refreshUser: () => Promise<void>;
   /**
@@ -79,6 +82,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    // The server ended this session (password changed on another device): sign out here too.
+    return onSessionEnded(() => {
+      setTokenEverywhere(null);
+      setUser(null);
+    });
+  }, []);
+
+  function adoptTokens(tokens: { access_token: string; refresh_token: string }) {
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokens.access_token);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token);
+    setTokenEverywhere(tokens.access_token);
+  }
+
   async function login(email: string, password: string) {
     const tokens = await loginUser({ email, password });
     localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokens.access_token);
@@ -120,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        adoptTokens,
         refreshUser,
         getToken: () => tokenRef.current,
       }}

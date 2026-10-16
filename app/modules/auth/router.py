@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.email import email_enabled, password_reset_email, send_email, verification_email
 from app.core.rate_limit import client_ip, enforce
 from app.core.schemas import envelope
-from app.core.security import create_access_token, decode_token
+from app.core.security import create_access_token, decode_token, token_matches_password
 from app.core.exceptions import UnauthorizedError
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
@@ -67,8 +67,11 @@ async def refresh(refresh_token: str, db: AsyncSession = Depends(get_db)):
     user = await UserRepository(db).get_by_id(uuid.UUID(payload["sub"]))
     if user is None or not user.is_active or user.deleted_at is not None:
         raise UnauthorizedError("Invalid or expired refresh token")
+    # A password change or reset ends every session issued for the old password.
+    if not token_matches_password(payload, user.hashed_password):
+        raise UnauthorizedError("Invalid or expired refresh token")
 
-    new_access = create_access_token(payload["sub"])
+    new_access = create_access_token(payload["sub"], user.hashed_password)
     return envelope(data={"access_token": new_access, "token_type": "bearer"})
 
 
@@ -140,8 +143,9 @@ async def change_password(
     db: AsyncSession = Depends(get_db),
 ):
     await enforce("change-password", str(current_user.id), ACCOUNT_SENSITIVE_LIMIT, HOUR)
-    await UserService(db).change_password(current_user, payload.current_password, payload.new_password)
-    return envelope(data={"changed": True})
+    tokens = await UserService(db).change_password(current_user, payload.current_password, payload.new_password)
+    # Every older session just ended; the caller continues on this fresh pair.
+    return envelope(data={"changed": True, **tokens.model_dump()})
 
 
 @router.post("/delete-account")

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const api = vi.hoisted(() => ({ changeMyPassword: vi.fn(), deleteMyAccount: vi.fn() }));
-const auth = vi.hoisted(() => ({ getToken: vi.fn(() => "tok"), logout: vi.fn() }));
+const auth = vi.hoisted(() => ({ getToken: vi.fn(() => "tok"), logout: vi.fn(), adoptTokens: vi.fn() }));
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 
 vi.mock("@/lib/api", () => api);
@@ -33,12 +33,15 @@ describe("change password form", () => {
     expect(api.changeMyPassword).not.toHaveBeenCalled();
   });
 
-  it("submits, confirms and clears the fields", async () => {
-    api.changeMyPassword.mockResolvedValue({ changed: true });
+  it("submits, switches to the fresh token pair, confirms and clears the fields", async () => {
+    const fresh = { changed: true, access_token: "new-access", refresh_token: "new-refresh" };
+    api.changeMyPassword.mockResolvedValue(fresh);
     const user = userEvent.setup();
     render(<AccountSettings />);
     await fillPasswords(user, "OldSecret!1", "NewSecret!123", "NewSecret!123");
     expect(api.changeMyPassword).toHaveBeenCalledWith("tok", "OldSecret!1", "NewSecret!123");
+    // Every older session ended server-side; this device must continue on the new tokens.
+    expect(auth.adoptTokens).toHaveBeenCalledWith(fresh);
     expect(await screen.findByRole("status")).toHaveTextContent("رمز عبور تغییر کرد");
     expect(screen.getByLabelText("رمز فعلی")).toHaveValue("");
   });
@@ -49,6 +52,7 @@ describe("change password form", () => {
     render(<AccountSettings />);
     await fillPasswords(user, "wrong", "NewSecret!123", "NewSecret!123");
     expect(await screen.findByRole("alert")).toHaveTextContent("رمز عبور فعلی درست نیست");
+    expect(auth.adoptTokens).not.toHaveBeenCalled();
   });
 });
 

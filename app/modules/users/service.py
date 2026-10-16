@@ -54,8 +54,8 @@ class UserService:
         user.last_login_at = datetime.now(timezone.utc)
         await self.db.commit()
         return TokenPair(
-            access_token=create_access_token(str(user.id)),
-            refresh_token=create_refresh_token(str(user.id)),
+            access_token=create_access_token(str(user.id), user.hashed_password),
+            refresh_token=create_refresh_token(str(user.id), user.hashed_password),
         )
 
     async def request_password_reset(self, email: str) -> str | None:
@@ -88,15 +88,23 @@ class UserService:
         await self.repo.mark_email_verified(user)
         await self.db.commit()
 
-    async def change_password(self, user, current_password: str, new_password: str) -> None:
+    async def change_password(self, user, current_password: str, new_password: str) -> TokenPair:
         # ValidationError (400), not Unauthorized: a wrong current password must
         # not look like an expired session to the client.
         if not verify_password(current_password, user.hashed_password):
             raise ValidationError("رمز عبور فعلی درست نیست")
         if current_password == new_password:
             raise ValidationError("رمز جدید باید با رمز فعلی فرق داشته باشد")
-        await self.repo.update_password(user, hash_password(new_password))
+        new_hash = hash_password(new_password)
+        user_id = str(user.id)
+        await self.repo.update_password(user, new_hash)
         await self.db.commit()
+        # The new hash invalidates every token issued for the old password, this
+        # session's included: hand back a fresh pair so the caller stays signed in.
+        return TokenPair(
+            access_token=create_access_token(user_id, new_hash),
+            refresh_token=create_refresh_token(user_id, new_hash),
+        )
 
     async def delete_account(self, user, password: str) -> None:
         """Self-service erasure: the account is soft-deleted (so it can't sign in or

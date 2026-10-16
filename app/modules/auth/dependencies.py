@@ -8,7 +8,7 @@ from app.core.database import get_db, get_read_db
 from app.config import settings
 from app.core.email import email_enabled
 from app.core.exceptions import ForbiddenError, UnauthorizedError
-from app.core.security import decode_token
+from app.core.security import decode_token, token_matches_password
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 
@@ -39,6 +39,8 @@ async def get_current_user(
     user = await UserRepository(db).get_by_id(uuid.UUID(user_id))
     if user is None or not user.is_active or user.deleted_at is not None:
         raise UnauthorizedError("User not found or inactive")
+    if not token_matches_password(payload, user.hashed_password):
+        raise UnauthorizedError("Invalid or expired token")
 
     return user
 
@@ -66,6 +68,8 @@ async def get_current_user_optional(
     user_id = payload.get("sub")
     user = await UserRepository(db).get_by_id(uuid.UUID(user_id))
     if user is None or not user.is_active or user.deleted_at is not None:
+        return None
+    if not token_matches_password(payload, user.hashed_password):
         return None
 
     return user

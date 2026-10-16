@@ -272,3 +272,87 @@ async def test_delete_account_removes_private_lists_but_keeps_public_ones(client
     rows = (await db_session.execute(select(UserList.title))).scalars().all()
     assert "Open list" in rows
     assert "Secret list" not in rows
+
+
+# --- Sessions end when the password changes ---
+
+def test_password_fingerprint_follows_the_password_hash():
+    from app.core.security import password_fingerprint, token_matches_password
+
+    payload = decode_token(create_access_token("u-1", "hash-one"))
+    assert payload["pv"] == password_fingerprint("hash-one")
+    assert token_matches_password(payload, "hash-one")
+    assert not token_matches_password(payload, "hash-two")
+
+
+def test_tokens_issued_before_the_claim_existed_still_work():
+    from app.core.security import token_matches_password
+
+    legacy = decode_token(create_access_token("u-1"))
+    assert "pv" not in legacy
+    assert token_matches_password(legacy, "any-hash")
+
+
+async def _login_tokens(client, email, username, password="Sup3rSecret!1"):
+    await client.post("/api/v1/auth/register", json={"email": email, "username": username, "password": password})
+    res = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    return res.json()["data"]
+
+
+def _bearer(access_token):
+    return {"Authorization": f"Bearer {access_token}"}
+
+
+async def test_change_password_ends_other_sessions_but_keeps_the_caller_signed_in(client):
+    other_device = await _login_tokens(client, "sess1@example.com", "sessuser1")
+    this_device = (await client.post("/api/v1/auth/login", json={"email": "sess1@example.com", "password": "Sup3rSecret!1"})).json()["data"]
+
+    res = await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "Sup3rSecret!1", "new_password": "NewSecret!123"},
+        headers=_bearer(this_device["access_token"]),
+    )
+    assert res.status_code == 200
+    fresh = res.json()["data"]
+    assert fresh["access_token"] and fresh["refresh_token"]
+
+    # Every token issued for the old password is dead, access and refresh alike...
+    assert (await client.get("/api/v1/auth/me", headers=_bearer(other_device["access_token"]))).status_code == 401
+    assert (await client.get("/api/v1/auth/me", headers=_bearer(this_device["access_token"]))).status_code == 401
+    assert (await client.post("/api/v1/auth/refresh", params={"refresh_token": other_device["refresh_token"]})).status_code == 401
+
+    # ...while the pair returned by the change keeps this device signed in.
+    assert (await client.get("/api/v1/auth/me", headers=_bearer(fresh["access_token"]))).status_code == 200
+    refreshed = await client.post("/api/v1/auth/refresh", params={"refresh_token": fresh["refresh_token"]})
+    assert refreshed.status_code == 200
+    new_access = refreshed.json()["data"]["access_token"]
+    assert (await client.get("/api/v1/auth/me", headers=_bearer(new_access))).status_code == 200
+
+
+async def test_refreshed_access_token_dies_with_the_next_password_change(client):
+    tokens = await _login_tokens(client, "sess2@example.com", "sessuser2")
+    refreshed = await client.post("/api/v1/auth/refresh", params={"refresh_token": tokens["refresh_token"]})
+    access = refreshed.json()["data"]["access_token"]
+    assert (await client.get("/api/v1/auth/me", headers=_bearer(access))).status_code == 200
+
+    await client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "Sup3rSecret!1", "new_password": "NewSecret!123"},
+        headers=_bearer(tokens["access_token"]),
+    )
+    assert (await client.get("/api/v1/auth/me", headers=_bearer(access))).status_code == 401
+
+
+async def test_password_reset_ends_existing_sessions(client):
+    from app.core.security import create_password_reset_token
+
+    tokens = await _login_tokens(client, "sess3@example.com", "sessuser3")
+    user_id = decode_token(tokens["access_token"])["sub"]
+
+    res = await client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": create_password_reset_token(user_id), "new_password": "ResetSecret!123"},
+    )
+    assert res.status_code == 200
+    assert (await client.get("/api/v1/auth/me", headers=_bearer(tokens["access_token"]))).status_code == 401
+    assert (await client.post("/api/v1/auth/refresh", params={"refresh_token": tokens["refresh_token"]})).status_code == 401

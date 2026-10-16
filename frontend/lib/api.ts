@@ -17,6 +17,19 @@ export const REFRESH_TOKEN_STORAGE_KEY = "rankverse_refresh_token";
 type TokenRefreshListener = (accessToken: string) => void;
 let tokenRefreshListeners: TokenRefreshListener[] = [];
 
+// Fired when the server refuses the stored refresh token (the password was
+// changed or reset elsewhere, or the account is gone): the session is over.
+let sessionEndedListeners: (() => void)[] = [];
+
+export function onSessionEnded(listener: () => void): () => void {
+  sessionEndedListeners.push(listener);
+  return () => {
+    sessionEndedListeners = sessionEndedListeners.filter((l) => l !== listener);
+  };
+}
+
+class SessionEndedError extends Error {}
+
 export function onAccessTokenRefreshed(listener: TokenRefreshListener): () => void {
   tokenRefreshListeners.push(listener);
   return () => {
@@ -28,6 +41,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<string> 
   const qs = new URLSearchParams({ refresh_token: refreshToken });
   const res = await fetch(`${API_BASE}/auth/refresh?${qs.toString()}`, { method: "POST" });
   const json: Envelope<{ access_token: string; token_type: string }> = await res.json();
+  if (res.status === 401) throw new SessionEndedError(json.error?.message || "Session ended");
   if (!res.ok || json.error) {
     throw new Error(json.error?.message || "Failed to refresh session");
   }
@@ -53,7 +67,12 @@ async function fetchWithAuthRetry(path: string, init: RequestInit): Promise<Resp
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${newAccessToken}`);
     return fetch(`${API_BASE}${path}`, { ...init, headers });
-  } catch {
+  } catch (err) {
+    if (err instanceof SessionEndedError) {
+      localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+      sessionEndedListeners.forEach((listener) => listener());
+    }
     return res;
   }
 }
@@ -218,7 +237,7 @@ export async function updateMyProfile(token: string, update: ProfileUpdate) {
 }
 
 export async function changeMyPassword(token: string, currentPassword: string, newPassword: string) {
-  return authFetch<{ changed: boolean }>("/auth/change-password", token, {
+  return authFetch<{ changed: boolean; access_token: string; refresh_token: string }>("/auth/change-password", token, {
     method: "POST",
     body: { current_password: currentPassword, new_password: newPassword },
   });

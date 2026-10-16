@@ -19,7 +19,7 @@ export default function AccountSettings() {
 }
 
 function ChangePasswordForm() {
-  const { getToken } = useAuth();
+  const { getToken, adoptTokens } = useAuth();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [repeat, setRepeat] = useState("");
@@ -37,7 +37,8 @@ function ChangePasswordForm() {
     setBusy(true);
     setError(null);
     try {
-      await changeMyPassword(token, current, next);
+      // Changing the password ends every other session; this device continues on the new pair.
+      adoptTokens(await changeMyPassword(token, current, next));
       setCurrent("");
       setNext("");
       setRepeat("");
