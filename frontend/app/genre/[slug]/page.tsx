@@ -147,7 +147,7 @@ export default async function GenrePage({
 
       <EntityHero
         title={`بهترین‌های ${label}`}
-        subtitle={result.total !== null ? `${toFaDigits(result.total)} عنوان` : undefined}
+        titleClassName="font-display text-3xl text-ink sm:text-4xl"
         media={genre.media}
       />
       <MediaPlayer media={genre.media} />
@@ -198,6 +198,7 @@ export default async function GenrePage({
             },
           ]}
         />
+        {result.total !== null && <span className="text-sm text-muted">{toFaDigits(result.total)} عنوان</span>}
       </div>
 
       <section className="mt-8">

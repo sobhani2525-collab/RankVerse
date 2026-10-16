@@ -5,6 +5,7 @@ interface EntityHeroProps {
   title: string;
   subtitle?: string | null;
   media?: MediaInfo | null;
+  titleClassName?: string;
 }
 
 /**
@@ -13,7 +14,7 @@ interface EntityHeroProps {
  * backing a movie, a person, a genre, or (later) a song with cover art —
  * no entity_type branching.
  */
-export default function EntityHero({ title, subtitle, media }: EntityHeroProps) {
+export default function EntityHero({ title, subtitle, media, titleClassName }: EntityHeroProps) {
   const imageUrl = media?.image_url ?? null;
 
   return (
@@ -30,7 +31,7 @@ export default function EntityHero({ title, subtitle, media }: EntityHeroProps) 
         </div>
       )}
       <div className="flex-1">
-        <h1 className="font-display text-2xl text-ink">{title}</h1>
+        <h1 className={titleClassName ?? "font-display text-2xl text-ink"}>{title}</h1>
         {/* No blanket .num here: subtitle is caller-composed and can mix
             Persian words with a number (e.g. "12 عنوان") --
             forcing the whole string ltr would scramble that word order,
