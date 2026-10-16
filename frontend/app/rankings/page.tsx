@@ -1,3 +1,4 @@
+import { pageWindow } from "@/lib/pagination";
 import type { Metadata } from "next";
 import Link from "next/link";
 import PosterCard from "@/components/entities/poster-card";
@@ -214,14 +215,34 @@ export default async function RankingsPageRoute({
           ) : (
             <span />
           )}
-          <span className="text-xs text-muted">
-            صفحهٔ <span className="num">{toFaDigits(page)}</span>
-            {totalPages !== null && (
-              <>
-                {" "}از <span className="num">{toFaDigits(totalPages)}</span>
-              </>
-            )}
-          </span>
+          {totalPages !== null ? (
+            <ol className="flex flex-wrap items-center justify-center gap-1.5" aria-label="شمارهٔ صفحه">
+              {pageWindow(page, totalPages).map((p, i) =>
+                p === null ? (
+                  <li key={`gap-${i}`} aria-hidden="true" className="px-1 text-muted">
+                    …
+                  </li>
+                ) : (
+                  <li key={p}>
+                    <Link
+                      href={buildHref(type, p, filters)}
+                      aria-current={p === page ? "page" : undefined}
+                      aria-label={`صفحهٔ ${toFaDigits(p)}`}
+                      className={`num flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm transition ${
+                        p === page ? "border-gold/50 bg-gold/15 text-gold" : "border-border text-muted hover:border-gold/40 hover:text-ink"
+                      }`}
+                    >
+                      {toFaDigits(p)}
+                    </Link>
+                  </li>
+                ),
+              )}
+            </ol>
+          ) : (
+            <span className="text-xs text-muted">
+              صفحهٔ <span className="num">{toFaDigits(page)}</span>
+            </span>
+          )}
           {hasNext ? (
             <Link href={buildHref(type, page + 1, filters)} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
               بعدی ←

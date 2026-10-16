@@ -10,6 +10,8 @@ import AddToListMenu from "@/components/entities/add-to-list-menu";
 import WatchLaterButton from "@/components/entities/watch-later-button";
 import EntityScoreRow from "@/components/EntityScoreRow";
 import { MonoLabel, Chip } from "@/components/list-detail/ui";
+import MoreCast from "@/components/entities/more-cast";
+import { countryNameFa } from "@/lib/country";
 import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
@@ -159,6 +161,9 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
                 <span className="num">{toFaDigits(movie.runtime)}</span> دقیقه
               </Chip>
             )}
+            {countryNameFa(movie.country) && (
+              <Chip tone="border-border bg-surface-2 text-ink">{countryNameFa(movie.country)}</Chip>
+            )}
             {movie.genres.map((g) => (
               <Chip key={g.id} href={entityHref("genre", g.slug)} tone={GENRE_CHIP}>
                 {genreLabel(g.title)}
@@ -194,6 +199,8 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           )}
         </div>
       </div>
+
+      <MoreCast cast={movie.more_cast ?? []} />
 
       <div className="mt-16">
         <EntityGraphWithSidebar
