@@ -129,7 +129,9 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         {/* Deliberately bigger than any related-entity card (max ~227px wide
             at the lg:grid-cols-5 breakpoint of a max-w-7xl page) so the
             show's own poster always reads as the primary image on the page. */}
-        <div className="h-[330px] w-[220px] sm:h-[480px] sm:w-80 shrink-0 overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:mx-0 mx-auto">
+        <div className="relative h-[330px] w-[220px] sm:h-[480px] sm:w-80 shrink-0 sm:mx-0 mx-auto">
+          <WatchLaterButton entityId={tv.id} variant="ribbon" />
+        <div className="h-full w-full overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)]">
           {posterUrl ? (
             <Image
               src={posterUrl}
@@ -143,6 +145,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
               بدون پوستر
             </div>
           )}
+        </div>
         </div>
 
         <div className="flex-1">
@@ -218,7 +221,6 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <AddToListMenu entity={tv} />
             <WatchedButton entityId={tv.id} slug={tv.slug} />
-            <WatchLaterButton entityId={tv.id} />
             <BattleJumpButton />
           </div>
 
@@ -253,15 +255,6 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      {tv.trailer_key && (
-        <section aria-label="تریلر" className="mt-16 max-w-3xl">
-          <SectionHeading en="TRAILER" fa="تریلر" />
-          <div className="mt-4">
-            <TrailerPlayer youtubeKey={tv.trailer_key} title={displayTitle(tv)} />
-          </div>
-        </section>
-      )}
-
       <div className="mt-16">
         <EntityGraphWithSidebar
           entityType="tv_series"
@@ -271,6 +264,16 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           year={startYear ? Number(startYear) : null}
           rankingHighlights={rankingHighlights}
           entityId={tv.id}
+          aboveGraph={
+            tv.trailer_key ? (
+              <section aria-label="تریلر">
+                <SectionHeading en="TRAILER" fa="تریلر" />
+                <div className="mt-4">
+                  <TrailerPlayer youtubeKey={tv.trailer_key} title={displayTitle(tv)} />
+                </div>
+              </section>
+            ) : undefined
+          }
           belowGraph={
             <>
               {mainCreator && (

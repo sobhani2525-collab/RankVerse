@@ -25,6 +25,7 @@ export default function EntityGraphWithSidebar({
   rankingHighlights,
   entityId,
   battle,
+  aboveGraph,
   belowGraph,
 }: {
   entityType: string;
@@ -35,12 +36,15 @@ export default function EntityGraphWithSidebar({
   rankingHighlights: RankingHighlight[];
   entityId: string;
   battle?: ReactNode;
+  /** Rendered at the top of the main column, above the OVERVIEW section (beside the sidebar). */
+  aboveGraph?: ReactNode;
   /** Rendered in the main column under the GRAPH section. */
   belowGraph?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
       <div className="min-w-0 flex-1">
+        {aboveGraph && <div className="mb-10">{aboveGraph}</div>}
         <EntityGraphSection entityType={entityType} peopleRows={peopleRows} cast={cast} genres={genres} year={year} />
         {belowGraph && <div className="mt-10 flex flex-col gap-10">{belowGraph}</div>}
       </div>
