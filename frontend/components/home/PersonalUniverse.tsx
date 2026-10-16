@@ -68,7 +68,7 @@ function PersonalUniverseInner({ startHref }: { startHref: string }) {
   const ratings = ready?.ratings ?? [];
 
   return (
-    <section ref={ref} className="relative border-y border-border/60 bg-[#080B14]/70">
+    <section ref={ref} className="relative border-t border-border/60 bg-[#080B14]/70">
       <div className="mx-auto max-w-7xl px-6 py-24">
         <SectionHeading kicker="Your cinema" title="سینمای تو." />
 

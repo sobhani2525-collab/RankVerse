@@ -8,9 +8,9 @@ import SectionHeading from "./SectionHeading";
 import { toFaDigits } from "@/lib/format-number";
 
 const STEPS = [
-  { n: "۱", title: "یک عنوان بنویس", body: "مثلاً «فیلم‌های نولان به ترتیب علاقه». همین‌قدر کافی است." },
-  { n: "۲", title: "فیلم اضافه کن", body: "جستجو کن و بزن؛ ترتیبش را هر وقت خواستی با کشیدن عوض کن." },
-  { n: "۳", title: "منتشر کن", body: "فهرستت به نقشهٔ CinemeGozin وصل می‌شود و دیگران می‌توانند آن را ببینند و دنبال کنند." },
+  { n: "۱", title: "یک عنوان بنویس", body: "مثلاً «بهترین فیلم‌های کریستوفر نولان»، همین کافیه." },
+  { n: "۲", title: "فیلم یا سریال را اضافه کن", body: "جستجو کن و بزن یا از پیشنهادات گراف استفاده کن." },
+  { n: "۳", title: "منتشر کن", body: "فهرستت به نقشهٔ سینماگزین وصل می‌شود و دیگران می‌توانند آن را دنبال کنند." },
 ];
 
 type Tone = "people" | "genre";
@@ -46,7 +46,7 @@ const DEMOS: Demo[] = [
     ],
   },
   {
-    name: "فیلم‌های اصغر فرهادی",
+    name: "بهترین فیلم‌های اصغر فرهادی",
     start: [
       { title: "درباره الی", year: 2009, poster: "/ctLrMQrg3kss2JO7OIr7RVdN5an.jpg" },
       { title: "جدایی نادر از سیمین", year: 2011, poster: "/xQadpnoLokxzN3hRpCPbBGpxsiz.jpg" },
@@ -116,7 +116,7 @@ export default function ListCreatorPromo() {
           </ol>
 
           <ul className="mt-8 flex flex-wrap gap-2 text-xs text-ink-dim">
-            {["بدون پیچیدگی", "پیشنهاد هوشمند از گراف", "ترتیب قابل‌تغییر", "عمومی یا خصوصی"].map((t) => (
+            {["ساده و سریع", "پیشنهاد هوشمند", "افزودن آیتم توسط کاربران"].map((t) => (
               <li key={t} className="rounded-full border border-border bg-surface/60 px-3 py-1">
                 {t}
               </li>
@@ -136,7 +136,7 @@ export default function ListCreatorPromo() {
         <Reveal delay={120}>
           <div className="rounded-3xl border border-border bg-surface/60 p-5 shadow-[0_0_60px_rgba(145,99,245,0.12)] sm:p-7">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-bold text-violet-light">نمونه · {demo.name}</p>
+              <p className="text-sm font-bold text-violet-light">نمونه » {demo.name}</p>
               <span dir="rtl" className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted">
                 {toFaDigits(items.length)} فیلم
               </span>
