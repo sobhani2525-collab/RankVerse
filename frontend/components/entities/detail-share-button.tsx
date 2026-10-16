@@ -25,5 +25,5 @@ export default function DetailShareButton({
   shape?: "circle" | "square";
 }) {
   const path = detailPathFor(entity.entity_type, entity.slug) ?? `/${entity.entity_type}/${entity.slug}`;
-  return <ShareMenu url={absoluteUrl(path)} title={`${title} | RankVerse`} text={title} size={size} shape={shape} />;
+  return <ShareMenu url={absoluteUrl(path)} title={`${title} | CinemeGozin`} text={title} size={size} shape={shape} />;
 }

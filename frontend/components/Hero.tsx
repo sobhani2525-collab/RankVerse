@@ -31,7 +31,7 @@ export default function Hero() {
       </svg>
 
       <div className="relative mx-auto max-w-3xl text-center">
-        <p className="num text-xs uppercase tracking-widest text-teal">RankVerse Core Engine</p>
+        <p className="num text-xs uppercase tracking-widest text-teal">CinemeGozin Core Engine</p>
         <h1 className="font-display mt-4 text-4xl leading-tight text-ink sm:text-5xl">
           نقشه‌ای از برترین‌های سینما،
           <br />
@@ -39,7 +39,7 @@ export default function Hero() {
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted">
           هر فیلم یک گره است، هر رای یک روشنایی. رتبه‌بندی زیر، ترکیب زنده‌ای‌ست از امتیاز
-          هزاران کاربر و تحلیل داده‌ی فیلم‌ها روی گراف دانش RankVerse.
+          هزاران کاربر و تحلیل داده‌ی فیلم‌ها روی گراف دانش CinemeGozin.
         </p>
       </div>
     </section>

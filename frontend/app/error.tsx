@@ -18,7 +18,7 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
       <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
-        اتصال به RankVerse Core Engine برقرار نشد.
+        اتصال به CinemeGozin Core Engine برقرار نشد.
         <button type="button" onClick={retry} className="mt-4 block w-full text-sm text-teal hover:underline">
           دوباره تلاش کن
         </button>

@@ -10,7 +10,7 @@ import { toFaDigits } from "@/lib/format-number";
 const STEPS = [
   { n: "۱", title: "یک عنوان بنویس", body: "مثلاً «فیلم‌های نولان به ترتیب علاقه». همین‌قدر کافی است." },
   { n: "۲", title: "فیلم اضافه کن", body: "جستجو کن و بزن؛ ترتیبش را هر وقت خواستی با کشیدن عوض کن." },
-  { n: "۳", title: "منتشر کن", body: "فهرستت به نقشهٔ RankVerse وصل می‌شود و دیگران می‌توانند آن را ببینند و دنبال کنند." },
+  { n: "۳", title: "منتشر کن", body: "فهرستت به نقشهٔ CinemeGozin وصل می‌شود و دیگران می‌توانند آن را ببینند و دنبال کنند." },
 ];
 
 type Tone = "people" | "genre";
@@ -96,7 +96,7 @@ export default function ListCreatorPromo() {
       <SectionHeading
         kicker="Build your own constellation"
         title="فهرست خودت را بساز؛ کمتر از دو دقیقه."
-        lead="لازم نیست همه‌چیز را از حفظ باشی. هر فیلمی که اضافه کنی، گراف RankVerse فیلم بعدی را پیشنهاد می‌دهد."
+        lead="لازم نیست همه‌چیز را از حفظ باشی. هر فیلمی که اضافه کنی، گراف CinemeGozin فیلم بعدی را پیشنهاد می‌دهد."
       />
 
       <div className="grid items-center gap-12 lg:grid-cols-2">

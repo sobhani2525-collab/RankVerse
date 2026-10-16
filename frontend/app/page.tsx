@@ -109,7 +109,7 @@ export default async function HomePage() {
         <section className="mx-auto max-w-7xl px-6 py-14">
           {loadError ? (
             <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
-              اتصال به RankVerse Core Engine برقرار نشد.
+              اتصال به CinemeGozin Core Engine برقرار نشد.
               <span className="num mt-1 block text-xs text-gold/70">{loadError}</span>
             </div>
           ) : (

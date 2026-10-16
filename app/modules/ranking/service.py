@@ -49,7 +49,7 @@ ELO_SPREAD = 400.0
 
 class RankingService:
     """
-    Computes the RankVerse score for each entity using a Bayesian-average
+    Computes the CinemeGozin score for each entity using a Bayesian-average
     blend of user ratings, regularized by the platform average, plus a
     weighted contribution from the external (TMDb) score, nudged by how the
     entity has done in pairwise battles.

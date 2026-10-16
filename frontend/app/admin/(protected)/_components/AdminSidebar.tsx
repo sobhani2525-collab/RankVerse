@@ -36,7 +36,7 @@ export function AdminSidebar({ adminEmail }: { adminEmail: string }) {
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col border-l border-border bg-surface">
       <div className="border-b border-border px-5 py-5">
-        <p className="text-lg font-bold text-gold">RankVerse</p>
+        <p className="text-lg font-bold text-gold">CinemeGozin</p>
         <p className="text-xs text-muted">پنل مدیریت</p>
       </div>
 

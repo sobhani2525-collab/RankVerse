@@ -30,9 +30,9 @@ export default function RegisterPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-14">
-      <h1 className="text-center text-2xl font-bold text-ink">ساخت حساب در RankVerse</h1>
+      <h1 className="text-center text-2xl font-bold text-ink">ساخت حساب در CinemeGozin</h1>
       <p className="mt-2 text-center text-sm text-muted">
-        به جمع رتبه‌دهندگان RankVerse بپیوندید
+        به جمع رتبه‌دهندگان CinemeGozin بپیوندید
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">

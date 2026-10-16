@@ -20,5 +20,5 @@ export default function ShareListButton({
   /** "square" = the list hero's rounded-square action buttons. */
   shape?: "circle" | "square";
 }) {
-  return <ShareMenu url={absoluteUrl(listHref(slug))} title={`${title} | RankVerse`} text={title} size={size} shape={shape} />;
+  return <ShareMenu url={absoluteUrl(listHref(slug))} title={`${title} | CinemeGozin`} text={title} size={size} shape={shape} />;
 }
