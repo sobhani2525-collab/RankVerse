@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend typecheck
+    name: Frontend typecheck and tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,6 +25,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit -p .
+      - run: npm test
 
   backend:
     name: Backend tests
