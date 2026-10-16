@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SITE_LOCALE, SITE_NAME, absoluteUrl, excerpt } from "@/lib/site";
 import { toFaDigits } from "@/lib/format-number";
 import { genreLabel } from "@/lib/genre-labels";
-import type { GenreDetail, MovieDetail, PersonDetail, TvSeriesDetail } from "@/lib/types";
+import type { MovieDetail, PersonDetail, TvSeriesDetail } from "@/lib/types";
 
 const TMDB_IMG = "https://image.tmdb.org/t/p";
 const DESC_MAX = 160;
@@ -117,19 +117,6 @@ export function personMetadata(p: PersonDetail, path: string): Metadata {
     ogType: "profile",
     // A page with no biography and almost no credits is thin content.
     index: !!p.biography?.trim() || works >= 3,
-  });
-}
-
-export function genreMetadata(g: GenreDetail, path: string): Metadata {
-  const label = genreLabel(g.title);
-  const total = g.movies.length + g.tv_series.length;
-  const intro = `بهترین فیلم‌ها و سریال‌های ${label} بر اساس امتیاز ${SITE_NAME}${total ? ` (${toFaDigits(total)} عنوان)` : ""}.`;
-  return buildMetadata({
-    title: `بهترین‌های ${label}`,
-    description: excerpt(g.description?.trim() ? `${intro} ${g.description}` : intro, DESC_MAX),
-    path,
-    image: g.media?.image_url ?? null,
-    ogType: "website",
   });
 }
 

@@ -4,8 +4,8 @@ import { notFound } from "next/navigation";
 import { isNotFoundError } from "@/lib/api";
 import { ENTITY_TYPE_REGISTRY } from "@/lib/entity-registry";
 import JsonLd from "@/components/JsonLd";
-import { genreMetadata, personJsonLd, personMetadata } from "@/lib/seo";
-import type { GenreDetail, PersonDetail } from "@/lib/types";
+import { personJsonLd, personMetadata } from "@/lib/seo";
+import type { PersonDetail } from "@/lib/types";
 
 // One API read shared by generateMetadata and the page.
 const loadEntity = cache((type: string, slug: string) => ENTITY_TYPE_REGISTRY[type].fetch(slug));
@@ -17,7 +17,6 @@ export async function generateMetadata({ params }: { params: Promise<{ type: str
   try {
     const data = await loadEntity(type, slug);
     if (type === "person") return personMetadata(data as PersonDetail, path);
-    if (type === "genre") return genreMetadata(data as GenreDetail, path);
     return { alternates: { canonical: path } };
   } catch (err) {
     if (isNotFoundError(err)) return { title: "صفحه پیدا نشد", robots: { index: false, follow: false } };
