@@ -57,3 +57,87 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: pytest -q
+
+  e2e:
+    name: Browser tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: rankverse
+          POSTGRES_PASSWORD: rankverse
+          POSTGRES_DB: rankverse_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rankverse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # A throwaway database: scripts/e2e_seed.py refuses names without "e2e" or "test".
+      DATABASE_URL: postgresql+asyncpg://rankverse:rankverse@localhost:5432/rankverse_e2e
+      JWT_SECRET: ci-e2e-secret
+      E2E_API_URL: http://127.0.0.1:8000/api/v1
+      E2E_BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Create schema and seed titles
+        run: python scripts/e2e_seed.py
+
+      - name: Start the API
+        run: |
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
+          for i in $(seq 1 40); do curl -sf http://127.0.0.1:8000/health && exit 0; sleep 2; done
+          echo "::error::API did not start"; cat api.log; exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # The API address is inlined into the client bundle at build time.
+      - name: Build the frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000/api/v1
+        run: npm run build
+
+      - name: Start the frontend
+        working-directory: frontend
+        run: |
+          nohup npx next start -p 3000 > ../web.log 2>&1 &
+          for i in $(seq 1 40); do curl -sf http://localhost:3000/login > /dev/null && exit 0; sleep 2; done
+          echo "::error::Frontend did not start"; cat ../web.log; exit 1
+
+      - name: Install the browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the browser tests
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Keep the report and server logs when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            api.log
+            web.log
+          retention-days: 7

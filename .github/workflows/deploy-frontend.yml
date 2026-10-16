@@ -12,6 +12,8 @@ on:
       # Not part of the image: changing only these must not trigger a deploy.
       - "!frontend/tests/**"
       - "!frontend/vitest.config.ts"
+      - "!frontend/e2e/**"
+      - "!frontend/playwright.config.ts"
       - "!frontend/**/*.md"
   workflow_dispatch:
 
