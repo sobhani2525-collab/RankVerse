@@ -78,11 +78,12 @@ async def top_people(
 
 
 @router.get("/movies/{slug}/rankings")
-async def movie_ranking_highlights(slug: str, db: AsyncSession = Depends(get_read_db)):
+async def movie_ranking_highlights(slug: str):
     """Where this movie ranks within each automatic ranking group it belongs to (genre, director, ...)."""
     async def load():
-        entity = await EntityService(db).get_movie_entity(slug)
-        highlights = await RankingService(db).get_entity_highlights(entity)
+        async with _database.background_read_session() as db:
+            entity = await EntityService(db).get_movie_entity(slug)
+            highlights = await RankingService(db).get_entity_highlights(entity)
         return envelope(data=[h.model_dump() for h in highlights])
 
     return await cached(("highlights", "movie", slug), settings.cache_ttl_lists, load)
@@ -115,11 +116,12 @@ async def top_tv_series(
 
 
 @router.get("/tv-series/{slug}/rankings")
-async def tv_series_ranking_highlights(slug: str, db: AsyncSession = Depends(get_read_db)):
+async def tv_series_ranking_highlights(slug: str):
     """Where this tv_series ranks within each automatic ranking group it belongs to (genre, creator, ...)."""
     async def load():
-        entity = await EntityService(db).get_tv_series_entity(slug)
-        highlights = await RankingService(db).get_entity_highlights(entity)
+        async with _database.background_read_session() as db:
+            entity = await EntityService(db).get_tv_series_entity(slug)
+            highlights = await RankingService(db).get_entity_highlights(entity)
         return envelope(data=[h.model_dump() for h in highlights])
 
     return await cached(("highlights", "tv_series", slug), settings.cache_ttl_lists, load)
