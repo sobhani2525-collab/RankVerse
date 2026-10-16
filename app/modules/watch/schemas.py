@@ -47,6 +47,7 @@ class WatchLinkAdmin(BaseModel):
     entity_id: uuid.UUID
     entity_type: str
     entity_title: str
+    entity_title_fa: str | None = None
     entity_slug: str
     provider: str
     provider_name: str
@@ -62,6 +63,7 @@ class WatchEntityHit(BaseModel):
     id: uuid.UUID
     entity_type: str
     title: str
+    title_fa: str | None = None
     slug: str
     year: int | None = None
     link_count: int = 0

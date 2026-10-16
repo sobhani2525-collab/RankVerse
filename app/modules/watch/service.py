@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import Request
-from sqlalchemy import Integer, cast, func, select, update
+from sqlalchemy import Integer, cast, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, RateLimitedError
@@ -43,7 +43,7 @@ async def public_links_for(db: AsyncSession, entity_id: uuid.UUID) -> list[Watch
 
 def _admin_row(link: WatchLink, entity: Entity) -> WatchLinkAdmin:
     return WatchLinkAdmin(
-        id=link.id, entity_id=entity.id, entity_type=entity.entity_type, entity_title=entity.title, entity_slug=entity.slug,
+        id=link.id, entity_id=entity.id, entity_type=entity.entity_type, entity_title=entity.title, entity_title_fa=(entity.attributes or {}).get("title_fa"), entity_slug=entity.slug,
         provider=link.provider, provider_name=_provider_name(link.provider),
         url=link.url, access_type=link.access_type, is_affiliate=link.is_affiliate, source=link.source,
         click_count=link.click_count, updated_at=link.updated_at,
@@ -52,6 +52,15 @@ def _admin_row(link: WatchLink, entity: Entity) -> WatchLinkAdmin:
 
 def _like(q: str) -> str:
     return "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+
+def _title_matches(q: str):
+    """Titles are stored in their original language; the Persian name lives in attributes."""
+    pattern = _like(q)
+    return or_(
+        Entity.title.ilike(pattern, escape="\\"),
+        Entity.attributes["title_fa"].astext.ilike(pattern, escape="\\"),
+    )
 
 
 class WatchService:
@@ -83,7 +92,7 @@ class WatchService:
     async def list_links(self, q: str | None, provider: str | None, page: int, page_size: int):
         conds = []
         if q:
-            conds.append(Entity.title.ilike(_like(q), escape="\\"))
+            conds.append(_title_matches(q))
         if provider:
             conds.append(WatchLink.provider == provider)
         base = select(WatchLink, Entity).join(Entity, Entity.id == WatchLink.entity_id).where(*conds)
@@ -103,7 +112,7 @@ class WatchService:
             await self.db.execute(
                 select(Entity, func.coalesce(counts.c.n, 0))
                 .outerjoin(counts, counts.c.entity_id == Entity.id)
-                .where(Entity.entity_type.in_(WATCHABLE_TYPES), Entity.title.ilike(_like(q), escape="\\"))
+                .where(Entity.entity_type.in_(WATCHABLE_TYPES), _title_matches(q))
                 .order_by(votes.desc().nulls_last(), Entity.title)
                 .limit(limit)
             )
@@ -112,7 +121,7 @@ class WatchService:
         for e, n in rows:
             year = (e.attributes or {}).get("year")
             hits.append(WatchEntityHit(
-                id=e.id, entity_type=e.entity_type, title=e.title, slug=e.slug,
+                id=e.id, entity_type=e.entity_type, title=e.title, title_fa=(e.attributes or {}).get("title_fa"), slug=e.slug,
                 year=year if isinstance(year, int) else None, link_count=n,
             ))
         return hits

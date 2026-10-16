@@ -13,6 +13,7 @@ interface LinkRow {
   entity_id: string;
   entity_type: string;
   entity_title: string;
+  entity_title_fa: string | null;
   entity_slug: string;
   provider: string;
   provider_name: string;
@@ -26,6 +27,7 @@ interface EntityHit {
   id: string;
   entity_type: string;
   title: string;
+  title_fa: string | null;
   slug: string;
   year: number | null;
   link_count: number;
@@ -55,6 +57,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<Envelope<T>> {
   if (!res.ok || json.error) throw new Error(json.error?.message || `خطا (${res.status})`);
   return json;
 }
+
+const nameOf = (x: { title: string; title_fa?: string | null }) => (x.title_fa ? `${x.title_fa} (${x.title})` : x.title);
 
 const pageHref = (type: string, slug: string) => (type === "tv_series" ? `/tv-series/${slug}` : `/movies/${slug}`);
 
@@ -125,7 +129,7 @@ function AddLinkForm({ meta, onSaved, onError }: { meta: Meta; onSaved: (t: stri
         body: JSON.stringify({ entity_id: picked.id, provider, url, access_type: access, is_affiliate: affiliate }),
       });
       const name = meta.providers.find((p) => p.key === provider)?.name ?? provider;
-      onSaved(`لینک ${name} برای «${picked.title}» ذخیره شد`);
+      onSaved(`لینک ${name} برای «${nameOf(picked)}» ذخیره شد`);
       setUrl("");
       setAffiliate(false);
     } catch (err) {
@@ -145,7 +149,7 @@ function AddLinkForm({ meta, onSaved, onError }: { meta: Meta; onSaved: (t: stri
         {picked ? (
           <div className="flex items-center justify-between rounded-lg border border-gold/40 px-3 py-2 text-sm text-ink">
             <span>
-              {picked.title} {picked.year ? `(${toFaDigits(picked.year)})` : ""} · {picked.entity_type === "tv_series" ? "سریال" : "فیلم"}
+              {nameOf(picked)} {picked.year ? `(${toFaDigits(picked.year)})` : ""} · {picked.entity_type === "tv_series" ? "سریال" : "فیلم"}
             </span>
             <button type="button" onClick={() => { setPicked(null); setQ(""); }} className="text-xs text-muted hover:text-ink">تغییر</button>
           </div>
@@ -158,7 +162,7 @@ function AddLinkForm({ meta, onSaved, onError }: { meta: Meta; onSaved: (t: stri
                   <li key={h.id}>
                     <button type="button" onClick={() => setPicked(h)} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-right text-sm text-ink hover:bg-surface2">
                       <span className="truncate">
-                        {h.title} {h.year ? `(${toFaDigits(h.year)})` : ""}
+                        {nameOf(h)} {h.year ? `(${toFaDigits(h.year)})` : ""}
                       </span>
                       <span className="shrink-0 text-xs text-muted">
                         {h.entity_type === "tv_series" ? "سریال" : "فیلم"}
@@ -289,10 +293,10 @@ function LinksTable({ meta, version, onDeleted, onError }: { meta: Meta; version
   }, [load]);
 
   async function remove(row: LinkRow) {
-    if (!window.confirm(`لینک ${row.provider_name} برای «${row.entity_title}» حذف شود؟`)) return;
+    if (!window.confirm(`لینک ${row.provider_name} برای «${nameOf({ title: row.entity_title, title_fa: row.entity_title_fa })}» حذف شود؟`)) return;
     try {
       await call(`/${row.id}`, { method: "DELETE" });
-      onDeleted(`لینک ${row.provider_name} برای «${row.entity_title}» حذف شد`);
+      onDeleted(`لینک ${row.provider_name} برای «${nameOf({ title: row.entity_title, title_fa: row.entity_title_fa })}» حذف شد`);
     } catch (err) {
       onError(err instanceof Error ? err.message : "حذف نشد");
     }
@@ -327,7 +331,7 @@ function LinksTable({ meta, version, onDeleted, onError }: { meta: Meta; version
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-border">
                 <td className="px-3 py-2">
-                  <a href={pageHref(r.entity_type, r.entity_slug)} target="_blank" rel="noreferrer" className="text-ink hover:text-gold">{r.entity_title}</a>
+                  <a href={pageHref(r.entity_type, r.entity_slug)} target="_blank" rel="noreferrer" className="text-ink hover:text-gold">{nameOf({ title: r.entity_title, title_fa: r.entity_title_fa })}</a>
                 </td>
                 <td className="px-3 py-2">
                   <a href={r.url} target="_blank" rel="noreferrer noopener" dir="ltr" className="text-ink hover:text-gold">{r.provider_name}</a>

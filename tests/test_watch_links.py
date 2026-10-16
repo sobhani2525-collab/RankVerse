@@ -152,3 +152,21 @@ async def test_delete_removes_the_link(client, db_session, admin_headers, movie)
     res = await client.delete(f"{ADMIN}/{created.json()['data']['id']}", headers=admin_headers)
     assert res.status_code == 200
     assert (await db_session.execute(select(WatchLink))).scalars().all() == []
+
+
+async def test_admin_entity_search_matches_the_persian_title(client, db_session, admin_headers):
+    # Titles are stored in their original language; the Persian name is in attributes.
+    await EntityRepository(db_session).create_entity(
+        entity_type="movie", external_id=None, external_source=None,
+        title="Life Is Beautiful", slug="life-is-beautiful-1997", attributes={"title_fa": "زندگی زیباست", "year": 1997},
+    )
+    await db_session.commit()
+
+    by_persian = await client.get(f"{ADMIN}/entities", params={"q": "زندگی"}, headers=admin_headers)
+    assert by_persian.status_code == 200
+    hits = by_persian.json()["data"]
+    assert [h["slug"] for h in hits] == ["life-is-beautiful-1997"]
+    assert hits[0]["title_fa"] == "زندگی زیباست"
+
+    by_original = await client.get(f"{ADMIN}/entities", params={"q": "beautiful"}, headers=admin_headers)
+    assert [h["slug"] for h in by_original.json()["data"]] == ["life-is-beautiful-1997"]
