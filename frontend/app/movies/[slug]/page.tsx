@@ -8,6 +8,7 @@ import DetailShareButton from "@/components/entities/detail-share-button";
 import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
 import WatchLaterButton from "@/components/entities/watch-later-button";
+import WatchedButton from "@/components/entities/watched-button";
 import WatchLinks from "@/components/entities/watch-links";
 import EntityScoreRow from "@/components/EntityScoreRow";
 import { MonoLabel, Chip } from "@/components/list-detail/ui";
@@ -182,6 +183,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <AddToListMenu entity={movie} />
+            <WatchedButton entityId={movie.id} slug={movie.slug} />
             <WatchLaterButton entityId={movie.id} />
             <BattleJumpButton />
           </div>

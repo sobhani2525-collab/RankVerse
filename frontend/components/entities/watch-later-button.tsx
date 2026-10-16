@@ -1,7 +1,7 @@
 "use client";
 import { useWatchLater } from "@/contexts/WatchLaterContext";
 
-/** "تماشا خواهم کرد" -- one-click watch-later toggle next to AddToListMenu. */
+/** "میخواهم تماشا کنم" -- one-click watch-later toggle next to AddToListMenu. */
 export default function WatchLaterButton({ entityId }: { entityId: string }) {
   const { isWatchLater, toggleWatchLater } = useWatchLater();
   const active = isWatchLater(entityId);
@@ -20,7 +20,7 @@ export default function WatchLaterButton({ entityId }: { entityId: string }) {
       <svg width="16" height="16" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
       </svg>
-      {active ? "در فهرست تماشا" : "تماشا خواهم کرد"}
+      {active ? "در فهرست تماشا" : "میخواهم تماشا کنم"}
     </button>
   );
 }

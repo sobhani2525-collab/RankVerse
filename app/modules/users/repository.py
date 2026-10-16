@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.users.models import User, UserFavorite, UserRating
+from app.modules.users.models import User, UserFavorite, UserRating, UserWatched
 
 
 class UserRepository:
@@ -95,6 +95,25 @@ class UserRepository:
             }
             for rating, entity in rows
         ]
+
+    async def list_watched_entity_ids(self, user_id: uuid.UUID) -> list[uuid.UUID]:
+        result = await self.db.execute(select(UserWatched.entity_id).where(UserWatched.user_id == user_id))
+        return list(result.scalars().all())
+
+    async def toggle_watched(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> bool:
+        """True = now marked watched, False = mark removed."""
+        result = await self.db.execute(
+            select(UserWatched).where(UserWatched.user_id == user_id, UserWatched.entity_id == entity_id)
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            await self.db.delete(existing)
+            watched = False
+        else:
+            self.db.add(UserWatched(user_id=user_id, entity_id=entity_id))
+            watched = True
+        await self.db.flush()
+        return watched
 
     async def get_favorite(self, user_id: uuid.UUID, entity_id: uuid.UUID) -> UserFavorite | None:
         result = await self.db.execute(

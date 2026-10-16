@@ -74,3 +74,19 @@ class UserFavorite(Base):
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserWatched(Base):
+    """
+    "تماشا کرده‌ام" -- the user marks a movie/series as seen, independent of
+    whether they rated it. Deliberately its own table (like UserFavorite):
+    it does not feed Taste DNA, it only records the fact of having watched.
+    """
+    __tablename__ = "user_watched"
+    __table_args__ = (UniqueConstraint("user_id", "entity_id", name="uq_user_entity_watched"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), index=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

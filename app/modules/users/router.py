@@ -8,7 +8,7 @@ from app.modules.auth.dependencies import get_current_user, get_current_user_rea
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
-    FavoritePublic, ProfileUpdate, RatingCreate, RatingPublic, UserProfilePublic, UserPublic,
+    FavoritePublic, ProfileUpdate, RatingCreate, RatingPublic, UserProfilePublic, UserPublic, WatchedToggle,
 )
 from app.modules.users.service import UserService
 
@@ -89,6 +89,27 @@ async def my_ratings(
 ):
     ratings = await UserRepository(db).list_ratings_with_movies(current_user.id)
     return envelope(data=[RatingPublic.model_validate(r).model_dump() for r in ratings])
+
+
+@router.get("/users/me/watched")
+async def my_watched(
+    current_user: User = Depends(get_current_user_read),
+    db: AsyncSession = Depends(get_read_db),
+):
+    """Entity ids the caller marked "تماشا کرده‌ام" -- the button's initial state."""
+    ids = await UserRepository(db).list_watched_entity_ids(current_user.id)
+    return envelope(data={"entity_ids": [str(i) for i in ids]})
+
+
+@router.post("/users/me/watched/toggle")
+async def toggle_watched(
+    payload: WatchedToggle,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    watched = await UserRepository(db).toggle_watched(current_user.id, payload.entity_id)
+    await db.commit()
+    return envelope(data={"watched": watched})
 
 
 @router.post("/movies/{slug}/favorite")

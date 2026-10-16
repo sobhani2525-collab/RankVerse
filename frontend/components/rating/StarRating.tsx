@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { rateEntity, unrateEntity, getMyRatings } from "@/lib/api";
@@ -8,6 +8,9 @@ import { Spinner } from "@/components/Loading";
 import { toFaDigits } from "@/lib/format-number";
 
 const STAR_COUNT = 5;
+
+/** Fired by WatchedButton; StarRating answers it if the user hasn't rated yet. */
+export const RATING_NUDGE_EVENT = "rv:nudge-rating";
 
 /**
  * The shape StarRating needs to activate: any entity carrying
@@ -31,6 +34,32 @@ export default function StarRating({ entity, bare = false }: { entity: RatableEn
   const [hovered, setHovered] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [hasError, setHasError] = useState(false);
+  // Attention animation: stars light up one by one (right -> left in RTL).
+  const [pulse, setPulse] = useState(0);
+  const [nudging, setNudging] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<number | null>(null);
+  selectedRef.current = selected;
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    function onNudge(e: Event) {
+      const slug = (e as CustomEvent<{ slug: string }>).detail?.slug;
+      if (slug !== entity.slug || selectedRef.current !== null) return;
+      timers.forEach(clearTimeout);
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setNudging(true);
+      setPulse(0);
+      for (let n = 1; n <= STAR_COUNT; n++) timers.push(setTimeout(() => setPulse(n), 450 + n * 170));
+      timers.push(setTimeout(() => setPulse(0), 450 + STAR_COUNT * 170 + 900));
+      timers.push(setTimeout(() => setNudging(false), 450 + STAR_COUNT * 170 + 1300));
+    }
+    window.addEventListener(RATING_NUDGE_EVENT, onNudge);
+    return () => {
+      window.removeEventListener(RATING_NUDGE_EVENT, onNudge);
+      timers.forEach(clearTimeout);
+    };
+  }, [entity.slug]);
 
   useEffect(() => {
     if (!token) return;
@@ -83,13 +112,18 @@ export default function StarRating({ entity, bare = false }: { entity: RatableEn
     }
   }
 
-  const displayValue = hovered ?? selected ?? 0;
+  const displayValue = hovered ?? selected ?? pulse;
   const filledCount = Math.max(0, Math.min(STAR_COUNT, displayValue));
 
   const ratePrompt = entity.entity_type === "tv_series" ? "به این سریال امتیاز بده" : "به این فیلم امتیاز بده";
 
   return (
-    <div className={bare ? "" : "rounded-xl border border-border bg-surface/60 px-5 py-4"}>
+    <div
+      ref={rootRef}
+      className={`${bare ? "" : "rounded-xl border border-border bg-surface/60 px-5 py-4"} ${
+        nudging ? "rounded-xl ring-2 ring-gold/60 ring-offset-4 ring-offset-transparent animate-pulse" : ""
+      }`}
+    >
       <div
         className="relative inline-flex"
         style={{ width: STAR_COUNT * 44, height: 44 }}
@@ -159,7 +193,7 @@ export default function StarRating({ entity, bare = false }: { entity: RatableEn
             </button>
           </>
         ) : (
-          ratePrompt
+          nudging ? "حالا به این عنوان امتیاز بده ⭐" : ratePrompt
         )}
       </div>
 

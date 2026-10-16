@@ -136,3 +136,7 @@ class FavoritePublic(BaseModel):
     movie_slug: str | None = None
     movie_title: str | None = None
     movie_poster_path: str | None = None
+
+
+class WatchedToggle(BaseModel):
+    entity_id: uuid.UUID

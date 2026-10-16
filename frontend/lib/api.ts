@@ -574,6 +574,14 @@ export async function toggleWatchLater(token: string, entityId: string): Promise
   return authFetch(`/users/me/watch-later/toggle`, token, { method: "POST", body: { entity_id: entityId } });
 }
 
+export async function getWatchedEntityIds(token: string): Promise<string[]> {
+  return authFetch<{ entity_ids: string[] }>(`/users/me/watched`, token).then((d) => d.entity_ids);
+}
+
+export async function toggleWatched(token: string, entityId: string): Promise<{ watched: boolean }> {
+  return authFetch(`/users/me/watched/toggle`, token, { method: "POST", body: { entity_id: entityId } });
+}
+
 export async function addListItem(
   token: string,
   slug: string,

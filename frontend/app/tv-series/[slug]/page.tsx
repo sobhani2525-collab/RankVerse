@@ -11,6 +11,7 @@ import DetailShareButton from "@/components/entities/detail-share-button";
 import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
 import WatchLaterButton from "@/components/entities/watch-later-button";
+import WatchedButton from "@/components/entities/watched-button";
 import WatchLinks from "@/components/entities/watch-links";
 import EntityScoreRow from "@/components/EntityScoreRow";
 import { MonoLabel, Chip } from "@/components/list-detail/ui";
@@ -215,6 +216,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <AddToListMenu entity={tv} />
+            <WatchedButton entityId={tv.id} slug={tv.slug} />
             <WatchLaterButton entityId={tv.id} />
             <BattleJumpButton />
           </div>
