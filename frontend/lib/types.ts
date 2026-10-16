@@ -69,6 +69,17 @@ export interface CastMember {
   image_url: string | null;
 }
 
+// Where a title can be watched. The target URL is not exposed: links go through
+// the API's counted redirect (see lib/watch-links.ts).
+export interface WatchLink {
+  id: string;
+  provider: string;
+  provider_name: string;
+  access_type: string;
+  access_label: string;
+  is_affiliate: boolean;
+}
+
 export interface MovieDetail extends MovieListItem, ImdbInfo {
   id:string;
   overview: string | null;
@@ -78,6 +89,7 @@ export interface MovieDetail extends MovieListItem, ImdbInfo {
   cast: PersonSummary[];
   more_cast?: CastMember[];
   trailer_key?: string | null; // YouTube video id
+  watch_links?: WatchLink[];
   genres: GenreSummary[];
 }
 
@@ -94,6 +106,7 @@ export interface TvSeriesDetail extends MovieListItem, ImdbInfo {
   cast: PersonSummary[];
   more_cast?: CastMember[];
   trailer_key?: string | null; // YouTube video id
+  watch_links?: WatchLink[];
   genres: GenreSummary[];
   networks: GenreSummary[];
 }

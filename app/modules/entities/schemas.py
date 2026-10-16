@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.watch.schemas import WatchLinkPublic
+
 
 class MediaInfo(BaseModel):
     """Standard media shape every entity type maps its raw attributes into,
@@ -71,6 +73,7 @@ class MovieDetail(MovieListItem, ImdbInfo):
     cast: list[PersonSummary] = []
     more_cast: list[CastMember] = []
     trailer_key: str | None = None  # YouTube video id
+    watch_links: list[WatchLinkPublic] = []
     genres: list[GenreSummary] = []
 
 
@@ -88,6 +91,7 @@ class TVSeriesDetail(MovieListItem, ImdbInfo):
     cast: list[PersonSummary] = []
     more_cast: list[CastMember] = []
     trailer_key: str | None = None  # YouTube video id
+    watch_links: list[WatchLinkPublic] = []
     genres: list[GenreSummary] = []
     networks: list[GenreSummary] = []
 

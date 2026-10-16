@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "کاربران و جامعه", href: "/admin/users" },
   { label: "فهرست‌ها و برگزیده‌ها", href: "/admin/lists" },
   { label: "نبرد روز", href: "/admin/daily-battles" },
+  { label: "کجا ببینم (لینک‌ها)", href: "/admin/watch-links" },
   { label: "آنالیتیکس", href: "/admin/analytics" },
   { label: "سلامت زیرساخت", href: "/admin/health" },
   { label: "SEO و کشف محتوا", href: "/admin/seo" },

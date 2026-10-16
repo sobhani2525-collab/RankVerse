@@ -6,6 +6,7 @@ from app.config import settings
 from app.core.cache import cached
 from app.core.exceptions import ForbiddenError, NotFoundError
 from app.modules.entities.repository import EntityRepository
+from app.modules.watch.service import public_links_for
 from app.modules.entities.schemas import (
     AlbumSummary,
     CastMember,
@@ -208,6 +209,7 @@ class EntityService:
             cast=cast,
             more_cast=_more_cast(entity.attributes),
             trailer_key=entity.attributes.get("trailer_key"),
+            watch_links=await public_links_for(self.db, entity.id),
             genres=genres,
         )
 
@@ -279,6 +281,7 @@ class EntityService:
             cast=cast,
             more_cast=_more_cast(entity.attributes),
             trailer_key=entity.attributes.get("trailer_key"),
+            watch_links=await public_links_for(self.db, entity.id),
             genres=genres,
             networks=networks,
         )

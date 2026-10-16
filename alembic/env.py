@@ -16,6 +16,7 @@ from app.modules.taste import models as taste_models  # noqa
 from app.modules.battles import models as battles_models  # noqa
 from app.modules.daily_battle import models as daily_battle_models  # noqa
 from app.modules.admin import models as admin_models  # noqa
+from app.modules.watch import models as watch_models  # noqa
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

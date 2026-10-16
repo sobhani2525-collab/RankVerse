@@ -8,6 +8,7 @@ import DetailShareButton from "@/components/entities/detail-share-button";
 import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
 import WatchLaterButton from "@/components/entities/watch-later-button";
+import WatchLinks from "@/components/entities/watch-links";
 import EntityScoreRow from "@/components/EntityScoreRow";
 import { MonoLabel, Chip } from "@/components/list-detail/ui";
 import { countryNameFa } from "@/lib/country";
@@ -184,6 +185,8 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             <WatchLaterButton entityId={movie.id} />
             <BattleJumpButton />
           </div>
+
+          <WatchLinks links={movie.watch_links ?? []} />
 
           {movie.overview && (
             <div className="mt-6">

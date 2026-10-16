@@ -35,6 +35,7 @@ from app.modules.battles import models as _battles_models  # noqa: F401
 from app.modules.daily_battle import models as _daily_battle_models  # noqa: F401
 from app.modules.admin import models as _admin_models  # noqa: F401
 from app.modules.taste import models as _taste_models  # noqa: F401
+from app.modules.watch import models as _watch_models  # noqa: F401
 from app.modules.users.repository import UserRepository
 
 
