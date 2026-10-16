@@ -16,10 +16,11 @@ export default function TrailerPlayer({ youtubeKey, title }: { youtubeKey: strin
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-surface2">
         {playing ? (
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeKey)}?autoplay=1&rel=0`}
+            src={`https://www.youtube.com/embed/${encodeURIComponent(youtubeKey)}?autoplay=1&rel=0`}
             title={`تریلر ${title}`}
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
             className="absolute inset-0 h-full w-full"
           />
         ) : (
