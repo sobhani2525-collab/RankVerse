@@ -15,7 +15,7 @@ import TrailerPlayer from "@/components/entities/trailer-player";
 import WatchedButton from "@/components/entities/watched-button";
 import WatchLinks from "@/components/entities/watch-links";
 import EntityScoreRow from "@/components/EntityScoreRow";
-import { MonoLabel, Chip } from "@/components/list-detail/ui";
+import { MonoLabel, Chip, SectionHeading } from "@/components/list-detail/ui";
 import { countryNameFa } from "@/lib/country";
 import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
@@ -224,18 +224,6 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
           <WatchLinks links={tv.watch_links ?? []} />
 
-          {tv.trailer_key && (
-            <section aria-label="تریلر" className="mt-6 max-w-3xl">
-              <div className="mb-3 flex items-center gap-2">
-                <MonoLabel size="text-[10px]" className="text-dim">
-                  TRAILER
-                </MonoLabel>
-                <span className="text-xs text-muted">تریلر</span>
-              </div>
-              <TrailerPlayer youtubeKey={tv.trailer_key} title={displayTitle(tv)} />
-            </section>
-          )}
-
           {tv.overview && (
             <div className="mt-6">
               <div className="flex items-center gap-2">
@@ -264,6 +252,15 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           )}
         </div>
       </div>
+
+      {tv.trailer_key && (
+        <section aria-label="تریلر" className="mt-16 max-w-3xl">
+          <SectionHeading en="TRAILER" fa="تریلر" />
+          <div className="mt-4">
+            <TrailerPlayer youtubeKey={tv.trailer_key} title={displayTitle(tv)} />
+          </div>
+        </section>
+      )}
 
       <div className="mt-16">
         <EntityGraphWithSidebar
