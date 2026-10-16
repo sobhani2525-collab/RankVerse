@@ -9,6 +9,10 @@ on:
     branches: [main]
     paths:
       - "frontend/**"
+      # Not part of the image: changing only these must not trigger a deploy.
+      - "!frontend/tests/**"
+      - "!frontend/vitest.config.ts"
+      - "!frontend/**/*.md"
   workflow_dispatch:
 
 # One deploy at a time; a newer push waits instead of cancelling a build mid-way.
@@ -43,6 +47,9 @@ jobs:
       - name: Install Liara CLI
         run: npm i -g @liara/cli@9
 
+      # A normal deploy takes ~5-7 minutes. Liara's builder sometimes stalls for
+      # 20+ minutes and then cancels the build, so each attempt gets 12 minutes
+      # and one retry (2 x 12 fits inside the job's 30-minute limit).
       - name: Deploy
         env:
           LIARA_TOKEN: ${{ secrets.LIARA_API_TOKEN }}
@@ -51,10 +58,17 @@ jobs:
             echo "::error::Repository secret LIARA_API_TOKEN is not set"
             exit 1
           fi
-          liara deploy \
-            --app="cinemagozin-web" \
-            --platform="docker" \
-            --port=3000 \
-            --path="frontend" \
-            --api-token="$LIARA_TOKEN" \
-            --no-app-logs
+          for attempt in 1 2; do
+            if timeout 12m liara deploy \
+              --app="cinemagozin-web" \
+              --platform="docker" \
+              --port=3000 \
+              --path="frontend" \
+              --api-token="$LIARA_TOKEN" \
+              --no-app-logs; then
+              exit 0
+            fi
+            echo "::warning::Liara deploy attempt $attempt failed or timed out"
+          done
+          echo "::error::Liara deploy failed after 2 attempts"
+          exit 1
