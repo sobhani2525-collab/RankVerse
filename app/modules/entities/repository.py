@@ -527,7 +527,7 @@ class EntityRepository:
         return list((await self.db.execute(stmt)).scalars().all())
 
     async def top_by_shared_genres(
-        self, genre_ids: list[uuid.UUID], entity_type: str, limit: int
+        self, genre_ids: list[uuid.UUID], entity_type: str, limit: int, persian: bool | None = None
     ) -> list[Entity]:
         """The `limit` best titles of entity_type for a set of genres: most of
         the genres shared first, then highest computed_score. Same ordering as
@@ -548,6 +548,11 @@ class EntityRepository:
             .order_by(shared_count.desc(), EntityRanking.computed_score.desc().nulls_last(), Entity.id)
             .limit(limit)
         )
+        if persian is not None:
+            # Same side of the Persian / non-Persian divide as the source
+            # title: a genre like "drama" alone must not pair an Iranian
+            # period series with Breaking Bad.
+            stmt = stmt.where(_persian_work(Entity) == persian)
         return [row[0] for row in (await self.db.execute(stmt)).all()]
 
     async def get_related_ids(self, entity_id: uuid.UUID, limit: int = 30) -> list[uuid.UUID]:
