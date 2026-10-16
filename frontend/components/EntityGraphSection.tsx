@@ -1,9 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { SectionHeading, RowLabel, Chip } from "@/components/list-detail/ui";
-import { PEOPLE_CHIP, GENRE_CHIP, entityHref } from "@/lib/list-constellation";
-import { genreLabel } from "@/lib/genre-labels";
-import { toFaDigits } from "@/lib/format-number";
+import { SectionHeading, RowLabel } from "@/components/list-detail/ui";
+import { entityHref } from "@/lib/list-constellation";
 import { PersonSummary, GenreSummary } from "@/lib/types";
 
 function PersonAvatar({ person, size }: { person: PersonSummary; size: "lg" | "md" }) {
@@ -38,27 +36,24 @@ interface PeopleRow {
 }
 
 /**
- * "این فیلم/سریال در گراف" -- the entity's own graph neighborhood (people,
- * genres, year) laid out with the same RowLabel/Chip language as the list
+ * "این فیلم/سریال در گراف" -- the entity's own graph neighborhood (people) laid out with the same RowLabel/Chip language as the list
  * detail page's item cards, instead of the plain <dl> the hero used before.
  */
 export default function EntityGraphSection({
   entityType,
   peopleRows,
   cast,
-  genres,
-  year,
 }: {
   entityType: string;
   peopleRows: PeopleRow[];
   cast: PersonSummary[];
-  genres: GenreSummary[];
-  year: number | null;
+  /** Still passed by callers; genres and year are shown in the hero, so not repeated here. */
+  genres?: GenreSummary[];
+  year?: number | null;
 }) {
   const typeFa = entityType === "tv_series" ? "سریال" : "فیلم";
-  const decade = year != null ? Math.floor(year / 10) * 10 : null;
 
-  if (peopleRows.every((row) => row.people.length === 0) && cast.length === 0 && genres.length === 0 && year == null) {
+  if (peopleRows.every((row) => row.people.length === 0) && cast.length === 0) {
     return null;
   }
 
@@ -89,35 +84,6 @@ export default function EntityGraphSection({
               {cast.map((p) => (
                 <PersonAvatar key={p.id} person={p} size="md" />
               ))}
-            </div>
-          </div>
-        )}
-
-        {genres.length > 0 && (
-          <div className="flex flex-col items-start gap-2">
-            <RowLabel dot="bg-teal" en="GENRES" fa="ژانرها" />
-            <div className="flex flex-wrap gap-1.5">
-              {genres.map((g) => (
-                <Chip key={g.id} href={entityHref("genre", g.slug)} tone={GENRE_CHIP}>
-                  {genreLabel(g.title)}
-                </Chip>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {year != null && (
-          <div className="flex flex-col items-start gap-2">
-            <RowLabel dot="bg-ink-dim" en="YEAR" fa="سال" />
-            <div className="flex flex-wrap gap-1.5">
-              <Chip tone="border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
-                <span className="num">{toFaDigits(year)}</span>
-              </Chip>
-              {decade != null && (
-                <Chip tone="border-border bg-surface-2 text-muted">
-                  دهه <span className="num">{toFaDigits(decade)}</span>
-                </Chip>
-              )}
             </div>
           </div>
         )}

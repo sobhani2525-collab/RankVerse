@@ -32,7 +32,7 @@ export default function EntityBattle({
 
   return (
     <section id={ENTITY_BATTLE_SECTION_ID} aria-labelledby="person-battle-heading" className="flex scroll-mt-24 flex-col gap-4">
-      <BattleRun key={runId} domain={domain} onAgain={() => setRunId((n) => n + 1)} />
+      <BattleRun key={runId} domain={domain} layout="side" onAgain={() => setRunId((n) => n + 1)} />
     </section>
   );
 }

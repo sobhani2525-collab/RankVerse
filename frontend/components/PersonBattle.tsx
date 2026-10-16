@@ -95,7 +95,16 @@ export default function PersonBattle({
   );
 }
 
-export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => void }) {
+export function BattleRun({
+  domain,
+  onAgain,
+  layout = "stacked",
+}: {
+  domain: Domain;
+  onAgain: () => void;
+  /** "side": from md up, posters sit on one side and the heading/titles/progress beside them. */
+  layout?: "stacked" | "side";
+}) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const items = domain.items;
@@ -209,11 +218,9 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
     ["right", challengerItem],
   ];
 
-  return (
-    <>
-      {heading}
-
-      {/* RTL grid: the champion (the vote's left_item) sits on the right. */}
+  const sideLayout = layout === "side";
+  // RTL grid: the champion (the vote's left_item) sits on the right.
+  const posterGrid = (
       <div className="relative grid grid-cols-2 gap-2.5">
         {sides.map(([side, item]) => {
           const isChampion = side === "left";
@@ -245,7 +252,8 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
           VS
         </span>
       </div>
-
+  );
+  const titleGrid = (
       <div className="grid grid-cols-2 gap-2.5">
         {sides.map(([side, item]) => {
           const href = entityHref(item.entity_type, item.slug);
@@ -263,7 +271,8 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
           );
         })}
       </div>
-
+  );
+  const footer = (
       <div className="flex items-center gap-4">
         <div className="flex-1">{progressBar}</div>
         <button
@@ -274,6 +283,30 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
           رد کردن
         </button>
       </div>
+
+  );
+
+  return (
+    <>
+      {sideLayout ? (
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
+          <div className="flex flex-col gap-3 md:w-[22rem] md:shrink-0">
+            {posterGrid}
+            {titleGrid}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {heading}
+            {footer}
+          </div>
+        </div>
+      ) : (
+        <>
+          {heading}
+          {posterGrid}
+          {titleGrid}
+          {footer}
+        </>
+      )}
 
       {error && <p className="text-xs text-gold">{error}</p>}
     </>

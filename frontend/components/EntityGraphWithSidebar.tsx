@@ -12,7 +12,7 @@ interface PeopleRow {
 
 /**
  * GRAPH timeline (main column) + a 380px sidebar (Notable Rankings, then
- * "IN LISTS") next to it on desktop -- same two-column shape as the list
+ * "IN LISTS"; the battle sits in the main column under OVERVIEW) next to it on desktop -- same two-column shape as the list
  * detail page's own main-column/aside split (app/lists/[slug]/page.tsx),
  * stacking on mobile.
  */
@@ -46,10 +46,10 @@ export default function EntityGraphWithSidebar({
       <div className="min-w-0 flex-1">
         {aboveGraph && <div className="mb-10">{aboveGraph}</div>}
         <EntityGraphSection entityType={entityType} peopleRows={peopleRows} cast={cast} genres={genres} year={year} />
+        {battle && <div className="mt-10">{battle}</div>}
         {belowGraph && <div className="mt-10 flex flex-col gap-10">{belowGraph}</div>}
       </div>
       <aside className="flex shrink-0 flex-col gap-6 lg:w-[380px]">
-        {battle}
         <NotableRankings items={rankingHighlights} />
         <EntityLists entityId={entityId} variant="sidebar" />
       </aside>
