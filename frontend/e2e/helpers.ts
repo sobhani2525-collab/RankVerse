@@ -33,10 +33,15 @@ export async function registerViaApi(request: APIRequestContext, user: TestUser)
   return { access: data.access_token as string, refresh: data.refresh_token as string };
 }
 
-/** Opens the site already signed in, by seeding the session before any page script runs. */
+/**
+ * Opens the site already signed in, by seeding the session before any page script runs.
+ * Only seeds an empty browser: the init script runs again on every navigation, and must
+ * not overwrite tokens the app has since replaced (e.g. after a password change).
+ */
 export async function signInWith(page: Page, tokens: { access: string; refresh: string }) {
   await page.addInitScript(
     ([a, r, ak, rk]) => {
+      if (localStorage.getItem(ak)) return;
       localStorage.setItem(ak, a);
       localStorage.setItem(rk, r);
     },
