@@ -8,7 +8,6 @@ import { watchLinkHref } from "@/lib/watch-links";
  */
 export default function WatchLinks({ links }: { links: WatchLink[] }) {
   if (links.length === 0) return null;
-  const hasAffiliate = links.some((l) => l.is_affiliate);
 
   return (
     <section aria-label="کجا ببینم" className="mt-6">
@@ -29,11 +28,6 @@ export default function WatchLinks({ links }: { links: WatchLink[] }) {
           </li>
         ))}
       </ul>
-      {hasAffiliate && (
-        <p className="mt-2 text-[11px] leading-5 text-muted">
-          بعضی از این لینک‌ها همکاری تبلیغاتی‌اند و ممکن است با خرید یا اشتراک شما، کمیسیونی برای سینماگزین داشته باشند.
-        </p>
-      )}
     </section>
   );
 }

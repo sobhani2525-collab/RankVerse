@@ -29,14 +29,9 @@ describe("WatchLinks", () => {
     expect(screen.getByRole("link", { name: /نماوا/ })).toHaveTextContent("رایگان");
   });
 
-  it("marks affiliate links as sponsored and explains it", () => {
+  it("marks affiliate links as sponsored for search engines, without any note on the page", () => {
     render(<WatchLinks links={[link({ is_affiliate: true })]} />);
     expect(screen.getByRole("link", { name: /فیلیمو/ }).getAttribute("rel")).toContain("sponsored");
-    expect(screen.getByText(/همکاری تبلیغاتی/)).toBeInTheDocument();
-  });
-
-  it("shows no affiliate note when no link is affiliate", () => {
-    render(<WatchLinks links={[link()]} />);
     expect(screen.queryByText(/همکاری تبلیغاتی/)).not.toBeInTheDocument();
   });
 });
