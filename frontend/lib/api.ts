@@ -383,7 +383,7 @@ export async function getMyFavorites(token: string): Promise<UserFavorite[]> {
 
 // --- Authenticated helper ---
 
-async function authFetch<T>(
+export async function authFetch<T>(
   path: string,
   token: string,
   options: { method?: string; body?: unknown } = {}

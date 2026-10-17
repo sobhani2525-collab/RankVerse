@@ -28,6 +28,7 @@ from app.modules.lists.schemas import (
 )
 from app.modules.search.router import find_entities_by_title
 from app.modules.taste.compute import ContributionStatsComputer
+from app.modules.notifications import service as notifications
 
 logger = logging.getLogger(__name__)
 
@@ -810,6 +811,7 @@ class ListService:
         else:
             await self.repo.add_like(lst.id, user_id)
             await self.db.commit()
+            await self._notify_list_owner("list_liked", lst, user_id, aggregate=True)
             return True
 
     # --- Social: follows ---
@@ -827,6 +829,7 @@ class ListService:
         else:
             await self.repo.add_follow(lst.id, user_id)
             await self.db.commit()
+            await self._notify_list_owner("list_followed", lst, user_id, aggregate=True)
             return True
 
     # --- Social: comments ---
@@ -839,7 +842,28 @@ class ListService:
         comment = await self.repo.add_comment(lst.id, user_id, payload.body, payload.parent_comment_id)
         await ContributionStatsComputer(self.db).compute_contribution_stats(user_id)
         await self.db.commit()
+        snippet = payload.body.strip()[: settings.notif_payload_text_max]
+        parent = await self.repo.get_comment(payload.parent_comment_id) if payload.parent_comment_id else None
+        if parent is not None and parent.user_id != lst.user_id:
+            # Replying to someone else: they get the reply notice; the owner still hears about the comment.
+            await self._notify_list_owner("comment_replied", lst, user_id, comment_id=str(comment.id), snippet=snippet,
+                                          recipient_id=parent.user_id)
+        await self._notify_list_owner("list_commented", lst, user_id, comment_id=str(comment.id), snippet=snippet)
         return CommentPublic.model_validate(comment)
+
+    async def _notify_list_owner(self, type: str, lst, actor_id: uuid.UUID, aggregate: bool = False,
+                                 recipient_id: uuid.UUID | None = None, **extra) -> None:
+        """Hook for in-app notifications. Runs after the main action committed,
+        on its own session; recipient comes from the DB row, never the client."""
+        await notifications.notify_later(
+            recipient_id=recipient_id or lst.user_id,
+            actor_id=actor_id,
+            type=type,
+            target_type="list",
+            target_id=lst.id,
+            payload={"list_title": lst.title, "list_slug": lst.slug, **extra},
+            aggregate=aggregate,
+        )
 
     async def delete_comment(self, user_id: uuid.UUID, slug: str, comment_id: uuid.UUID) -> None:
         """The author can delete their comment; so can the list's owner (moderating their own list)."""

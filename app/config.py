@@ -248,6 +248,25 @@ class Settings(BaseSettings):
     # Background rebuild of the person_stats table (people ranking); 0 disables.
     person_stats_refresh_hours: int = 12
 
+    # --- In-app notifications (app/modules/notifications) ---
+    notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once
+    notif_retention_days: int = 30  # read notifications older than this are purged by the cleanup job
+    notif_page_size: int = 20
+    notif_page_size_max: int = 50
+    notif_dropdown_size: int = 10
+    notif_payload_text_max: int = 100  # comment snippet length kept in payload (keeps rows small)
+
+    # --- Admin operational alerts (app/modules/alerts) ---
+    alert_cooldown_seconds: int = 900  # a repeat of an open alert inside this window only bumps counters
+    alert_webhook_url: str = ""  # optional generic webhook (Eitaa/Telegram/email bridge); empty = off
+    alert_webhook_timeout_seconds: float = 5.0
+    alert_slow_request_seconds: float = 4.0  # home-page style queries slower than this raise a warning
+    alert_slow_paths: str = "/api/v1/ranking,/api/v1/lists/featured,/api/v1/movies,/api/v1/battles"  # comma-separated prefixes watched for slowness
+    alert_admin_login_fail_threshold: int = 5
+    alert_db_size_warn_mb: int = 400  # 0 disables; Supabase free tier caps at 500
+    alert_admin_login_fail_window_seconds: int = 600
+    alert_retention_days: int = 90  # resolved alerts older than this are purged
+
     @property
     def cors_origin_list(self) -> list[str]:
         origins = [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]

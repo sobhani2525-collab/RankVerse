@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 from app.api.v1.router import api_router
+from app.modules.alerts.middleware import SlowRequestMiddleware
 from app.modules.entities.ego import warm_hero_pool
 from app.modules.daily_battle.precreate import precreate_loop
 from app.modules.entities.person_stats import refresh_loop
@@ -41,6 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(SlowRequestMiddleware)
 app.add_exception_handler(RankVerseError, rankverse_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 

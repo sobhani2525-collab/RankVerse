@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -20,12 +21,46 @@ const NAV_ITEMS: NavItem[] = [
   { label: "آنالیتیکس", href: "/admin/analytics" },
   { label: "سلامت زیرساخت", href: "/admin/health" },
   { label: "SEO و کشف محتوا", href: "/admin/seo" },
+  { label: "هشدارها", href: "/admin/alerts" },
   { label: "Audit Log", href: "/admin/audit-log" },
 ];
+
+// Open-alert badge: one tiny request every 60s while the tab is visible,
+// plus an instant refresh when the alerts page changes something.
+function useOpenAlertCount() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let timer: number | undefined;
+    let cancelled = false;
+    const load = async () => {
+      if (document.visibilityState === "visible") {
+        try {
+          const res = await fetch("/api/admin/alerts/open-count", { cache: "no-store" });
+          const json = await res.json();
+          if (!cancelled && res.ok) setCount(json.data?.count ?? 0);
+        } catch {}
+      }
+      if (!cancelled) timer = window.setTimeout(load, 60_000);
+    };
+    load();
+    const refresh = () => {
+      window.clearTimeout(timer);
+      load();
+    };
+    window.addEventListener("admin-alerts-changed", refresh);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("admin-alerts-changed", refresh);
+    };
+  }, []);
+  return count;
+}
 
 export function AdminSidebar({ adminEmail }: { adminEmail: string }) {
   const pathname = usePathname();
   const router = useRouter();
+  const openAlerts = useOpenAlertCount();
 
   async function handleLogout() {
     await fetch("/api/admin/session", { method: "DELETE" });
@@ -55,6 +90,11 @@ export function AdminSidebar({ adminEmail }: { adminEmail: string }) {
                   }`}
                 >
                   {item.label}
+                  {item.href === "/admin/alerts" && openAlerts > 0 && (
+                    <span className="mr-2 rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400">
+                      {openAlerts.toLocaleString("fa-IR")}
+                    </span>
+                  )}
                 </Link>
                 {item.secondary && (
                   <Link

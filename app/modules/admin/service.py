@@ -34,6 +34,9 @@ class AdminAuthService:
     async def login(self, payload: AdminLogin, request: Request | None = None) -> AdminTokenResponse:
         admin = await self.repo.get_by_email(payload.email)
         if not admin or not verify_password(payload.password, admin.password_hash):
+            from app.modules.alerts.service import note_admin_login_failure
+
+            note_admin_login_failure(request.client.host if request and request.client else None, payload.email)
             raise UnauthorizedError("Invalid email or password")
         if not admin.is_active:
             raise UnauthorizedError("This admin account is disabled")
@@ -165,6 +168,13 @@ class AdminListService:
                 admin, "list.update", "list", list_id, before=changed_before, after=changed_after, request=request
             )
         await self.db.commit()
+        if payload.is_featured is True and lst.is_featured and not curation_before.get("is_featured"):
+            from app.modules.notifications import service as notifications
+
+            await notifications.notify_later(
+                recipient_id=lst.user_id, actor_id=None, type="list_featured", target_type="list",
+                target_id=lst.id, payload={"list_title": lst.title, "list_slug": lst.slug},
+            )
         # TODO(audit-log): the admin Audit Log page is still a placeholder, so
         # curation actions are only logged for now.
         logger.info("admin %s curated list %s: %s", admin.id, list_id, payload.model_dump(exclude_unset=True))

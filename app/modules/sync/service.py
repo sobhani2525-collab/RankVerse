@@ -55,6 +55,16 @@ def _merge_preserved_attributes(old: dict, new: dict) -> dict:
     return merged
 
 
+def _alert_sync_failure(kind: str, external_id) -> None:
+    """One deduplicated alert per kind: a failing TMDb/iTunes run is one problem, not N."""
+    from app.modules.alerts.service import raise_alert_nowait
+
+    raise_alert_nowait(
+        "warning", "sync", f"شکست همگام‌سازی ({kind})", {"last_external_id": str(external_id)},
+        fingerprint=f"sync:{kind}",
+    )
+
+
 class SyncService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -406,6 +416,7 @@ class SyncService:
                         "skipping movie %s (%s) due to sync error",
                         movie["id"], movie.get("title"),
                     )
+                    _alert_sync_failure("movie", movie["id"])
                     await self.db.rollback()
         return synced
 
@@ -435,6 +446,7 @@ class SyncService:
                 synced += 1
             except Exception:
                 logger.exception("skipping Iranian movie %s due to sync error", tmdb_id)
+                _alert_sync_failure("iranian_movie", tmdb_id)
                 await self.db.rollback()
 
         for page in range(1, pages + 1):
@@ -449,6 +461,7 @@ class SyncService:
                 synced += 1
             except Exception:
                 logger.exception("skipping Iranian tv series %s due to sync error", tmdb_id)
+                _alert_sync_failure("iranian_tv", tmdb_id)
                 await self.db.rollback()
 
         return synced

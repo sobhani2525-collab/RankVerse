@@ -36,6 +36,8 @@ from app.modules.daily_battle import models as _daily_battle_models  # noqa: F40
 from app.modules.admin import models as _admin_models  # noqa: F401
 from app.modules.taste import models as _taste_models  # noqa: F401
 from app.modules.watch import models as _watch_models  # noqa: F401
+from app.modules.notifications import models as _notifications_models  # noqa: F401
+from app.modules.alerts import models as _alerts_models  # noqa: F401
 from app.modules.users.repository import UserRepository
 
 
@@ -109,6 +111,23 @@ def _inline_taste_refresh(monkeypatch):
     from app.modules.taste import refresh
 
     monkeypatch.setattr(refresh, "refresh", refresh.refresh_now)
+
+
+@pytest.fixture(autouse=True)
+def _no_background_side_effects(monkeypatch):
+    """Notifications and admin alerts normally run on their own sessions against
+    DATABASE_URL (the real DB). Silence them by default; tests/test_notifications.py
+    and tests/test_alerts.py opt back in, pointed at the test transaction."""
+    from app.modules.alerts import middleware as alerts_middleware
+    from app.modules.alerts import service as alerts_service
+    from app.modules.notifications import service as notifications_service
+
+    async def _noop(**kwargs):
+        return None
+
+    monkeypatch.setattr(notifications_service, "notify_later", _noop)
+    monkeypatch.setattr(alerts_service, "raise_alert_nowait", lambda *a, **k: None)
+    monkeypatch.setattr(alerts_middleware, "raise_alert_nowait", lambda *a, **k: None)
 
 
 @pytest_asyncio.fixture

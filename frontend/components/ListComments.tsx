@@ -94,7 +94,7 @@ export default function ListComments({
   }
 
   return (
-    <section aria-label="نظرها" className="flex flex-col gap-4">
+    <section id="comments" aria-label="نظرها" className="flex scroll-mt-24 flex-col gap-4">
       <SectionHeading en="COMMENTS" fa={`نظرها · ${toFaDigits(comments.length)}`} tone={tone} />
 
       <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-2">

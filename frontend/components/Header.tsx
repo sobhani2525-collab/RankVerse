@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import SearchBox from "@/components/SearchBox";
 import UserMenu from "@/components/UserMenu";
+import NotificationBell from "@/components/NotificationBell";
 import { GRAPH_SECTION_ID, scrollToGraph } from "@/lib/graph-focus";
 
 const NAV_LINKS = [
@@ -94,7 +95,8 @@ export default function Header() {
             </svg>
           </button>
 
-          <div className="flex h-9 items-center">
+          <div className="flex h-9 items-center gap-2">
+            {!loading && isAuthenticated && <NotificationBell />}
             {!loading &&
               (isAuthenticated && user ? (
                 <UserMenu username={user.username} avatarKey={user.avatar_key} onLogout={logout} />
