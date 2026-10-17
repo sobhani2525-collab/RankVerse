@@ -95,7 +95,9 @@ async def find_entities_by_title(
     )
 
     stmt = (
-        select(Entity, tier.label("tier"), EntityRanking.computed_score)
+        # Slim columns only: attributes (overview, cast...) is large and the
+        # candidate pool is 100+ rows; full entities load for the winners below.
+        select(Entity.id, Entity.entity_type, Entity.title, tier.label("tier"), EntityRanking.computed_score)
         .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
         .where(or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%")))
     )
@@ -106,7 +108,7 @@ async def find_entities_by_title(
     if not candidates:
         return []
 
-    people_ids = [e.id for e, _, _ in candidates if e.entity_type == "person"]
+    people_ids = [c.id for c in candidates if c.entity_type == "person"]
     credits: dict = {}
     if people_ids:
         credit_rows = await db.execute(
@@ -116,10 +118,17 @@ async def find_entities_by_title(
         )
         credits = {pid: n for pid, n in credit_rows.all()}
 
-    return rerank(
-        [(e, int(t), popularity(e, score, credits.get(e.id, 0))) for e, t, score in candidates],
-        limit,
-    )
+    ranked = sorted(
+        candidates,
+        key=lambda c: (
+            int(c.tier),
+            -popularity(c, c.computed_score, credits.get(c.id, 0)),
+            len(c.title),
+        ),
+    )[:limit]
+    ids = [c.id for c in ranked]
+    by_id = {e.id: e for e in (await db.execute(select(Entity).where(Entity.id.in_(ids)))).scalars()}
+    return [by_id[i] for i in ids if i in by_id]
 
 
 @router.get("/search")
