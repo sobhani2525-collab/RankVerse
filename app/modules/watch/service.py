@@ -96,7 +96,10 @@ class WatchService:
         if provider:
             conds.append(WatchLink.provider == provider)
         base = select(WatchLink, Entity).join(Entity, Entity.id == WatchLink.entity_id).where(*conds)
-        total = (await self.db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+        # Count over WatchLink.id only: a subquery of the full (WatchLink, Entity) select would
+        # pull every Entity column, including the large (deferred) embedding vector.
+        count_q = select(func.count(WatchLink.id)).join(Entity, Entity.id == WatchLink.entity_id).where(*conds)
+        total = (await self.db.execute(count_q)).scalar_one()
         rows = (
             await self.db.execute(
                 base.order_by(WatchLink.click_count.desc(), WatchLink.updated_at.desc())
