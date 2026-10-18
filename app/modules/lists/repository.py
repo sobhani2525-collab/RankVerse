@@ -315,10 +315,8 @@ class ListRepository:
             stmt.options(
                 joinedload(UserList.owner),
                 # Only the first 5 items' entities become the poster preview
-                # (ListService._to_summary_with_preview), and only their id/
-                # slug/title/entity_type/attributes -- deferring the 384-dim
-                # embedding column keeps this round trip's payload small.
-                selectinload(UserList.items).selectinload(UserListItem.entity).defer(Entity.embedding),
+                # (ListService._to_summary_with_preview).
+                selectinload(UserList.items).selectinload(UserListItem.entity),
             )
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -342,7 +340,7 @@ class ListRepository:
             )
             .options(
                 joinedload(UserList.owner),
-                selectinload(UserList.items).selectinload(UserListItem.entity).defer(Entity.embedding),
+                selectinload(UserList.items).selectinload(UserListItem.entity),
             )
             .limit(limit)
         )
