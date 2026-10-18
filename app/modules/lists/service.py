@@ -8,6 +8,7 @@ from app.modules.lists.models import UserList, UserListItem, ContributionMode, L
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.cache import cached
 from app.core.database import AsyncSessionLocal, ReadSessionLocal
 from app.core.exceptions import NotFoundError, AlreadyExistsError, ForbiddenError, UnauthorizedError, ValidationError
 from app.modules.entities.repository import EntityRepository
@@ -58,6 +59,15 @@ async def record_list_view(list_id: uuid.UUID) -> None:
 
 # Relation types the list-detail constellation reads (see graph.py).
 GRAPH_RELATION_TYPES = ["directed_by", "creator", "acted_in", "has_genre"]
+
+# What a titles list may hold and be offered (a list is titles or people).
+WORK_TYPES = ("movie", "tv_series")
+
+# The "best-ranked titles in the list's top genres" pool is the same for every
+# list sharing those genres and costs a few hundred ms (it joins every title of
+# a big genre to its ranking), so the ordered ids are cached briefly.
+GENRE_POOL_TTL = 600
+GENRE_POOL_HEADROOM = 100
 
 # Title of the one private, owner-only "will watch" list every user gets --
 # see ListService.get_or_create_watch_later_list.
@@ -578,6 +588,19 @@ class ListService:
         list_entities = [item.entity for item in ordered]
         in_list = {e.id for e in list_entities}
         cast_depth = settings.list_graph_cast_depth
+        # A list holds either people or titles (movies and series together),
+        # never both, so search and suggestions stay on that side. An explicit
+        # `type` from the form narrows within it.
+        person_items = sum(1 for e in list_entities if e.entity_type == "person")
+        is_people_list = (
+            entity_type == "person"
+            or (not entity_type and (
+                lst.entity_type == "person" or person_items * 2 > len(list_entities)
+            ))
+        )
+        types = ["person"] if is_people_list else (
+            [entity_type] if entity_type in WORK_TYPES else list(WORK_TYPES)
+        )
         list_nodes = _build_graph_items(
             list_entities,
             await self.repo.graph_edges_for_entities(list(in_list), GRAPH_RELATION_TYPES),
@@ -586,7 +609,7 @@ class ListService:
         profile = build_profile(list_nodes, [(e.attributes or {}).get("country") for e in list_entities])
 
         if q.strip():
-            found = await find_entities_by_title(self.db, q, entity_type, limit + len(in_list))
+            found = await find_entities_by_title(self.db, q, types, limit + len(in_list))
             return await self._to_candidates(
                 [e for e in found if e.id not in in_list][:limit], list_nodes, profile
             )
@@ -594,7 +617,6 @@ class ListService:
         if not list_nodes:
             return from_title
 
-        types = [entity_type] if entity_type else sorted({n.entity_type for n in list_nodes})
         people: set[uuid.UUID] = set()
         for node in list_nodes:
             if node.entity_type == "person":
@@ -609,25 +631,46 @@ class ListService:
                 pool.setdefault(entity.id, entity)
 
         pool_size = settings.list_candidate_pool_size
-        take(await self.repo.entities_linked_to_people(people, types, in_list, pool_size))
-        if "person" in types:
+        if "person" not in types:
+            take(await self.repo.entities_linked_to_people(people, types, in_list, pool_size))
+        else:
             # Colleagues: whoever is credited on the works of the list's people
             # (or, for a list of titles, on the titles themselves).
             works: set[uuid.UUID] = set()
             for node in list_nodes:
                 works.update(list(node.credits)[:400] if node.entity_type == "person" else [node.entity_id])
             take(await self.repo.co_credited_people(works, in_list, pool_size // 2))
-        titled = [t for t in types if t != "person"]
-        top_genres = {
-            gid for gid, _ in sorted(profile.genre_weights.items(), key=lambda kv: -kv[1])[:3]
-        }
-        take(await self.repo.entities_with_genres(top_genres, titled, in_list, pool_size // 2))
+        if "person" not in types:
+            top_genres = {
+                gid for gid, _ in sorted(profile.genre_weights.items(), key=lambda kv: -kv[1])[:3]
+            }
+            take(await self._genre_pool(top_genres, types, in_list, pool_size // 2))
 
         candidates = await self._to_candidates(list(pool.values()), list_nodes, profile)
         seen = {c.entity.id for c in from_title}
         scored = [c for c in candidates if c.reason and c.reason.strength > 0 and c.entity.id not in seen]
         scored.sort(key=lambda c: (-c.reason.score, c.entity.title))
         return (from_title + scored)[:limit]
+
+    async def _genre_pool(
+        self, genre_ids: set[uuid.UUID], types: list[str], in_list: set[uuid.UUID], size: int
+    ) -> list:
+        """Best-ranked titles of `types` tagged with any of `genre_ids`, minus
+        what the list already holds. The ranked ids are cached per
+        (genres, types, size) with headroom for the list's own items, so lists
+        of different lengths share one entry."""
+        if not genre_ids:
+            return []
+        want = size + GENRE_POOL_HEADROOM
+        key = ("list-genre-pool", tuple(sorted(str(g) for g in genre_ids)), tuple(types), size)
+
+        async def load() -> list[uuid.UUID]:
+            found = await self.repo.entities_with_genres(genre_ids, types, set(), want)
+            return [e.id for e in found]
+
+        ids = [i for i in await cached(key, GENRE_POOL_TTL, load) if i not in in_list][:size]
+        by_id = {e.id: e for e in await self.repo.entities_by_ids(ids)}
+        return [by_id[i] for i in ids if i in by_id]
 
     async def _resolve_title_people(self, phrases: list[str]) -> list:
         """People whose name the list title spells out: a full multi-word

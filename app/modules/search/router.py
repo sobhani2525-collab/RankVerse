@@ -1,4 +1,5 @@
 import math
+from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Text, case, func, literal_column, or_, select
@@ -67,7 +68,7 @@ def rerank(rows: list[tuple[Entity, int, float]], limit: int) -> list[Entity]:
 
 
 async def find_entities_by_title(
-    db: AsyncSession, q: str, entity_type: str | None, limit: int
+    db: AsyncSession, q: str, entity_type: str | Sequence[str] | None, limit: int
 ) -> list[Entity]:
     """ILIKE on the entity's English title and its Persian title
     (attributes.title_fa). Matches are tiered -- exact title, then title or a
@@ -101,8 +102,10 @@ async def find_entities_by_title(
         .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
         .where(or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%")))
     )
-    if entity_type:
+    if isinstance(entity_type, str):
         stmt = stmt.where(Entity.entity_type == entity_type)
+    elif entity_type:
+        stmt = stmt.where(Entity.entity_type.in_(list(entity_type)))
     stmt = stmt.order_by(tier, func.length(Entity.title)).limit(max(limit * CANDIDATE_FACTOR, MIN_CANDIDATES))
     candidates = (await db.execute(stmt)).all()
     if not candidates:
