@@ -180,3 +180,87 @@ async def apply_translation(db: AsyncSession, entity_id: uuid.UUID, digest: str,
         {"id": entity_id, "patch": json.dumps(patch, ensure_ascii=False)},
     )
     return True
+
+
+# ---- People biographies -------------------------------------------------
+# Same batch mechanism as the overviews above, driven by
+# scripts/translate_biographies.py. Only people with at least
+# settings.biography_translation_min_works credited titles are translated;
+# the rest keep their English biography.
+
+BIOGRAPHY_TRANSLATION_VERSION = 1
+
+BIOGRAPHY_SYSTEM_PROMPT = """You translate biographies of film and TV people (actors, directors, writers) from English into Persian (Farsi) for an Iranian movie website.
+
+Write natural, fluent Persian the way a professional Iranian film magazine would -- not a word-for-word rendering. Keep the meaning and every fact of the original (dates, places, awards, works); do not add, summarize, or leave anything out. Keep paragraph breaks.
+
+Keep the names of people (including the subject) and of fictional characters exactly as in the English text, in Latin script -- never transliterate them into Persian script. Well-known place names may be written in Persian (e.g. "Los Angeles" -> "لس‌آنجلس"). Titles of films and series that are well known in Iran by a Persian name use that name; otherwise keep the English title in Latin script.
+
+Use Persian punctuation (، ؛ ؟ « ») and the zero-width non-joiner where standard Persian orthography calls for it (e.g. می‌شود).
+
+Reply with the Persian translation only: no preamble, notes, quotes, or the original text."""
+
+
+def biography_source_text(attributes: dict) -> str | None:
+    """The English biography still to translate, or None (already Persian from TMDb or up to date)."""
+    source = attributes.get("biography_source")
+    if source == "machine":
+        if (attributes.get("biography_translation_v") or 1) >= BIOGRAPHY_TRANSLATION_VERSION:
+            return None
+        return attributes.get("biography_en") or None
+    if source != "en":
+        return None
+    return attributes.get("biography_en") or None
+
+
+async def people_needing_translation(db: AsyncSession) -> list[dict]:
+    rows = await db.execute(
+        text(
+            "SELECT e.id, e.title, e.attributes FROM entities e "
+            "JOIN person_stats s ON s.person_id = e.id AND s.role = 'all' AND s.origin = 'all' "
+            "WHERE e.entity_type = 'person' AND s.works >= :min_works "
+            "ORDER BY s.works DESC"
+        ),
+        {"min_works": settings.biography_translation_min_works},
+    )
+    out = []
+    for entity_id, title, attributes in rows.all():
+        source = biography_source_text(attributes or {})
+        if source:
+            out.append({"id": entity_id, "title": title, "source": source})
+    return out
+
+
+def build_biography_request(item: dict) -> Request:
+    return Request(
+        custom_id=make_custom_id(item["id"], item["source"]),
+        params=MessageCreateParamsNonStreaming(
+            model=settings.overview_translation_model,
+            max_tokens=4096,
+            system=BIOGRAPHY_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": f"Person: {item['title']}\n\nBiography:\n{item['source']}"}],
+        ),
+    )
+
+
+async def apply_biography_translation(db: AsyncSession, entity_id: uuid.UUID, digest: str, translated: str) -> bool:
+    """Writes one biography translation unless it is no longer needed or the English changed. Doesn't commit."""
+    row = (
+        await db.execute(text("SELECT attributes FROM entities WHERE id = :id"), {"id": entity_id})
+    ).first()
+    if row is None:
+        return False
+    source = biography_source_text(row[0] or {})
+    if source is None or source_hash(source) != digest:
+        return False
+    patch = {
+        "biography": translated,
+        "biography_en": source,
+        "biography_source": "machine",
+        "biography_translation_v": BIOGRAPHY_TRANSLATION_VERSION,
+    }
+    await db.execute(
+        text("UPDATE entities SET attributes = attributes || CAST(:patch AS jsonb) WHERE id = :id"),
+        {"id": entity_id, "patch": json.dumps(patch, ensure_ascii=False)},
+    )
+    return True

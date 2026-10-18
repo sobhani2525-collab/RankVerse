@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     # sync/translation.LOW_PRIORITY_LANGUAGES) are only machine-translated
     # when TMDb has at least this many votes for them, i.e. they are well known.
     overview_translation_min_votes_asian: int = 3000
+    # People whose English biography is machine-translated (scripts/
+    # translate_biographies.py) must have at least this many credited titles
+    # (person_stats.works); lesser-known people keep the English biography.
+    biography_translation_min_works: int = 5
 
     # NOTE on the 1-5 rating scale (migrated from 1-10, see
     # alembic/versions/*_rescale_user_ratings_to_five_stars.py): every
