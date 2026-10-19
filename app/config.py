@@ -84,6 +84,11 @@ class Settings(BaseSettings):
     # translate_biographies.py) must have at least this many credited titles
     # (person_stats.works); lesser-known people keep the English biography.
     biography_translation_min_works: int = 5
+    # scripts/translate_biographies_direct.py: synchronous calls through an
+    # Anthropic-compatible gateway (no Message Batches). Empty model/base URL
+    # fall back to overview_translation_model / the SDK default.
+    anthropic_base_url: str = ""
+    biography_translation_model: str = ""
 
     # NOTE on the 1-5 rating scale (migrated from 1-10, see
     # alembic/versions/*_rescale_user_ratings_to_five_stars.py): every
