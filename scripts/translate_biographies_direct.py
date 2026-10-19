@@ -38,7 +38,7 @@ def translate_one(client, model: str, item: dict) -> str | None:
     try:
         message = client.messages.create(
             model=model,
-            max_tokens=4096,
+            max_tokens=settings.biography_translation_max_tokens,
             system=BIOGRAPHY_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": f"Person: {item['title']}\n\nBiography:\n{item['source']}"}],
         )

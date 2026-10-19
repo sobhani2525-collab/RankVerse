@@ -89,6 +89,8 @@ class Settings(BaseSettings):
     # fall back to overview_translation_model / the SDK default.
     anthropic_base_url: str = ""
     biography_translation_model: str = ""
+    # Room for a reasoning model's hidden thinking plus the Persian text.
+    biography_translation_max_tokens: int = 16000
 
     # NOTE on the 1-5 rating scale (migrated from 1-10, see
     # alembic/versions/*_rescale_user_ratings_to_five_stars.py): every
