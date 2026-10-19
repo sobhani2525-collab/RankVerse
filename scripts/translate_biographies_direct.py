@@ -45,10 +45,14 @@ def translate_one(client, model: str, item: dict) -> str | None:
     except Exception as exc:  # network / rate limit: leave it for the next run
         print(f"  failed {item['title']}: {exc}", flush=True)
         return None
-    if message.stop_reason != "end_turn":
-        return None
     text = "".join(b.text for b in message.content if b.type == "text").strip()
-    return text if is_persian(text) else None
+    if message.stop_reason != "end_turn":
+        print(f"  unusable {item['title']}: stop_reason={message.stop_reason}, {len(text)} chars", flush=True)
+        return None
+    if not is_persian(text):
+        print(f"  unusable {item['title']}: no Persian text, got: {text[:120]!r}", flush=True)
+        return None
+    return text
 
 
 async def main() -> None:
