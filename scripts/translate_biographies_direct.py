@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import asyncio
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import anthropic
@@ -34,25 +35,32 @@ from app.modules.sync.translation import (
 CHUNK = 50
 
 
-def translate_one(client, model: str, item: dict) -> str | None:
-    try:
-        message = client.messages.create(
-            model=model,
-            max_tokens=settings.biography_translation_max_tokens,
-            system=BIOGRAPHY_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": f"Person: {item['title']}\n\nBiography:\n{item['source']}"}],
-        )
-    except Exception as exc:  # network / rate limit: leave it for the next run
-        print(f"  failed {item['title']}: {exc}", flush=True)
-        return None
-    text = "".join(b.text for b in message.content if b.type == "text").strip()
-    if message.stop_reason != "end_turn":
-        print(f"  unusable {item['title']}: stop_reason={message.stop_reason}, {len(text)} chars", flush=True)
-        return None
-    if not is_persian(text):
-        print(f"  unusable {item['title']}: no Persian text, got: {text[:120]!r}", flush=True)
-        return None
-    return text
+def translate_one(client, model: str, item: dict, thinking_off: bool = False, attempts: int = 3) -> str | None:
+    extra = {"thinking": {"type": "disabled"}} if thinking_off else {}
+    reason = ""
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(5 * attempt)
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=settings.biography_translation_max_tokens,
+                system=BIOGRAPHY_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": f"Person: {item['title']}\n\nBiography:\n{item['source']}"}],
+                **extra,
+            )
+        except Exception as exc:  # network / rate limit / gateway hiccup: retry
+            reason = f"error: {str(exc)[:200]}"
+            continue
+        text = "".join(b.text for b in message.content if b.type == "text").strip()
+        if message.stop_reason != "end_turn":
+            reason = f"stop_reason={message.stop_reason}, {len(text)} chars"
+        elif not is_persian(text):
+            reason = f"no Persian text, got: {text[:120]!r}"
+        else:
+            return text
+    print(f"  gave up on {item['title']}: {reason}", flush=True)
+    return None
 
 
 async def main() -> None:
@@ -60,6 +68,7 @@ async def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--yes", action="store_true")
+    parser.add_argument("--no-thinking", action="store_true", help="ask the gateway to disable reasoning (if supported)")
     args = parser.parse_args()
 
     model = settings.biography_translation_model or settings.overview_translation_model
@@ -86,7 +95,7 @@ async def main() -> None:
         for start in range(0, len(items), CHUNK):
             chunk = items[start : start + CHUNK]
             results = await asyncio.gather(
-                *(loop.run_in_executor(pool, translate_one, client, model, i) for i in chunk)
+                *(loop.run_in_executor(pool, translate_one, client, model, i, args.no_thinking) for i in chunk)
             )
             async with AsyncSessionLocal() as db:
                 for item, translated in zip(chunk, results):
