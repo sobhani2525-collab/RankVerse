@@ -37,15 +37,15 @@ def render_message(n: Notification) -> str:
     plural = "ند" if others else ""
     snippet = p.get("snippet", "")
     if n.type == "list_liked":
-        return f"{who} لیست «{title}» شما را پسندید{plural}"
+        return f"{who} فهرست «{title}» شما را پسندید{plural}"
     if n.type == "list_followed":
-        return f"{who} لیست «{title}» شما را دنبال کرد{plural}"
+        return f"{who} فهرست «{title}» شما را دنبال کرد{plural}"
     if n.type == "list_commented":
-        return f"{actor} روی لیست «{title}» نظر گذاشت: {snippet}".rstrip(": ")
+        return f"{actor} روی فهرست «{title}» نظر گذاشت: {snippet}".rstrip(": ")
     if n.type == "comment_replied":
-        return f"{actor} به نظر شما در لیست «{title}» پاسخ داد: {snippet}".rstrip(": ")
+        return f"{actor} به نظر شما در فهرست «{title}» پاسخ داد: {snippet}".rstrip(": ")
     if n.type == "list_featured":
-        return f"لیست «{title}» شما در لیست‌های ویژهٔ صفحه اصلی انتخاب شد"
+        return f"تبریک🎉 فهرست «{title}» شما به عنوان فهرست برگزیده در صفحه اصلی انتخاب شد!"
     return "اعلان جدید"
 
 
