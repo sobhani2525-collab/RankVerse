@@ -33,6 +33,7 @@ from app.modules.sync.translation import (
 )
 
 CHUNK = 50
+REQUEST_TIMEOUT = 180.0
 
 
 def translate_one(client, model: str, item: dict, thinking_off: bool = False, attempts: int = 3) -> str | None:
@@ -75,7 +76,9 @@ async def main() -> None:
     kwargs = {"base_url": settings.anthropic_base_url} if settings.anthropic_base_url else {}
     if settings.anthropic_api_key:
         kwargs["api_key"] = settings.anthropic_api_key
-    client = anthropic.Anthropic(**kwargs)
+    # A stuck request must not freeze the run: give up after REQUEST_TIMEOUT s
+    # (translate_one then retries it, and finally skips it for the next run).
+    client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT, max_retries=0, **kwargs)
 
     async with AsyncSessionLocal() as db:
         items = await people_needing_translation(db)
