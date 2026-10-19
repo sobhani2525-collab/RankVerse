@@ -182,8 +182,8 @@ class Settings(BaseSettings):
     # app/modules/taste/predicted_picks.py): how much a candidate's match
     # score favors "fits your taste dimensions" vs. "is just good".
     # Should sum to 1.0.
-    taste_predicted_picks_dimension_weight: float = 0.6
-    taste_predicted_picks_ranking_weight: float = 0.4
+    taste_predicted_picks_dimension_weight: float = 0.85
+    taste_predicted_picks_ranking_weight: float = 0.15
 
     # Community-ordered list item scoring (see app/modules/lists/scoring.py):
     # a Bayesian-average shrinkage of the like/dislike ratio toward a global

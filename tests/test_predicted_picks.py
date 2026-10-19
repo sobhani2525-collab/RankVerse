@@ -82,9 +82,9 @@ async def test_predicted_picks_ranks_by_match_score_and_excludes_rated(
     # Higher computed_score among equally-matched genres should rank higher.
     assert slugs.index(high_scoring.slug) < slugs.index(low_scoring.slug)
 
-    # match_score = 0.6 * dimension_match(80) + 0.4 * (computed_score * 10)
+    # match_score = 0.85 * dimension_match(80) + 0.15 * (computed_score * 10)
     high_pick = next(p for p in picks if p["entity"]["slug"] == high_scoring.slug)
-    assert high_pick["match_score"] == 84.0  # 0.6*80 + 0.4*90
+    assert high_pick["match_score"] == 81.5  # 0.85*80 + 0.15*90
 
 
 async def test_predicted_picks_respects_limit(client, db_session, test_user, auth_headers):

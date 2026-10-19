@@ -48,6 +48,12 @@ class PredictedPick:
         self.match_score = match_score
 
 
+# Points an already-picked title sharing a candidate's leading genre costs it,
+# so near-tied candidates spread across the user's genres instead of the same
+# few platform-wide favorites always filling every slot.
+SAME_GENRE_PENALTY = 4.0
+
+
 class PredictedPicksService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -113,6 +119,7 @@ class PredictedPicksService:
             select(
                 Entity.id.label("entity_id"),
                 func.avg(genre_score).label("dimension_match"),
+                func.array_agg(GenreEntity.slug).label("genre_slugs"),
                 EntityRanking.computed_score.label("computed_score"),
             )
             .join(
@@ -141,6 +148,7 @@ class PredictedPicksService:
     
         # Preserve the existing Python scoring and rounding behavior.
         scored = []
+        top_genres: dict[uuid.UUID, str] = {}
         for row in rows:
             dimension_match = float(row.dimension_match)
             ranking_normalized = max(
@@ -156,9 +164,12 @@ class PredictedPicksService:
                 1,
             )
             scored.append((row.entity_id, match_score))
+            top_genres[row.entity_id] = max(
+                row.genre_slugs, key=lambda slug: dimension_scores.get(slug, 0)
+            )
     
         scored.sort(key=lambda item: (-item[1], str(item[0])))
-        top_scored = scored[:limit]
+        top_scored = self._diversify(scored, top_genres, limit)
     
         if not top_scored:
             return []
@@ -178,3 +189,24 @@ class PredictedPicksService:
             if entity_id in entities_by_id
         ]
 
+    @staticmethod
+    def _diversify(scored, top_genres, limit):
+        """Greedy pick: each round takes the best candidate after penalizing
+        genres already represented among the picks."""
+        remaining = list(scored)
+        picked = []
+        genre_counts: dict[str, int] = {}
+        while remaining and len(picked) < limit:
+            best = max(
+                remaining,
+                key=lambda item: (
+                    item[1] - SAME_GENRE_PENALTY * genre_counts.get(top_genres[item[0]], 0),
+                    -item[1],
+                    str(item[0]),
+                ),
+            )
+            remaining.remove(best)
+            picked.append(best)
+            genre = top_genres[best[0]]
+            genre_counts[genre] = genre_counts.get(genre, 0) + 1
+        return picked
