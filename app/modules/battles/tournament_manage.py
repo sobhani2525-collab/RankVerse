@@ -13,7 +13,7 @@ from app.config import settings
 from app.core.exceptions import RankVerseError
 from app.modules.entities.models import Entity
 
-from . import bracket
+from . import bracket, pool
 from . import tournament_service as engine
 from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant
 
@@ -45,7 +45,7 @@ def validate_title(title: str) -> str:
 
 async def create_draft(
     db: AsyncSession, user_id: uuid.UUID, *, title: str, description: str | None,
-    cover_url: str | None, entity_type: str, bracket_size: int, now: datetime,
+    cover_url: str | None, entity_type: str, bracket_size: int, now: datetime, mode: str = "pool",
 ) -> Battle:
     if bracket_size not in bracket.BRACKET_SIZES:
         raise _bad("Bracket size must be 4, 8 or 16")
@@ -61,7 +61,7 @@ async def create_draft(
     battle = Battle(
         slug=engine.new_slug(), creator_id=user_id, title=validate_title(title),
         description=(description or "").strip() or None, cover_url=cover_url,
-        entity_type=entity_type, bracket_size=bracket_size,
+        entity_type=entity_type, bracket_size=bracket_size, mode=mode,
     )
     for _ in range(3):  # a 62^8 collision is vanishingly rare, but a retry is cheap
         if await get_by_slug(db, battle.slug) is None:
@@ -146,6 +146,8 @@ async def publish_draft(
     if active >= settings.battle_max_active_per_user:
         raise RankVerseError("Active battle limit reached", status_code=429, code="rate_limited")
     entries = await participants_in_order(db, battle.id)
+    if battle.mode == "pool":  # no rounds or randomised seeding: the pool is playable as is
+        return await pool.publish_pool(db, battle, [p.entity_id for p in entries], visibility=visibility, now=now)
     return await engine.publish(
         db, battle, [p.entity_id for p in entries], randomize=randomize,
         round_duration_seconds=round_duration_seconds, visibility=visibility, now=now,

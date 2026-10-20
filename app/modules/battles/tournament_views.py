@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity
 
-from . import bracket
+from . import bracket, pool
 from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattleVote
 
 
@@ -36,6 +36,7 @@ async def _entities(db: AsyncSession, ids: set[uuid.UUID]) -> dict[uuid.UUID, di
 def battle_summary(battle: Battle, viewer_id: uuid.UUID | None) -> dict:
     return {
         "slug": battle.slug,
+        "mode": battle.mode,
         "title": battle.title,
         "description": battle.description,
         "cover_url": battle.cover_url,
@@ -138,6 +139,19 @@ async def battle_detail(db: AsyncSession, battle: Battle, viewer_id: uuid.UUID |
             "votes_b": votes_b if reveal else None,
             "my_vote": str(mine[m.id]) if m.id in mine else None,
         })
+
+    if battle.mode == "pool":
+        total_picks, my_picks = await pool.pick_counts(db, battle.id, viewer_id)
+        # The standings stay hidden until the viewer has played (so they can't just follow the crowd);
+        # the owner and a finished battle see them straight away.
+        show = my_picks > 0 or data["is_owner"] or battle.status in ("completed", "archived")
+        board = await pool.leaderboard(db, battle.id) if show else None
+        data["total_picks"] = total_picks
+        data["my_pick_count"] = my_picks
+        data["leaderboard"] = (
+            [{**r, "entity": briefs[r["entity_id"]], "entity_id": str(r["entity_id"])} for r in board if r["entity_id"] in briefs]
+            if board is not None else None
+        )
 
     current = rounds.get(battle.current_round, [])
     data.update({

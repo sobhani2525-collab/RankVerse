@@ -21,7 +21,10 @@ export default function TournamentCard({ battle }: { battle: TournamentSummary }
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
           <span className="rounded-full border border-border px-2 py-0.5">{ENTITY_TYPE_LABELS[battle.entity_type]}</span>
           <span className="num">{toFaDigits(battle.bracket_size)} گزینه</span>
-          <span className={battle.status === "active" ? "text-teal" : ""}>{STATUS_LABELS[battle.status]}</span>
+          {battle.mode === "tournament" && (
+            <span className={battle.status === "active" ? "text-teal" : ""}>{STATUS_LABELS[battle.status]}</span>
+          )}
+          {battle.mode === "pool" && battle.status === "archived" && <span>{STATUS_LABELS[battle.status]}</span>}
           {battle.is_official && <span className="text-gold">رسمی</span>}
         </div>
         {battle.status === "completed" && battle.winner && (

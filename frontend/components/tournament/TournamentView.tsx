@@ -19,6 +19,7 @@ import {
 import ShareMenu from "@/components/share/ShareMenu";
 import { absoluteUrl } from "@/lib/site";
 import OwnerPanel from "./OwnerPanel";
+import PoolView from "./PoolView";
 import Poster from "./Poster";
 
 const POLL_MS = 30_000;
@@ -220,6 +221,10 @@ export default function TournamentView({ slug }: { slug: string }) {
     );
   }
   if (!battle) return <div className="px-4 py-24 text-center text-muted">در حال بارگذاری…</div>;
+
+  if (battle.mode === "pool") {
+    return <PoolView battle={battle} onChange={setBattle} onToggleFollow={toggleFollow} reload={load} />;
+  }
 
   const round = battle.rounds[shown];
   const isDraft = battle.status === "draft";

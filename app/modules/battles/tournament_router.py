@@ -21,11 +21,12 @@ from app.modules.entities.models import Entity
 from app.modules.lists.service import ListService
 from app.modules.users.models import User
 
+from . import pool
 from . import tournament_manage as manage
 from . import tournament_service as engine
 from . import tournament_views as views
 from .tournament_candidates import find_candidates, list_genres
-from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattleVote
+from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattlePick, BattleVote
 
 router = APIRouter(prefix="/battles", tags=["tournament-battles"])
 
@@ -42,6 +43,8 @@ class BattleCreate(BaseModel):
     cover_url: str | None = Field(None, max_length=500)
     entity_type: EntityType
     bracket_size: Literal[4, 8, 16]
+    # "pool" = custom "winner stays" battle (the live format); "tournament" = parked elimination bracket
+    mode: Literal["pool", "tournament"] = "pool"
 
 
 class BattleUpdate(BaseModel):
@@ -68,6 +71,12 @@ class VisibilityPayload(BaseModel):
 
 class ExtendPayload(BaseModel):
     seconds: int = Field(..., ge=60, le=30 * 86400)
+
+
+class PickPayload(BaseModel):
+    champion_id: uuid.UUID
+    challenger_id: uuid.UUID
+    winner_id: uuid.UUID
 
 
 class VotePayload(BaseModel):
@@ -109,10 +118,11 @@ async def list_public_battles(
     status: Literal["active", "completed"] | None = None,
     entity_type: EntityType | None = None,
     sort: Literal["newest", "popular"] = "newest",
+    mode: Literal["pool", "tournament"] = "pool",
     user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    conditions = [Battle.visibility == "public", Battle.status.in_(("active", "completed"))]
+    conditions = [Battle.mode == mode, Battle.visibility == "public", Battle.status.in_(("active", "completed"))]
     if status:
         conditions.append(Battle.status == status)
     if entity_type:
@@ -120,14 +130,19 @@ async def list_public_battles(
     total = (await db.execute(select(func.count()).select_from(Battle).where(*conditions))).scalar_one()
     query = select(Battle).where(*conditions)
     if sort == "popular":
-        votes = (
+        match_votes = (
             select(BattleMatch.battle_id.label("battle_id"), func.count(BattleVote.id).label("n"))
             .join(BattleVote, BattleVote.match_id == BattleMatch.id)
             .group_by(BattleMatch.battle_id)
             .subquery()
         )
-        query = query.outerjoin(votes, votes.c.battle_id == Battle.id).order_by(
-            func.coalesce(votes.c.n, 0).desc(), Battle.created_at.desc()
+        picks = select(BattlePick.battle_id.label("battle_id"), func.count(BattlePick.id).label("n")).group_by(BattlePick.battle_id).subquery()
+        query = (
+            query.outerjoin(match_votes, match_votes.c.battle_id == Battle.id)
+            .outerjoin(picks, picks.c.battle_id == Battle.id)
+            .order_by(
+                (func.coalesce(match_votes.c.n, 0) + func.coalesce(picks.c.n, 0)).desc(), Battle.created_at.desc()
+            )
         )
     else:
         query = query.order_by(Battle.created_at.desc())
@@ -141,16 +156,18 @@ async def my_battles(
     tab: Literal["draft", "active", "completed", "following"] = "active",
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
+    mode: Literal["pool", "tournament"] = "pool",
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if tab == "following":
         conditions = [
+            Battle.mode == mode,
             Battle.id.in_(select(BattleFollow.battle_id).where(BattleFollow.user_id == user.id)),
             Battle.status.in_(("active", "completed")),
         ]
     else:
-        conditions = [Battle.creator_id == user.id, Battle.status == tab]
+        conditions = [Battle.mode == mode, Battle.creator_id == user.id, Battle.status == tab]
     total = (await db.execute(select(func.count()).select_from(Battle).where(*conditions))).scalar_one()
     battles = (
         await db.execute(
@@ -340,6 +357,17 @@ async def vote(
     await engine.cast_vote(db, battle.id, match_id, user.id, payload.entity_id, _now())
     await db.commit()
     return envelope(data=await _detail(db, battle, user))
+
+
+@router.post("/{slug}/picks")
+async def record_pick(
+    slug: str, payload: PickPayload, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
+    """One head-to-head choice while playing a pool battle (champion vs challenger, winner stays)."""
+    battle = await _load(db, slug, user)
+    await pool.record_pick(db, battle.id, user.id, payload.champion_id, payload.challenger_id, payload.winner_id)
+    await db.commit()
+    return envelope(data={"recorded": True})
 
 
 @router.put("/{slug}/follow")

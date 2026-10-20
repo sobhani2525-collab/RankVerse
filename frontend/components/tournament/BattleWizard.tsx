@@ -7,7 +7,6 @@ import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import {
   BracketSize,
-  DURATION_OPTIONS,
   ENTITY_TYPE_LABELS,
   TournamentEntity,
   TournamentEntityType,
@@ -53,8 +52,6 @@ export default function BattleWizard() {
   const [entityType, setEntityType] = useState<TournamentEntityType>("movie");
   const [size, setSize] = useState<BracketSize>(8);
   const [entries, setEntries] = useState<TournamentEntity[]>([]);
-  const [randomize, setRandomize] = useState(false);
-  const [duration, setDuration] = useState<number | null>(24 * 3600);
   const [visibility, setVisibility] = useState<"unlisted" | "public">("public");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +116,7 @@ export default function BattleWizard() {
 
   const publish = () =>
     run(async (token) => {
-      await tournamentApi.publish(token, slug!, { randomize, round_duration_seconds: duration, visibility });
+      await tournamentApi.publish(token, slug!, { visibility });
       router.push(tournamentHref(slug!));
     });
 
@@ -144,6 +141,7 @@ export default function BattleWizard() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="font-display text-3xl text-ink">ساخت نبرد جدید</h1>
+      <p className="mt-2 text-sm text-muted">گزینه‌ها را خودت انتخاب می‌کنی؛ بقیه آن‌ها را «برنده می‌ماند» بازی می‌کنند.</p>
       <ol className="mt-6 flex gap-2 text-sm">
         {STEPS.map((label, i) => (
           <li
@@ -180,7 +178,7 @@ export default function BattleWizard() {
             </div>
           </div>
           <div>
-            <span className="mb-1.5 block text-sm text-ink-dim">تعداد گزینه‌ها</span>
+            <span className="mb-1.5 block text-sm text-ink-dim">اندازهٔ استخر</span>
             <div className="flex gap-2">
               {SIZES.map((s) => (
                 <Choice key={s} active={size === s} onClick={() => setSize(s)}>
@@ -209,7 +207,7 @@ export default function BattleWizard() {
               <h2 className="text-lg font-bold text-ink">
                 گزینه‌ها <span className="num text-gold">{toFaDigits(entries.length)}/{toFaDigits(size)}</span>
               </h2>
-              <p className="text-xs text-muted">ترتیب لیست همان چینش (seed) است؛ اولی قوی‌ترین.</p>
+              <p className="text-xs text-muted">ترتیب هر بار بازی تصادفی است.</p>
             </div>
             {entries.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">هنوز گزینه‌ای اضافه نشده.</p>
@@ -248,30 +246,13 @@ export default function BattleWizard() {
       {step === 2 && (
         <section className="mt-8 flex flex-col gap-6">
           <div>
-            <span className="mb-1.5 block text-sm text-ink-dim">مدت هر دور</span>
-            <div className="flex flex-wrap gap-2">
-              {DURATION_OPTIONS.map((o) => (
-                <Choice key={o.label} active={duration === o.seconds} onClick={() => setDuration(o.seconds)}>
-                  {o.label}
-                </Choice>
-              ))}
-            </div>
-          </div>
-          <div>
-            <span className="mb-1.5 block text-sm text-ink-dim">چینش</span>
-            <div className="flex gap-2">
-              <Choice active={!randomize} onClick={() => setRandomize(false)}>به ترتیب انتخاب من</Choice>
-              <Choice active={randomize} onClick={() => setRandomize(true)}>چینش تصادفی</Choice>
-            </div>
-          </div>
-          <div>
             <span className="mb-1.5 block text-sm text-ink-dim">دسترسی</span>
             <div className="flex gap-2">
               <Choice active={visibility === "public"} onClick={() => setVisibility("public")}>عمومی (در فهرست نبردها)</Choice>
               <Choice active={visibility === "unlisted"} onClick={() => setVisibility("unlisted")}>فقط با لینک</Choice>
             </div>
           </div>
-          <p className="text-xs text-muted">بعد از انتشار، گزینه‌ها و اندازهٔ برکت قابل تغییر نیستند.</p>
+          <p className="text-xs text-muted">همه می‌توانند این استخر را «برنده می‌ماند» بازی کنند و نتیجهٔ جمعی را ببینند. بعد از انتشار، گزینه‌ها قابل تغییر نیستند.</p>
           <div className="flex gap-3">
             <button type="button" onClick={() => setStep(1)} className="rounded-xl border border-border px-5 py-2.5 text-sm text-ink-dim">قبلی</button>
             <button type="button" disabled={busy} onClick={publish} className="rounded-xl bg-gold px-6 py-2.5 text-sm font-bold text-bg disabled:opacity-50">

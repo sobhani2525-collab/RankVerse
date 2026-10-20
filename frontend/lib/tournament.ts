@@ -32,8 +32,11 @@ export interface TournamentEntity {
   seed?: number;
 }
 
+export type BattleMode = "pool" | "tournament";
+
 export interface TournamentSummary {
   slug: string;
+  mode: BattleMode;
   title: string;
   description: string | null;
   cover_url: string | null;
@@ -75,6 +78,19 @@ export interface TournamentDetail extends TournamentSummary {
   total_votes: number;
   follower_count: number;
   is_following: boolean;
+  /** Pool battles: all picks, the viewer's own, and the standings (null until the viewer has played). */
+  total_picks?: number;
+  my_pick_count?: number;
+  leaderboard?: LeaderboardRow[] | null;
+}
+
+export interface LeaderboardRow {
+  entity_id: string;
+  entity: TournamentEntity;
+  wins: number;
+  played: number;
+  win_rate: number | null;
+  seed: number;
 }
 
 export interface CandidateEntity extends TournamentEntity {
@@ -127,8 +143,10 @@ export const tournamentApi = {
     call<TournamentDetail>(`/${slug}`, token, { method: "PATCH", body }),
   setEntries: (token: string, slug: string, entityIds: string[]) =>
     call<TournamentDetail>(`/${slug}/entries`, token, { method: "PUT", body: { entity_ids: entityIds } }),
-  publish: (token: string, slug: string, body: { randomize: boolean; round_duration_seconds: number | null; visibility: "unlisted" | "public" }) =>
+  publish: (token: string, slug: string, body: { randomize?: boolean; round_duration_seconds?: number | null; visibility: "unlisted" | "public" }) =>
     call<TournamentDetail>(`/${slug}/publish`, token, { method: "POST", body }),
+  pick: (token: string, slug: string, body: { champion_id: string; challenger_id: string; winner_id: string }) =>
+    call<{ recorded: boolean }>(`/${slug}/picks`, token, { method: "POST", body }),
   vote: (token: string, slug: string, matchId: string, entityId: string) =>
     call<TournamentDetail>(`/${slug}/matches/${matchId}/vote`, token, { method: "POST", body: { entity_id: entityId } }),
   follow: (token: string, slug: string, follow: boolean) =>

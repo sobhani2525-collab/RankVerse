@@ -213,8 +213,8 @@ async def advance_if_due(db: AsyncSession, battle_id: uuid.UUID, now: datetime) 
 
 async def close_round_now(db: AsyncSession, battle_id: uuid.UUID, now: datetime) -> Battle:
     battle = await lock_battle(db, battle_id)
-    if battle.status != "active":
-        raise _bad("The battle is not active")
+    if battle.status != "active" or battle.mode != "tournament":
+        raise _bad("The battle is not an active tournament")
     await _close_current_round(db, battle, now)
     return battle
 
@@ -224,8 +224,8 @@ async def finish_battle(db: AsyncSession, battle_id: uuid.UUID, now: datetime) -
     play out the remaining rounds on the same rules (they have no votes yet, so
     the higher seed advances)."""
     battle = await lock_battle(db, battle_id)
-    if battle.status != "active":
-        raise _bad("The battle is not active")
+    if battle.status != "active" or battle.mode != "tournament":
+        raise _bad("The battle is not an active tournament")
     while battle.status == "active":
         await _close_current_round(db, battle, now)
     return battle
@@ -235,8 +235,8 @@ async def extend_round(db: AsyncSession, battle_id: uuid.UUID, extra_seconds: in
     if extra_seconds <= 0:
         raise _bad("The extension must be positive")
     battle = await lock_battle(db, battle_id)
-    if battle.status != "active":
-        raise _bad("The battle is not active")
+    if battle.status != "active" or battle.mode != "tournament":
+        raise _bad("The battle is not an active tournament")
     for match in await _round_matches(db, battle.id, battle.current_round):
         base = match.closes_at if match.closes_at and match.closes_at > now else now
         match.closes_at = base + timedelta(seconds=extra_seconds)

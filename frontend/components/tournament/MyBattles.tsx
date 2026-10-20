@@ -9,8 +9,7 @@ import TournamentCard from "./TournamentCard";
 const PAGE_SIZE = 12;
 const TABS = [
   { value: "draft", label: "پیش‌نویس" },
-  { value: "active", label: "در جریان" },
-  { value: "completed", label: "پایان‌یافته" },
+  { value: "active", label: "منتشرشده" },
   { value: "following", label: "دنبال‌شده‌ها" },
 ];
 

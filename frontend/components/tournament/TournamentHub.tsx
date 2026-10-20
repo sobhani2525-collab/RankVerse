@@ -10,11 +10,6 @@ import TournamentCard from "./TournamentCard";
 
 const PAGE_SIZE = 12;
 
-const STATUS_TABS = [
-  { value: "", label: "همه" },
-  { value: "active", label: "در جریان" },
-  { value: "completed", label: "پایان‌یافته" },
-];
 const SORTS = [
   { value: "newest", label: "جدیدترین" },
   { value: "popular", label: "پررأی‌ترین" },
@@ -34,12 +29,11 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-/** /battles: public tournament brackets with filters, plus the way in to build one. */
+/** /battles: public user-made pool battles with filters, plus the way in to build one. */
 export default function TournamentHub() {
   const router = useRouter();
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
-  const [status, setStatus] = useState("active");
   const [entityType, setEntityType] = useState("");
   const [sort, setSort] = useState("newest");
   const [items, setItems] = useState<TournamentSummary[]>([]);
@@ -53,7 +47,7 @@ export default function TournamentHub() {
       setLoading(true);
       setError(null);
       try {
-        const rows = await tournamentApi.list(getToken(), { page: nextPage, status, entity_type: entityType, sort });
+        const rows = await tournamentApi.list(getToken(), { page: nextPage, entity_type: entityType, sort });
         setItems((prev) => (replace ? rows : [...prev, ...rows]));
         setPage(nextPage);
         setHasMore(rows.length === PAGE_SIZE);
@@ -63,7 +57,7 @@ export default function TournamentHub() {
         setLoading(false);
       }
     },
-    [getToken, status, entityType, sort]
+    [getToken, entityType, sort]
   );
 
   useEffect(() => {
@@ -73,9 +67,9 @@ export default function TournamentHub() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <SectionHeading
-        kicker="Tournament battles"
-        title="نبردهای تورنمنتی"
-        lead="کاربران برکت می‌سازند و همه رأی می‌دهند؛ دور به دور حذف می‌شوند تا قهرمان مشخص شود."
+        kicker="Winner stays"
+        title="نبردهای کاربران"
+        lead="هر کس یک استخر فیلم یا سریال می‌سازد؛ بقیه آن را «برنده می‌ماند» بازی می‌کنند و نتیجهٔ جمعی ساخته می‌شود."
         action={
           <div className="flex flex-wrap gap-3">
             <button
@@ -101,12 +95,6 @@ export default function TournamentHub() {
 
       <div className="mb-8 flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
-          {STATUS_TABS.map((t) => (
-            <Chip key={t.value} active={status === t.value} onClick={() => setStatus(t.value)}>
-              {t.label}
-            </Chip>
-          ))}
-          <span className="mx-1 h-8 w-px bg-border" aria-hidden />
           <Chip active={entityType === ""} onClick={() => setEntityType("")}>
             همه نوع‌ها
           </Chip>

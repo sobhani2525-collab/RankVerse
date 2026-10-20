@@ -17,7 +17,7 @@ import { PickMark, useBattlePick } from "@/components/battle/PickMark";
 import { renderStoryCard } from "@/lib/story-card";
 import { downloadBlob } from "@/lib/share";
 
-type Side = "left" | "right";
+export type Side = "left" | "right";
 
 /**
  * The home page's battle: a "winner stays" run (like the list page's) over
@@ -141,16 +141,30 @@ export function BattleArenaBody({
   );
 }
 
-function ThemedRun({
+/** Overrides that let a user's own pool battle (components/tournament/PoolView) reuse the run. */
+export interface RunCustomization {
+  /** Saves a pick instead of the quick-battle POST /battles/vote. */
+  onVote: (championId: string, challengerId: string, winner: Side) => Promise<unknown>;
+  /** The line above the run, in place of the theme's reason. */
+  reasonText: string;
+  /** Where "اشتراک نتیجه" points, in place of /battles/result. */
+  shareUrl: string;
+  /** Called once when the run is over. */
+  onDone?: () => void;
+}
+
+export function ThemedRun({
   battle,
   signedIn,
   onNext,
   onSkipTheme,
+  custom,
 }: {
   battle: ThemedBattle;
   signedIn: boolean;
   onNext: () => void;
-  onSkipTheme: () => void;
+  onSkipTheme?: () => void;
+  custom?: RunCustomization;
 }) {
   const { getToken } = useAuth();
   const { openLoginModal } = useAuthGate();
@@ -163,6 +177,10 @@ function ThemedRun({
   const [error, setError] = useState<string | null>(null);
 
   const done = step >= items.length;
+  const onDone = custom?.onDone;
+  useEffect(() => {
+    if (done) onDone?.();
+  }, [done, onDone]);
   const championItem = items[champion];
   // The story card is drawn only when asked for, once per finished run.
   const storyBlob = useRef<Promise<Blob | null> | null>(null);
@@ -191,7 +209,7 @@ function ThemedRun({
   }
   const championName = championItem.title_fa || championItem.title;
   const topic = topicOf(theme);
-  const shareUrl = absoluteUrl(resultPath({ slug: championItem.slug, streak, count: items.length, theme }));
+  const shareUrl = custom?.shareUrl ?? absoluteUrl(resultPath({ slug: championItem.slug, streak, count: items.length, theme }));
   const shareText = `${topic ? `قهرمان من در «${topic}»` : "قهرمان نبرد من"}: ${championName} 🏆 تو چه کسی را انتخاب می‌کنی؟`;
   const challengerItem = items[Math.min(step, items.length - 1)];
 
@@ -201,12 +219,15 @@ function ThemedRun({
     if (done || pickAnim.busy) return;
     const token = getToken();
     const request = token
-      ? castBattleVote(token, {
-          category,
-          left_item: championItem.id,
-          right_item: challengerItem.id,
-          winner,
-        }).catch((e) => setError(e instanceof Error ? e.message : "ثبت رأی ممکن نشد"))
+      ? (custom
+          ? custom.onVote(championItem.id, challengerItem.id, winner)
+          : castBattleVote(token, {
+              category,
+              left_item: championItem.id,
+              right_item: challengerItem.id,
+              winner,
+            })
+        ).catch((e) => setError(e instanceof Error ? e.message : "ثبت رأی ممکن نشد"))
       : null;
     pickAnim.start(winner, request, () => {
       if (winner === "left") {
@@ -223,7 +244,7 @@ function ThemedRun({
   const reason = (
     <p key={`reason-${step}`} className="mb-6 flex items-center justify-center gap-2 text-center text-[13px] text-violet-light" aria-live="polite">
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
-      {reasonOf(theme)}
+      {custom?.reasonText ?? reasonOf(theme)}
     </p>
   );
 
@@ -275,7 +296,7 @@ function ThemedRun({
             <button type="button" onClick={onNext} className="btn-primary text-sm hover:opacity-90">
               نبرد بعدی
             </button>
-            {!signedIn && (
+            {!signedIn && !custom && (
               <button type="button" onClick={openLoginModal} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
                 نبرد با گزینه‌های هم‌سلیقه من
               </button>
@@ -349,13 +370,15 @@ function ThemedRun({
         >
           رد کردن این جفت
         </button>
-        <button
-          type="button"
-          onClick={onSkipTheme}
-          className="rounded-full border border-violet-light/40 px-5 py-2 text-sm text-violet-light transition hover:bg-violet-light/10"
-        >
-          رد کردن این نبرد
-        </button>
+        {onSkipTheme && (
+          <button
+            type="button"
+            onClick={onSkipTheme}
+            className="rounded-full border border-violet-light/40 px-5 py-2 text-sm text-violet-light transition hover:bg-violet-light/10"
+          >
+            رد کردن این نبرد
+          </button>
+        )}
       </div>
       {error && <p className="mt-3 text-center text-xs text-gold">{error}</p>}
     </div>

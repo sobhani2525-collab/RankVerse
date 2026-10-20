@@ -16,7 +16,7 @@ export default function OwnerPanel({ battle, onChange }: { battle: TournamentDet
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const active = battle.status === "active";
+  const active = battle.status === "active" && battle.mode === "tournament";
   const editable = battle.status !== "archived";
 
   async function run(action: (token: string) => Promise<TournamentDetail | void>, confirmText?: string) {

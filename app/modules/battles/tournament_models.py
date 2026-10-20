@@ -43,6 +43,7 @@ class Battle(Base):
         CheckConstraint("bracket_size IN (4, 8, 16)", name="ck_battles_bracket_size"),
         CheckConstraint("visibility IN ('draft', 'unlisted', 'public')", name="ck_battles_visibility"),
         CheckConstraint("status IN ('draft', 'active', 'completed', 'archived')", name="ck_battles_status"),
+        CheckConstraint("mode IN ('tournament', 'pool')", name="ck_battles_mode"),
         Index("ix_battles_creator", "creator_id", "status"),
         Index("ix_battles_public_listing", "visibility", "status", "created_at"),
         Index("ix_battles_active_due", "status", "current_round"),
@@ -57,6 +58,9 @@ class Battle(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # "pool": a custom "winner stays" pool anyone can play through (the live format);
+    # "tournament": elimination bracket with rounds (parked, hidden from the UI).
+    mode: Mapped[str] = mapped_column(String(10), nullable=False, server_default="tournament", default="tournament")
     entity_type: Mapped[str] = mapped_column(String(30), nullable=False)
     bracket_size: Mapped[int] = mapped_column(Integer, nullable=False)
     visibility: Mapped[str] = mapped_column(String(10), nullable=False, server_default="draft", default="draft")
@@ -155,3 +159,39 @@ class BattleFollow(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class BattlePick(Base):
+    """One head-to-head choice a user made while playing a pool battle. The pair is
+    stored unordered (entity_lo < entity_hi by id), so playing the same pair again
+    changes the choice instead of adding a vote."""
+
+    __tablename__ = "battle_picks"
+    __table_args__ = (
+        UniqueConstraint("battle_id", "user_id", "entity_lo", "entity_hi", name="uq_battle_picks_pair"),
+        Index("ix_battle_picks_battle", "battle_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    battle_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("battles.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_lo: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
+    )
+    entity_hi: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
+    )
+    winner_entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
+    )
+    # Elo points this pick moved each side by (see pool.record_pick); 0 when it had no effect.
+    delta_lo: Mapped[float] = mapped_column(Float, nullable=False, server_default="0", default=0.0)
+    delta_hi: Mapped[float] = mapped_column(Float, nullable=False, server_default="0", default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )

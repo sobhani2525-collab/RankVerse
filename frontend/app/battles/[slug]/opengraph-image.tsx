@@ -86,7 +86,11 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   let right = null;
   let tag = "نبرد تورنمنتی";
   if (battle) {
-    if (battle.status === "completed" && battle.winner) {
+    if (battle.mode === "pool") {
+      left = battle.participants[0] ?? null;
+      right = battle.participants[1] ?? null;
+      tag = "نبرد برنده می‌ماند";
+    } else if (battle.status === "completed" && battle.winner) {
       left = battle.winner;
       tag = "قهرمان نبرد";
     } else {
