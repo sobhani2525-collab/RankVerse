@@ -52,7 +52,6 @@ export default function BattleWizard() {
   const [entityType, setEntityType] = useState<TournamentEntityType>("movie");
   const [size, setSize] = useState<BracketSize>(8);
   const [entries, setEntries] = useState<TournamentEntity[]>([]);
-  const [visibility, setVisibility] = useState<"unlisted" | "public">("public");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,7 +115,7 @@ export default function BattleWizard() {
 
   const publish = () =>
     run(async (token) => {
-      await tournamentApi.publish(token, slug!, { visibility });
+      await tournamentApi.publish(token, slug!, { visibility: "public" });
       router.push(tournamentHref(slug!));
     });
 
@@ -141,7 +140,7 @@ export default function BattleWizard() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="font-display text-3xl text-ink">ساخت نبرد جدید</h1>
-      <p className="mt-2 text-sm text-muted">گزینه‌ها را خودت انتخاب می‌کنی؛ بقیه آن‌ها را «برنده می‌ماند» بازی می‌کنند.</p>
+      <p className="mt-2 text-sm text-muted">بازی به روش «برنده می‌ماند»؛ گزینه‌ها را اضافه کن و نبرد را منتشر کن.</p>
       <ol className="mt-6 flex gap-2 text-sm">
         {STEPS.map((label, i) => (
           <li
@@ -245,14 +244,7 @@ export default function BattleWizard() {
 
       {step === 2 && (
         <section className="mt-8 flex flex-col gap-6">
-          <div>
-            <span className="mb-1.5 block text-sm text-ink-dim">دسترسی</span>
-            <div className="flex gap-2">
-              <Choice active={visibility === "public"} onClick={() => setVisibility("public")}>عمومی (در فهرست نبردها)</Choice>
-              <Choice active={visibility === "unlisted"} onClick={() => setVisibility("unlisted")}>فقط با لینک</Choice>
-            </div>
-          </div>
-          <p className="text-xs text-muted">همه می‌توانند این استخر را «برنده می‌ماند» بازی کنند و نتیجهٔ جمعی را ببینند. بعد از انتشار، گزینه‌ها قابل تغییر نیستند.</p>
+          <p className="text-sm text-muted">بعد از انتشار، گزینه‌ها قابل تغییر نیستند.</p>
           <div className="flex gap-3">
             <button type="button" onClick={() => setStep(1)} className="rounded-xl border border-border px-5 py-2.5 text-sm text-ink-dim">قبلی</button>
             <button type="button" disabled={busy} onClick={publish} className="rounded-xl bg-gold px-6 py-2.5 text-sm font-bold text-bg disabled:opacity-50">

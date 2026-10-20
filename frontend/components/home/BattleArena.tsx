@@ -260,22 +260,31 @@ export function ThemedRun({
   if (done) {
     return (
       <div className="mx-auto max-w-xl">
-        {reason}
-        {progress}
+        {!custom && reason}
+        {!custom && progress}
         <div className="rv-rise mt-8 flex flex-col items-center gap-3 text-center">
           <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_4px_rgba(232,179,74,0.18)]">
             <Poster item={championItem} sizes="112px" />
           </div>
-          <p className="font-display text-2xl text-ink">نبرد تمام شد.</p>
-          <p className="text-sm text-ink-dim">
-            🏆 برنده: <span className="font-bold text-gold">{championItem.title_fa || championItem.title}</span>
-            {streak > 0 && (
-              <>
-                {" · "}
-                <span className="num">{toFaDigits(streak)}</span> برد پیاپی
-              </>
-            )}
-          </p>
+          {custom ? (
+            <p className="font-display text-3xl leading-snug text-ink sm:text-4xl">
+              <span className="text-xl text-ink-dim sm:text-2xl">برنده: </span>
+              <span className="text-gold">{championItem.title_fa || championItem.title}</span>
+            </p>
+          ) : (
+            <>
+              <p className="font-display text-2xl text-ink">نبرد تمام شد.</p>
+              <p className="text-sm text-ink-dim">
+                🏆 برنده: <span className="font-bold text-gold">{championItem.title_fa || championItem.title}</span>
+                {streak > 0 && (
+                  <>
+                    {" · "}
+                    <span className="num">{toFaDigits(streak)}</span> برد پیاپی
+                  </>
+                )}
+              </p>
+            </>
+          )}
           {voted > 0 && getToken() && !error && <p className="text-sm text-teal">رأی‌هایت در رتبه‌بندی ثبت شد.</p>}
           {error && <p className="text-xs text-gold">{error}</p>}
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -293,9 +302,19 @@ export function ThemedRun({
           </div>
           {storyError && <p className="text-xs text-gold">{storyError}</p>}
           <div className="flex gap-3">
-            <button type="button" onClick={onNext} className="btn-primary text-sm hover:opacity-90">
-              نبرد بعدی
-            </button>
+            {custom ? (
+              <button
+                type="button"
+                onClick={onNext}
+                className="rounded-xl bg-gold px-8 py-3 text-base font-extrabold text-bg shadow-[0_0_0_4px_rgba(232,179,74,0.18)] transition hover:brightness-110"
+              >
+                نبرد بعدی ↻
+              </button>
+            ) : (
+              <button type="button" onClick={onNext} className="btn-primary text-sm hover:opacity-90">
+                نبرد بعدی
+              </button>
+            )}
             {!signedIn && !custom && (
               <button type="button" onClick={openLoginModal} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
                 نبرد با گزینه‌های هم‌سلیقه من

@@ -39,8 +39,8 @@ export default function OwnerPanel({ battle, onChange }: { battle: TournamentDet
   if (!editable) return null;
 
   return (
-    <details className="mt-6 rounded-2xl border border-border bg-surface p-4">
-      <summary className="cursor-pointer text-sm font-bold text-gold">مدیریت نبرد</summary>
+    <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
+      <p className="text-sm font-bold text-gold">ویرایش نبرد</p>
       <div className="mt-4 flex flex-col gap-5">
         {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -107,23 +107,6 @@ export default function OwnerPanel({ battle, onChange }: { battle: TournamentDet
           </div>
         )}
 
-        {battle.status !== "draft" && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-muted">دسترسی:</span>
-            {(["public", "unlisted"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                disabled={busy || battle.visibility === v}
-                className={`${BTN} ${battle.visibility === v ? "border-gold text-gold" : ""}`}
-                onClick={() => run((t) => tournamentApi.setVisibility(t, battle.slug, v))}
-              >
-                {v === "public" ? "عمومی" : "فقط با لینک"}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div>
           <button
             type="button"
@@ -145,6 +128,6 @@ export default function OwnerPanel({ battle, onChange }: { battle: TournamentDet
           </button>
         </div>
       </div>
-    </details>
+    </div>
   );
 }

@@ -35,16 +35,16 @@ async def publish_pool(
     """Draft -> active. No matches are created: the pool is playable immediately."""
     battle = await engine.lock_battle(db, battle.id)
     if battle.status != "draft":
-        raise _bad("Only a draft can be published")
+        raise _bad("فقط پیش‌نویس قابل انتشار است")
     if visibility not in ("unlisted", "public"):
-        raise _bad("A published battle must be unlisted or public")
+        raise _bad("دسترسی نامعتبر است")
     if len(set(entity_ids_in_order)) != len(entity_ids_in_order):
-        raise _bad("An entry appears more than once")
+        raise _bad("یک گزینه بیش از یک بار آمده است")
     if len(entity_ids_in_order) != battle.bracket_size:
-        raise _bad(f"This battle needs exactly {battle.bracket_size} entries")
+        raise _bad(f"این نبرد دقیقاً {battle.bracket_size} گزینه لازم دارد")
     entities = list((await db.execute(select(Entity).where(Entity.id.in_(entity_ids_in_order)))).scalars())
     if len(entities) != len(entity_ids_in_order):
-        raise _bad("An entry no longer exists")
+        raise _bad("یکی از گزینه‌ها دیگر وجود ندارد")
     engine.validate_entities_compatible(entities, battle.entity_type)
     battle.status = "active"
     battle.visibility = visibility
@@ -63,18 +63,18 @@ async def record_pick(
 ) -> BattlePick:
     battle = await engine.lock_battle(db, battle_id)  # serialises a user's double-click on one pair
     if battle.mode != "pool":
-        raise _bad("This battle is not a pool battle")
+        raise _bad("این نبرد از نوع «برنده می‌ماند» نیست")
     if battle.status != "active":
-        raise _bad("This battle is not accepting picks", 409)
+        raise _bad("این نبرد دیگر انتخاب نمی‌پذیرد", 409)
     if champion_id == challenger_id:
-        raise _bad("A pick needs two different entries")
+        raise _bad("انتخاب باید بین دو گزینهٔ متفاوت باشد")
     if winner_id not in (champion_id, challenger_id):
-        raise _bad("The winner must be one of the two entries")
+        raise _bad("برنده باید یکی از دو گزینه باشد")
     members = set(
         (await db.execute(select(BattleParticipant.entity_id).where(BattleParticipant.battle_id == battle.id))).scalars()
     )
     if champion_id not in members or challenger_id not in members:
-        raise _bad("Both entries must be part of this battle")
+        raise _bad("هر دو گزینه باید جزو این نبرد باشند")
 
     lo, hi = _pair(champion_id, challenger_id)
     pick = (

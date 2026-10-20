@@ -62,7 +62,7 @@ class EntriesPayload(BaseModel):
 class PublishPayload(BaseModel):
     randomize: bool = False
     round_duration_seconds: int | None = Field(None, ge=60, le=30 * 86400)  # None = manual
-    visibility: Literal["unlisted", "public"] = "unlisted"
+    visibility: Literal["unlisted", "public"] = "public"
 
 
 class VisibilityPayload(BaseModel):
@@ -86,14 +86,14 @@ class VotePayload(BaseModel):
 async def _load(db: AsyncSession, slug: str, user: User | None) -> Battle:
     battle = await manage.get_by_slug(db, slug)
     if battle is None or not manage.can_view(battle, user.id if user else None):
-        raise NotFoundError("Battle not found")
+        raise NotFoundError("نبرد پیدا نشد")
     return battle
 
 
 async def _owned(db: AsyncSession, slug: str, user: User) -> Battle:
     battle = await manage.get_by_slug(db, slug)
     if battle is None:
-        raise NotFoundError("Battle not found")
+        raise NotFoundError("نبرد پیدا نشد")
     manage.require_owner(battle, user.id)
     return battle
 
@@ -193,7 +193,7 @@ async def candidates(
 ):
     """Entities of one type matching ALL given filters (person, genre, decade, title text), best-scored first."""
     if decade is not None and decade % 10:
-        raise engine._bad("decade must be a multiple of 10")
+        raise engine._bad("دهه باید مضرب ۱۰ باشد")
     items, total = await find_candidates(
         db, entity_type=entity_type, person_slug=person, person_role=role, genre_slug=genre,
         decade=decade, q=q, limit=page_size, offset=(page - 1) * page_size,

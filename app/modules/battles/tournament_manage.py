@@ -33,13 +33,13 @@ def can_view(battle: Battle, user_id: uuid.UUID | None) -> bool:
 
 def require_owner(battle: Battle, user_id: uuid.UUID) -> None:
     if battle.creator_id != user_id:
-        raise _bad("Battle not found", 404)  # same answer as a missing one: don't reveal drafts
+        raise _bad("نبرد پیدا نشد", 404)  # same answer as a missing one: don't reveal drafts
 
 
 def validate_title(title: str) -> str:
     title = title.strip()
     if not settings.battle_title_min_length <= len(title) <= settings.battle_title_max_length:
-        raise _bad(f"Title must be {settings.battle_title_min_length}-{settings.battle_title_max_length} characters")
+        raise _bad(f"عنوان باید بین {settings.battle_title_min_length} تا {settings.battle_title_max_length} حرف باشد")
     return title
 
 
@@ -48,7 +48,7 @@ async def create_draft(
     cover_url: str | None, entity_type: str, bracket_size: int, now: datetime, mode: str = "pool",
 ) -> Battle:
     if bracket_size not in bracket.BRACKET_SIZES:
-        raise _bad("Bracket size must be 4, 8 or 16")
+        raise _bad("اندازهٔ نبرد باید ۴، ۸ یا ۱۶ باشد")
     recent = (
         await db.execute(
             select(func.count()).select_from(Battle).where(
@@ -57,7 +57,7 @@ async def create_draft(
         )
     ).scalar_one()
     if recent >= settings.battle_max_new_per_day:
-        raise RankVerseError("Daily battle creation limit reached", status_code=429, code="rate_limited")
+        raise RankVerseError("سقف ساخت نبرد در روز پر شده؛ فردا دوباره امتحان کن", status_code=429, code="rate_limited")
     battle = Battle(
         slug=engine.new_slug(), creator_id=user_id, title=validate_title(title),
         description=(description or "").strip() or None, cover_url=cover_url,
@@ -86,10 +86,10 @@ async def update_details(db: AsyncSession, battle: Battle, fields: dict) -> Batt
     """Title/description/cover any time; entity type and bracket size only in a
     draft (changing the type empties the entries, since they must match it)."""
     if battle.status == "archived":
-        raise _bad("An archived battle cannot be edited")
+        raise _bad("نبرد بایگانی‌شده قابل ویرایش نیست")
     structural = {k: v for k, v in fields.items() if k in ("entity_type", "bracket_size")}
     if structural and battle.status != "draft":
-        raise _bad("The bracket can only be changed while the battle is a draft")
+        raise _bad("نوع و اندازهٔ نبرد فقط در پیش‌نویس قابل تغییر است")
     if "title" in fields:
         battle.title = validate_title(fields["title"])
     if "description" in fields:
@@ -100,7 +100,7 @@ async def update_details(db: AsyncSession, battle: Battle, fields: dict) -> Batt
         entries = await participants_in_order(db, battle.id)
         if "bracket_size" in structural:
             if structural["bracket_size"] not in bracket.BRACKET_SIZES:
-                raise _bad("Bracket size must be 4, 8 or 16")
+                raise _bad("اندازهٔ نبرد باید ۴، ۸ یا ۱۶ باشد")
             battle.bracket_size = structural["bracket_size"]
             for extra in entries[battle.bracket_size:]:
                 await db.delete(extra)
@@ -115,14 +115,14 @@ async def update_details(db: AsyncSession, battle: Battle, fields: dict) -> Batt
 async def set_entries(db: AsyncSession, battle: Battle, entity_ids: list[uuid.UUID]) -> None:
     """Replace a draft's entries with this ordered list (up to the bracket size)."""
     if battle.status != "draft":
-        raise _bad("Entries can only be changed while the battle is a draft")
+        raise _bad("گزینه‌ها فقط در پیش‌نویس قابل تغییرند")
     if len(entity_ids) > battle.bracket_size:
-        raise _bad(f"At most {battle.bracket_size} entries")
+        raise _bad(f"حداکثر {battle.bracket_size} گزینه مجاز است")
     if len(set(entity_ids)) != len(entity_ids):
-        raise _bad("An entry appears more than once")
+        raise _bad("یک گزینه بیش از یک بار آمده است")
     entities = list((await db.execute(select(Entity).where(Entity.id.in_(entity_ids)))).scalars()) if entity_ids else []
     if len(entities) != len(entity_ids):
-        raise _bad("An entry does not exist")
+        raise _bad("یکی از گزینه‌ها پیدا نشد")
     engine.validate_entities_compatible(entities, battle.entity_type)
     for row in await participants_in_order(db, battle.id):
         await db.delete(row)
@@ -144,7 +144,7 @@ async def publish_draft(
         )
     ).scalar_one()
     if active >= settings.battle_max_active_per_user:
-        raise RankVerseError("Active battle limit reached", status_code=429, code="rate_limited")
+        raise RankVerseError("به سقف نبردهای منتشرشده رسیده‌ای؛ اول یکی از نبردهایت را بایگانی کن", status_code=429, code="rate_limited")
     entries = await participants_in_order(db, battle.id)
     if battle.mode == "pool":  # no rounds or randomised seeding: the pool is playable as is
         return await pool.publish_pool(db, battle, [p.entity_id for p in entries], visibility=visibility, now=now)
@@ -156,11 +156,11 @@ async def publish_draft(
 
 async def set_visibility(db: AsyncSession, battle: Battle, visibility: str) -> Battle:
     if battle.status == "draft":
-        raise _bad("Publish the battle first")
+        raise _bad("اول نبرد را منتشر کن")
     if battle.status == "archived":
-        raise _bad("An archived battle cannot be edited")
+        raise _bad("نبرد بایگانی‌شده قابل ویرایش نیست")
     if visibility not in ("unlisted", "public"):
-        raise _bad("Visibility must be unlisted or public")
+        raise _bad("دسترسی نامعتبر است")
     battle.visibility = visibility
     await db.flush()
     return battle

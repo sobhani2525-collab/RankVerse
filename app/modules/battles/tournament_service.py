@@ -46,7 +46,7 @@ def validate_entities_compatible(entities: list[Entity], entity_type: str) -> No
     for entity in entities:
         if entity.entity_type != entity_type:
             raise _bad(
-                f"All entries must be of type '{entity_type}' (got '{entity.entity_type}' for '{entity.id}')"
+                f"همهٔ گزینه‌ها باید از نوع «{ {'movie': 'فیلم', 'tv_series': 'سریال'}.get(entity_type, entity_type) }» باشند"
             )
 
 
@@ -57,7 +57,7 @@ async def lock_battle(db: AsyncSession, battle_id: uuid.UUID) -> Battle:
         )
     ).scalar_one_or_none()
     if battle is None:
-        raise _bad("Battle not found", 404)
+        raise _bad("نبرد پیدا نشد", 404)
     return battle
 
 
@@ -100,21 +100,21 @@ async def publish(
     """Draft -> active: fix the seeding, create every match, open round 1."""
     battle = await lock_battle(db, battle.id)
     if battle.status != "draft":
-        raise _bad("Only a draft can be published")
+        raise _bad("فقط پیش‌نویس قابل انتشار است")
     if visibility not in ("unlisted", "public"):
-        raise _bad("A published battle must be unlisted or public")
+        raise _bad("دسترسی نامعتبر است")
     if len(set(entity_ids_in_order)) != len(entity_ids_in_order):
-        raise _bad("An entry appears more than once")
+        raise _bad("یک گزینه بیش از یک بار آمده است")
     if len(entity_ids_in_order) != battle.bracket_size:
-        raise _bad(f"This bracket needs exactly {battle.bracket_size} entries")
+        raise _bad(f"این نبرد دقیقاً {battle.bracket_size} گزینه لازم دارد")
     if round_duration_seconds is not None and round_duration_seconds <= 0:
-        raise _bad("Round duration must be positive")
+        raise _bad("مدت دور باید مثبت باشد")
 
     entities = list(
         (await db.execute(select(Entity).where(Entity.id.in_(entity_ids_in_order)))).scalars()
     )
     if len(entities) != len(entity_ids_in_order):
-        raise _bad("An entry no longer exists")
+        raise _bad("یکی از گزینه‌ها دیگر وجود ندارد")
     validate_entities_compatible(entities, battle.entity_type)
 
     battle.seed_value = secrets.randbits(62) if randomize else None
@@ -214,7 +214,7 @@ async def advance_if_due(db: AsyncSession, battle_id: uuid.UUID, now: datetime) 
 async def close_round_now(db: AsyncSession, battle_id: uuid.UUID, now: datetime) -> Battle:
     battle = await lock_battle(db, battle_id)
     if battle.status != "active" or battle.mode != "tournament":
-        raise _bad("The battle is not an active tournament")
+        raise _bad("این نبرد یک تورنمنت در جریان نیست")
     await _close_current_round(db, battle, now)
     return battle
 
@@ -225,7 +225,7 @@ async def finish_battle(db: AsyncSession, battle_id: uuid.UUID, now: datetime) -
     the higher seed advances)."""
     battle = await lock_battle(db, battle_id)
     if battle.status != "active" or battle.mode != "tournament":
-        raise _bad("The battle is not an active tournament")
+        raise _bad("این نبرد یک تورنمنت در جریان نیست")
     while battle.status == "active":
         await _close_current_round(db, battle, now)
     return battle
@@ -233,10 +233,10 @@ async def finish_battle(db: AsyncSession, battle_id: uuid.UUID, now: datetime) -
 
 async def extend_round(db: AsyncSession, battle_id: uuid.UUID, extra_seconds: int, now: datetime) -> Battle:
     if extra_seconds <= 0:
-        raise _bad("The extension must be positive")
+        raise _bad("مقدار تمدید باید مثبت باشد")
     battle = await lock_battle(db, battle_id)
     if battle.status != "active" or battle.mode != "tournament":
-        raise _bad("The battle is not an active tournament")
+        raise _bad("این نبرد یک تورنمنت در جریان نیست")
     for match in await _round_matches(db, battle.id, battle.current_round):
         base = match.closes_at if match.closes_at and match.closes_at > now else now
         match.closes_at = base + timedelta(seconds=extra_seconds)
@@ -255,16 +255,16 @@ async def cast_vote(
     """Record or change a user's vote on an open match of the current round."""
     battle = await advance_if_due(db, battle_id, now)
     if battle.status != "active":
-        raise _bad("This battle is not accepting votes")
+        raise _bad("این نبرد دیگر رأی نمی‌پذیرد")
     match = (
         await db.execute(select(BattleMatch).where(BattleMatch.id == match_id, BattleMatch.battle_id == battle.id))
     ).scalar_one_or_none()
     if match is None:
-        raise _bad("Match not found", 404)
+        raise _bad("مسابقه پیدا نشد", 404)
     if match.round != battle.current_round or match.status != "open":
-        raise _bad("This match is closed", 409)
+        raise _bad("این مسابقه بسته شده است", 409)
     if chosen_entity_id not in (match.entity_a_id, match.entity_b_id):
-        raise _bad("The chosen entry is not in this match")
+        raise _bad("گزینهٔ انتخاب‌شده در این مسابقه نیست")
 
     vote = (
         await db.execute(select(BattleVote).where(BattleVote.match_id == match.id, BattleVote.user_id == user_id))
