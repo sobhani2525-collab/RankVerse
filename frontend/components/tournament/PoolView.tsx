@@ -27,6 +27,16 @@ function shuffled<T>(items: T[]): T[] {
 
 const TOP_COUNT = 4;
 
+function TrophyIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5A3.5 3.5 0 0 1 16.5 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12 14v3.5M8.5 20h7M9.5 17.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function EntityLink({ entity, className, children }: { entity: TournamentEntity; className?: string; children: React.ReactNode }) {
   const href = detailPathFor(entity.entity_type, entity.slug);
   return href ? (
@@ -38,59 +48,98 @@ function EntityLink({ entity, className, children }: { entity: TournamentEntity;
   );
 }
 
-/** The top entries of a pool battle by win rate, each linking to its own page. */
-function Standings({ battle }: { battle: TournamentDetail }) {
+/**
+ * The battle's result, merged with its winner: the top entries by win rate as cards in the
+ * list-page style, the first (the winner) in gold with a trophy. `mine` marks the entry the
+ * viewer's own run ended on.
+ */
+function Results({ battle, mine }: { battle: TournamentDetail; mine: string | null }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { openLoginModal } = useAuthGate();
   const board = battle.leaderboard?.slice(0, TOP_COUNT) ?? null;
 
   return (
-    <section className="rounded-2xl border border-border bg-surface/60 p-4 lg:p-5">
+    <section className="rv-rise mx-auto max-w-3xl">
       <SectionHeading en="RESULTS" fa="نتیجهٔ نبرد" />
       {board ? (
         <>
-          <p className="mb-4 mt-1 text-xs text-muted">
+          <p className="mb-5 mt-1 text-xs text-muted">
             {toFaDigits(Math.min(TOP_COUNT, board.length))} گزینهٔ برتر از {toFaDigits(battle.total_picks ?? 0)} انتخاب · رتبه با درنظرگرفتن تعداد انتخاب‌ها
           </p>
-          <ol className="flex flex-col gap-2.5">
-            {board.map((row) => {
+          <ol>
+            {board.map((row, i) => {
               const pct = row.win_rate === null ? 0 : Math.round(row.win_rate * 100);
               const first = row.rank === 1;
+              const kind = row.entity.entity_type === "tv_series" ? "سریال" : "فیلم";
               return (
-                <li
-                  key={row.entity_id}
-                  className={`rounded-xl border p-2.5 transition ${first ? "border-gold/45 bg-gold/[0.06]" : "border-border-soft bg-surface"}`}
-                >
-                  <div className="flex items-center gap-3">
+                <li key={row.entity_id} className="flex gap-3 sm:gap-4">
+                  {/* the spine: a numbered node per entry, joined by a line */}
+                  <div className="relative flex w-11 shrink-0 justify-center sm:w-12">
                     <span
-                      className={`num flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
-                        first ? "bg-gold text-bg" : "border border-border text-muted"
+                      className={`absolute w-px ${first ? "bg-gold/40" : "bg-violet-light/35"} ${i === 0 ? "top-8" : "top-0"} ${i === board.length - 1 ? "h-8" : "bottom-0"}`}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={`num relative z-10 mt-4 flex h-11 w-11 items-center justify-center rounded-full border-2 text-base font-extrabold sm:h-12 sm:w-12 ${
+                        first
+                          ? "border-gold bg-gold text-bg shadow-[0_0_0_5px_rgba(232,179,74,0.2)]"
+                          : "border-violet-light/60 bg-bg text-violet-light"
                       }`}
                     >
                       {toFaDigits(row.rank)}
                     </span>
-                    <EntityLink entity={row.entity} className="shrink-0">
-                      <Poster entity={row.entity} size="w185" className="w-11" />
-                    </EntityLink>
-                    <EntityLink entity={row.entity} className="min-w-0 flex-1 hover:underline">
-                      <span className="block truncate text-sm font-bold text-ink">{row.entity.title_fa || row.entity.title}</span>
-                      {row.entity.title_fa && (
-                        <span className="block truncate text-xs text-muted" dir="ltr">
-                          {row.entity.title}
-                        </span>
-                      )}
-                    </EntityLink>
-                    <div className="shrink-0 text-left">
-                      <p className={`num text-lg font-black leading-none ${first ? "text-gold" : "text-ink"}`}>
-                        {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`}
-                      </p>
-                      <p className="num mt-1 text-[11px] text-dim">
-                        {toFaDigits(row.wins)} برد از {toFaDigits(row.played)}
-                      </p>
-                    </div>
                   </div>
-                  <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-surface2" aria-hidden="true">
-                    <div className={`h-full rounded-full ${first ? "bg-gold" : "bg-teal"}`} style={{ width: `${pct}%` }} />
+
+                  <div
+                    className={`mb-4 flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:p-5 ${
+                      first
+                        ? "border-gold/50 bg-gradient-to-br from-gold/[0.10] via-surface to-surface shadow-[0_0_0_1px_rgba(232,179,74,0.12)]"
+                        : "border-border bg-surface"
+                    }`}
+                  >
+                    <EntityLink entity={row.entity} className="shrink-0 self-start transition hover:brightness-110">
+                      <Poster entity={row.entity} size="w185" className={`w-24 sm:w-28 ${first ? "!border-gold/60" : ""}`} />
+                    </EntityLink>
+
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className={`font-mono tracking-widest ${first ? "text-gold" : "text-dim"}`}>
+                          {first ? "WINNER" : row.entity.entity_type === "tv_series" ? "SERIES" : "MOVIE"}
+                        </span>
+                        <span className="text-muted">{first ? "برندهٔ نبرد" : kind}</span>
+                        {mine === row.entity_id && (
+                          <span className="rounded-full border border-teal/50 bg-teal/10 px-2 py-0.5 text-teal">انتخاب تو</span>
+                        )}
+                      </div>
+                      <EntityLink entity={row.entity} className="flex items-start gap-2.5 transition hover:brightness-110">
+                        {first && <TrophyIcon className="mt-1 h-7 w-7 shrink-0 text-gold sm:h-8 sm:w-8" />}
+                        <span className="min-w-0">
+                          <span className={`block text-xl font-black leading-snug sm:text-2xl ${first ? "text-gold" : "text-ink"}`}>
+                            {row.entity.title_fa || row.entity.title}
+                          </span>
+                          {row.entity.title_fa && (
+                            <span className="block text-sm text-ink-dim" dir="ltr">
+                              {row.entity.title}
+                            </span>
+                          )}
+                        </span>
+                      </EntityLink>
+                      {row.entity.year ? (
+                        <span className="num mt-1 inline-flex w-fit rounded-full border border-border bg-surface2 px-3 py-1 text-xs font-bold text-ink-dim">
+                          {toFaDigits(row.entity.year)}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-4 border-t border-border pt-3 sm:w-28 sm:flex-col sm:items-start sm:justify-center sm:gap-1 sm:border-s sm:border-t-0 sm:ps-5 sm:pt-0">
+                      <span className="font-mono text-[11px] tracking-widest text-dim">WIN RATE</span>
+                      <span className={`num text-3xl font-black leading-none ${first ? "text-gold" : "text-ink"}`}>
+                        {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`}
+                      </span>
+                      <span className="num text-xs text-muted">
+                        {toFaDigits(row.wins)} برد از {toFaDigits(row.played)}
+                      </span>
+                    </div>
                   </div>
                 </li>
               );
@@ -127,6 +176,7 @@ export default function PoolView({
   const { openLoginModal } = useAuthGate();
   const [run, setRun] = useState(0); // a new value reshuffles the pool for another run
   const [runDone, setRunDone] = useState(false);
+  const [myChampion, setMyChampion] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const signedIn = !authLoading && isAuthenticated;
 
@@ -164,7 +214,8 @@ export default function PoolView({
   );
 
   // The standings unlock once the viewer has played, so read the battle again after a run.
-  const handleDone = useCallback(() => {
+  const handleDone = useCallback((championId: string) => {
+    setMyChampion(championId);
     setRunDone(true);
     reload();
   }, [reload]);
@@ -260,9 +311,9 @@ export default function PoolView({
       {battle.is_owner && editing && <OwnerPanel key={battle.status} battle={battle} onChange={onChange} />}
 
       {playable ? (
-        <section className="mt-10 flex flex-col md:flex-row md:items-start">
-          {/* RTL: the run (first child) sits on the right; when it ends it slides over and the standings open on the left. */}
-          <div className={`min-w-0 transition-all duration-700 ease-in-out ${showResults ? "md:w-1/2" : "md:w-full"}`}>
+        <section className="mt-10">
+          {showResults && <Results battle={battle} mine={myChampion} />}
+          <div className={showResults ? "mt-2" : ""}>
             <ThemedRun
               key={run}
               battle={themed}
@@ -276,6 +327,7 @@ export default function PoolView({
                 reasonText: "هر بار برنده می‌ماند و با گزینهٔ بعدی روبه‌رو می‌شود",
                 shareUrl: absoluteUrl(`/battles/${battle.slug}`),
                 onDone: handleDone,
+                compactDone: true,
               }}
             />
             {!signedIn && !authLoading && !runDone && (
@@ -284,16 +336,6 @@ export default function PoolView({
                 <p className="text-xs text-muted">برای ثبت انتخاب‌هایت در نتیجهٔ نبرد باید وارد شوی.</p>
               </div>
             )}
-          </div>
-          <div
-            className={`min-w-0 overflow-hidden transition-all duration-700 ease-in-out ${
-              showResults
-                ? "mt-10 max-h-[3000px] opacity-100 md:mt-0 md:w-1/2 md:pe-0 md:ps-8"
-                : "max-h-0 opacity-0 md:w-0"
-            }`}
-            aria-hidden={!showResults}
-          >
-            <div className="md:min-w-[22rem]">{showResults && <Standings battle={battle} />}</div>
           </div>
         </section>
       ) : battle.status === "draft" ? (
@@ -304,7 +346,7 @@ export default function PoolView({
         </section>
       ) : (
         <section className="mt-12 max-w-2xl">
-          <Standings battle={battle} />
+          <Results battle={battle} mine={null} />
         </section>
       )}
     </main>

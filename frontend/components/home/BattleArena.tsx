@@ -152,7 +152,10 @@ export interface RunCustomization {
   /** Where "اشتراک نتیجه" points, in place of /battles/result. */
   shareUrl: string;
   /** Called once when the run is over. */
-  onDone?: () => void;
+  /** Called once when the run is over, with the id of the run's champion. */
+  onDone?: (championId: string) => void;
+  /** Show only the share/next buttons when the run is over (the page shows the result itself). */
+  compactDone?: boolean;
 }
 
 export function ThemedRun({
@@ -179,11 +182,12 @@ export function ThemedRun({
   const [error, setError] = useState<string | null>(null);
 
   const done = step >= items.length;
-  const onDone = custom?.onDone;
-  useEffect(() => {
-    if (done) onDone?.();
-  }, [done, onDone]);
   const championItem = items[champion];
+  const onDone = custom?.onDone;
+  const championId = championItem.id;
+  useEffect(() => {
+    if (done) onDone?.(championId);
+  }, [done, onDone, championId]);
   // The story card is drawn only when asked for, once per finished run.
   const storyBlob = useRef<Promise<Blob | null> | null>(null);
   const buildStory = useCallback(() => {
@@ -265,7 +269,7 @@ export function ThemedRun({
         {!custom && reason}
         {!custom && progress}
         <div className="rv-rise mt-8 flex flex-col items-center gap-3 text-center">
-          {(() => {
+          {!custom?.compactDone && (() => {
             const poster = (
               <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_4px_rgba(232,179,74,0.18)]">
                 <Poster item={championItem} sizes="112px" />
@@ -280,14 +284,14 @@ export function ThemedRun({
               poster
             );
           })()}
-          {custom ? (
+          {custom?.compactDone ? null : custom ? (
             <p className="font-display text-3xl leading-snug text-ink sm:text-4xl">
               <span className="text-xl text-ink-dim sm:text-2xl">برنده: </span>
               {(() => {
                 const href = detailPathFor(championItem.entity_type, championItem.slug);
                 const name = <span className="text-gold">{championItem.title_fa || championItem.title}</span>;
                 return href ? (
-                  <Link href={href} className="underline-offset-8 transition hover:underline">
+                  <Link href={href} className="transition hover:brightness-110">
                     {name}
                   </Link>
                 ) : (

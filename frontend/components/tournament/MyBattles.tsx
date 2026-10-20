@@ -89,7 +89,7 @@ export default function MyBattles() {
           b.status === "draft" ? (
             <div key={b.slug} className="flex flex-col gap-2">
               <TournamentCard battle={b} />
-              <Link href={`/battles/new?slug=${b.slug}`} className="text-center text-sm text-gold hover:underline">
+              <Link href={`/battles/new?slug=${b.slug}`} className="text-center text-sm text-gold transition hover:brightness-110">
                 ادامهٔ ویرایش
               </Link>
             </div>

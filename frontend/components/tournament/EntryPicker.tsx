@@ -211,7 +211,7 @@ export default function EntryPicker({
                 <button
                   type="button"
                   onClick={() => onAddMany(available)}
-                  className="text-gold hover:underline"
+                  className="text-gold transition hover:brightness-110"
                 >
                   افزودن به ترتیب امتیاز تا پر شدن
                 </button>

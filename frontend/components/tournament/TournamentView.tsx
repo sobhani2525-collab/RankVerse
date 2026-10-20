@@ -216,7 +216,7 @@ export default function TournamentView({ slug }: { slug: string }) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-24 text-center">
         <p className="text-lg text-ink">این نبرد پیدا نشد یا دسترسی به آن ندارید.</p>
-        <Link href="/battles" className="mt-4 inline-block text-gold hover:underline">بازگشت به نبردها</Link>
+        <Link href="/battles" className="mt-4 inline-block text-gold transition hover:brightness-110">بازگشت به نبردها</Link>
       </main>
     );
   }
