@@ -91,6 +91,8 @@ export interface LeaderboardRow {
   played: number;
   win_rate: number | null;
   seed: number;
+  /** Shared between entries that are level on win rate, wins and head-to-head. */
+  rank: number;
 }
 
 export interface CandidateEntity extends TournamentEntity {

@@ -142,16 +142,16 @@ export default function PoolView({
           <h2 className="mb-4 text-lg font-bold text-ink">نتیجهٔ نبرد</h2>
           {board ? (
             <ol className="flex flex-col gap-2">
-              {board.map((row, i) => {
+              {board.map((row) => {
                 const pct = row.win_rate === null ? 0 : Math.round(row.win_rate * 100);
                 return (
                   <li key={row.entity_id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2">
-                    <span className={`num w-7 text-center text-sm ${i === 0 ? "text-gold" : "text-muted"}`}>{toFaDigits(i + 1)}</span>
+                    <span className={`num w-7 text-center text-sm ${row.rank === 1 ? "text-gold" : "text-muted"}`}>{toFaDigits(row.rank)}</span>
                     <Poster entity={row.entity} size="w185" className="w-10 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-ink">{displayTitle(row.entity)}</p>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface2">
-                        <div className={`h-full ${i === 0 ? "bg-gold" : "bg-teal"}`} style={{ width: `${pct}%` }} />
+                        <div className={`h-full ${row.rank === 1 ? "bg-gold" : "bg-teal"}`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                     <span className="num w-28 shrink-0 text-left text-xs text-ink-dim">

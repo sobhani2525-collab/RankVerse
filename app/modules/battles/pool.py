@@ -132,19 +132,55 @@ async def _apply_score(db: AsyncSession, battle: Battle, pick: BattlePick, user_
     await db.flush()
 
 
+def rank_rows(rows: list[dict], beat: dict[tuple[uuid.UUID, uuid.UUID], int]) -> list[dict]:
+    """Order standings and number them. Entries are separated by win rate, then wins; entries
+    still level are separated by their head-to-head record against each other (`beat[(a, b)]` =
+    picks where a beat b); entries still level after that share a rank, and seed only fixes
+    the display order within a shared rank."""
+    for r in rows:
+        r["win_rate"] = round(r["wins"] / r["played"], 4) if r["played"] else None
+
+    def level(r):
+        return (-(r["win_rate"] or 0.0), -r["wins"])
+
+    groups: dict[tuple, list[dict]] = {}
+    for r in rows:
+        groups.setdefault(level(r), []).append(r)
+    ordered: list[dict] = []
+    for key in sorted(groups):
+        group = groups[key]
+        ids = [r["entity_id"] for r in group]
+        for r in group:
+            r["h2h"] = sum(beat.get((r["entity_id"], other), 0) for other in ids if other != r["entity_id"])
+        group.sort(key=lambda r: (-r["h2h"], r["seed"]))
+        ordered.extend(group)
+    ahead_key = None
+    rank = 0
+    for position, r in enumerate(ordered, start=1):
+        key = (*level(r), r["h2h"])
+        if key != ahead_key:
+            rank, ahead_key = position, key
+        r["rank"] = rank
+    return ordered
+
+
 async def leaderboard(db: AsyncSession, battle_id: uuid.UUID) -> list[dict]:
-    """Per entry: picks it won / was in, best win rate first (ties: more wins, then seed)."""
-    wins = dict(
-        (await db.execute(
-            select(BattlePick.winner_entity_id, func.count()).where(BattlePick.battle_id == battle_id)
-            .group_by(BattlePick.winner_entity_id)
-        )).all()
-    )
+    """Per entry: picks it won / was in, with a shared-rank ordering (see rank_rows)."""
+    pairs = (
+        await db.execute(
+            select(BattlePick.entity_lo, BattlePick.entity_hi, BattlePick.winner_entity_id, func.count())
+            .where(BattlePick.battle_id == battle_id)
+            .group_by(BattlePick.entity_lo, BattlePick.entity_hi, BattlePick.winner_entity_id)
+        )
+    ).all()
+    wins: dict[uuid.UUID, int] = {}
     played: dict[uuid.UUID, int] = {}
-    for column in (BattlePick.entity_lo, BattlePick.entity_hi):
-        for entity_id, n in (
-            await db.execute(select(column, func.count()).where(BattlePick.battle_id == battle_id).group_by(column))
-        ).all():
+    beat: dict[tuple[uuid.UUID, uuid.UUID], int] = {}
+    for lo, hi, winner, n in pairs:
+        loser = hi if winner == lo else lo
+        wins[winner] = wins.get(winner, 0) + n
+        beat[(winner, loser)] = beat.get((winner, loser), 0) + n
+        for entity_id in (lo, hi):
             played[entity_id] = played.get(entity_id, 0) + n
     seeds = dict(
         (await db.execute(
@@ -155,10 +191,7 @@ async def leaderboard(db: AsyncSession, battle_id: uuid.UUID) -> list[dict]:
         {"entity_id": e, "wins": wins.get(e, 0), "played": played.get(e, 0), "seed": seed}
         for e, seed in seeds.items()
     ]
-    for r in rows:
-        r["win_rate"] = round(r["wins"] / r["played"], 4) if r["played"] else None
-    rows.sort(key=lambda r: (-(r["win_rate"] or 0.0), -r["wins"], r["seed"]))
-    return rows
+    return rank_rows(rows, beat)
 
 
 async def pick_counts(db: AsyncSession, battle_id: uuid.UUID, user_id: uuid.UUID | None) -> tuple[int, int]:

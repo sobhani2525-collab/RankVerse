@@ -54,3 +54,38 @@ def test_pick_winner_votes_then_seed_tiebreak():
 def test_feeder_positions():
     assert bracket.feeder_positions(0) == (0, 1)
     assert bracket.feeder_positions(3) == (6, 7)
+
+
+# --- pool standings ---------------------------------------------------------------
+
+def _row(entity, wins, played, seed):
+    return {"entity_id": entity, "wins": wins, "played": played, "seed": seed}
+
+
+def test_pool_standings_break_ties_by_head_to_head():
+    from app.modules.battles.pool import rank_rows
+
+    a, b, c = ids(3)
+    rows = [_row(a, 4, 5, 1), _row(b, 4, 5, 2), _row(c, 1, 5, 3)]
+    # a and b are level at 80%, but b beat a head to head -> b is first despite the worse seed
+    ranked = rank_rows(rows, {(b, a): 2, (a, b): 1})
+    assert [r["entity_id"] for r in ranked] == [b, a, c]
+    assert [r["rank"] for r in ranked] == [1, 2, 3]
+
+
+def test_pool_standings_share_a_rank_when_still_level():
+    from app.modules.battles.pool import rank_rows
+
+    a, b, c = ids(3)
+    ranked = rank_rows([_row(a, 4, 5, 2), _row(b, 4, 5, 1), _row(c, 0, 5, 3)], {(a, b): 1, (b, a): 1})
+    assert [r["entity_id"] for r in ranked] == [b, a, c]  # seed only orders the display
+    assert [r["rank"] for r in ranked] == [1, 1, 3]  # standard competition ranking
+
+
+def test_pool_standings_order_by_rate_then_wins_and_handle_no_picks():
+    from app.modules.battles.pool import rank_rows
+
+    a, b, c, d = ids(4)
+    ranked = rank_rows([_row(a, 1, 1, 1), _row(b, 4, 4, 2), _row(c, 0, 0, 3), _row(d, 2, 4, 4)], {})
+    assert [r["entity_id"] for r in ranked] == [b, a, d, c]  # 100% with more wins first; no picks last
+    assert ranked[-1]["win_rate"] is None
