@@ -257,7 +257,7 @@ export function ThemedRun({
   const progress = (
     <div className="relative mx-auto mt-8 h-[3px] w-full max-w-xl overflow-hidden rounded-full bg-surface2" aria-hidden="true">
       <div
-        className="absolute inset-y-0 start-0 rounded-full bg-violet-light transition-[width] duration-300 ease-out motion-reduce:transition-none"
+        className={`absolute inset-y-0 start-0 rounded-full ${custom ? "bg-gold" : "bg-violet-light"} transition-[width] duration-300 ease-out motion-reduce:transition-none`}
         style={{ width: `${(Math.min(step - 1, items.length - 1) / (items.length - 1)) * 100}%` }}
       />
     </div>
@@ -374,35 +374,44 @@ export function ThemedRun({
               onClick={() => pick(side)}
               disabled={pickAnim.busy}
               aria-label={`انتخاب ${displayTitle(item)}`}
-              className={`group relative overflow-hidden rounded-2xl bg-surface/60 text-right transition ${
+              className={`group relative text-right transition ${custom ? "" : "overflow-hidden rounded-2xl bg-surface/60"} ${
                 custom
-                  ? pickAnim.picked === side || (isChampion && streak > 0)
-                    ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)]"
-                    : "border-[1.5px] border-violet-light shadow-[0_0_0_4px_rgba(169,155,255,0.14)] hover:shadow-[0_0_0_4px_rgba(169,155,255,0.28)]"
+                  ? ""
                   : isChampion
                     ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)] hover:shadow-[0_0_0_4px_rgba(232,179,74,0.32)]"
                     : "border border-border hover:border-violet-light"
               }`}
             >
-              <span className="relative block aspect-[2/3] w-full bg-surface2">
+              <span
+                className={`relative block aspect-[2/3] w-full bg-surface2 ${
+                  custom
+                    ? `overflow-hidden rounded-2xl ${
+                        pickAnim.picked === side || (isChampion && streak > 0)
+                          ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)]"
+                          : "border-[1.5px] border-violet-light shadow-[0_0_0_4px_rgba(169,155,255,0.14)] group-hover:shadow-[0_0_0_4px_rgba(169,155,255,0.28)]"
+                      }`
+                    : ""
+                }`}
+              >
                 <Poster item={item} sizes="(max-width: 768px) 45vw, 320px" zoom />
                 {!custom && <span className="absolute inset-0 bg-gradient-to-t from-[#05070D] via-transparent to-transparent" />}
+                {custom && pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
               </span>
-              {pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
+              {!custom && pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
               {isChampion && streak > 0 && (
                 <span className="absolute start-3 top-3 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
                   <span className="num">{toFaDigits(streak)}</span> برد
                 </span>
               )}
               {custom ? (
-                <span className="block p-3">
-                  <span className="block line-clamp-1 text-sm font-bold text-ink">{item.title_fa || item.title}</span>
+                <span className="block px-1 pt-3">
+                  <span className="block line-clamp-1 text-base font-bold text-ink">{item.title_fa || item.title}</span>
                   {item.title_fa && (
-                    <span className="block line-clamp-1 text-xs text-ink-dim" dir="ltr">
+                    <span className="block line-clamp-1 text-sm text-ink-dim" dir="ltr">
                       {item.title}
                     </span>
                   )}
-                  {item.year ? <span className="num block text-xs text-muted">{toFaDigits(item.year)}</span> : null}
+                  {item.year ? <span className="num block text-sm text-muted">{toFaDigits(item.year)}</span> : null}
                 </span>
               ) : (
               <span className="absolute inset-x-0 bottom-0 p-3">

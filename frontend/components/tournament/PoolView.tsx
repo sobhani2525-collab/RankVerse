@@ -12,7 +12,7 @@ import { Side, ThemedRun } from "@/components/home/BattleArena";
 import type { ThemedBattle, ThemedBattleItem } from "@/lib/types";
 import { detailPathFor } from "@/lib/entity-routes";
 import { SectionHeading } from "@/components/list-detail/ui";
-import { ENTITY_TYPE_LABELS, TournamentDetail, TournamentEntity, tournamentApi } from "@/lib/tournament";
+import { TournamentDetail, TournamentEntity, tournamentApi } from "@/lib/tournament";
 import OwnerPanel from "./OwnerPanel";
 import Poster from "./Poster";
 
@@ -94,7 +94,9 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
                     className={`mb-4 flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:p-5 ${
                       first
                         ? "border-gold/50 bg-gradient-to-br from-gold/[0.10] via-surface to-surface shadow-[0_0_0_1px_rgba(232,179,74,0.12)]"
-                        : "border-border bg-surface"
+                        : mine === row.entity_id
+                          ? "border-teal/60 bg-gradient-to-br from-teal/[0.08] via-surface to-surface shadow-[0_0_0_1px_rgba(79,184,166,0.15)]"
+                          : "border-border bg-surface"
                     }`}
                   >
                     <EntityLink entity={row.entity} className="shrink-0 self-start transition hover:brightness-110">
@@ -112,7 +114,7 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
                         )}
                       </div>
                       <EntityLink entity={row.entity} className="flex items-start gap-2.5 transition hover:brightness-110">
-                        {first && <TrophyIcon className="mt-1 h-7 w-7 shrink-0 text-gold sm:h-8 sm:w-8" />}
+                        {first && <TrophyIcon className="mt-1 h-8 w-8 shrink-0 text-gold sm:h-9 sm:w-9" />}
                         <span className="min-w-0">
                           <span className={`block text-xl font-black leading-snug sm:text-2xl ${first ? "text-gold" : "text-ink"}`}>
                             {row.entity.title_fa || row.entity.title}
@@ -135,9 +137,6 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
                       <span className="font-mono text-[11px] tracking-widest text-dim">WIN RATE</span>
                       <span className={`num text-3xl font-black leading-none ${first ? "text-gold" : "text-ink"}`}>
                         {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`}
-                      </span>
-                      <span className="num text-xs text-muted">
-                        {toFaDigits(row.wins)} برد از {toFaDigits(row.played)}
                       </span>
                     </div>
                   </div>
@@ -227,7 +226,9 @@ export default function PoolView({
     <main className="mx-auto max-w-5xl px-6 py-12">
       <header className="flex flex-col gap-4 lg:gap-5">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-          <span className="rounded-full border border-border px-2.5 py-0.5">{ENTITY_TYPE_LABELS[battle.entity_type]}</span>
+          <Link href="/battles" className="rounded-full border border-border px-2.5 py-0.5 transition hover:border-gold/40 hover:text-gold">
+            نبردهای کاربران
+          </Link>
           {battle.status === "archived" && <span>بایگانی‌شده</span>}
         </div>
         <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">{battle.title}</h1>
