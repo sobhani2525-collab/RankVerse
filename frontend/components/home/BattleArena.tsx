@@ -404,7 +404,7 @@ export function ThemedRun({
                 </span>
               )}
               {custom ? (
-                <span className="block px-1 pt-3">
+                <span className="block h-[5.5rem] overflow-hidden px-1 pt-3">
                   <span className="block line-clamp-1 text-base font-bold text-ink">{item.title_fa || item.title}</span>
                   {item.title_fa && (
                     <span className="block line-clamp-1 text-sm text-ink-dim" dir="ltr">
@@ -426,7 +426,7 @@ export function ThemedRun({
             </button>
           );
         })}
-        <VsBadge />
+        <VsBadge style={custom ? { top: "calc((100% - 5.5rem) / 2)" } : undefined} />
       </div>
 
       {progress}
@@ -471,10 +471,11 @@ export function Poster({ item, sizes, zoom }: { item: Pick<ThemedBattleItem, "po
   );
 }
 
-export function VsBadge() {
+export function VsBadge({ style }: { style?: React.CSSProperties }) {
   return (
     <span
       aria-hidden="true"
+      style={style}
       className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[1.5px] border-violet-light bg-[#05070D] font-mono text-xs font-bold tracking-widest text-violet-light shadow-[0_0_0_6px_rgba(5,7,13,0.9),0_0_36px_rgba(145,99,245,0.55)] sm:h-16 sm:w-16 sm:text-base"
     >
       VS

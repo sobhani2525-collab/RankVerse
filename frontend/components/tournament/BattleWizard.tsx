@@ -152,7 +152,7 @@ export default function BattleWizard() {
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={2000} className={FIELD} />
           </label>
           <div>
-            <span className="mb-1.5 block text-sm text-ink-dim">نوع گزینه‌ها (همه از یک نوع)</span>
+            <span className="mb-1.5 block text-sm text-ink-dim">نوع گزینه‌ها</span>
             <div className="flex gap-2">
               {(Object.keys(ENTITY_TYPE_LABELS) as TournamentEntityType[]).map((t) => (
                 <Choice key={t} active={entityType === t} onClick={() => setEntityType(t)}>
@@ -196,21 +196,29 @@ export default function BattleWizard() {
             {entries.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">هنوز گزینه‌ای اضافه نشده.</p>
             ) : (
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
                 {entries.map((e) => (
-                  <li key={e.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2">
-                    <Poster entity={e} size="w185" className="w-10 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      {e.title_fa ? (
-                        <>
-                          <span className="block truncate text-sm text-ink">{e.title_fa}</span>
-                          <span className="block truncate text-xs text-muted" dir="ltr">{e.title}</span>
-                        </>
-                      ) : (
-                        <span className="block truncate text-sm text-ink">{e.title}</span>
+                  <li key={e.id} className="min-w-0">
+                    <div className="relative">
+                      <Poster entity={e} size="w342" className="w-full" />
+                      <button
+                        type="button"
+                        onClick={() => setEntries((p) => p.filter((x) => x.id !== e.id))}
+                        aria-label="حذف"
+                        className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-bg/85 text-sm text-ink-dim transition hover:text-red-400"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="px-0.5 pt-2">
+                      <p className="line-clamp-1 text-sm font-bold text-ink">{e.title_fa || e.title}</p>
+                      {e.title_fa && (
+                        <p className="line-clamp-1 text-xs text-ink-dim" dir="ltr">
+                          {e.title}
+                        </p>
                       )}
-                    </span>
-                    <button type="button" onClick={() => setEntries((p) => p.filter((x) => x.id !== e.id))} aria-label="حذف" className="px-1 text-muted hover:text-red-400">✕</button>
+                      {e.year ? <p className="num text-xs text-muted">{toFaDigits(e.year)}</p> : null}
+                    </div>
                   </li>
                 ))}
               </ul>

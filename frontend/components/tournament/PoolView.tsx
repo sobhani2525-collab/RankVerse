@@ -74,13 +74,13 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
               return (
                 <li key={row.entity_id} className="flex gap-3 sm:gap-4">
                   {/* the spine: a numbered node per entry, joined by a line */}
-                  <div className="relative flex w-11 shrink-0 justify-center sm:w-12">
+                  <div className="relative flex w-14 shrink-0 justify-center sm:w-12">
                     <span
-                      className={`absolute w-px ${first ? "bg-gold/40" : "bg-violet-light/35"} ${i === 0 ? "top-8" : "top-0"} ${i === board.length - 1 ? "h-8" : "bottom-0"}`}
+                      className={`absolute w-px ${first ? "bg-gold/40" : "bg-violet-light/35"} ${i === 0 ? "top-11 sm:top-10" : "top-0"} ${i === board.length - 1 ? "h-11 sm:h-10" : "bottom-0"}`}
                       aria-hidden="true"
                     />
                     <span
-                      className={`num relative z-10 mt-4 flex h-11 w-11 items-center justify-center rounded-full border-2 text-base font-extrabold sm:h-12 sm:w-12 ${
+                      className={`num relative z-10 mt-4 flex h-14 w-14 items-center justify-center rounded-full border-2 text-lg font-extrabold sm:h-12 sm:w-12 sm:text-base ${
                         first
                           ? "border-gold bg-gold text-bg shadow-[0_0_0_5px_rgba(232,179,74,0.2)]"
                           : "border-violet-light/60 bg-bg text-violet-light"
@@ -99,8 +99,8 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
                           : "border-border bg-surface"
                     }`}
                   >
-                    <EntityLink entity={row.entity} className="shrink-0 self-start transition hover:brightness-110">
-                      <Poster entity={row.entity} size="w185" className={`w-24 sm:w-28 ${first ? "!border-gold/60" : ""}`} />
+                    <EntityLink entity={row.entity} className="block w-full shrink-0 self-start transition hover:brightness-110 sm:w-auto">
+                      <Poster entity={row.entity} size="w342" className={`w-full sm:w-28 ${first ? "!border-gold/60" : ""}`} />
                     </EntityLink>
 
                     <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -120,14 +120,18 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
                             {row.entity.title_fa || row.entity.title}
                           </span>
                           {row.entity.title_fa && (
-                            <span className="block text-sm text-ink-dim" dir="ltr">
+                            <span className="block text-right text-sm text-ink-dim" dir="ltr">
                               {row.entity.title}
                             </span>
                           )}
                         </span>
                       </EntityLink>
                       {row.entity.year ? (
-                        <span className="num mt-1 inline-flex w-fit rounded-full border border-border bg-surface2 px-3 py-1 text-xs font-bold text-ink-dim">
+                        <span
+                          className={`num mt-1 inline-flex w-fit rounded-full border border-border bg-surface2 px-3 py-1 text-xs font-bold text-ink-dim ${
+                            first ? "ms-[42px] sm:ms-[46px]" : ""
+                          }`}
+                        >
                           {toFaDigits(row.entity.year)}
                         </span>
                       ) : null}
