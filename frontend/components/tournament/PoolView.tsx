@@ -129,7 +129,7 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
                       {row.entity.year ? (
                         <span
                           className={`num mt-1 inline-flex w-fit rounded-full border border-border bg-surface2 px-3 py-1 text-xs font-bold text-ink-dim ${
-                            first ? "ms-[42px] sm:ms-[46px]" : ""
+                            first ? "mr-[42px] sm:mr-[46px]" : ""
                           }`}
                         >
                           {toFaDigits(row.entity.year)}
@@ -138,7 +138,7 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
                     </div>
 
                     <div className="flex shrink-0 items-center gap-4 border-t border-border pt-3 sm:w-28 sm:flex-col sm:items-start sm:justify-center sm:gap-1 sm:border-s sm:border-t-0 sm:ps-5 sm:pt-0">
-                      <span className="font-mono text-[11px] tracking-widest text-dim">WIN RATE</span>
+                      <span className="text-xs text-muted">نرخ برد</span>
                       <span className={`num text-3xl font-black leading-none ${first ? "text-gold" : "text-ink"}`}>
                         {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`}
                       </span>

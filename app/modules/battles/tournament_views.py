@@ -12,7 +12,7 @@ from app.modules.entities.models import Entity
 from app.modules.users.models import User
 
 from . import bracket, pool
-from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattleVote
+from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattlePick, BattleVote
 
 
 def entity_brief(entity: Entity) -> dict:
@@ -72,9 +72,38 @@ async def battle_list_items(db: AsyncSession, battles: list[Battle], viewer_id: 
         previews.setdefault(battle_id, []).append(entity_id)
     needed = {e for lst in previews.values() for e in lst} | {b.winner_entity_id for b in battles if b.winner_entity_id}
     briefs = await _entities(db, needed)
+
+    players = dict(
+        (
+            await db.execute(
+                select(BattlePick.battle_id, func.count(func.distinct(BattlePick.user_id)))
+                .where(BattlePick.battle_id.in_(ids))
+                .group_by(BattlePick.battle_id)
+            )
+        ).all()
+    )
+    followers = dict(
+        (
+            await db.execute(
+                select(BattleFollow.battle_id, func.count()).where(BattleFollow.battle_id.in_(ids)).group_by(BattleFollow.battle_id)
+            )
+        ).all()
+    )
+    creator_ids = {b.creator_id for b in battles if b.creator_id}
+    creators = (
+        {u.id: u for u in (await db.execute(select(User).where(User.id.in_(creator_ids)))).scalars()} if creator_ids else {}
+    )
+
     out = []
     for b in battles:
         item = battle_summary(b, viewer_id)
+        creator = creators.get(b.creator_id)
+        item["creator"] = (
+            {"username": creator.username, "display_name": creator.display_name, "avatar_key": creator.avatar_key}
+            if creator is not None else None
+        )
+        item["players_count"] = players.get(b.id, 0)
+        item["follower_count"] = followers.get(b.id, 0)
         item["preview"] = [briefs[e] for e in previews.get(b.id, []) if e in briefs]
         item["winner"] = briefs.get(b.winner_entity_id) if b.winner_entity_id else None
         out.append(item)

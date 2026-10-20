@@ -61,7 +61,7 @@ export default function ListNodeItem({
   const overview = item.overview?.trim();
 
   const posterBox = (
-    <div className="relative aspect-[2/3] w-full overflow-hidden border-b border-border-soft bg-surface-2 sm:w-[132px] sm:shrink-0 sm:self-start sm:rounded-[10px] sm:border sm:border-border">
+    <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface-2 sm:w-[132px] sm:shrink-0 sm:self-start sm:rounded-[10px]">
       {poster ? (
         <Image src={poster} alt={title} fill sizes="(max-width: 640px) 90vw, 132px" className="object-cover" />
       ) : (
@@ -73,7 +73,7 @@ export default function ListNodeItem({
   return (
     <article
       aria-busy={removing}
-      className={`overflow-hidden rounded-2xl border border-border-soft bg-surface transition-opacity duration-200 sm:flex sm:gap-6 sm:rounded-[18px] sm:p-[22px] ${removing ? "pointer-events-none opacity-40" : ""} ${className}`}
+      className={`overflow-hidden rounded-2xl border border-border-soft bg-surface p-4 transition-opacity duration-200 sm:flex sm:gap-6 sm:rounded-[18px] sm:p-[22px] ${removing ? "pointer-events-none opacity-40" : ""} ${className}`}
     >
       {href ? (
         <Link href={href} aria-label={title} className="block sm:shrink-0">
@@ -83,7 +83,7 @@ export default function ListNodeItem({
         posterBox
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3.5 p-4 sm:gap-3 sm:p-0">
+      <div className="flex min-w-0 flex-1 flex-col gap-3.5 pt-4 sm:gap-3 sm:p-0">
         <div className="flex flex-col items-start gap-1.5 text-start sm:gap-2.5">
           <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-2.5">

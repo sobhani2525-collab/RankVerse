@@ -338,3 +338,19 @@ async def test_pool_related_battles_and_lists_share_entries(client, db_session, 
     assert [(b["slug"], b["shared_count"]) for b in r["battles"]] == [(close, 2), (far, 1)]
     assert [(l["slug"], l["shared_item_count"]) for l in r["lists"]] == [(lst.slug, 2)]
     assert r["winner"] is None
+
+
+async def test_creator_follows_their_battle_and_list_items_carry_counts(client, db_session, auth_headers):
+    entities = await _entities(db_session, 4)
+    slug, detail = await _pool(client, auth_headers, entities)
+    assert detail["follower_count"] == 1 and detail["is_following"] is True  # the creator follows it from the start
+
+    other = await _other_user(db_session)
+    a, b = entities[0], entities[1]
+    await client.post(f"{URL}/{slug}/picks", json={"champion_id": str(a.id), "challenger_id": str(b.id), "winner_id": str(a.id)}, headers=other)
+    await client.put(f"{URL}/{slug}/follow", headers=other)
+
+    item = (await client.get(URL)).json()["data"][0]
+    assert item["creator"]["username"] == "tester"
+    assert (item["players_count"], item["follower_count"]) == (1, 2)
+    assert len(item["preview"]) == 4

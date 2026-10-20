@@ -69,6 +69,8 @@ async def create_draft(
         battle.slug = engine.new_slug()
     db.add(battle)
     await db.flush()
+    db.add(BattleFollow(battle_id=battle.id, user_id=user_id))  # the creator follows it by default
+    await db.flush()
     return battle
 
 

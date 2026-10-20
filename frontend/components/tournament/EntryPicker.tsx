@@ -205,14 +205,15 @@ export default function EntryPicker({
         {loading && <p className="py-4 text-center text-sm text-muted">در حال جستجو…</p>}
         {hasFilter && !loading && results && (
           <>
-            <div className="mb-3 flex items-center justify-between text-xs text-muted">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
               <span>{toFaDigits(available.length)} نتیجه</span>
               {available.length > 0 && !full && (
                 <button
                   type="button"
                   onClick={() => onAddMany(available)}
-                  className="text-gold transition hover:brightness-110"
+                  className="flex items-center gap-2 rounded-xl border border-gold/60 bg-gold/10 px-4 py-2.5 text-sm font-extrabold text-gold shadow-[0_0_0_3px_rgba(232,179,74,0.12)] transition hover:bg-gold/20"
                 >
+                  <span aria-hidden="true">⚡</span>
                   افزودن به ترتیب امتیاز تا پر شدن
                 </button>
               )}

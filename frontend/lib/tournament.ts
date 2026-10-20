@@ -55,6 +55,10 @@ export interface TournamentSummary {
   is_owner: boolean;
   preview?: TournamentEntity[];
   winner?: TournamentEntity | null;
+  /** List items only: who made it, how many people have played it, how many follow it. */
+  creator?: { username: string; display_name: string | null; avatar_key: string | null } | null;
+  players_count?: number;
+  follower_count?: number;
 }
 
 export interface TournamentMatch {

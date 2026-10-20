@@ -196,7 +196,7 @@ export default function BattleWizard() {
             {entries.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">هنوز گزینه‌ای اضافه نشده.</p>
             ) : (
-              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {entries.map((e) => (
                   <li key={e.id} className="min-w-0">
                     <div className="relative">
@@ -205,7 +205,7 @@ export default function BattleWizard() {
                         type="button"
                         onClick={() => setEntries((p) => p.filter((x) => x.id !== e.id))}
                         aria-label="حذف"
-                        className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-bg/85 text-sm text-ink-dim transition hover:text-red-400"
+                        className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-bg/85 text-sm text-ink-dim transition hover:text-red-400"
                       >
                         ✕
                       </button>
@@ -213,11 +213,11 @@ export default function BattleWizard() {
                     <div className="px-0.5 pt-2">
                       <p className="line-clamp-1 text-sm font-bold text-ink">{e.title_fa || e.title}</p>
                       {e.title_fa && (
-                        <p className="line-clamp-1 text-xs text-ink-dim" dir="ltr">
+                        <p className="line-clamp-1 text-right text-xs text-ink-dim" dir="ltr">
                           {e.title}
                         </p>
                       )}
-                      {e.year ? <p className="num text-xs text-muted">{toFaDigits(e.year)}</p> : null}
+                      {e.year ? <p className="num text-right text-xs text-muted" dir="rtl">{toFaDigits(e.year)}</p> : null}
                     </div>
                   </li>
                 ))}
