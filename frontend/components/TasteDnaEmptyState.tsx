@@ -9,7 +9,7 @@ export default function TasteDnaEmptyState() {
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
         <Link
-          href="/battles"
+          href="/battles?mode=quick"
           className="rounded-lg border border-gold/40 bg-gold/10 px-4 py-2 text-sm text-gold transition hover:bg-gold/20"
         >
           نبرد بهترین‌ها

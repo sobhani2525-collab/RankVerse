@@ -95,7 +95,7 @@ export default async function BattleResultPage({ searchParams }: { searchParams:
   const poster = posterUrlFor(movie, "w780");
   const battleHref =
     theme.kind === "pair"
-      ? "/battles"
+      ? "/battles?mode=quick"
       : `/battles?${new URLSearchParams({ theme_kind: theme.kind, theme_value: theme.value }).toString()}`;
   const detailHref = `/${movie.entity_type === "tv_series" ? "tv-series" : "movies"}/${movie.slug}`;
 

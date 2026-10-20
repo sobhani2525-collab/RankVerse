@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import SectionHeading from "@/components/home/SectionHeading";
 import { BattleArenaBody } from "@/components/home/BattleArena";
+import TournamentHub from "@/components/tournament/TournamentHub";
 
 export default function BattlesPage() {
   // useSearchParams needs a Suspense boundary (this page is otherwise
@@ -15,8 +16,9 @@ export default function BattlesPage() {
   );
 }
 
-/** Same battle as the home page's arena. A SuggestedBattleCard's "شروع نبرد"
- *  link (/battles?category=…&left_id=…&right_id=…) opens the run with that pair. */
+/** The tournament hub by default. The quick "winner stays" arena is what the old
+ *  deep links open: a SuggestedBattleCard's "شروع نبرد" link
+ *  (/battles?category=…&left_id=…&right_id=…), a shared result's theme link, or ?mode=quick. */
 function BattlesPageInner() {
   const searchParams = useSearchParams();
   const leftId = searchParams.get("left_id");
@@ -27,6 +29,9 @@ function BattlesPageInner() {
   const value = searchParams.get("theme_value")?.slice(0, 80);
   const initialTheme =
     !preselected && value && (kind === "genre" || kind === "decade" || kind === "director") ? { kind, value } : null;
+
+  const quick = searchParams.get("mode") === "quick" || !!preselected || !!initialTheme;
+  if (!quick) return <TournamentHub />;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">

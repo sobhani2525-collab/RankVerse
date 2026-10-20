@@ -238,6 +238,17 @@ class Settings(BaseSettings):
     daily_battle_no_repeat_days: int = 60
     daily_battle_guest_ip_limit: int = 20
 
+    # Tournament battles (see app/modules/battles/tournament_*.py). Limits on
+    # user-made brackets, and how a user battle weighs on the ranking score
+    # compared with an official one (wired in with the score phase).
+    battle_max_active_per_user: int = 5
+    battle_max_new_per_day: int = 3
+    battle_title_min_length: int = 3
+    battle_title_max_length: int = 100
+    battle_user_weight: float = 0.25
+    battle_min_voters_for_score: int = 5
+    battle_max_elo_effect: float = 24.0  # most Elo points one battle may move one entity in total
+
     # In-process response cache (app/core/cache.py); TTLs in seconds.
     cache_enabled: bool = True
     cache_ttl_hero_pool: int = 600

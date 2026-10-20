@@ -8,6 +8,7 @@ from app.modules.lists.router import router as lists_router
 from app.modules.search.router import router as search_router
 from app.modules.sync.router import router as sync_router
 from app.modules.battles.router import router as battles_router
+from app.modules.battles.tournament_router import router as tournament_battles_router
 from app.modules.recommendations.router import router as recommendations_router
 from app.modules.taste.router import router as taste_router
 from app.modules.admin.router import router as admin_router
@@ -39,6 +40,8 @@ api_router.include_router(users_router)
 api_router.include_router(lists_router)
 api_router.include_router(search_router)
 api_router.include_router(battles_router)
+# after battles_router: its fixed /battles/next|themed|vote paths must match before /battles/{slug}
+api_router.include_router(tournament_battles_router)
 api_router.include_router(daily_battle_router)
 api_router.include_router(recommendations_router)
 api_router.include_router(taste_router)
