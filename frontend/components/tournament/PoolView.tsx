@@ -3,13 +3,16 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { absoluteUrl } from "@/lib/site";
 import ShareMenu from "@/components/share/ShareMenu";
+import { AuthorAvatar } from "@/components/lists/list-card";
+import { avatarByKey } from "@/lib/avatars";
 import { Side, ThemedRun } from "@/components/home/BattleArena";
 import type { ThemedBattle, ThemedBattleItem } from "@/lib/types";
-import { ENTITY_TYPE_LABELS, TournamentDetail, tournamentApi } from "@/lib/tournament";
+import { detailPathFor } from "@/lib/entity-routes";
+import { SectionHeading } from "@/components/list-detail/ui";
+import { ENTITY_TYPE_LABELS, TournamentDetail, TournamentEntity, tournamentApi } from "@/lib/tournament";
 import OwnerPanel from "./OwnerPanel";
 import Poster from "./Poster";
 
@@ -22,46 +25,89 @@ function shuffled<T>(items: T[]): T[] {
   return copy;
 }
 
+const TOP_COUNT = 4;
+
+function EntityLink({ entity, className, children }: { entity: TournamentEntity; className?: string; children: React.ReactNode }) {
+  const href = detailPathFor(entity.entity_type, entity.slug);
+  return href ? (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <span className={className}>{children}</span>
+  );
+}
+
+/** The top entries of a pool battle by win rate, each linking to its own page. */
 function Standings({ battle }: { battle: TournamentDetail }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { openLoginModal } = useAuthGate();
-  const board = battle.leaderboard;
+  const board = battle.leaderboard?.slice(0, TOP_COUNT) ?? null;
 
   return (
-    <div>
-      <h2 className="mb-4 text-lg font-extrabold text-ink lg:text-[22px]">نتیجهٔ نبرد</h2>
+    <section className="rounded-2xl border border-border bg-surface/60 p-4 lg:p-5">
+      <SectionHeading en="RESULTS" fa="نتیجهٔ نبرد" />
       {board ? (
-        <ol className="flex flex-col gap-2">
-          {board.map((row) => {
-            const pct = row.win_rate === null ? 0 : Math.round(row.win_rate * 100);
-            return (
-              <li key={row.entity_id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2">
-                <span className={`num w-7 text-center text-sm ${row.rank === 1 ? "text-gold" : "text-muted"}`}>{toFaDigits(row.rank)}</span>
-                <Poster entity={row.entity} size="w185" className="w-10 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-ink">{displayTitle(row.entity)}</p>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface2">
-                    <div className={`h-full ${row.rank === 1 ? "bg-gold" : "bg-teal"}`} style={{ width: `${pct}%` }} />
+        <>
+          <p className="mb-4 mt-1 text-xs text-muted">
+            {toFaDigits(Math.min(TOP_COUNT, board.length))} گزینهٔ برتر از {toFaDigits(battle.total_picks ?? 0)} انتخاب · رتبه با درنظرگرفتن تعداد انتخاب‌ها
+          </p>
+          <ol className="flex flex-col gap-2.5">
+            {board.map((row) => {
+              const pct = row.win_rate === null ? 0 : Math.round(row.win_rate * 100);
+              const first = row.rank === 1;
+              return (
+                <li
+                  key={row.entity_id}
+                  className={`rounded-xl border p-2.5 transition ${first ? "border-gold/45 bg-gold/[0.06]" : "border-border-soft bg-surface"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`num flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
+                        first ? "bg-gold text-bg" : "border border-border text-muted"
+                      }`}
+                    >
+                      {toFaDigits(row.rank)}
+                    </span>
+                    <EntityLink entity={row.entity} className="shrink-0">
+                      <Poster entity={row.entity} size="w185" className="w-11" />
+                    </EntityLink>
+                    <EntityLink entity={row.entity} className="min-w-0 flex-1 hover:underline">
+                      <span className="block truncate text-sm font-bold text-ink">{row.entity.title_fa || row.entity.title}</span>
+                      {row.entity.title_fa && (
+                        <span className="block truncate text-xs text-muted" dir="ltr">
+                          {row.entity.title}
+                        </span>
+                      )}
+                    </EntityLink>
+                    <div className="shrink-0 text-left">
+                      <p className={`num text-lg font-black leading-none ${first ? "text-gold" : "text-ink"}`}>
+                        {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`}
+                      </p>
+                      <p className="num mt-1 text-[11px] text-dim">
+                        {toFaDigits(row.wins)} برد از {toFaDigits(row.played)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <span className="num w-24 shrink-0 text-left text-xs text-ink-dim">
-                  {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`} · {toFaDigits(row.wins)}/{toFaDigits(row.played)}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+                  <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-surface2" aria-hidden="true">
+                    <div className={`h-full rounded-full ${first ? "bg-gold" : "bg-teal"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </>
       ) : !authLoading && !isAuthenticated ? (
-        <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
+        <div className="mt-4 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
           برای ثبت انتخاب‌هایت و دیدن نتیجهٔ جمعی باید وارد شوی.
           <div className="mt-3">
             <button type="button" onClick={openLoginModal} className="btn-primary text-sm hover:opacity-90">ورود</button>
           </div>
         </div>
       ) : (
-        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">در حال بارگذاری نتیجه…</p>
+        <p className="mt-4 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">در حال بارگذاری نتیجه…</p>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -95,7 +141,7 @@ export default function PoolView({
         title_fa: p.title_fa,
         entity_type: p.entity_type,
         poster_path: p.poster_url?.startsWith("/") ? p.poster_url : null,
-        year: null,
+        year: p.year ?? null,
         computed_score: null,
       })),
     }),
@@ -131,13 +177,45 @@ export default function PoolView({
       <header className="flex flex-col gap-4 lg:gap-5">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <span className="rounded-full border border-border px-2.5 py-0.5">{ENTITY_TYPE_LABELS[battle.entity_type]}</span>
-          <span dir="rtl">{toFaDigits(battle.bracket_size)} گزینه</span>
-          <span dir="rtl">{toFaDigits(battle.follower_count)} دنبال‌کننده</span>
           {battle.status === "archived" && <span>بایگانی‌شده</span>}
         </div>
         <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">{battle.title}</h1>
         {battle.description && (
           <p className="max-w-[720px] whitespace-pre-line text-[15px] leading-[1.9] text-ink-dim lg:text-lg">{battle.description}</p>
+        )}
+
+        {battle.creator && (
+          <div className="flex items-center gap-3.5">
+            <Link
+              href={`/profile/${encodeURIComponent(battle.creator.username)}`}
+              className="flex min-h-[44px] items-center gap-2.5 text-ink lg:gap-3"
+            >
+              {avatarByKey(battle.creator.avatar_key) ? (
+                <AuthorAvatar
+                  author={{ username: battle.creator.username, avatarKey: battle.creator.avatar_key }}
+                  sizeClassName="h-10 w-10 lg:h-11 lg:w-11"
+                  textClassName="text-xl"
+                />
+              ) : (
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-violet-light bg-surface-2 font-extrabold uppercase text-violet-light lg:h-11 lg:w-11"
+                  aria-hidden="true"
+                >
+                  {battle.creator.username.charAt(0)}
+                </span>
+              )}
+              <span className="flex flex-col">
+                <span className="text-sm font-bold lg:text-[15px]">
+                  {battle.creator.display_name || <span dir="ltr">@{battle.creator.username}</span>}
+                </span>
+                <span className="text-xs text-muted lg:text-[13px]">سازنده نبرد</span>
+              </span>
+            </Link>
+            <span className="h-7 w-px bg-border" aria-hidden="true" />
+            <span className="text-xs text-dim lg:text-[13px]" dir="rtl">
+              {toFaDigits(battle.follower_count)} دنبال‌کننده
+            </span>
+          </div>
         )}
 
         <div className="mt-2 flex flex-wrap gap-2 lg:gap-3">

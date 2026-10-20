@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
@@ -69,7 +68,6 @@ export default function TournamentHub() {
       <SectionHeading
         kicker="Winner stays"
         title="نبردهای کاربران"
-        lead="هر کس یک استخر فیلم یا سریال می‌سازد؛ بقیه آن را «برنده می‌ماند» بازی می‌کنند و نتیجهٔ جمعی ساخته می‌شود."
         action={
           <div className="flex flex-wrap gap-3">
             <button
@@ -86,9 +84,6 @@ export default function TournamentHub() {
             >
               نبردهای من
             </button>
-            <Link href="/battles?mode=quick" className="rounded-xl border border-border px-5 py-2.5 text-sm text-ink-dim hover:text-ink">
-              نبرد سریع
-            </Link>
           </div>
         }
       />

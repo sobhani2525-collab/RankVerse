@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.entities.models import Entity
+from app.modules.users.models import User
 
 from . import bracket, pool
 from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattleVote
@@ -23,6 +24,7 @@ def entity_brief(entity: Entity) -> dict:
         "title": entity.title,
         "title_fa": attrs.get("title_fa"),
         "poster_url": attrs.get("poster_url") or attrs.get("poster_path") or attrs.get("image_url"),
+        "year": attrs.get("year") if isinstance(attrs.get("year"), int) else None,
     }
 
 
@@ -81,6 +83,11 @@ async def battle_list_items(db: AsyncSession, battles: list[Battle], viewer_id: 
 
 async def battle_detail(db: AsyncSession, battle: Battle, viewer_id: uuid.UUID | None) -> dict:
     data = battle_summary(battle, viewer_id)
+    creator = await db.get(User, battle.creator_id) if battle.creator_id else None
+    data["creator"] = (
+        {"username": creator.username, "display_name": creator.display_name, "avatar_key": creator.avatar_key}
+        if creator is not None else None
+    )
     participants = (
         await db.execute(
             select(BattleParticipant).where(BattleParticipant.battle_id == battle.id).order_by(BattleParticipant.seed)

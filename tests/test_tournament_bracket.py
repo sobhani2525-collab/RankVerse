@@ -89,3 +89,14 @@ def test_pool_standings_order_by_rate_then_wins_and_handle_no_picks():
     ranked = rank_rows([_row(a, 1, 1, 1), _row(b, 4, 4, 2), _row(c, 0, 0, 3), _row(d, 2, 4, 4)], {})
     assert [r["entity_id"] for r in ranked] == [b, a, d, c]  # 100% with more wins first; no picks last
     assert ranked[-1]["win_rate"] is None
+
+
+def test_pool_standings_do_not_let_one_lucky_pick_outrank_a_solid_record():
+    from app.modules.battles.pool import rank_rows
+
+    batman, shining, good, men = ids(4)
+    ranked = rank_rows(
+        [_row(batman, 1, 1, 1), _row(shining, 3, 4, 2), _row(good, 2, 3, 3), _row(men, 1, 2, 4)], {}
+    )
+    assert [r["entity_id"] for r in ranked] == [shining, good, batman, men]
+    assert [r["win_rate"] for r in ranked] == [0.75, 0.6667, 1.0, 0.5]  # shown rates stay the plain ones

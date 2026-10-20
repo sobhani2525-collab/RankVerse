@@ -132,16 +132,29 @@ async def _apply_score(db: AsyncSession, battle: Battle, pick: BattlePick, user_
     await db.flush()
 
 
+def wilson_lower_bound(wins: int, played: int, z: float = 1.96) -> float:
+    """Pessimistic win rate: 1 win from 1 pick (100%) ranks below 3 from 4 (75%), because one
+    pick says little. The shown percentage stays the plain win rate; only the order uses this."""
+    if played <= 0:
+        return 0.0
+    p = wins / played
+    z2 = z * z
+    centre = p + z2 / (2 * played)
+    margin = z * ((p * (1 - p) + z2 / (4 * played)) / played) ** 0.5
+    return round((centre - margin) / (1 + z2 / played), 4)
+
+
 def rank_rows(rows: list[dict], beat: dict[tuple[uuid.UUID, uuid.UUID], int]) -> list[dict]:
-    """Order standings and number them. Entries are separated by win rate, then wins; entries
-    still level are separated by their head-to-head record against each other (`beat[(a, b)]` =
-    picks where a beat b); entries still level after that share a rank, and seed only fixes
-    the display order within a shared rank."""
+    """Order standings and number them. Entries are separated by a confidence-adjusted win rate
+    (see wilson_lower_bound), then wins; entries still level are separated by their head-to-head
+    record against each other (`beat[(a, b)]` = picks where a beat b); entries still level after
+    that share a rank, and seed only fixes the display order within a shared rank."""
     for r in rows:
         r["win_rate"] = round(r["wins"] / r["played"], 4) if r["played"] else None
+        r["score"] = wilson_lower_bound(r["wins"], r["played"])
 
     def level(r):
-        return (-(r["win_rate"] or 0.0), -r["wins"])
+        return (-r["score"], -r["wins"])
 
     groups: dict[tuple, list[dict]] = {}
     for r in rows:

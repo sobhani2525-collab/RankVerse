@@ -56,7 +56,7 @@ async def create_draft(
             )
         )
     ).scalar_one()
-    if recent >= settings.battle_max_new_per_day:
+    if settings.battle_max_new_per_day > 0 and recent >= settings.battle_max_new_per_day:
         raise RankVerseError("سقف ساخت نبرد در روز پر شده؛ فردا دوباره امتحان کن", status_code=429, code="rate_limited")
     battle = Battle(
         slug=engine.new_slug(), creator_id=user_id, title=validate_title(title),
@@ -143,7 +143,7 @@ async def publish_draft(
             )
         )
     ).scalar_one()
-    if active >= settings.battle_max_active_per_user:
+    if settings.battle_max_active_per_user > 0 and active >= settings.battle_max_active_per_user:
         raise RankVerseError("به سقف نبردهای منتشرشده رسیده‌ای؛ اول یکی از نبردهایت را بایگانی کن", status_code=429, code="rate_limited")
     entries = await participants_in_order(db, battle.id)
     if battle.mode == "pool":  # no rounds or randomised seeding: the pool is playable as is

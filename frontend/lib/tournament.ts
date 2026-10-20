@@ -29,6 +29,7 @@ export interface TournamentEntity {
   title: string;
   title_fa: string | null;
   poster_url: string | null;
+  year?: number | null;
   seed?: number;
 }
 
@@ -78,6 +79,7 @@ export interface TournamentDetail extends TournamentSummary {
   total_votes: number;
   follower_count: number;
   is_following: boolean;
+  creator?: { username: string; display_name: string | null; avatar_key: string | null } | null;
   /** Pool battles: all picks, the viewer's own, and the standings (null until the viewer has played). */
   total_picks?: number;
   my_pick_count?: number;

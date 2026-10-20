@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import {
   BracketSize,
@@ -16,7 +15,7 @@ import {
 import EntryPicker from "./EntryPicker";
 import Poster from "./Poster";
 
-const STEPS = ["اطلاعات", "گزینه‌ها", "انتشار"];
+const STEPS = ["اطلاعات اولیه", "افزودن گزینه‌ها"];
 const SIZES: BracketSize[] = [4, 8, 16];
 const FIELD = "w-full rounded-lg border border-border bg-surface2 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold/60";
 
@@ -107,14 +106,9 @@ export default function BattleWizard() {
       setStep(1);
     });
 
-  const saveEntries = () =>
-    run(async (token) => {
-      await tournamentApi.setEntries(token, slug!, entries.map((e) => e.id));
-      setStep(2);
-    });
-
   const publish = () =>
     run(async (token) => {
+      await tournamentApi.setEntries(token, slug!, entries.map((e) => e.id));
       await tournamentApi.publish(token, slug!, { visibility: "public" });
       router.push(tournamentHref(slug!));
     });
@@ -128,15 +122,6 @@ export default function BattleWizard() {
       for (const e of list) if (next.length < size && !ids.has(e.id)) next.push(e);
       return next;
     });
-  const move = (i: number, d: -1 | 1) =>
-    setEntries((p) => {
-      const j = i + d;
-      if (j < 0 || j >= p.length) return p;
-      const next = [...p];
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="font-display text-3xl text-ink">ساخت نبرد جدید</h1>
@@ -177,7 +162,7 @@ export default function BattleWizard() {
             </div>
           </div>
           <div>
-            <span className="mb-1.5 block text-sm text-ink-dim">اندازهٔ استخر</span>
+            <span className="mb-1.5 block text-sm text-ink-dim">تعداد گزینه‌ها</span>
             <div className="flex gap-2">
               {SIZES.map((s) => (
                 <Choice key={s} active={size === s} onClick={() => setSize(s)}>
@@ -206,23 +191,29 @@ export default function BattleWizard() {
               <h2 className="text-lg font-bold text-ink">
                 گزینه‌ها <span className="num text-gold">{toFaDigits(entries.length)}/{toFaDigits(size)}</span>
               </h2>
-              <p className="text-xs text-muted">ترتیب هر بار بازی تصادفی است.</p>
+              <p className="text-xs text-muted">ترتیب مهم نیست؛ هر بار بازی تصادفی است.</p>
             </div>
             {entries.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">هنوز گزینه‌ای اضافه نشده.</p>
             ) : (
-              <ol className="grid gap-2 sm:grid-cols-2">
-                {entries.map((e, i) => (
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {entries.map((e) => (
                   <li key={e.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2">
-                    <span className="num w-6 text-center text-sm text-gold">{toFaDigits(i + 1)}</span>
                     <Poster entity={e} size="w185" className="w-10 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate text-sm text-ink">{displayTitle(e)}</span>
-                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="بالا" className="px-1 text-muted hover:text-ink disabled:opacity-30">▲</button>
-                    <button type="button" onClick={() => move(i, 1)} disabled={i === entries.length - 1} aria-label="پایین" className="px-1 text-muted hover:text-ink disabled:opacity-30">▼</button>
+                    <span className="min-w-0 flex-1">
+                      {e.title_fa ? (
+                        <>
+                          <span className="block truncate text-sm text-ink">{e.title_fa}</span>
+                          <span className="block truncate text-xs text-muted" dir="ltr">{e.title}</span>
+                        </>
+                      ) : (
+                        <span className="block truncate text-sm text-ink">{e.title}</span>
+                      )}
+                    </span>
                     <button type="button" onClick={() => setEntries((p) => p.filter((x) => x.id !== e.id))} aria-label="حذف" className="px-1 text-muted hover:text-red-400">✕</button>
                   </li>
                 ))}
-              </ol>
+              </ul>
             )}
           </div>
 
@@ -233,26 +224,16 @@ export default function BattleWizard() {
             <button
               type="button"
               disabled={busy || entries.length !== size}
-              onClick={saveEntries}
+              onClick={publish}
               className="rounded-xl bg-gold px-6 py-2.5 text-sm font-bold text-bg disabled:opacity-50"
             >
-              {busy ? "در حال ذخیره…" : entries.length === size ? "مرحلهٔ بعد" : `${toFaDigits(size - entries.length)} گزینهٔ دیگر لازم است`}
+              {busy ? "در حال انتشار…" : entries.length === size ? "انتشار نبرد" : `${toFaDigits(size - entries.length)} گزینهٔ دیگر لازم است`}
             </button>
           </div>
+          <p className="text-sm text-muted">بعد از انتشار، گزینه‌ها قابل تغییر نیستند.</p>
         </section>
       )}
 
-      {step === 2 && (
-        <section className="mt-8 flex flex-col gap-6">
-          <p className="text-sm text-muted">بعد از انتشار، گزینه‌ها قابل تغییر نیستند.</p>
-          <div className="flex gap-3">
-            <button type="button" onClick={() => setStep(1)} className="rounded-xl border border-border px-5 py-2.5 text-sm text-ink-dim">قبلی</button>
-            <button type="button" disabled={busy} onClick={publish} className="rounded-xl bg-gold px-6 py-2.5 text-sm font-bold text-bg disabled:opacity-50">
-              {busy ? "در حال انتشار…" : "انتشار نبرد"}
-            </button>
-          </div>
-        </section>
-      )}
     </main>
   );
 }

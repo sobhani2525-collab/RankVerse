@@ -229,7 +229,14 @@ export default function EntryPicker({
                   title={displayTitle(r)}
                 >
                   <Poster entity={r} size="w185" className="transition group-hover:border-gold" />
-                  <p className="mt-1 line-clamp-1 text-xs text-ink-dim">{displayTitle(r)}</p>
+                  {r.title_fa ? (
+                    <>
+                      <p className="mt-1 line-clamp-1 text-xs text-ink-dim">{r.title_fa}</p>
+                      <p className="line-clamp-1 text-[10px] text-muted" dir="ltr">{r.title}</p>
+                    </>
+                  ) : (
+                    <p className="mt-1 line-clamp-1 text-xs text-ink-dim">{r.title}</p>
+                  )}
                   {r.year && <p className="num text-[10px] text-muted">{toFaDigits(r.year)}</p>}
                 </button>
               ))}

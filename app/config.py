@@ -241,8 +241,9 @@ class Settings(BaseSettings):
     # Tournament battles (see app/modules/battles/tournament_*.py). Limits on
     # user-made brackets, and how a user battle weighs on the ranking score
     # compared with an official one (wired in with the score phase).
-    battle_max_active_per_user: int = 5
-    battle_max_new_per_day: int = 3
+    # 0 = no limit (switched off for now; set e.g. 5 / 3 to enforce)
+    battle_max_active_per_user: int = 0
+    battle_max_new_per_day: int = 0
     battle_title_min_length: int = 3
     battle_title_max_length: int = 100
     battle_user_weight: float = 0.25

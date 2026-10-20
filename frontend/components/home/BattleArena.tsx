@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { detailPathFor } from "@/lib/entity-routes";
 import SectionHeading from "./SectionHeading";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
@@ -263,13 +265,35 @@ export function ThemedRun({
         {!custom && reason}
         {!custom && progress}
         <div className="rv-rise mt-8 flex flex-col items-center gap-3 text-center">
-          <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_4px_rgba(232,179,74,0.18)]">
-            <Poster item={championItem} sizes="112px" />
-          </div>
+          {(() => {
+            const poster = (
+              <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_4px_rgba(232,179,74,0.18)]">
+                <Poster item={championItem} sizes="112px" />
+              </div>
+            );
+            const href = custom ? detailPathFor(championItem.entity_type, championItem.slug) : null;
+            return href ? (
+              <Link href={href} aria-label={`صفحهٔ ${championName}`} className="transition hover:brightness-110">
+                {poster}
+              </Link>
+            ) : (
+              poster
+            );
+          })()}
           {custom ? (
             <p className="font-display text-3xl leading-snug text-ink sm:text-4xl">
               <span className="text-xl text-ink-dim sm:text-2xl">برنده: </span>
-              <span className="text-gold">{championItem.title_fa || championItem.title}</span>
+              {(() => {
+                const href = detailPathFor(championItem.entity_type, championItem.slug);
+                const name = <span className="text-gold">{championItem.title_fa || championItem.title}</span>;
+                return href ? (
+                  <Link href={href} className="underline-offset-8 transition hover:underline">
+                    {name}
+                  </Link>
+                ) : (
+                  name
+                );
+              })()}
             </p>
           ) : (
             <>
@@ -347,14 +371,18 @@ export function ThemedRun({
               disabled={pickAnim.busy}
               aria-label={`انتخاب ${displayTitle(item)}`}
               className={`group relative overflow-hidden rounded-2xl bg-surface/60 text-right transition ${
-                isChampion
-                  ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)] hover:shadow-[0_0_0_4px_rgba(232,179,74,0.32)]"
-                  : "border border-border hover:border-violet-light"
+                custom
+                  ? pickAnim.picked === side || (isChampion && streak > 0)
+                    ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)]"
+                    : "border-[1.5px] border-violet-light shadow-[0_0_0_4px_rgba(169,155,255,0.14)] hover:shadow-[0_0_0_4px_rgba(169,155,255,0.28)]"
+                  : isChampion
+                    ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)] hover:shadow-[0_0_0_4px_rgba(232,179,74,0.32)]"
+                    : "border border-border hover:border-violet-light"
               }`}
             >
               <span className="relative block aspect-[2/3] w-full bg-surface2">
                 <Poster item={item} sizes="(max-width: 768px) 45vw, 320px" zoom />
-                <span className="absolute inset-0 bg-gradient-to-t from-[#05070D] via-transparent to-transparent" />
+                {!custom && <span className="absolute inset-0 bg-gradient-to-t from-[#05070D] via-transparent to-transparent" />}
               </span>
               {pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
               {isChampion && streak > 0 && (
@@ -362,6 +390,17 @@ export function ThemedRun({
                   <span className="num">{toFaDigits(streak)}</span> برد
                 </span>
               )}
+              {custom ? (
+                <span className="block p-3">
+                  <span className="block line-clamp-1 text-sm font-bold text-ink">{item.title_fa || item.title}</span>
+                  {item.title_fa && (
+                    <span className="block line-clamp-1 text-xs text-ink-dim" dir="ltr">
+                      {item.title}
+                    </span>
+                  )}
+                  {item.year ? <span className="num block text-xs text-muted">{toFaDigits(item.year)}</span> : null}
+                </span>
+              ) : (
               <span className="absolute inset-x-0 bottom-0 p-3">
                 <span className="block line-clamp-2 text-sm font-medium text-ink">{displayTitle(item)}</span>
                 <span className="num text-xs text-gold">
@@ -370,6 +409,7 @@ export function ThemedRun({
                   {item.year ? toFaDigits(item.year) : ""}
                 </span>
               </span>
+              )}
             </button>
           );
         })}

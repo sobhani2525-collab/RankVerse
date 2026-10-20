@@ -26,6 +26,7 @@ from . import tournament_manage as manage
 from . import tournament_service as engine
 from . import tournament_views as views
 from .tournament_candidates import find_candidates, list_genres
+from .tournament_related import related_for_pool
 from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattlePick, BattleVote
 
 router = APIRouter(prefix="/battles", tags=["tournament-battles"])
@@ -229,9 +230,13 @@ async def related(
     user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    """For a finished battle: other public battles the winner takes part in, and
-    public lists that contain the winner (most liked first). Empty until there is a winner."""
+    """Related battles and lists. Pool battle: those sharing entries with it (most shared first).
+    Tournament: for a finished one, other battles/lists the winner is in."""
     battle = await _load(db, slug, user)
+    if battle.mode == "pool":
+        if battle.status == "draft":
+            return envelope(data={"winner": None, "battles": [], "lists": []})
+        return envelope(data=await related_for_pool(db, battle, user.id if user else None, limit))
     if battle.status != "completed" or battle.winner_entity_id is None:
         return envelope(data={"winner": None, "battles": [], "lists": []})
     winner_id = battle.winner_entity_id

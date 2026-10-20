@@ -20,9 +20,11 @@ export async function getPublicBattle(slug: string): Promise<TournamentDetail | 
 }
 
 export interface BattleRelatedData {
+  /** Set for a finished tournament (the champion everything is related to); null for a pool battle. */
   winner: TournamentEntity | null;
-  battles: TournamentSummary[];
-  lists: ListSummary[];
+  /** shared_count: entries a pool battle has in common with this one. */
+  battles: (TournamentSummary & { shared_count?: number })[];
+  lists: (ListSummary & { shared_item_count?: number })[];
 }
 
 /** Other public battles and lists the finished battle's winner appears in (empty until there is a winner). */

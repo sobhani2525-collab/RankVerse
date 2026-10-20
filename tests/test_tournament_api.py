@@ -314,3 +314,27 @@ async def test_one_pool_battle_cannot_move_an_entity_past_the_cap(client, db_ses
         r = await client.post(f"{URL}/{slug}/picks", json={"champion_id": str(a.id), "challenger_id": str(rival.id), "winner_id": str(a.id)}, headers=other)
         assert r.status_code == 200
     assert (await _elo_of(db_session, a))[0] == 1206.0
+
+
+async def test_pool_related_battles_and_lists_share_entries(client, db_session, auth_headers):
+    from app.modules.lists.models import UserList, UserListItem
+    from app.modules.users.repository import UserRepository
+
+    entities = await _entities(db_session, 8)
+    slug, _ = await _pool(client, auth_headers, entities[:4])
+    close, _ = await _pool(client, auth_headers, [entities[0], entities[1], entities[4], entities[5]])   # shares 2
+    far, _ = await _pool(client, auth_headers, [entities[0], entities[6], entities[7], entities[5]])     # shares 1
+    await _pool(client, auth_headers, entities[4:])                                                       # shares none
+
+    owner = await UserRepository(db_session).get_by_email("tester@example.com")
+    lst = UserList(user_id=owner.id, title="لیست من", slug=f"l-{uuid.uuid4().hex[:6]}", visibility="public")
+    db_session.add(lst)
+    await db_session.flush()
+    for e in entities[:2]:
+        db_session.add(UserListItem(list_id=lst.id, entity_id=e.id, entity_type="movie", added_by_user_id=owner.id))
+    await db_session.commit()
+
+    r = (await client.get(f"{URL}/{slug}/related")).json()["data"]
+    assert [(b["slug"], b["shared_count"]) for b in r["battles"]] == [(close, 2), (far, 1)]
+    assert [(l["slug"], l["shared_item_count"]) for l in r["lists"]] == [(lst.slug, 2)]
+    assert r["winner"] is None
