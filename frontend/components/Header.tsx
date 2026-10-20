@@ -25,9 +25,13 @@ export default function Header() {
   const { openLoginModal } = useAuthGate();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Close the mobile menu on navigation and on Escape.
-  useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
   useEffect(() => {
     if (!menuOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
@@ -78,19 +82,34 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Below md the box drops to its own full-width row. */}
-        <SearchBox className="order-last w-full min-w-0 md:order-none md:w-auto md:flex-1" />
+        {/* Below md the box is hidden until the magnifier is tapped, then drops to its own full-width row. */}
+        <SearchBox
+          className={`order-last w-full min-w-0 md:order-none md:block md:w-auto md:flex-1 ${searchOpen ? "" : "hidden"}`}
+        />
 
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSearchOpen((o) => !o)}
+            aria-expanded={searchOpen}
+            aria-label={searchOpen ? "بستن جستجو" : "جستجو"}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border text-ink transition hover:border-gold/40 md:hidden ${searchOpen ? "border-gold/40" : "border-border"}`}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+          </button>
+
           <button
             type="button"
             onClick={() => setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}
             aria-controls="mobile-nav"
             aria-label={menuOpen ? "بستن منو" : "باز کردن منو"}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-ink transition hover:border-gold/40 md:hidden"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border text-ink transition hover:border-gold/40 md:hidden"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
             </svg>
           </button>

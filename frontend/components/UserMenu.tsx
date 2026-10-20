@@ -55,16 +55,11 @@ export default function UserMenu({ username, avatarKey, onLogout }: { username: 
           <Link href="/profile" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
             پروفایل من
           </Link>
-          <Link
-            href={`/profile/${encodeURIComponent(username)}`}
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className={itemClass}
-          >
-            صفحه‌ی عمومی من
-          </Link>
           <Link href="/lists/new" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
             ساخت فهرست جدید
+          </Link>
+          <Link href="/battles/new" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
+            ساخت نبرد جدید
           </Link>
           <button
             role="menuitem"
