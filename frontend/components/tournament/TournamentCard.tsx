@@ -25,54 +25,49 @@ function BellIcon() {
   );
 }
 
+function Contender({ entity, tone }: { entity?: TournamentSummary["preview"] extends (infer E)[] | undefined ? E : never; tone: string }) {
+  if (!entity) return <div />;
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <Poster entity={entity} size="w342" className={`w-full !border-2 transition duration-300 group-hover:scale-[1.03] ${tone}`} />
+      <span className="line-clamp-1 text-xs font-bold text-ink-dim">{displayTitle(entity)}</span>
+    </div>
+  );
+}
+
 /**
  * A battle on the hub: two of its entrants squared off under a glowing VS, then who made
  * it and how alive it is (people who played, followers).
  */
 export default function TournamentCard({ battle }: { battle: TournamentSummary }) {
   const [a, b] = battle.preview ?? [];
-  const more = Math.max(battle.bracket_size - 2, 0);
   const creator = battle.creator;
 
   return (
     <Link
       href={tournamentHref(battle.slug)}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition duration-300 hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[0_12px_40px_-12px_rgba(145,99,245,0.45)]"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-gold/60 bg-surface transition duration-300 hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-[0_12px_40px_-12px_rgba(145,99,245,0.45)]"
     >
-      {/* the arena */}
-      <div className="relative h-56 overflow-hidden bg-[radial-gradient(ellipse_at_50%_55%,rgba(145,99,245,0.30),transparent_68%)]">
-        <div className="absolute inset-0 bg-gradient-to-b from-violet/[0.06] via-transparent to-surface" aria-hidden="true" />
-        {a && (
-          <div className="absolute right-[13%] top-6 w-[33%] -rotate-6 transition duration-300 group-hover:-rotate-3 group-hover:scale-[1.03]">
-            <Poster entity={a} size="w342" className="!border-violet-light/70 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.7)]" />
-          </div>
-        )}
-        {b && (
-          <div className="absolute left-[13%] top-6 w-[33%] rotate-6 transition duration-300 group-hover:rotate-3 group-hover:scale-[1.03]">
-            <Poster entity={b} size="w342" className="!border-violet-light/70 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.7)]" />
-          </div>
-        )}
-        <span
-          aria-hidden="true"
-          className="absolute left-1/2 top-[44%] z-10 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[1.5px] border-violet-light bg-[#05070D] font-mono text-xs font-bold tracking-widest text-violet-light shadow-[0_0_0_5px_rgba(5,7,13,0.9),0_0_30px_rgba(145,99,245,0.6)] transition group-hover:scale-110"
-        >
+      <div className="flex flex-col items-center gap-1 px-4 pb-1 pt-5 text-center">
+        <h3 className="line-clamp-2 text-lg font-extrabold leading-snug text-ink transition group-hover:text-gold">
+          {battle.title}
+          <span className="ms-2 whitespace-nowrap rounded-md bg-gold px-2 py-0.5 align-middle text-[11px] font-extrabold text-bg">
+            <span className="num">{toFaDigits(battle.bracket_size)}</span> رقیب
+          </span>
+        </h3>
+        {battle.is_official && <span className="text-xs font-bold text-gold">رسمی</span>}
+      </div>
+
+      {/* the fight card: two contenders under a glowing VS */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-4 pt-3">
+        <Contender entity={a} tone="!border-violet-light" />
+        <span aria-hidden="true" className="font-display text-3xl text-gold [text-shadow:0_0_18px_rgba(232,179,74,0.6)]">
           VS
         </span>
-        {more > 0 && (
-          <span className="absolute inset-x-0 bottom-3 text-center text-xs text-ink-dim">
-            و <span className="num font-bold text-gold">{toFaDigits(more)}</span> رقیب دیگر
-          </span>
-        )}
-        <span className="absolute start-3 top-3 rounded-full border border-border bg-bg/80 px-2.5 py-0.5 text-[11px] text-muted backdrop-blur">
-          {ENTITY_TYPE_LABELS[battle.entity_type]}
-        </span>
-        {battle.is_official && <span className="absolute end-3 top-3 text-xs font-bold text-gold">رسمی</span>}
+        <Contender entity={b} tone="!border-teal" />
       </div>
 
       <div className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-1">
-        <h3 className="line-clamp-2 min-h-[3rem] text-base font-extrabold leading-snug text-ink transition group-hover:text-gold">
-          {battle.title}
-        </h3>
         {battle.status === "completed" && battle.winner && (
           <p className="text-sm text-gold">قهرمان: {displayTitle(battle.winner)}</p>
         )}

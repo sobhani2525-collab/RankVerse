@@ -19,8 +19,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3.5 py-1.5 text-sm transition ${
-        active ? "border-gold bg-gold/10 text-gold" : "border-border text-muted hover:text-ink"
+      className={`rounded-xl border px-4 py-1.5 text-sm transition ${
+        active ? "border-gold bg-gold/10 text-gold" : "border-transparent text-muted hover:text-ink"
       }`}
     >
       {children}
@@ -67,7 +67,7 @@ export default function TournamentHub() {
     <main className="mx-auto max-w-5xl px-6 py-16">
       <SectionHeading
         kicker="Winner stays"
-        title="نبردهای کاربران"
+        title="آوردگاه نبردها"
         action={
           <div className="flex flex-wrap gap-3">
             <button
@@ -88,10 +88,10 @@ export default function TournamentHub() {
         }
       />
 
-      <div className="mb-8 flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
+        <div className="flex flex-wrap gap-1">
           <Chip active={entityType === ""} onClick={() => setEntityType("")}>
-            همه نوع‌ها
+            همه
           </Chip>
           {Object.entries(ENTITY_TYPE_LABELS).map(([value, label]) => (
             <Chip key={value} active={entityType === value} onClick={() => setEntityType(value)}>
@@ -99,7 +99,7 @@ export default function TournamentHub() {
             </Chip>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           {SORTS.map((s) => (
             <Chip key={s.value} active={sort === s.value} onClick={() => setSort(s.value)}>
               {s.label}
