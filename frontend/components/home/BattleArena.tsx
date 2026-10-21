@@ -151,7 +151,8 @@ export interface RunCustomization {
   reasonText: string;
   /** Where "اشتراک نتیجه" points, in place of /battles/result. */
   shareUrl: string;
-  /** Called once when the run is over. */
+  /** Called on every pick, signed in or not, before the vote is saved. */
+  onPick?: (championId: string, challengerId: string, winner: Side) => void;
   /** Called once when the run is over, with the id of the run's champion. */
   onDone?: (championId: string) => void;
   /** Show only the share/next buttons when the run is over (the page shows the result itself). */
@@ -223,6 +224,7 @@ export function ThemedRun({
 
   function pick(winner: Side) {
     if (done || pickAnim.busy) return;
+    custom?.onPick?.(championItem.id, challengerItem.id, winner);
     const token = getToken();
     const request = token
       ? (custom

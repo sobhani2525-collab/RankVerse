@@ -1,6 +1,7 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { toFaDigits } from "@/lib/format-number";
@@ -48,102 +49,168 @@ function EntityLink({ entity, className, children }: { entity: TournamentEntity;
   );
 }
 
-/**
- * The battle's result, merged with its winner: the top entries by win rate as cards in the
- * list-page style, the first (the winner) in gold with a trophy. `mine` marks the entry the
- * viewer's own run ended on.
- */
-function Results({ battle, mine }: { battle: TournamentDetail; mine: string | null }) {
-  const { isAuthenticated, loading: authLoading } = useAuth();
-  const { openLoginModal } = useAuthGate();
-  const board = battle.leaderboard?.slice(0, TOP_COUNT) ?? null;
+/** One entry of a run's standings: wins this run, and the pick it lost on (later = further). */
+interface RunRow {
+  entity: TournamentEntity;
+  wins: number;
+  out: number;
+}
 
+/**
+ * One result card in the list-page style: a numbered node on a spine, poster and title.
+ * The first card is the winner, in gold with a trophy.
+ */
+function ResultCard({
+  entity,
+  rank,
+  index,
+  count,
+}: {
+  entity: TournamentEntity;
+  rank: number;
+  index: number;
+  count: number;
+}) {
+  const first = rank === 1;
+  return (
+    <li className="flex gap-3 sm:gap-4">
+      {/* the spine: a numbered node per entry, joined by a line */}
+      <div className="relative flex w-14 shrink-0 justify-center sm:w-12">
+        <span
+          className={`absolute w-px ${first ? "bg-gold/40" : "bg-violet-light/35"} ${index === 0 ? "top-11 sm:top-10" : "top-0"} ${index === count - 1 ? "h-11 sm:h-10" : "bottom-0"}`}
+          aria-hidden="true"
+        />
+        <span
+          className={`num relative z-10 mt-4 flex h-14 w-14 items-center justify-center rounded-full border-2 text-lg font-extrabold sm:h-12 sm:w-12 sm:text-base ${
+            first ? "border-gold bg-gold text-bg shadow-[0_0_0_5px_rgba(232,179,74,0.2)]" : "border-violet-light/60 bg-bg text-violet-light"
+          }`}
+        >
+          {toFaDigits(rank)}
+        </span>
+      </div>
+
+      <div
+        className={`mb-4 flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:p-5 ${
+          first ? "border-gold/50 bg-gradient-to-br from-gold/[0.10] via-surface to-surface shadow-[0_0_0_1px_rgba(232,179,74,0.12)]" : "border-border bg-surface"
+        }`}
+      >
+        <EntityLink entity={entity} className="block w-full shrink-0 self-start transition hover:brightness-110 sm:w-auto">
+          <Poster entity={entity} size="w342" className={`w-full sm:w-28 ${first ? "!border-gold/60" : ""}`} />
+        </EntityLink>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {first && (
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="font-mono tracking-widest text-gold">WINNER</span>
+              <span className="text-muted">برنده نبرد</span>
+            </div>
+          )}
+          <EntityLink entity={entity} className="flex items-start gap-2.5 transition hover:brightness-110">
+            {first && <TrophyIcon className="mt-1 h-8 w-8 shrink-0 text-gold sm:h-9 sm:w-9" />}
+            <span className="min-w-0">
+              <span className={`block text-xl font-black leading-snug sm:text-2xl ${first ? "text-gold" : "text-ink"}`}>
+                {entity.title_fa || entity.title}
+              </span>
+              {entity.title_fa && (
+                <span className="block text-right text-sm text-ink-dim" dir="ltr">
+                  {entity.title}
+                </span>
+              )}
+            </span>
+          </EntityLink>
+          {entity.year ? (
+            <span
+              className={`num mt-1 inline-flex w-fit rounded-full border border-border bg-surface2 px-3 py-1 text-xs font-bold text-ink-dim ${
+                first ? "mr-[42px] sm:mr-[46px]" : ""
+              }`}
+            >
+              {toFaDigits(entity.year)}
+            </span>
+          ) : null}
+        </div>
+
+      </div>
+    </li>
+  );
+}
+
+/** The viewer's own run: its champion, then whoever won most and lasted longest. */
+function MyResults({ rows }: { rows: RunRow[] }) {
+  const top = rows.slice(0, TOP_COUNT);
   return (
     <section className="rv-rise mx-auto max-w-3xl">
-      <SectionHeading en="RESULTS" fa="نتیجهٔ نبرد" />
+      <SectionHeading en="YOUR RESULT" fa="نتیجهٔ نبرد تو" />
+      <p className="mb-5 mt-1 text-xs text-muted">رتبه بر اساس تعداد برد در همین نبرد</p>
+      <ol>
+        {top.map((row, i) => (
+          <ResultCard
+            key={row.entity.id}
+            entity={row.entity}
+            rank={i + 1}
+            index={i}
+            count={top.length}
+          />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/**
+ * Everyone's picks as one compact bar per entry, by win rate. It answers "do others agree
+ * with me?", so the viewer's champion is marked and its place is said up front.
+ */
+function CommunityResults({ battle, mine }: { battle: TournamentDetail; mine: string | null }) {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { openLoginModal } = useAuthGate();
+  const board = battle.leaderboard ?? null;
+  const myRow = mine ? board?.find((r) => r.entity_id === mine) : undefined;
+
+  return (
+    <section className="mx-auto mt-10 max-w-3xl">
+      <SectionHeading en="EVERYONE" fa="نظر جمع" />
       {board ? (
         <>
-          <p className="mb-5 mt-1 text-xs text-muted">
-            {toFaDigits(Math.min(TOP_COUNT, board.length))} گزینهٔ برتر از {toFaDigits(battle.total_picks ?? 0)} انتخاب · رتبه با درنظرگرفتن تعداد انتخاب‌ها
+          <p className="mb-4 mt-1 text-xs text-muted">
+            نرخ پیروزی هر گزینه در {toFaDigits(battle.total_picks ?? 0)} انتخاب همهٔ کاربران
           </p>
-          <ol>
-            {board.map((row, i) => {
+          {myRow && (
+            <p className="mb-4 rounded-xl border border-teal/40 bg-teal/[0.06] px-4 py-3 text-sm text-ink">
+              <span className="font-bold text-teal">{myRow.entity.title_fa || myRow.entity.title}</span>،{" "}
+              {myRow.rank === 1 ? (
+                "برندهٔ جمع هم هست."
+              ) : (
+                <>
+                  در نظر جمع رتبهٔ <span className="num font-bold">{toFaDigits(myRow.rank)}</span> را دارد.
+                </>
+              )}
+            </p>
+          )}
+          <ol className="flex flex-col gap-2">
+            {board.map((row) => {
               const pct = row.win_rate === null ? 0 : Math.round(row.win_rate * 100);
+              const isMine = row.entity_id === mine;
               const first = row.rank === 1;
-              const kind = row.entity.entity_type === "tv_series" ? "سریال" : "فیلم";
               return (
-                <li key={row.entity_id} className="flex gap-3 sm:gap-4">
-                  {/* the spine: a numbered node per entry, joined by a line */}
-                  <div className="relative flex w-14 shrink-0 justify-center sm:w-12">
-                    <span
-                      className={`absolute w-px ${first ? "bg-gold/40" : "bg-violet-light/35"} ${i === 0 ? "top-11 sm:top-10" : "top-0"} ${i === board.length - 1 ? "h-11 sm:h-10" : "bottom-0"}`}
+                <li key={row.entity_id} className="flex items-center gap-3 text-sm">
+                  <span className={`num w-6 shrink-0 text-center font-bold ${first ? "text-gold" : "text-muted"}`}>{toFaDigits(row.rank)}</span>
+                  <div className="relative h-9 min-w-0 flex-1 overflow-hidden rounded-lg bg-surface2">
+                    <div
+                      className={`absolute inset-y-0 start-0 rounded-lg ${isMine ? "bg-teal/35" : first ? "bg-gold/30" : "bg-violet-light/20"}`}
+                      style={{ width: `${pct}%` }}
                       aria-hidden="true"
                     />
-                    <span
-                      className={`num relative z-10 mt-4 flex h-14 w-14 items-center justify-center rounded-full border-2 text-lg font-extrabold sm:h-12 sm:w-12 sm:text-base ${
-                        first
-                          ? "border-gold bg-gold text-bg shadow-[0_0_0_5px_rgba(232,179,74,0.2)]"
-                          : "border-violet-light/60 bg-bg text-violet-light"
-                      }`}
+                    <EntityLink
+                      entity={row.entity}
+                      className={`relative flex h-full items-center px-3 transition hover:brightness-110 ${isMine ? "font-bold text-teal" : "text-ink"}`}
                     >
-                      {toFaDigits(row.rank)}
-                    </span>
-                  </div>
-
-                  <div
-                    className={`mb-4 flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:p-5 ${
-                      first
-                        ? "border-gold/50 bg-gradient-to-br from-gold/[0.10] via-surface to-surface shadow-[0_0_0_1px_rgba(232,179,74,0.12)]"
-                        : mine === row.entity_id
-                          ? "border-teal/60 bg-gradient-to-br from-teal/[0.08] via-surface to-surface shadow-[0_0_0_1px_rgba(79,184,166,0.15)]"
-                          : "border-border bg-surface"
-                    }`}
-                  >
-                    <EntityLink entity={row.entity} className="block w-full shrink-0 self-start transition hover:brightness-110 sm:w-auto">
-                      <Poster entity={row.entity} size="w342" className={`w-full sm:w-28 ${first ? "!border-gold/60" : ""}`} />
+                      <span className="truncate">{row.entity.title_fa || row.entity.title}</span>
+                      {isMine && <span className="ms-2 shrink-0 text-[11px] font-normal">· برنده نبرد تو</span>}
                     </EntityLink>
-
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                        <span className={`font-mono tracking-widest ${first ? "text-gold" : "text-dim"}`}>
-                          {first ? "WINNER" : row.entity.entity_type === "tv_series" ? "SERIES" : "MOVIE"}
-                        </span>
-                        <span className="text-muted">{first ? "برندهٔ نبرد" : kind}</span>
-                        {mine === row.entity_id && (
-                          <span className="rounded-full border border-teal/50 bg-teal/10 px-2 py-0.5 text-teal">انتخاب تو</span>
-                        )}
-                      </div>
-                      <EntityLink entity={row.entity} className="flex items-start gap-2.5 transition hover:brightness-110">
-                        {first && <TrophyIcon className="mt-1 h-8 w-8 shrink-0 text-gold sm:h-9 sm:w-9" />}
-                        <span className="min-w-0">
-                          <span className={`block text-xl font-black leading-snug sm:text-2xl ${first ? "text-gold" : "text-ink"}`}>
-                            {row.entity.title_fa || row.entity.title}
-                          </span>
-                          {row.entity.title_fa && (
-                            <span className="block text-right text-sm text-ink-dim" dir="ltr">
-                              {row.entity.title}
-                            </span>
-                          )}
-                        </span>
-                      </EntityLink>
-                      {row.entity.year ? (
-                        <span
-                          className={`num mt-1 inline-flex w-fit rounded-full border border-border bg-surface2 px-3 py-1 text-xs font-bold text-ink-dim ${
-                            first ? "mr-[42px] sm:mr-[46px]" : ""
-                          }`}
-                        >
-                          {toFaDigits(row.entity.year)}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-4 border-t border-border pt-3 sm:w-28 sm:flex-col sm:items-start sm:justify-center sm:gap-1 sm:border-s sm:border-t-0 sm:ps-5 sm:pt-0">
-                      <span className="text-xs text-muted">نرخ برد</span>
-                      <span className={`num text-3xl font-black leading-none ${first ? "text-gold" : "text-ink"}`}>
-                        {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`}
-                      </span>
-                    </div>
                   </div>
+                  <span className="num w-12 shrink-0 text-end font-bold text-ink-dim">
+                    {row.win_rate === null ? "—" : `${toFaDigits(pct)}٪`}
+                  </span>
                 </li>
               );
             })}
@@ -151,13 +218,13 @@ function Results({ battle, mine }: { battle: TournamentDetail; mine: string | nu
         </>
       ) : !authLoading && !isAuthenticated ? (
         <div className="mt-4 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
-          برای ثبت انتخاب‌هایت و دیدن نتیجهٔ جمعی باید وارد شوی.
+          برای دیدن نظر جمع باید وارد شوی.
           <div className="mt-3">
             <button type="button" onClick={openLoginModal} className="btn-primary text-sm hover:opacity-90">ورود</button>
           </div>
         </div>
       ) : (
-        <p className="mt-4 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">در حال بارگذاری نتیجه…</p>
+        <p className="mt-4 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">در حال بارگذاری نظر جمع…</p>
       )}
     </section>
   );
@@ -177,9 +244,13 @@ export default function PoolView({
 }) {
   const { getToken, isAuthenticated, loading: authLoading } = useAuth();
   const { openLoginModal } = useAuthGate();
-  const [run, setRun] = useState(0); // a new value reshuffles the pool for another run
+  const router = useRouter();
   const [runDone, setRunDone] = useState(false);
   const [myChampion, setMyChampion] = useState<string | null>(null);
+  // This run's tally, kept in a ref so recording a pick doesn't re-render the run.
+  const tally = useRef<Map<string, { wins: number; out: number }>>(new Map());
+  const pickCount = useRef(0);
+  const [myRows, setMyRows] = useState<RunRow[]>([]);
   const [editing, setEditing] = useState(false);
   const signedIn = !authLoading && isAuthenticated;
 
@@ -198,10 +269,20 @@ export default function PoolView({
         computed_score: null,
       })),
     }),
-    // The pool is reshuffled only for a new run, not on every poll/refresh of the battle.
+    // Shuffled once per visit, not on every poll/refresh of the battle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [battle.slug, battle.participants.length, run]
+    [battle.slug, battle.participants.length]
   );
+
+  const onPick = useCallback((championId: string, challengerId: string, winner: Side) => {
+    const [won, lost] = winner === "left" ? [championId, challengerId] : [challengerId, championId];
+    pickCount.current += 1;
+    const t = tally.current;
+    const w = t.get(won) ?? { wins: 0, out: 0 };
+    t.set(won, { ...w, wins: w.wins + 1 });
+    const l = t.get(lost) ?? { wins: 0, out: 0 };
+    t.set(lost, { ...l, out: pickCount.current });
+  }, []);
 
   const onVote = useCallback(
     async (championId: string, challengerId: string, winner: Side) => {
@@ -218,10 +299,21 @@ export default function PoolView({
 
   // The standings unlock once the viewer has played, so read the battle again after a run.
   const handleDone = useCallback((championId: string) => {
+    const byId = new Map(battle.participants.map((p) => [p.id, p]));
+    const rows: RunRow[] = [];
+    tally.current.forEach((v, id) => {
+      const entity = byId.get(id);
+      if (entity) rows.push({ entity, wins: v.wins, out: v.out });
+    });
+    // The champion first; then more wins, then knocked out later.
+    rows.sort((x, y) =>
+      x.entity.id === championId ? -1 : y.entity.id === championId ? 1 : y.wins - x.wins || y.out - x.out
+    );
+    setMyRows(rows);
     setMyChampion(championId);
     setRunDone(true);
     reload();
-  }, [reload]);
+  }, [reload, battle.participants]);
 
   const playable = battle.status === "active";
   const showResults = playable ? runDone : battle.status !== "draft";
@@ -317,18 +409,15 @@ export default function PoolView({
 
       {playable ? (
         <section className="mt-10">
-          {showResults && <Results battle={battle} mine={myChampion} />}
+          {showResults && myRows.length > 0 && <MyResults rows={myRows} />}
           <div className={showResults ? "mt-2" : ""}>
             <ThemedRun
-              key={run}
               battle={themed}
               signedIn={signedIn}
-              onNext={() => {
-                setRunDone(false);
-                setRun((n) => n + 1);
-              }}
+              onNext={() => router.push("/battles")}
               custom={{
                 onVote,
+                onPick,
                 reasonText: "هر بار برنده می‌ماند و با گزینهٔ بعدی روبه‌رو می‌شود",
                 shareUrl: absoluteUrl(`/battles/${battle.slug}`),
                 onDone: handleDone,
@@ -342,6 +431,7 @@ export default function PoolView({
               </div>
             )}
           </div>
+          {showResults && <CommunityResults battle={battle} mine={myChampion} />}
         </section>
       ) : battle.status === "draft" ? (
         <section className="mt-8 grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8">
@@ -351,7 +441,7 @@ export default function PoolView({
         </section>
       ) : (
         <section className="mt-12 max-w-2xl">
-          <Results battle={battle} mine={null} />
+          <CommunityResults battle={battle} mine={null} />
         </section>
       )}
     </main>
