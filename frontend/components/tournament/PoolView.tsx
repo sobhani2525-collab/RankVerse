@@ -419,6 +419,7 @@ export default function PoolView({
                 onVote,
                 onPick,
                 reasonText: "هر بار برنده می‌ماند و با گزینهٔ بعدی روبه‌رو می‌شود",
+                storyBattleName: battle.title,
                 shareUrl: absoluteUrl(`/battles/${battle.slug}`),
                 onDone: handleDone,
                 compactDone: true,

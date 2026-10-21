@@ -8,7 +8,7 @@ import SectionHeading from "./SectionHeading";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useInView } from "@/lib/use-in-view";
-import { castBattleVote, getThemedBattle } from "@/lib/api";
+import { castBattleVote, getMovieBySlug, getThemedBattle, getTvSeriesBySlug } from "@/lib/api";
 import { ThemedBattle, ThemedBattleItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
@@ -143,12 +143,29 @@ export function BattleArenaBody({
   );
 }
 
+/** The director (a series' creator) for the story card; none if the lookup fails. */
+async function storyCredit(item: ThemedBattleItem): Promise<{ label: string; name: string } | null> {
+  try {
+    if (item.entity_type === "tv_series") {
+      const d = await getTvSeriesBySlug(item.slug);
+      const p = d.creators[0] ?? d.directors[0];
+      return p ? { label: d.creators[0] ? "سازنده" : "کارگردان", name: p.title_fa || p.title } : null;
+    }
+    const p = (await getMovieBySlug(item.slug)).directors[0];
+    return p ? { label: "کارگردان", name: p.title_fa || p.title } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Overrides that let a user's own pool battle (components/tournament/PoolView) reuse the run. */
 export interface RunCustomization {
   /** Saves a pick instead of the quick-battle POST /battles/vote. */
   onVote: (championId: string, challengerId: string, winner: Side) => Promise<unknown>;
   /** The line above the run, in place of the theme's reason. */
   reasonText: string;
+  /** The battle's name on the story card, in place of the theme's topic. */
+  storyBattleName?: string;
   /** Where "اشتراک نتیجه" points, in place of /battles/result. */
   shareUrl: string;
   /** Called on every pick, signed in or not, before the vote is saved. */
@@ -191,22 +208,35 @@ export function ThemedRun({
   }, [done, onDone, championId]);
   // The story card is drawn only when asked for, once per finished run.
   const storyBlob = useRef<Promise<Blob | null> | null>(null);
+  const storyBattleName = custom?.storyBattleName;
   const buildStory = useCallback(() => {
     if (!storyBlob.current) {
-      const p = renderStoryCard({
-        posterPath: championItem.poster_path,
-        title: championItem.title_fa || championItem.title,
-        subtitle: championItem.title_fa ? championItem.title : null,
-        themeLine: reasonOf({ ...theme, personalized: false }),
-        streak,
-      }).catch(() => null);
+      const series = championItem.entity_type === "tv_series";
+      const kind = series ? "سریال" : "فیلم";
+      const battleName = storyBattleName ?? topicOf(theme);
+      const p = storyCredit(championItem)
+        .then((credit) =>
+          renderStoryCard({
+            posterPath: championItem.poster_path,
+            title: championItem.title_fa || championItem.title,
+            subtitle: championItem.title_fa ? championItem.title : null,
+            heading: series ? "نبرد سریال‌های برگزیده" : "نبرد فیلم‌های برگزیده",
+            themeLine: battleName ? `انتخاب نهایی من در نبرد «${battleName}»` : `انتخاب نهایی من در «${reasonOf({ ...theme, personalized: false })}»`,
+            year: championItem.year,
+            credit,
+            posterBadge: "برنده",
+            stepsTitle: `نبرد ${kind}‌ها چطور بازی می‌شود؟`,
+            steps: [`دو ${kind} می‌بینی`, "یکی را انتخاب می‌کنی", "ادامه بده تا برنده معلوم بشه"],
+          })
+        )
+        .catch(() => null);
       storyBlob.current = p;
       void p.then((b) => {
         if (!b && storyBlob.current === p) storyBlob.current = null;
       });
     }
     return storyBlob.current;
-  }, [championItem, theme, streak]);
+  }, [championItem, theme, storyBattleName]);
   const [storyError, setStoryError] = useState<string | null>(null);
   async function downloadStory() {
     setStoryError(null);

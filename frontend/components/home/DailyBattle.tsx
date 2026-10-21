@@ -285,8 +285,9 @@ function Results({ data, signedIn, onLogin }: { data: DailyBattleToday; signedIn
         posterPath: mineFilm.poster_path,
         title: mineFilm.title_fa || mineFilm.title,
         subtitle: mineFilm.title_fa ? mineFilm.title : null,
-        themeLine: formatJalaliDate(data.battle_date),
+        themeLine: `انتخاب من در نبرد امروز · ${formatJalaliDate(data.battle_date)}`,
         heading: "نبرد روز",
+        posterBadge: "انتخاب من",
         highlight: results.total > 1 ? `${toFaDigits(minePercent)}٪ با من موافق‌اند` : "اولین رأی‌دهندهٔ امروز",
         footer: "تو چه؟",
       }).catch(() => null);
