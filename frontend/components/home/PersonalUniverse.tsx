@@ -109,7 +109,7 @@ function PersonalUniverseInner({ startHref }: { startHref: string }) {
               درصد روی هر پوستر نشان می‌دهد آن عنوان چقدر به سلیقهٔ تو نزدیک است (۱۰۰٪ یعنی کاملاً منطبق). این عدد از ژانرهای
               موردعلاقه‌ات و جایگاه عنوان در رتبه‌بندی کل سایت حساب می‌شود.
             </p>
-            <div className="mt-5 grid grid-cols-3 gap-3 sm:gap-4 lg:grid-cols-6">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
               {picks.map((pick) => (
                 <TastePredictedPickRow key={pick.entity.id} pick={pick} />
               ))}

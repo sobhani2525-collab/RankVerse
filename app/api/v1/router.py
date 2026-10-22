@@ -22,6 +22,7 @@ from app.modules.admin.watch_router import router as admin_watch_router
 from app.modules.watch.router import router as watch_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.alerts.router import router as alerts_router
+from app.modules.contact.router import router as contact_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -34,6 +35,7 @@ api_router.include_router(admin_watch_router)
 api_router.include_router(watch_router)
 api_router.include_router(notifications_router)
 api_router.include_router(alerts_router)
+api_router.include_router(contact_router)
 api_router.include_router(admin_daily_battle_router)
 api_router.include_router(admin_battles_router)
 api_router.include_router(entities_router)

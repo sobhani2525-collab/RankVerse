@@ -23,12 +23,13 @@ const NAV_ITEMS: NavItem[] = [
   { label: "سلامت زیرساخت", href: "/admin/health" },
   { label: "SEO و کشف محتوا", href: "/admin/seo" },
   { label: "هشدارها", href: "/admin/alerts" },
+  { label: "پیام‌های کاربران", href: "/admin/messages" },
   { label: "Audit Log", href: "/admin/audit-log" },
 ];
 
-// Open-alert badge: one tiny request every 60s while the tab is visible,
-// plus an instant refresh when the alerts page changes something.
-function useOpenAlertCount() {
+// Sidebar badges (open alerts, new contact messages): one tiny request every
+// 60s while the tab is visible, plus an instant refresh when their page changes something.
+function useBadgeCount(url: string, changedEvent: string) {
   const [count, setCount] = useState(0);
   useEffect(() => {
     let timer: number | undefined;
@@ -36,7 +37,7 @@ function useOpenAlertCount() {
     const load = async () => {
       if (document.visibilityState === "visible") {
         try {
-          const res = await fetch("/api/admin/alerts/open-count", { cache: "no-store" });
+          const res = await fetch(url, { cache: "no-store" });
           const json = await res.json();
           if (!cancelled && res.ok) setCount(json.data?.count ?? 0);
         } catch {}
@@ -48,20 +49,23 @@ function useOpenAlertCount() {
       window.clearTimeout(timer);
       load();
     };
-    window.addEventListener("admin-alerts-changed", refresh);
+    window.addEventListener(changedEvent, refresh);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
-      window.removeEventListener("admin-alerts-changed", refresh);
+      window.removeEventListener(changedEvent, refresh);
     };
-  }, []);
+  }, [url, changedEvent]);
   return count;
 }
 
 export function AdminSidebar({ adminEmail }: { adminEmail: string }) {
   const pathname = usePathname();
   const router = useRouter();
-  const openAlerts = useOpenAlertCount();
+  const badges: Record<string, number> = {
+    "/admin/alerts": useBadgeCount("/api/admin/alerts/open-count", "admin-alerts-changed"),
+    "/admin/messages": useBadgeCount("/api/admin/contact-messages/new-count", "admin-messages-changed"),
+  };
 
   async function handleLogout() {
     await fetch("/api/admin/session", { method: "DELETE" });
@@ -91,9 +95,9 @@ export function AdminSidebar({ adminEmail }: { adminEmail: string }) {
                   }`}
                 >
                   {item.label}
-                  {item.href === "/admin/alerts" && openAlerts > 0 && (
+                  {(badges[item.href] ?? 0) > 0 && (
                     <span className="mr-2 rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400">
-                      {openAlerts.toLocaleString("fa-IR")}
+                      {badges[item.href].toLocaleString("fa-IR")}
                     </span>
                   )}
                 </Link>

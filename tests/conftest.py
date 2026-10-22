@@ -39,6 +39,7 @@ from app.modules.taste import models as _taste_models  # noqa: F401
 from app.modules.watch import models as _watch_models  # noqa: F401
 from app.modules.notifications import models as _notifications_models  # noqa: F401
 from app.modules.alerts import models as _alerts_models  # noqa: F401
+from app.modules.contact import models as _contact_models  # noqa: F401
 from app.modules.users.repository import UserRepository
 
 

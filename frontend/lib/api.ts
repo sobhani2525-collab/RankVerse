@@ -196,6 +196,31 @@ async function postEnvelope<T>(path: string, body: unknown): Promise<T> {
   return json.data;
 }
 
+export type ContactCategory = "bug" | "inappropriate" | "content_error" | "suggestion" | "copyright" | "other";
+
+/** Contact page submission; a signed-in sender's token links the message to their account. */
+export async function sendContactMessage(
+  payload: {
+    category: ContactCategory;
+    subject: string;
+    message: string;
+    name?: string;
+    email?: string;
+    page_url?: string;
+    website?: string;
+  },
+  token: string | null
+): Promise<void> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetchWithAuthRetry("/contact", { method: "POST", headers, body: JSON.stringify(payload) });
+  if (res.ok) return;
+  const json = await res.json().catch(() => null);
+  if (res.status === 429) throw new Error(json?.error?.message || "تعداد پیام‌ها زیاد است. کمی بعد دوباره امتحان کن.");
+  if (res.status === 422) throw new Error("لطفاً فیلدها را بررسی کن؛ ایمیل یا متن پیام معتبر نیست.");
+  throw new Error("ارسال پیام ممکن نشد. دوباره امتحان کن.");
+}
+
 export async function registerUser(payload: {
   email: string;
   username: string;
@@ -461,6 +486,20 @@ export async function getListsTotal(revalidateSeconds: number = RANKING_TTL): Pr
     throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
   }
   const json: Envelope<ListSummary[]> = await res.json();
+  if (json.error) {
+    throw new Error(json.error.message);
+  }
+  return json.meta?.total ?? null;
+}
+
+/** Total number of public battles on the battles hub (envelope meta.total of a one-item page). */
+export async function getBattlesTotal(revalidateSeconds: number = RANKING_TTL): Promise<number | null> {
+  const path = "/battles?page_size=1";
+  const res = await fetchWithTimeout(path, { next: { revalidate: revalidateSeconds } });
+  if (!res.ok) {
+    throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
+  }
+  const json: Envelope<unknown[]> = await res.json();
   if (json.error) {
     throw new Error(json.error.message);
   }

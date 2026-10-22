@@ -10,6 +10,7 @@ export default function HomeHero({
   movieTotal,
   tvTotal,
   listTotal,
+  battleTotal,
   artistTotal,
 }: {
   titles: HomeTitle[];
@@ -17,6 +18,7 @@ export default function HomeHero({
   movieTotal: number | null;
   tvTotal: number | null;
   listTotal?: number | null;
+  battleTotal?: number | null;
   artistTotal?: number | null;
 }) {
   const stats = (
@@ -25,6 +27,7 @@ export default function HomeHero({
       ["سریال", tvTotal],
       ["هنرمند", artistTotal],
       ["فهرست", listTotal],
+      ["نبرد", battleTotal],
     ] as [string, number | null | undefined][]
   ).filter((s): s is [string, number] => typeof s[1] === "number");
   return (
@@ -50,7 +53,8 @@ export default function HomeHero({
             <span className="gradient-text">کهکشان تو.</span>
           </h1>
           <p className="mt-6 max-w-md text-base leading-8 text-muted sm:text-lg">
-            در کهکشان سینما بگرد، فیلم و سریال‌ها را درو کن و فهرست خودت را بساز؛ قطعا از رابطه بین آنها شگفت‌زده خواهی شد.
+            روی نقشهٔ کهکشانی سینما بگرد و ببین فیلم‌ها، سریال‌ها، هنرمندان و ژانرها چطور به هم وصل‌اند. امتیاز بده، در نبردها رأی
+            بده، فهرست خودت را بساز و پیشنهادهایی بگیر که به سلیقه‌ات می‌خورد.
           </p>
 
 

@@ -18,6 +18,7 @@ const STATIC_ROUTES = [
   { path: "/lists", priority: "0.8", changefreq: "daily" },
   { path: "/battles", priority: "0.6", changefreq: "weekly" },
   { path: "/people", priority: "0.6", changefreq: "weekly" },
+  { path: "/contact", priority: "0.3", changefreq: "yearly" },
 ];
 
 const ENTITY_FILE = /^(movie|tv_series|person|genre)-(\d+)\.xml$/;

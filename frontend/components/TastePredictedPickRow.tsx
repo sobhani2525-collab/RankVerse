@@ -26,7 +26,7 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
             src={posterUrl}
             alt={title}
             fill
-            sizes="(max-width: 768px) 33vw, 160px"
+            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 160px"
             className="object-cover"
           />
         ) : (

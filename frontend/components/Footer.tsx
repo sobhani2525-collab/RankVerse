@@ -13,9 +13,16 @@ const COLUMNS = [
     ],
   },
   {
-    title: "مشارکت",
+    title: "نبردها",
     links: [
+      { href: "/battles/daily", label: "نبرد روز" },
       { href: "/battles", label: "نبرد بهترین‌ها" },
+      { href: "/battles/new", label: "ساخت نبرد" },
+    ],
+  },
+  {
+    title: "فهرست‌ها",
+    links: [
       { href: "/lists", label: "فهرست‌های کاربران" },
       { href: "/lists/new", label: "ساخت فهرست جدید" },
     ],
@@ -23,9 +30,20 @@ const COLUMNS = [
   {
     title: "حساب من",
     links: [
-      { href: "/register", label: "ثبت‌نام" },
-      { href: "/login", label: "ورود" },
-      { href: "/profile", label: "پروفایل" },
+      { href: "/profile", label: "پروفایل و سلیقهٔ سینمایی" },
+      { href: "/profile#my-lists", label: "فهرست‌های من" },
+      { href: "/battles/mine", label: "نبردهای من" },
+      { href: "/notifications", label: "اعلان‌ها" },
+      { href: "/login", label: "ورود / ثبت‌نام" },
+    ],
+  },
+  {
+    title: "پشتیبانی",
+    links: [
+      { href: "/contact", label: "ارتباط با ما" },
+      { href: "/contact?topic=bug", label: "گزارش خطا" },
+      { href: "/contact?topic=inappropriate", label: "گزارش محتوای نامناسب" },
+      { href: "/contact?topic=content_error", label: "اصلاح اطلاعات" },
     ],
   },
 ];
@@ -33,14 +51,15 @@ const COLUMNS = [
 export default function Footer() {
   return (
     <footer className="mt-10 border-t border-border bg-surface/60">
-      <div className="mx-auto grid max-w-7xl gap-10 px-6 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div className="max-w-xs">
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-10 px-6 py-12 md:grid-cols-3 lg:grid-cols-[1.6fr_repeat(5,1fr)]">
+        <div className="col-span-2 max-w-xs md:col-span-3 lg:col-span-1">
           <Link href="/" aria-label={SITE_NAME}>
             <Image src="/brand-logo.png" alt={SITE_NAME} width={462} height={160} className="h-11 w-auto" />
           </Link>
           <p className="mt-4 text-sm font-bold text-ink">{SITE_TAGLINE}</p>
           <p className="mt-2 text-sm leading-7 text-muted">
-            فیلم‌ها و سریال‌ها را در یک کهکشان ببین؛ رأی بده، نبرد کن و فهرست خودت را بساز.
+            فیلم‌ها، سریال‌ها، هنرمندان و ژانرها را روی یک کهکشان ببین؛ امتیاز بده، در نبردها رأی بده، فهرست خودت را بساز و
+            پیشنهادهایی بگیر که به سلیقه‌ات می‌خورد.
           </p>
         </div>
 

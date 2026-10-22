@@ -20,6 +20,7 @@ from app.modules.admin import models as admin_models  # noqa
 from app.modules.watch import models as watch_models  # noqa
 from app.modules.notifications import models as notifications_models  # noqa
 from app.modules.alerts import models as alerts_models  # noqa
+from app.modules.contact import models as contact_models  # noqa
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
