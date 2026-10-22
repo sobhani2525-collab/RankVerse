@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AdminEntitiesManager } from "./AdminEntitiesManager";
 
 export default function AdminEntitiesPage() {
@@ -8,7 +9,10 @@ export default function AdminEntitiesPage() {
         خلاصهٔ داستان فارسی فیلم‌ها و سریال‌ها. برای عنوان‌هایی که TMDb ترجمهٔ فارسی ندارد می‌توانید متن دستی بنویسید؛ متن دستی
         نه با sync دوباره از TMDb و نه با اسکریپت ترجمهٔ ماشینی بازنویسی نمی‌شود. تغییر در صفحهٔ عنوان بعد از پایان کش (ISR) دیده می‌شود.
       </p>
-      <AdminEntitiesManager />
+      {/* useSearchParams needs a Suspense boundary during prerender. */}
+      <Suspense fallback={null}>
+        <AdminEntitiesManager />
+      </Suspense>
     </div>
   );
 }

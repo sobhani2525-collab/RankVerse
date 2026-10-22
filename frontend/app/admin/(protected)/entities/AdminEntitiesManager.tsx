@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toFaDigits } from "@/lib/format-number";
 
 interface OverviewRow {
@@ -50,8 +51,10 @@ export function AdminEntitiesManager() {
   const [rows, setRows] = useState<OverviewRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [q, setQ] = useState("");
-  const [source, setSource] = useState("en");
+  // ?q= (the SEO page's fix list links here) opens on that title, whatever its overview source.
+  const initialQ = useSearchParams().get("q") ?? "";
+  const [q, setQ] = useState(initialQ);
+  const [source, setSource] = useState(initialQ ? "" : "en");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
