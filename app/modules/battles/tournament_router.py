@@ -3,6 +3,7 @@ HTTP API for tournament battles, mounted under /battles. Fixed paths (/mine,
 /internal/...) are declared before /{slug}; and this router is included after
 the older pairwise-battle router so /battles/next|themed|vote keep winning.
 """
+import random
 import uuid
 from datetime import datetime, timezone
 from typing import Literal
@@ -123,7 +124,10 @@ async def list_public_battles(
     user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    conditions = [Battle.mode == mode, Battle.visibility == "public", Battle.status.in_(("active", "completed"))]
+    conditions = [
+        Battle.mode == mode, Battle.visibility == "public", Battle.status.in_(("active", "completed")),
+        Battle.is_hidden_from_discovery.is_(False),
+    ]
     if status:
         conditions.append(Battle.status == status)
     if entity_type:
@@ -150,6 +154,49 @@ async def list_public_battles(
     battles = (await db.execute(query.offset((page - 1) * page_size).limit(page_size))).scalars().all()
     items = await views.battle_list_items(db, list(battles), user.id if user else None)
     return envelope(data=items, meta=Meta(page=page, page_size=page_size, total=total))
+
+
+def _featured_conditions():
+    return [
+        Battle.is_featured.is_(True), Battle.is_hidden_from_discovery.is_(False), Battle.mode == "pool",
+        Battle.visibility == "public", Battle.status == "active",
+    ]
+
+
+@router.get("/featured")
+async def featured_battles(
+    limit: int = Query(12, ge=1, le=24),
+    user: User | None = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin-curated battles, in the admin's order."""
+    battles = (
+        await db.execute(
+            select(Battle).where(*_featured_conditions())
+            .order_by(Battle.featured_order.asc().nulls_last(), Battle.featured_at.desc().nulls_last())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return envelope(data=await views.battle_list_items(db, list(battles), user.id if user else None))
+
+
+@router.get("/featured/random")
+async def featured_random_battle(
+    exclude: str | None = Query(None, max_length=8, description="slug to avoid, so a new run differs"),
+    user: User | None = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """One random featured battle with its entries, ready to play (null when none is featured)."""
+    conditions = _featured_conditions()
+    if exclude:
+        conditions.append(Battle.slug != exclude)
+    ids = list((await db.execute(select(Battle.id).where(*conditions))).scalars())
+    if not ids and exclude:  # the only featured battle is the one just played
+        ids = list((await db.execute(select(Battle.id).where(*_featured_conditions()))).scalars())
+    if not ids:
+        return envelope(data=None)
+    battle = await db.get(Battle, random.choice(ids))
+    return envelope(data=await views.battle_detail(db, battle, user.id if user else None))
 
 
 @router.get("/mine")

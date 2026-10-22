@@ -159,6 +159,10 @@ export const tournamentApi = {
     call<TournamentDetail>(`/${slug}/matches/${matchId}/vote`, token, { method: "POST", body: { entity_id: entityId } }),
   follow: (token: string, slug: string, follow: boolean) =>
     call<{ is_following: boolean }>(`/${slug}/follow`, token, { method: follow ? "PUT" : "DELETE" }),
+  featured: (token: string | null) => call<TournamentSummary[]>("/featured", token),
+  /** One random featured battle with its entries, or null when none is featured. */
+  featuredRandom: (token: string | null, exclude?: string) =>
+    call<TournamentDetail | null>(`/featured/random${qs({ exclude })}`, token),
   mine: (token: string, p: { tab: string; page?: number }) =>
     call<TournamentSummary[]>(`/mine${qs({ ...p, page_size: 12 })}`, token),
   closeRound: (token: string, slug: string) => call<TournamentDetail>(`/${slug}/close-round`, token, { method: "POST" }),

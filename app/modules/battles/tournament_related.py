@@ -30,6 +30,7 @@ async def related_for_pool(db: AsyncSession, battle: Battle, viewer_id: uuid.UUI
                 Battle.mode == "pool",
                 Battle.visibility == "public",
                 Battle.status == "active",
+                Battle.is_hidden_from_discovery.is_(False),
             )
             .group_by(Battle.id)
             .order_by(shared.desc(), Battle.created_at.desc())

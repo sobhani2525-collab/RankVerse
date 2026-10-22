@@ -40,6 +40,8 @@ export default function TournamentHub() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // the admin-curated strip on top, like the featured lists
+  const [featured, setFeatured] = useState<TournamentSummary[]>([]);
 
   const load = useCallback(
     async (nextPage: number, replace: boolean) => {
@@ -62,6 +64,13 @@ export default function TournamentHub() {
   useEffect(() => {
     load(1, true);
   }, [load]);
+
+  useEffect(() => {
+    tournamentApi
+      .featured(getToken())
+      .then(setFeatured)
+      .catch(() => setFeatured([]));
+  }, [getToken]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
@@ -87,6 +96,20 @@ export default function TournamentHub() {
           </div>
         }
       />
+
+      {featured.length > 0 && (
+        <section className="mb-12" aria-labelledby="featured-battles-heading">
+          <h2 id="featured-battles-heading" className="mb-4 flex items-center gap-2 text-lg font-extrabold text-ink">
+            <span className="text-gold" aria-hidden="true">★</span>
+            نبردهای برگزیده
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.slice(0, 3).map((b) => (
+              <TournamentCard key={b.slug} battle={b} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
         <div className="flex flex-wrap gap-1">

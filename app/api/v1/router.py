@@ -17,6 +17,7 @@ from app.modules.admin.audit_router import router as admin_audit_router
 from app.modules.admin.entities_router import router as admin_entities_router
 from app.modules.daily_battle.router import router as daily_battle_router
 from app.modules.daily_battle.admin_router import router as admin_daily_battle_router
+from app.modules.battles.admin_router import router as admin_battles_router
 from app.modules.admin.watch_router import router as admin_watch_router
 from app.modules.watch.router import router as watch_router
 from app.modules.notifications.router import router as notifications_router
@@ -34,6 +35,7 @@ api_router.include_router(watch_router)
 api_router.include_router(notifications_router)
 api_router.include_router(alerts_router)
 api_router.include_router(admin_daily_battle_router)
+api_router.include_router(admin_battles_router)
 api_router.include_router(entities_router)
 api_router.include_router(ranking_router)
 api_router.include_router(users_router)

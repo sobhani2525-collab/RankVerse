@@ -1,36 +1,50 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { detailPathFor } from "@/lib/entity-routes";
 import SectionHeading from "./SectionHeading";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useInView } from "@/lib/use-in-view";
-import { castBattleVote, getMovieBySlug, getThemedBattle, getTvSeriesBySlug } from "@/lib/api";
-import { ThemedBattle, ThemedBattleItem } from "@/lib/types";
-import { displayTitle } from "@/lib/title";
-import { toFaDigits } from "@/lib/format-number";
+import { getThemedBattle } from "@/lib/api";
+import { ThemedBattle } from "@/lib/types";
 import { reasonOf, resultPath, topicOf } from "@/lib/battle-theme";
-import { SITE_NAME, absoluteUrl } from "@/lib/site";
-import ShareMenu from "@/components/share/ShareMenu";
-import { PickMark, useBattlePick } from "@/components/battle/PickMark";
-import { renderStoryCard } from "@/lib/story-card";
-import { downloadBlob } from "@/lib/share";
+import { absoluteUrl } from "@/lib/site";
+import { TournamentDetail, tournamentApi } from "@/lib/tournament";
+import WinnerStaysBattle from "@/components/battle/WinnerStaysBattle";
+import FeaturedBattleRun from "./FeaturedBattleRun";
 
-export type Side = "left" | "right";
+// The home page's Daily battle draws with these; they live with the winner-stays component.
+export { BattlePoster as Poster, VsBadge } from "@/components/battle/WinnerStaysBattle";
 
 /**
- * The home page's battle: a "winner stays" run (like the list page's) over
- * movies that share a genre, decade or director -- random for a guest, built
- * from taste for a signed-in user (GET /battles/themed). Whichever poster is
- * picked stays and faces the next movie, so a run keeps going without any
- * clicks in between. Signed-in picks are saved with POST /battles/vote; a
- * guest's aren't, and the login button says what signing in changes.
+ * The home page's "Let the movies fight": one of the admin-featured battles, picked at random
+ * and played "winner stays" right here. With no featured battle it falls back to a themed run
+ * (BattleArenaBody) so the section is never empty.
  */
 export default function BattleArena() {
   const [sectionRef, inView] = useInView<HTMLElement>("200px 0px");
+  const { getToken, loading: authLoading } = useAuth();
+  // undefined = still asking, null = none featured
+  const [featured, setFeatured] = useState<TournamentDetail | null | undefined>(undefined);
+  const asked = useRef(false);
+
+  const loadFeatured = useCallback(
+    async (exclude?: string) => {
+      try {
+        setFeatured(await tournamentApi.featuredRandom(getToken(), exclude));
+      } catch {
+        setFeatured(null);
+      }
+    },
+    [getToken]
+  );
+
+  useEffect(() => {
+    if (!inView || authLoading || asked.current) return;
+    asked.current = true;
+    void loadFeatured();
+  }, [inView, authLoading, loadFeatured]);
+
   return (
     <section ref={sectionRef} className="relative border-y border-border/60 bg-[#080B14]/70">
       <div className="mx-auto max-w-5xl px-6 py-24">
@@ -40,7 +54,16 @@ export default function BattleArena() {
           title="بگذار فیلم‌ها بجنگند."
           lead="از هر جفت، یکی را انتخاب کن. برنده می‌ماند و با فیلم بعدی روبه‌رو می‌شود."
         />
-        <BattleArenaBody enabled={inView} />
+        {featured === undefined ? (
+          <div className="mx-auto grid max-w-xl grid-cols-2 gap-4 sm:gap-10">
+            <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
+            <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
+          </div>
+        ) : featured ? (
+          <FeaturedBattleRun key={featured.slug} battle={featured} onAnother={() => loadFeatured(featured.slug)} />
+        ) : (
+          <BattleArenaBody enabled={inView} />
+        )}
       </div>
     </section>
   );
@@ -53,7 +76,12 @@ export interface PreselectedPair {
   rightId: string;
 }
 
-/** The battle itself, shared by the home section above and the /battles page. */
+/**
+ * A themed quick battle over movies that share a genre, decade or director -- random for a
+ * guest, built from taste for a signed-in user (GET /battles/themed). The run itself is the
+ * shared WinnerStaysBattle; this only fetches pools and says where results are shared.
+ * Used by the /battles?mode=quick page and as the home page's fallback.
+ */
 export function BattleArenaBody({
   enabled = true,
   preselected,
@@ -111,406 +139,56 @@ export function BattleArenaBody({
 
   return (
     <>
-        {error && (
-          <div role="alert" className="mx-auto mb-6 max-w-md rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-400">
-            {error}
-            <button type="button" onClick={() => load()} className="mr-2 underline">
-              تلاش دوباره
-            </button>
-          </div>
-        )}
+      {error && (
+        <div role="alert" className="mx-auto mb-6 max-w-md rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-400">
+          {error}
+          <button type="button" onClick={() => load()} className="mr-2 underline">
+            تلاش دوباره
+          </button>
+        </div>
+      )}
 
-        {battle && !loading ? (
-          <ThemedRun key={battle.items.map((i) => i.id).join(",")} battle={battle} signedIn={signedIn} onNext={() => load()} onSkipTheme={() => load(battle.theme)} />
-        ) : (
-          !error && (
-            <div className="mx-auto grid max-w-xl grid-cols-2 gap-4 sm:gap-10">
-              <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
-              <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
-            </div>
-          )
-        )}
-
-        {!signedIn && !authLoading && (
-          <div className="mt-10 flex flex-col items-center gap-2 text-center">
-            <button type="button" onClick={openLoginModal} className="btn-primary text-sm hover:opacity-90">
-              ورود
-            </button>
-            <p className="text-xs text-muted">با ورود به سایت، نبردها اختصاصی خواهند شد.</p>
-          </div>
-        )}
-    </>
-  );
-}
-
-/** The director (a series' creator) for the story card; none if the lookup fails. */
-async function storyCredit(item: ThemedBattleItem): Promise<{ label: string; name: string } | null> {
-  try {
-    if (item.entity_type === "tv_series") {
-      const d = await getTvSeriesBySlug(item.slug);
-      const p = d.creators[0] ?? d.directors[0];
-      return p ? { label: d.creators[0] ? "سازنده" : "کارگردان", name: p.title_fa || p.title } : null;
-    }
-    const p = (await getMovieBySlug(item.slug)).directors[0];
-    return p ? { label: "کارگردان", name: p.title_fa || p.title } : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Overrides that let a user's own pool battle (components/tournament/PoolView) reuse the run. */
-export interface RunCustomization {
-  /** Saves a pick instead of the quick-battle POST /battles/vote. */
-  onVote: (championId: string, challengerId: string, winner: Side) => Promise<unknown>;
-  /** The line above the run, in place of the theme's reason. */
-  reasonText: string;
-  /** The battle's name on the story card, in place of the theme's topic. */
-  storyBattleName?: string;
-  /** Where "اشتراک نتیجه" points, in place of /battles/result. */
-  shareUrl: string;
-  /** Called on every pick, signed in or not, before the vote is saved. */
-  onPick?: (championId: string, challengerId: string, winner: Side) => void;
-  /** Called once when the run is over, with the id of the run's champion. */
-  onDone?: (championId: string) => void;
-  /** Show only the share/next buttons when the run is over (the page shows the result itself). */
-  compactDone?: boolean;
-}
-
-export function ThemedRun({
-  battle,
-  signedIn,
-  onNext,
-  onSkipTheme,
-  custom,
-}: {
-  battle: ThemedBattle;
-  signedIn: boolean;
-  onNext: () => void;
-  onSkipTheme?: () => void;
-  custom?: RunCustomization;
-}) {
-  const { getToken } = useAuth();
-  const { openLoginModal } = useAuthGate();
-  const { items, category, theme } = battle;
-  // The champion's index and the next challenger's (items[0] opens as champion).
-  const [champion, setChampion] = useState(0);
-  const [step, setStep] = useState(1);
-  const [streak, setStreak] = useState(0);
-  const [voted, setVoted] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-
-  const done = step >= items.length;
-  const championItem = items[champion];
-  const onDone = custom?.onDone;
-  const championId = championItem.id;
-  useEffect(() => {
-    if (done) onDone?.(championId);
-  }, [done, onDone, championId]);
-  // The story card is drawn only when asked for, once per finished run.
-  const storyBlob = useRef<Promise<Blob | null> | null>(null);
-  const storyBattleName = custom?.storyBattleName;
-  const buildStory = useCallback(() => {
-    if (!storyBlob.current) {
-      const series = championItem.entity_type === "tv_series";
-      const kind = series ? "سریال" : "فیلم";
-      const battleName = storyBattleName ?? topicOf(theme);
-      const p = storyCredit(championItem)
-        .then((credit) =>
-          renderStoryCard({
-            posterPath: championItem.poster_path,
-            title: championItem.title_fa || championItem.title,
-            subtitle: championItem.title_fa ? championItem.title : null,
-            heading: series ? "نبرد سریال‌های برگزیده" : "نبرد فیلم‌های برگزیده",
-            themeLine: battleName ? `انتخاب نهایی من در نبرد «${battleName}»` : `انتخاب نهایی من در «${reasonOf({ ...theme, personalized: false })}»`,
-            year: championItem.year,
-            credit,
-            posterBadge: "برنده",
-            stepsTitle: `نبرد ${kind}‌ها چطور بازی می‌شود؟`,
-            steps: [`دو ${kind} می‌بینی`, "یکی را انتخاب می‌کنی", "ادامه بده تا برنده معلوم بشه"],
-          })
-        )
-        .catch(() => null);
-      storyBlob.current = p;
-      void p.then((b) => {
-        if (!b && storyBlob.current === p) storyBlob.current = null;
-      });
-    }
-    return storyBlob.current;
-  }, [championItem, theme, storyBattleName]);
-  const [storyError, setStoryError] = useState<string | null>(null);
-  async function downloadStory() {
-    setStoryError(null);
-    const blob = await buildStory();
-    if (blob) downloadBlob(blob, "cinemagozin-champion.png");
-    else setStoryError("ساخت کارت استوری ممکن نشد");
-  }
-  const championName = championItem.title_fa || championItem.title;
-  const topic = topicOf(theme);
-  const shareUrl = custom?.shareUrl ?? absoluteUrl(resultPath({ slug: championItem.slug, streak, count: items.length, theme }));
-  const shareText = `${topic ? `قهرمان من در «${topic}»` : "قهرمان نبرد من"}: ${championName} 🏆 تو چه کسی را انتخاب می‌کنی؟`;
-  const challengerItem = items[Math.min(step, items.length - 1)];
-
-  const pickAnim = useBattlePick<Side>();
-
-  function pick(winner: Side) {
-    if (done || pickAnim.busy) return;
-    custom?.onPick?.(championItem.id, challengerItem.id, winner);
-    const token = getToken();
-    const request = token
-      ? (custom
-          ? custom.onVote(championItem.id, challengerItem.id, winner)
-          : castBattleVote(token, {
-              category,
-              left_item: championItem.id,
-              right_item: challengerItem.id,
-              winner,
-            })
-        ).catch((e) => setError(e instanceof Error ? e.message : "ثبت رأی ممکن نشد"))
-      : null;
-    pickAnim.start(winner, request, () => {
-      if (winner === "left") {
-        setStreak((n) => n + 1);
-      } else {
-        setChampion(step);
-        setStreak(1);
-      }
-      setVoted((n) => n + 1);
-      setStep((s) => s + 1);
-    });
-  }
-
-  const reason = (
-    <p key={`reason-${step}`} className="mb-6 flex items-center justify-center gap-2 text-center text-[13px] text-violet-light" aria-live="polite">
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
-      {custom?.reasonText ?? reasonOf(theme)}
-    </p>
-  );
-
-  const progress = (
-    <div className="relative mx-auto mt-8 h-[3px] w-full max-w-xl overflow-hidden rounded-full bg-surface2" aria-hidden="true">
-      <div
-        className={`absolute inset-y-0 start-0 rounded-full ${custom ? "bg-gold" : "bg-violet-light"} transition-[width] duration-300 ease-out motion-reduce:transition-none`}
-        style={{ width: `${(Math.min(step - 1, items.length - 1) / (items.length - 1)) * 100}%` }}
-      />
-    </div>
-  );
-
-  if (done) {
-    return (
-      <div className="mx-auto max-w-xl">
-        {!custom && reason}
-        {!custom && progress}
-        <div className="rv-rise mt-8 flex flex-col items-center gap-3 text-center">
-          {!custom?.compactDone && (() => {
-            const poster = (
-              <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_4px_rgba(232,179,74,0.18)]">
-                <Poster item={championItem} sizes="112px" />
-              </div>
-            );
-            const href = custom ? detailPathFor(championItem.entity_type, championItem.slug) : null;
-            return href ? (
-              <Link href={href} aria-label={`صفحهٔ ${championName}`} className="transition hover:brightness-110">
-                {poster}
-              </Link>
-            ) : (
-              poster
-            );
-          })()}
-          {custom?.compactDone ? null : custom ? (
-            <p className="font-display text-3xl leading-snug text-ink sm:text-4xl">
-              <span className="text-xl text-ink-dim sm:text-2xl">برنده: </span>
-              {(() => {
-                const href = detailPathFor(championItem.entity_type, championItem.slug);
-                const name = <span className="text-gold">{championItem.title_fa || championItem.title}</span>;
-                return href ? (
-                  <Link href={href} className="transition hover:brightness-110">
-                    {name}
-                  </Link>
-                ) : (
-                  name
-                );
-              })()}
-            </p>
-          ) : (
-            <>
-              <p className="font-display text-2xl text-ink">نبرد تمام شد.</p>
-              <p className="text-sm text-ink-dim">
-                🏆 برنده: <span className="font-bold text-gold">{championItem.title_fa || championItem.title}</span>
-                {streak > 0 && (
-                  <>
-                    {" · "}
-                    <span className="num">{toFaDigits(streak)}</span> برد پیاپی
-                  </>
-                )}
-              </p>
-            </>
-          )}
-          {voted > 0 && getToken() && !error && <p className="text-sm text-teal">رأی‌هایت در رتبه‌بندی ثبت شد.</p>}
-          {error && <p className="text-xs text-gold">{error}</p>}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <ShareMenu
-              variant="button"
-              label="اشتراک نتیجه"
-              url={shareUrl}
-              title={`${championName} | ${SITE_NAME}`}
-              text={shareText}
-              getImage={buildStory}
-            />
-            <button type="button" onClick={downloadStory} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
-              دانلود کارت استوری
-            </button>
-          </div>
-          {storyError && <p className="text-xs text-gold">{storyError}</p>}
-          <div className="flex gap-3">
-            {custom ? (
-              <button
-                type="button"
-                onClick={onNext}
-                className="rounded-xl bg-gold px-8 py-3 text-base font-extrabold text-bg shadow-[0_0_0_4px_rgba(232,179,74,0.18)] transition hover:brightness-110"
-              >
-                نبرد بعدی ↻
-              </button>
-            ) : (
-              <button type="button" onClick={onNext} className="btn-primary text-sm hover:opacity-90">
-                نبرد بعدی
-              </button>
-            )}
-            {!signedIn && !custom && (
+      {battle && !loading ? (
+        <WinnerStaysBattle
+          key={battle.items.map((i) => i.id).join(",")}
+          items={battle.items}
+          category={battle.category}
+          signedIn={signedIn}
+          reason={reasonOf(battle.theme)}
+          share={{
+            url: ({ championSlug, streak, count }) =>
+              absoluteUrl(resultPath({ slug: championSlug, streak, count, theme: battle.theme })),
+            topic: topicOf(battle.theme),
+            battleName: topicOf(battle.theme),
+            fallbackLine: `انتخاب نهایی من در «${reasonOf({ ...battle.theme, personalized: false })}»`,
+          }}
+          onNext={() => load()}
+          onSkipBattle={() => load(battle.theme)}
+          extraDoneActions={
+            !signedIn ? (
               <button type="button" onClick={openLoginModal} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
                 نبرد با گزینه‌های هم‌سلیقه من
               </button>
-            )}
+            ) : null
+          }
+        />
+      ) : (
+        !error && (
+          <div className="mx-auto grid max-w-xl grid-cols-2 gap-4 sm:gap-10">
+            <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
+            <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
           </div>
-        </div>
-      </div>
-    );
-  }
+        )
+      )}
 
-  const sides: [Side, ThemedBattleItem][] = [
-    ["left", championItem],
-    ["right", challengerItem],
-  ];
-
-  return (
-    <div className="mx-auto max-w-xl">
-      {reason}
-
-      {/* RTL grid: the champion (the vote's left_item) sits on the right. */}
-      <div className="relative grid grid-cols-2 gap-4 sm:gap-10">
-        {sides.map(([side, item]) => {
-          const isChampion = side === "left";
-          return (
-            <button
-              key={isChampion ? `champion-${champion}` : `challenger-${step}`}
-              type="button"
-              onClick={() => pick(side)}
-              disabled={pickAnim.busy}
-              aria-label={`انتخاب ${displayTitle(item)}`}
-              className={`group relative text-right transition ${custom ? "" : "overflow-hidden rounded-2xl bg-surface/60"} ${
-                custom
-                  ? ""
-                  : isChampion
-                    ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)] hover:shadow-[0_0_0_4px_rgba(232,179,74,0.32)]"
-                    : "border border-border hover:border-violet-light"
-              }`}
-            >
-              <span
-                className={`relative block aspect-[2/3] w-full bg-surface2 ${
-                  custom
-                    ? `overflow-hidden rounded-2xl ${
-                        pickAnim.picked === side || (isChampion && streak > 0)
-                          ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)]"
-                          : "border-[1.5px] border-violet-light shadow-[0_0_0_4px_rgba(169,155,255,0.14)] group-hover:shadow-[0_0_0_4px_rgba(169,155,255,0.28)]"
-                      }`
-                    : ""
-                }`}
-              >
-                <Poster item={item} sizes="(max-width: 768px) 45vw, 320px" zoom />
-                {!custom && <span className="absolute inset-0 bg-gradient-to-t from-[#05070D] via-transparent to-transparent" />}
-                {custom && pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
-              </span>
-              {!custom && pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
-              {isChampion && streak > 0 && (
-                <span className="absolute start-3 top-3 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
-                  <span className="num">{toFaDigits(streak)}</span> برد
-                </span>
-              )}
-              {custom ? (
-                <span className="block h-[5.5rem] overflow-hidden px-1 pt-3">
-                  <span className="block line-clamp-1 text-base font-bold text-ink">{item.title_fa || item.title}</span>
-                  {item.title_fa && (
-                    <span className="block line-clamp-1 text-sm text-ink-dim" dir="ltr">
-                      {item.title}
-                    </span>
-                  )}
-                  {item.year ? <span className="num block text-sm text-muted">{toFaDigits(item.year)}</span> : null}
-                </span>
-              ) : (
-              <span className="absolute inset-x-0 bottom-0 p-3">
-                <span className="block line-clamp-2 text-sm font-medium text-ink">{displayTitle(item)}</span>
-                <span className="num text-xs text-gold">
-                  {item.computed_score != null && toFaDigits(item.computed_score.toFixed(1))}
-                  {item.computed_score != null && item.year ? " · " : ""}
-                  {item.year ? toFaDigits(item.year) : ""}
-                </span>
-              </span>
-              )}
-            </button>
-          );
-        })}
-        <VsBadge style={custom ? { top: "calc((100% - 5.5rem) / 2)" } : undefined} />
-      </div>
-
-      {progress}
-
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-        <span className="text-xs text-dim">
-          جفت <span className="num">{toFaDigits(step)}</span> از <span className="num">{toFaDigits(items.length - 1)}</span>
-        </span>
-        <button
-          type="button"
-          onClick={() => setStep((s) => s + 1)}
-          className="rounded-full border border-border px-5 py-2 text-sm text-muted transition hover:bg-surface2"
-        >
-          رد کردن این جفت
-        </button>
-        {onSkipTheme && (
-          <button
-            type="button"
-            onClick={onSkipTheme}
-            className="rounded-full border border-violet-light/40 px-5 py-2 text-sm text-violet-light transition hover:bg-violet-light/10"
-          >
-            رد کردن این نبرد
+      {!signedIn && !authLoading && (
+        <div className="mt-10 flex flex-col items-center gap-2 text-center">
+          <button type="button" onClick={openLoginModal} className="btn-primary text-sm hover:opacity-90">
+            ورود
           </button>
-        )}
-      </div>
-      {error && <p className="mt-3 text-center text-xs text-gold">{error}</p>}
-    </div>
-  );
-}
-
-export function Poster({ item, sizes, zoom }: { item: Pick<ThemedBattleItem, "poster_path">; sizes: string; zoom?: boolean }) {
-  return item.poster_path ? (
-    <Image
-      src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
-      alt=""
-      fill
-      sizes={sizes}
-      className={`object-cover ${zoom ? "transition duration-500 group-hover:scale-105" : ""}`}
-    />
-  ) : (
-    <span className="flex h-full w-full items-center justify-center text-xs text-muted">بدون پوستر</span>
-  );
-}
-
-export function VsBadge({ style }: { style?: React.CSSProperties }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={style}
-      className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[1.5px] border-violet-light bg-[#05070D] font-mono text-xs font-bold tracking-widest text-violet-light shadow-[0_0_0_6px_rgba(5,7,13,0.9),0_0_36px_rgba(145,99,245,0.55)] sm:h-16 sm:w-16 sm:text-base"
-    >
-      VS
-    </span>
+          <p className="text-xs text-muted">با ورود به سایت، نبردها اختصاصی خواهند شد.</p>
+        </div>
+      )}
+    </>
   );
 }

@@ -9,8 +9,7 @@ import { absoluteUrl } from "@/lib/site";
 import ShareMenu from "@/components/share/ShareMenu";
 import { AuthorAvatar } from "@/components/lists/list-card";
 import { avatarByKey } from "@/lib/avatars";
-import { Side, ThemedRun } from "@/components/home/BattleArena";
-import type { ThemedBattle, ThemedBattleItem } from "@/lib/types";
+import WinnerStaysBattle, { Side, WinnerStaysItem } from "@/components/battle/WinnerStaysBattle";
 import { detailPathFor } from "@/lib/entity-routes";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { TournamentDetail, TournamentEntity, tournamentApi } from "@/lib/tournament";
@@ -254,11 +253,9 @@ export default function PoolView({
   const [editing, setEditing] = useState(false);
   const signedIn = !authLoading && isAuthenticated;
 
-  const themed: ThemedBattle = useMemo(
-    () => ({
-      category: battle.entity_type,
-      theme: { kind: "pair", value: battle.title, personalized: false },
-      items: shuffled(battle.participants).map<ThemedBattleItem>((p) => ({
+  const items: WinnerStaysItem[] = useMemo(
+    () =>
+      shuffled(battle.participants).map((p) => ({
         id: p.id,
         slug: p.slug,
         title: p.title,
@@ -266,9 +263,7 @@ export default function PoolView({
         entity_type: p.entity_type,
         poster_path: p.poster_url?.startsWith("/") ? p.poster_url : null,
         year: p.year ?? null,
-        computed_score: null,
       })),
-    }),
     // Shuffled once per visit, not on every poll/refresh of the battle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [battle.slug, battle.participants.length]
@@ -411,19 +406,17 @@ export default function PoolView({
         <section className="mt-10">
           {showResults && myRows.length > 0 && <MyResults rows={myRows} />}
           <div className={showResults ? "mt-2" : ""}>
-            <ThemedRun
-              battle={themed}
+            <WinnerStaysBattle
+              items={items}
+              category={battle.entity_type}
               signedIn={signedIn}
+              reason="هر بار برنده می‌ماند و با گزینهٔ بعدی روبه‌رو می‌شود"
+              share={{ url: absoluteUrl(`/battles/${battle.slug}`), topic: null, battleName: battle.title }}
+              savePick={onVote}
+              onPick={onPick}
+              onDone={handleDone}
               onNext={() => router.push("/battles")}
-              custom={{
-                onVote,
-                onPick,
-                reasonText: "هر بار برنده می‌ماند و با گزینهٔ بعدی روبه‌رو می‌شود",
-                storyBattleName: battle.title,
-                shareUrl: absoluteUrl(`/battles/${battle.slug}`),
-                onDone: handleDone,
-                compactDone: true,
-              }}
+              doneView="actions"
             />
             {!signedIn && !authLoading && !runDone && (
               <div className="mt-8 flex flex-col items-center gap-2 text-center">

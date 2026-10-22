@@ -47,6 +47,7 @@ class Battle(Base):
         Index("ix_battles_creator", "creator_id", "status"),
         Index("ix_battles_public_listing", "visibility", "status", "created_at"),
         Index("ix_battles_active_due", "status", "current_round"),
+        Index("ix_battles_featured", "is_featured", "featured_order"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -76,6 +77,17 @@ class Battle(Base):
     )
     # Stored so a random seeding can be reproduced; NULL = creator's order.
     seed_value: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Admin curation (see app/modules/battles/admin_*.py), same idea as featured lists: featured
+    # battles are pinned in order (one of them plays on the home page); hidden ones stay reachable
+    # by link and for their creator but leave every listing.
+    is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
+    featured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    featured_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_hidden_from_discovery: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
+    curation_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    curated_by_admin_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("admin_accounts.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
