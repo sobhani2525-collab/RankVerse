@@ -299,11 +299,18 @@ function Results({ data, signedIn, onLogin }: { data: DailyBattleToday; signedIn
     return storyBlob.current;
   }, [mineFilm, data.battle_date, results.total, minePercent]);
 
+  const [storyBusy, setStoryBusy] = useState(false);
   async function downloadStory() {
+    if (storyBusy) return;
     setStoryError(null);
-    const blob = await buildStory();
-    if (blob) downloadBlob(blob, "cinemagozin-daily-battle.png");
-    else setStoryError("ساخت کارت استوری ممکن نشد");
+    setStoryBusy(true);
+    try {
+      const blob = await buildStory();
+      if (blob) downloadBlob(blob, "cinemagozin-daily-battle.png");
+      else setStoryError("ساخت کارت استوری ممکن نشد");
+    } finally {
+      setStoryBusy(false);
+    }
   }
 
   const name = mineFilm.title_fa || mineFilm.title;
@@ -352,8 +359,15 @@ function Results({ data, signedIn, onLogin }: { data: DailyBattleToday; signedIn
           text={shareText}
           getImage={buildStory}
         />
-        <button type="button" onClick={downloadStory} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
-          دانلود کارت استوری
+        <button
+          type="button"
+          onClick={downloadStory}
+          disabled={storyBusy}
+          aria-busy={storyBusy}
+          className="btn-secondary text-sm hover:border-gold/40 hover:text-gold disabled:pointer-events-none disabled:opacity-70"
+        >
+          {storyBusy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />}
+          {storyBusy ? "در حال ساخت کارت…" : "دانلود کارت استوری"}
         </button>
       </div>
       {storyError && <p className="mt-2 text-center text-xs text-gold">{storyError}</p>}

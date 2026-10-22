@@ -131,11 +131,18 @@ export default function WinnerStaysBattle({
     return storyBlob.current;
   }, [championItem, storyName, storyFallback]);
   const [storyError, setStoryError] = useState<string | null>(null);
+  const [storyBusy, setStoryBusy] = useState(false);
   async function downloadStory() {
+    if (storyBusy) return;
     setStoryError(null);
-    const blob = await buildStory();
-    if (blob) downloadBlob(blob, "cinemagozin-champion.png");
-    else setStoryError("ساخت کارت استوری ممکن نشد");
+    setStoryBusy(true);
+    try {
+      const blob = await buildStory();
+      if (blob) downloadBlob(blob, "cinemagozin-champion.png");
+      else setStoryError("ساخت کارت استوری ممکن نشد");
+    } finally {
+      setStoryBusy(false);
+    }
   }
 
   const championName = championItem.title_fa || championItem.title;
@@ -257,11 +264,21 @@ export default function WinnerStaysBattle({
                   getImage={buildStory}
                 />
               </div>
-              <button type="button" onClick={downloadStory} className={DONE_ACTION}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 20h14" />
-                </svg>
-                کارت استوری
+              <button
+                type="button"
+                onClick={downloadStory}
+                disabled={storyBusy}
+                aria-busy={storyBusy}
+                className={`${DONE_ACTION} disabled:pointer-events-none disabled:opacity-70`}
+              >
+                {storyBusy ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
+                ) : (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 20h14" />
+                  </svg>
+                )}
+                {storyBusy ? "در حال ساخت…" : "کارت استوری"}
               </button>
             </div>
             {extraDoneActions}

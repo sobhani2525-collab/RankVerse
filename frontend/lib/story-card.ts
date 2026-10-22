@@ -54,13 +54,58 @@ function fontFamily(variable: string, fallback: string): string {
   }
 }
 
+const IMAGE_TIMEOUT_MS = 10_000;
+
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
+    const timer = window.setTimeout(() => resolve(null), IMAGE_TIMEOUT_MS);
     img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onload = () => {
+      window.clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      window.clearTimeout(timer);
+      resolve(null);
+    };
     img.src = src;
+  });
+}
+
+const PRIMARY_MIRROR = (process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE || "").replace(/\/+$/, "");
+const FALLBACK_MIRROR = (process.env.NEXT_PUBLIC_TMDB_IMAGE_FALLBACK_BASE || "").replace(/\/+$/, "");
+
+const FALLBACK_HEAD_START_MS = 2500;
+
+// w500 covers the poster's drawn width (<= 380px) and is the size the page's
+// posters already use, so it is usually in the browser cache. The primary
+// mirror can stall or cut big downloads off on some VPN paths, so (like
+// TmdbImageFallback does for the page) the fallback mirror joins in when the
+// primary fails or is still loading after a short head start; first one wins.
+function loadPoster(posterPath: string): Promise<HTMLImageElement | null> {
+  const src = proxyTmdbUrl(`https://image.tmdb.org/t/p/w500${posterPath}`);
+  if (!PRIMARY_MIRROR || !FALLBACK_MIRROR || !src.startsWith(`${PRIMARY_MIRROR}/`)) return loadImage(src);
+  const fallbackSrc = FALLBACK_MIRROR + src.slice(PRIMARY_MIRROR.length);
+  return new Promise((resolve) => {
+    let pending = 2;
+    let fallbackStarted = false;
+    const settle = (img: HTMLImageElement | null) => {
+      pending -= 1;
+      if (img) resolve(img);
+      else if (pending === 0) resolve(null);
+    };
+    const startFallback = () => {
+      if (fallbackStarted) return;
+      fallbackStarted = true;
+      void loadImage(fallbackSrc).then(settle);
+    };
+    const timer = window.setTimeout(startFallback, FALLBACK_HEAD_START_MS);
+    void loadImage(src).then((img) => {
+      window.clearTimeout(timer);
+      if (!img) startFallback();
+      settle(img);
+    });
   });
 }
 
@@ -291,7 +336,7 @@ async function draw(input: StoryCardInput, withPoster: boolean): Promise<Blob> {
   ).catch(() => undefined);
 
   const [img, logo] = await Promise.all([
-    withPoster && input.posterPath ? loadImage(proxyTmdbUrl(`https://image.tmdb.org/t/p/w780${input.posterPath}`)) : Promise.resolve(null),
+    withPoster && input.posterPath ? loadPoster(input.posterPath) : Promise.resolve(null),
     loadImage("/brand-logo.png"),
   ]);
   if (withPoster && input.posterPath && !img) console.warn("story card: poster failed to load, drawing without it");
