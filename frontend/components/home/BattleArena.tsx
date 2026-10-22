@@ -28,16 +28,13 @@ export default function BattleArena() {
   const [featured, setFeatured] = useState<TournamentDetail | null | undefined>(undefined);
   const asked = useRef(false);
 
-  const loadFeatured = useCallback(
-    async (exclude?: string) => {
-      try {
-        setFeatured(await tournamentApi.featuredRandom(getToken(), exclude));
-      } catch {
-        setFeatured(null);
-      }
-    },
-    [getToken]
-  );
+  const loadFeatured = useCallback(async () => {
+    try {
+      setFeatured(await tournamentApi.featuredRandom(getToken()));
+    } catch {
+      setFeatured(null);
+    }
+  }, [getToken]);
 
   useEffect(() => {
     if (!inView || authLoading || asked.current) return;
@@ -48,19 +45,22 @@ export default function BattleArena() {
   return (
     <section ref={sectionRef} className="relative border-y border-border/60 bg-[#080B14]/70">
       <div className="mx-auto max-w-5xl px-6 py-24">
-        <SectionHeading
-          center
-          kicker="Let the movies fight"
-          title="بگذار فیلم‌ها بجنگند."
-          lead="از هر جفت، یکی را انتخاب کن. برنده می‌ماند و با فیلم بعدی روبه‌رو می‌شود."
-        />
+        {featured === null && (
+          // only the themed fallback needs the section's own title; a featured battle brings its own header
+          <SectionHeading
+            center
+            kicker="Let the movies fight"
+            title="بگذار فیلم‌ها بجنگند."
+            lead="از هر جفت، یکی را انتخاب کن. برنده می‌ماند و با فیلم بعدی روبه‌رو می‌شود."
+          />
+        )}
         {featured === undefined ? (
           <div className="mx-auto grid max-w-xl grid-cols-2 gap-4 sm:gap-10">
             <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
             <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface2" />
           </div>
         ) : featured ? (
-          <FeaturedBattleRun key={featured.slug} battle={featured} onAnother={() => loadFeatured(featured.slug)} />
+          <FeaturedBattleRun key={featured.slug} battle={featured} />
         ) : (
           <BattleArenaBody enabled={inView} />
         )}
