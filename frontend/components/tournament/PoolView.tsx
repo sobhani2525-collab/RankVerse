@@ -7,12 +7,11 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { toFaDigits } from "@/lib/format-number";
 import { absoluteUrl } from "@/lib/site";
 import ShareMenu from "@/components/share/ShareMenu";
-import { AuthorAvatar } from "@/components/lists/list-card";
-import { avatarByKey } from "@/lib/avatars";
 import WinnerStaysBattle, { Side, WinnerStaysItem } from "@/components/battle/WinnerStaysBattle";
 import { detailPathFor } from "@/lib/entity-routes";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { TournamentDetail, TournamentEntity, tournamentApi } from "@/lib/tournament";
+import BattleHeader from "@/components/battle/BattleHeader";
 import OwnerPanel from "./OwnerPanel";
 import Poster from "./Poster";
 
@@ -315,90 +314,62 @@ export default function PoolView({
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      <header className="flex flex-col gap-4 lg:gap-5">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-          <Link href="/battles" className="rounded-full border border-border px-2.5 py-0.5 transition hover:border-gold/40 hover:text-gold">
-            نبردهای کاربران
-          </Link>
-          {battle.status === "archived" && <span>بایگانی‌شده</span>}
-        </div>
-        <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">{battle.title}</h1>
-        {battle.description && (
-          <p className="max-w-[720px] whitespace-pre-line text-[15px] leading-[1.9] text-ink-dim lg:text-lg">{battle.description}</p>
-        )}
-
-        {battle.creator && (
-          <div className="flex items-center gap-3.5">
-            <Link
-              href={`/profile/${encodeURIComponent(battle.creator.username)}`}
-              className="flex min-h-[44px] items-center gap-2.5 text-ink lg:gap-3"
-            >
-              {avatarByKey(battle.creator.avatar_key) ? (
-                <AuthorAvatar
-                  author={{ username: battle.creator.username, avatarKey: battle.creator.avatar_key }}
-                  sizeClassName="h-10 w-10 lg:h-11 lg:w-11"
-                  textClassName="text-xl"
-                />
-              ) : (
-                <span
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-violet-light bg-surface-2 font-extrabold uppercase text-violet-light lg:h-11 lg:w-11"
-                  aria-hidden="true"
-                >
-                  {battle.creator.username.charAt(0)}
-                </span>
-              )}
-              <span className="flex flex-col">
-                <span className="text-sm font-bold lg:text-[15px]">
-                  {battle.creator.display_name || <span dir="ltr">@{battle.creator.username}</span>}
-                </span>
-                <span className="text-xs text-muted lg:text-[13px]">سازنده نبرد</span>
-              </span>
+      <BattleHeader
+        battle={{
+          title: battle.title,
+          description: battle.description,
+          creator: battle.creator,
+          optionCount: battle.participants.length,
+          followerCount: battle.follower_count,
+        }}
+        badge={
+          <span className="flex items-center gap-2 text-xs">
+            <Link href="/battles" className="rounded-full border border-border px-4 py-1.5 font-bold text-muted transition hover:border-gold/40 hover:text-gold">
+              نبردهای کاربران
             </Link>
-            <span className="h-7 w-px bg-border" aria-hidden="true" />
-            <span className="text-xs text-dim lg:text-[13px]" dir="rtl">
-              {toFaDigits(battle.follower_count)} دنبال‌کننده
-            </span>
-          </div>
-        )}
-
-        <div className="mt-2 flex flex-wrap gap-2 lg:gap-3">
-          {battle.status !== "draft" && (
-            <button
-              type="button"
-              onClick={onToggleFollow}
-              aria-pressed={battle.is_following}
-              className={`h-12 flex-1 rounded-xl px-[26px] text-[15px] font-extrabold transition lg:flex-none ${
-                battle.is_following ? "border border-teal/50 bg-teal/10 text-teal" : "bg-ink text-bg hover:bg-ink/90"
-              }`}
-            >
-              {battle.is_following ? "دنبال می‌کنید" : "دنبال کردن"}
-            </button>
-          )}
-          {battle.status !== "draft" && (
-            <ShareMenu
-              url={absoluteUrl(`/battles/${battle.slug}`)}
-              title={`${battle.title} | CinemeGozin`}
-              text={battle.title}
-              size={48}
-              shape="square"
-            />
-          )}
-          {battle.is_owner && battle.status !== "draft" && battle.status !== "archived" && (
-            <button
-              type="button"
-              onClick={() => setEditing((v) => !v)}
-              className="h-12 rounded-xl border border-border bg-surface px-4 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
-            >
-              {editing ? "بستن ویرایش" : "ویرایش نبرد"}
-            </button>
-          )}
-          {battle.status === "draft" && battle.is_owner && (
-            <Link href={`/battles/new?slug=${battle.slug}`} className="flex h-12 items-center rounded-xl bg-gold px-5 font-bold text-bg">
-              ادامهٔ ویرایش پیش‌نویس
-            </Link>
-          )}
-        </div>
-      </header>
+            {battle.status === "archived" && <span className="text-muted">بایگانی‌شده</span>}
+          </span>
+        }
+        actions={
+          <>
+            {battle.status !== "draft" && (
+              <button
+                type="button"
+                onClick={onToggleFollow}
+                aria-pressed={battle.is_following}
+                className={`h-12 rounded-xl px-[26px] text-[15px] font-extrabold transition ${
+                  battle.is_following ? "border border-teal/50 bg-teal/10 text-teal" : "bg-ink text-bg hover:bg-ink/90"
+                }`}
+              >
+                {battle.is_following ? "دنبال می‌کنید" : "دنبال کردن"}
+              </button>
+            )}
+            {battle.status !== "draft" && (
+              <ShareMenu
+                url={absoluteUrl(`/battles/${battle.slug}`)}
+                title={`${battle.title} | CinemeGozin`}
+                text={battle.title}
+                size={48}
+                shape="square"
+              />
+            )}
+            {battle.is_owner && battle.status !== "draft" && battle.status !== "archived" && (
+              <button
+                type="button"
+                onClick={() => setEditing((v) => !v)}
+                className="h-12 rounded-xl border border-border bg-surface px-4 text-sm text-muted transition hover:border-gold/40 hover:text-gold"
+              >
+                {editing ? "بستن ویرایش" : "ویرایش نبرد"}
+              </button>
+            )}
+            {battle.status === "draft" && battle.is_owner && (
+              <Link href={`/battles/new?slug=${battle.slug}`} className="flex h-12 items-center rounded-xl bg-gold px-5 font-bold text-bg">
+                ادامهٔ ویرایش پیش‌نویس
+              </Link>
+            )}
+          </>
+        }
+      />
 
       {battle.is_owner && editing && <OwnerPanel key={battle.status} battle={battle} onChange={onChange} />}
 

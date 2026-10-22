@@ -122,7 +122,8 @@ export default function Header() {
               ) : (
                 // The login modal links to /register, so one button covers both.
                 <button onClick={openLoginModal} className="btn-primary whitespace-nowrap text-sm hover:opacity-90">
-                  ورود / ثبت‌نام
+                  <span className="md:hidden">ورود</span>
+                  <span className="hidden md:inline">ورود / ثبت‌نام</span>
                 </button>
               ))}
           </div>

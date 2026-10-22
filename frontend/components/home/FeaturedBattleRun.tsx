@@ -3,12 +3,10 @@
 import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AuthorAvatar } from "@/components/lists/list-card";
-import { avatarByKey } from "@/lib/avatars";
 import { useAuth } from "@/lib/auth-context";
 import { absoluteUrl } from "@/lib/site";
-import { toFaDigits } from "@/lib/format-number";
 import { TournamentDetail, tournamentApi } from "@/lib/tournament";
+import BattleHeader from "@/components/battle/BattleHeader";
 import WinnerStaysBattle, { DONE_ACTION, Side, WinnerStaysItem } from "@/components/battle/WinnerStaysBattle";
 
 function shuffled<T>(items: T[]): T[] {
@@ -55,47 +53,22 @@ export default function FeaturedBattleRun({ battle }: { battle: TournamentDetail
 
   return (
     <div>
-      <header className="mx-auto mb-10 flex max-w-2xl flex-col items-center gap-4 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-xs font-bold text-gold">
-          <span aria-hidden="true">★</span>
-          نبرد برگزیده
-        </span>
-        <Link
-          href={`/battles/${battle.slug}`}
-          className="text-[28px] font-black leading-[1.35] text-ink transition hover:text-gold sm:text-4xl sm:leading-[1.3]"
-        >
-          {battle.title}
-        </Link>
-        {battle.description && <p className="max-w-xl text-sm leading-7 text-ink-dim">{battle.description}</p>}
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted">
-          {battle.creator && (
-            <Link
-              href={`/profile/${encodeURIComponent(battle.creator.username)}`}
-              className="flex items-center gap-2 text-ink-dim transition hover:text-ink"
-            >
-              {avatarByKey(battle.creator.avatar_key) ? (
-                <AuthorAvatar
-                  author={{ username: battle.creator.username, avatarKey: battle.creator.avatar_key }}
-                  sizeClassName="h-8 w-8"
-                  textClassName="text-base"
-                />
-              ) : (
-                <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-violet-light bg-surface-2 text-sm font-extrabold uppercase text-violet-light"
-                  aria-hidden="true"
-                >
-                  {battle.creator.username.charAt(0)}
-                </span>
-              )}
-              <span>{battle.creator.display_name || <span dir="ltr">@{battle.creator.username}</span>}</span>
-            </Link>
-          )}
-          {battle.creator && <span className="h-4 w-px bg-border" aria-hidden="true" />}
-          <span dir="rtl">{toFaDigits(battle.participants.length)} گزینه</span>
-          <span className="h-4 w-px bg-border" aria-hidden="true" />
-          <span dir="rtl">{toFaDigits(battle.follower_count)} دنبال‌کننده</span>
-        </div>
-      </header>
+      <BattleHeader
+        battle={{
+          title: battle.title,
+          description: battle.description,
+          creator: battle.creator,
+          optionCount: battle.participants.length,
+          followerCount: battle.follower_count,
+        }}
+        titleHref={`/battles/${battle.slug}`}
+        badge={
+          <span className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-xs font-bold text-gold">
+            <span aria-hidden="true">★</span>
+            نبرد برگزیده
+          </span>
+        }
+      />
 
       <WinnerStaysBattle
         items={items}
