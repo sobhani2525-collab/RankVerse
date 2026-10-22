@@ -8,7 +8,6 @@ import { encodeListSlug } from "@/lib/list-url";
 import ListFormFields from "@/components/ListFormFields";
 import SimilarListsHint from "@/components/SimilarListsHint";
 import ListStepper from "@/components/ListStepper";
-import { MonoLabel } from "@/components/list-detail/ui";
 
 const TITLE_EXAMPLES = ["۱۰ بهترین فیلم اکشن", "فیلم‌های نولان به ترتیب علاقه", "انیمه‌های آخر هفته", "سریال‌هایی که یک‌نفس دیدم"];
 
@@ -62,11 +61,8 @@ export default function NewListForm() {
   }
 
   return (
-    <main className="mx-auto max-w-[760px] px-4 pb-14 pt-8 lg:pt-[72px]">
-      <div className="mb-8 flex flex-col gap-5">
-        <MonoLabel className="text-violet-light">NEW LIST</MonoLabel>
-        <ListStepper current={1} />
-      </div>
+    <main className="mx-auto max-w-4xl px-6 py-12">
+      <ListStepper current={1} />
 
       <form
         onSubmit={handleSubmit}

@@ -11,7 +11,6 @@ import type { ListDetail } from "@/lib/types";
 import { ListViewerProvider, useListViewer } from "@/components/list-detail/ListViewerContext";
 import { ListBattleProvider } from "@/components/list-detail/ListBattleContext";
 import ListManageArea from "@/components/list-detail/ListManageArea";
-import { MonoLabel } from "@/components/list-detail/ui";
 import ListStepper from "@/components/ListStepper";
 import ListEditPanel from "@/components/ListEditPanel";
 
@@ -180,11 +179,8 @@ export default function DraftListEditor({ slug }: { slug: string }) {
   return (
     <ListViewerProvider key={detail.slug} slug={detail.slug} initialDetail={detail}>
       <ListBattleProvider>
-        <main className="mx-auto max-w-[1100px] px-4 pb-14 pt-8 lg:px-10 lg:pt-[72px]">
-          <div className="mb-8 flex flex-col gap-5">
-            <MonoLabel className="text-violet-light">NEW LIST</MonoLabel>
-            <ListStepper current={2} />
-          </div>
+        <main className="mx-auto max-w-[1100px] px-6 py-12 lg:px-10">
+          <ListStepper current={2} />
 
           {editing ? (
             <div className="mb-10">
@@ -211,7 +207,7 @@ export default function DraftListEditor({ slug }: { slug: string }) {
                   ویرایش مشخصات
                 </button>
               </div>
-              <h1 className="text-2xl font-extrabold leading-snug text-ink lg:text-3xl">{detail.title}</h1>
+              <h2 className="text-2xl font-extrabold leading-snug text-ink lg:text-3xl">{detail.title}</h2>
               {detail.description && <p className="text-sm leading-relaxed text-ink-dim">{detail.description}</p>}
               {detail.tags.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-2">
