@@ -9,6 +9,7 @@ from app.core.exceptions import NotFoundError, RateLimitedError
 from app.core.rate_limit import enforce
 from app.modules.admin.audit import AuditLogService
 from app.modules.admin.models import AdminAccount
+from app.modules.entities.detail_cache import invalidate_title_detail
 from app.modules.entities.models import Entity
 from app.modules.watch.models import WatchLink
 from app.modules.watch.providers import ACCESS_TYPES, PROVIDER_BY_KEY, PROVIDER_ORDER, validate_link
@@ -171,18 +172,23 @@ class WatchService:
         # attribute lazily is not allowed on an async session.
         await self.db.refresh(link)
         await self.db.refresh(entity)
+        invalidate_title_detail(entity.entity_type, entity.slug)
         return _admin_row(link, entity)
 
     async def delete(self, admin: AdminAccount, link_id: uuid.UUID, request: Request | None = None) -> None:
         link = await self.db.get(WatchLink, link_id)
         if link is None:
             raise NotFoundError("Link not found")
+        entity = await self.db.get(Entity, link.entity_id)
+        entity_key = (entity.entity_type, entity.slug) if entity else None
         await AuditLogService(self.db).record(
             admin, "watch_link.delete", "entity", link.entity_id,
             before={"provider": link.provider, "url": link.url}, request=request,
         )
         await self.db.delete(link)
         await self.db.commit()
+        if entity_key:
+            invalidate_title_detail(*entity_key)
 
     async def import_rows(self, admin: AdminAccount, rows: list[WatchLinkImportRow],
                           request: Request | None = None) -> list[WatchLinkImportResult]:
@@ -212,5 +218,8 @@ class WatchService:
                 except Exception as exc:  # a bad URL or a constraint problem: report it, keep going
                     error = getattr(exc, "message", None) or str(exc)
             results.append(WatchLinkImportResult(row=i, entity_slug=row.entity_slug, ok=error is None, error=error))
+        touched = {(es[0].entity_type, es[0].slug) for es in by_slug.values() if len(es) == 1}
         await self.db.commit()
+        for entity_type, slug in touched:
+            invalidate_title_detail(entity_type, slug)
         return results

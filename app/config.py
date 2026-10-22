@@ -256,6 +256,7 @@ class Settings(BaseSettings):
     cache_ttl_featured: int = 300
     cache_ttl_lists: int = 300  # movie/tv lists, rankings, genres, highlights
     cache_ttl_people: int = 900
+    cache_ttl_title_detail: int = 300  # GET /movies/{slug}, /tv-series/{slug}
     cache_ttl_sitemap: int = 86400
     cache_ttl_group_scores: int = 900  # per-group score lists behind the ranking highlights
     cache_ttl_similar: int = 3600  # top same-genre titles per genre set (the /related fallback)

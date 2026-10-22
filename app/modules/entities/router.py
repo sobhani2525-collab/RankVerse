@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core import database as _database
 from app.core.cache import cached
+from app.modules.entities.detail_cache import title_detail_key
 from app.core.database import get_db, get_read_db
 from app.core.schemas import envelope, Meta
 import uuid
@@ -91,9 +92,10 @@ async def list_movies(
 
 @router.get("/movies/{slug}")
 async def get_movie(slug: str, db: AsyncSession = Depends(get_read_db)):
-    service = EntityService(db)
-    movie = await service.get_movie_detail(slug)
-    return envelope(data=movie.model_dump())
+    async def load():
+        return envelope(data=(await EntityService(db).get_movie_detail(slug)).model_dump())
+
+    return await cached(title_detail_key("movie", slug), settings.cache_ttl_title_detail, load)
 
 
 @router.get("/movies/{slug}/suggested-battle")
@@ -112,9 +114,10 @@ async def get_movie_suggested_battle(
 
 @router.get("/tv-series/{slug}")
 async def get_tv_series(slug: str, db: AsyncSession = Depends(get_read_db)):
-    service = EntityService(db)
-    tv_series = await service.get_tv_series_detail(slug)
-    return envelope(data=tv_series.model_dump())
+    async def load():
+        return envelope(data=(await EntityService(db).get_tv_series_detail(slug)).model_dump())
+
+    return await cached(title_detail_key("tv_series", slug), settings.cache_ttl_title_detail, load)
 
 
 @router.get("/tv-series/{slug}/suggested-battle")

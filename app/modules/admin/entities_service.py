@@ -8,6 +8,7 @@ from app.core.exceptions import NotFoundError, ValidationError
 from app.modules.admin.audit import AuditLogService
 from app.modules.admin.entities_schemas import AdminEntityOverviewRow
 from app.modules.admin.models import AdminAccount
+from app.modules.entities.detail_cache import invalidate_title_detail
 from app.modules.entities.models import Entity
 from app.modules.sync.translation import is_persian
 
@@ -90,6 +91,7 @@ class AdminEntityService:
             before=before, after={"overview": overview, "overview_source": "manual"}, request=request,
         )
         await self.db.commit()
+        invalidate_title_detail(entity.entity_type, entity.slug)
         return _row(entity)
 
     async def reset_overview(
@@ -112,4 +114,5 @@ class AdminEntityService:
             before=before, after={"overview": english, "overview_source": attrs["overview_source"]}, request=request,
         )
         await self.db.commit()
+        invalidate_title_detail(entity.entity_type, entity.slug)
         return _row(entity)

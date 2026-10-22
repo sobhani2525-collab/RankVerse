@@ -124,6 +124,19 @@ async def test_movie_detail_lists_links_in_provider_order_without_urls(client, a
     assert all("url" not in l for l in detail["watch_links"])
 
 
+async def test_cached_movie_detail_follows_link_changes(client, admin_headers, movie):
+    detail_url = "/api/v1/movies/watchable-movie"
+    assert (await client.get(detail_url)).json()["data"]["watch_links"] == []  # now cached
+
+    created = await client.put(
+        ADMIN, json={"entity_id": str(movie.id), "provider": "filimo", "url": "https://www.filimo.com/m/1"}, headers=admin_headers
+    )
+    assert [l["provider"] for l in (await client.get(detail_url)).json()["data"]["watch_links"]] == ["filimo"]
+
+    await client.delete(f"{ADMIN}/{created.json()['data']['id']}", headers=admin_headers)
+    assert (await client.get(detail_url)).json()["data"]["watch_links"] == []
+
+
 async def test_click_redirects_to_the_service_and_counts(client, db_session, admin_headers, movie):
     created = await client.put(
         ADMIN, json={"entity_id": str(movie.id), "provider": "namava", "url": "https://www.namava.ir/movie/1"}, headers=admin_headers
