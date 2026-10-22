@@ -1,4 +1,4 @@
-import { authFetch } from "./api";
+import { authFetchEnvelope } from "./api";
 import { proxyTmdbUrl } from "./tmdb-image-url";
 import type { Envelope } from "./types";
 
@@ -120,12 +120,17 @@ export function posterSrc(entity: { poster_url: string | null }, size: "w185" | 
 }
 
 async function call<T>(path: string, token: string | null, options: { method?: string; body?: unknown } = {}): Promise<T> {
-  if (token) return authFetch<T>(`/battles${path}`, token, options);
+  return (await callEnvelope<T>(path, token, options)).data;
+}
+
+/** Like call, but keeps the envelope's meta (paged reads need meta.total). */
+async function callEnvelope<T>(path: string, token: string | null, options: { method?: string; body?: unknown } = {}): Promise<Envelope<T>> {
+  if (token) return authFetchEnvelope<T>(`/battles${path}`, token, options);
   // Guests: public reads only.
   const res = await fetch(`${API_BASE}/battles${path}`, { cache: "no-store" });
   const json: Envelope<T> = await res.json();
   if (!res.ok || json.error) throw new TournamentApiError(res.status, json.error?.message || "خطا در دریافت اطلاعات");
-  return json.data;
+  return json;
 }
 
 export class TournamentApiError extends Error {
@@ -144,6 +149,11 @@ function qs(params: Record<string, string | number | undefined | null>): string 
 export const tournamentApi = {
   list: (token: string | null, p: { page?: number; status?: string; entity_type?: string; sort?: string }) =>
     call<TournamentSummary[]>(`${qs({ ...p, page_size: 12 })}`, token),
+  /** One page of the hub plus the total count, for a numbered pager. */
+  listPage: async (token: string | null, p: { page?: number; page_size: number; status?: string; entity_type?: string; sort?: string }) => {
+    const json = await callEnvelope<TournamentSummary[]>(qs(p), token);
+    return { items: json.data, total: json.meta?.total ?? null };
+  },
   get: (slug: string, token: string | null) => call<TournamentDetail>(`/${slug}`, token),
   create: (token: string, body: { title: string; description?: string; entity_type: TournamentEntityType; bracket_size: BracketSize }) =>
     call<{ slug: string }>("", token, { method: "POST", body }),

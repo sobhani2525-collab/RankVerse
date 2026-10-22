@@ -1,13 +1,14 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import SectionHeading from "@/components/home/SectionHeading";
 import { ENTITY_TYPE_LABELS, TournamentSummary, tournamentApi } from "@/lib/tournament";
 import TournamentCard from "./TournamentCard";
+import ClientPager from "@/components/ClientPager";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 6;
 
 const SORTS = [
   { value: "newest", label: "جدیدترین" },
@@ -37,21 +38,23 @@ export default function TournamentHub() {
   const [sort, setSort] = useState("newest");
   const [items, setItems] = useState<TournamentSummary[]>([]);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // the admin-curated strip on top, like the featured lists
   const [featured, setFeatured] = useState<TournamentSummary[]>([]);
+  const gridTop = useRef<HTMLDivElement>(null);
 
   const load = useCallback(
-    async (nextPage: number, replace: boolean) => {
+    async (nextPage: number) => {
       setLoading(true);
       setError(null);
       try {
-        const rows = await tournamentApi.list(getToken(), { page: nextPage, entity_type: entityType, sort });
-        setItems((prev) => (replace ? rows : [...prev, ...rows]));
+        const { items: rows, total } = await tournamentApi.listPage(getToken(), { page: nextPage, page_size: PAGE_SIZE, entity_type: entityType, sort });
+        setItems(rows);
         setPage(nextPage);
-        setHasMore(rows.length === PAGE_SIZE);
+        // without a total, offer one more page while this one came back full
+        setTotalPages(total !== null ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : rows.length === PAGE_SIZE ? nextPage + 1 : nextPage);
       } catch (err) {
         setError(err instanceof Error ? err.message : "خطا در دریافت نبردها");
       } finally {
@@ -62,8 +65,13 @@ export default function TournamentHub() {
   );
 
   useEffect(() => {
-    load(1, true);
+    load(1);
   }, [load]);
+
+  function goTo(nextPage: number) {
+    void load(nextPage);
+    gridTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   useEffect(() => {
     tournamentApi
@@ -111,7 +119,7 @@ export default function TournamentHub() {
         </section>
       )}
 
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
+      <div ref={gridTop} className="mb-8 flex scroll-mt-24 flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
         <div className="flex flex-wrap gap-1">
           <Chip active={entityType === ""} onClick={() => setEntityType("")}>
             همه
@@ -137,23 +145,13 @@ export default function TournamentHub() {
           هنوز نبردی با این فیلتر نیست. اولین نبرد را خودت بساز!
         </p>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={`grid gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-3 ${loading ? "opacity-50" : ""}`}>
         {items.map((b) => (
           <TournamentCard key={b.slug} battle={b} />
         ))}
       </div>
-      {loading && <p className="mt-6 text-center text-sm text-muted">در حال بارگذاری…</p>}
-      {hasMore && !loading && (
-        <div className="mt-8 text-center">
-          <button
-            type="button"
-            onClick={() => load(page + 1, false)}
-            className="rounded-xl border border-border px-6 py-2.5 text-sm text-ink-dim hover:text-ink"
-          >
-            نمایش بیشتر
-          </button>
-        </div>
-      )}
+      {loading && items.length === 0 && <p className="mt-6 text-center text-sm text-muted">در حال بارگذاری…</p>}
+      <ClientPager page={page} totalPages={totalPages} onPage={goTo} disabled={loading} />
     </main>
   );
 }

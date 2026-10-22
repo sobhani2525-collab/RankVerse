@@ -1,14 +1,19 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import ClientPager from "@/components/ClientPager";
 import ListTicketCard from "@/components/lists/list-ticket-card";
-import { discoverLists } from "@/lib/api";
+import { discoverListsPage, LISTS_PAGE_SIZE } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import type { ListSummary } from "@/lib/types";
 
 export type ListSort = "newest" | "popular";
 export type ListTypeFilter = "all" | "movie" | "tv_series" | "person";
 
-const PAGE_SIZE = 30;
+/** Pages for a total; without one, offer one more page while this one came back full. */
+function pagesFor(total: number | null, page: number, rows: number): number {
+  if (total !== null) return Math.max(1, Math.ceil(total / LISTS_PAGE_SIZE));
+  return rows === LISTS_PAGE_SIZE ? page + 1 : page;
+}
 
 const SORT_OPTIONS: { value: ListSort; label: string }[] = [
   { value: "newest", label: "تازه‌ترین" },
@@ -30,17 +35,18 @@ const chipActive = "border-gold bg-gold/10 text-gold";
 /** Filter bar + card grid. The server renders the default view (so the page
  *  stays ISR-cached); changing a filter or loading more fetches from the API
  *  in the browser. */
-export default function ListsExplorer({ initialLists }: { initialLists: ListSummary[] }) {
+export default function ListsExplorer({ initialLists, initialTotal }: { initialLists: ListSummary[]; initialTotal: number | null }) {
   const [sort, setSort] = useState<ListSort>("newest");
   const [type, setType] = useState<ListTypeFilter>("all");
   const [query, setQuery] = useState("");
   const [lists, setLists] = useState(initialLists);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialLists.length === PAGE_SIZE);
+  const [totalPages, setTotalPages] = useState(() => pagesFor(initialTotal, 1, initialLists.length));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const requestId = useRef(0);
   const lastRequest = useRef<[ListSort, ListTypeFilter, number, string]>(["newest", "all", 1, ""]);
+  const gridTop = useRef<HTMLDivElement>(null);
 
   async function load(nextSort: ListSort, nextType: ListTypeFilter, nextPage: number, nextQuery: string = query.trim()) {
     const id = ++requestId.current;
@@ -48,10 +54,10 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
     setLoading(true);
     setError(false);
     try {
-      const rows = await discoverLists(
+      const { items: rows, total } = await discoverListsPage(
         {
           page: nextPage,
-          page_size: PAGE_SIZE,
+          page_size: LISTS_PAGE_SIZE,
           sort: nextSort,
           entity_type: nextType === "all" ? undefined : nextType,
           q: nextQuery || undefined,
@@ -59,9 +65,9 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
         0,
       );
       if (id !== requestId.current) return; // a newer request superseded this one
-      setLists((prev) => (nextPage === 1 ? rows : [...prev, ...rows]));
+      setLists(rows);
       setPage(nextPage);
-      setHasMore(rows.length === PAGE_SIZE);
+      setTotalPages(pagesFor(total, nextPage, rows.length));
     } catch {
       if (id === requestId.current) setError(true);
     } finally {
@@ -107,7 +113,7 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
         />
       </div>
 
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
+      <div ref={gridTop} className="mb-8 flex scroll-mt-24 flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
         <div className="flex flex-wrap gap-1">
           {TYPE_OPTIONS.map((o) => (
             <button key={o.value} type="button" aria-pressed={type === o.value} onClick={() => pick(sort, o.value)} className={`${chip} ${type === o.value ? chipActive : chipIdle}`}>
@@ -138,25 +144,22 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
           {type === "all" && !query.trim() ? "هنوز فهرستی ساخته نشده. اولین نفر باشید!" : "فهرستی با این جستجو یا فیلتر پیدا نشد."}
         </div>
       ) : (
-        <div className={`grid grid-cols-1 gap-8 transition-opacity md:grid-cols-2 lg:grid-cols-3 ${loading && page === 1 ? "opacity-50" : ""}`}>
+        <div className={`grid grid-cols-1 gap-8 transition-opacity md:grid-cols-2 lg:grid-cols-3 ${loading ? "opacity-50" : ""}`}>
           {lists.map((list) => (
             <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
           ))}
         </div>
       )}
 
-      {hasMore && lists.length > 0 && (
-        <div className="mt-10 flex justify-center">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => void load(sort, type, page + 1)}
-            className="min-h-[44px] rounded-full border border-[#232A42] px-8 text-sm font-bold text-[#C7CCE0] transition hover:border-[#E8B34A] hover:text-[#E8B34A] disabled:opacity-50"
-          >
-            {loading ? "در حال دریافت…" : "نمایش بیشتر"}
-          </button>
-        </div>
-      )}
+      <ClientPager
+        page={page}
+        totalPages={totalPages}
+        disabled={loading}
+        onPage={(p) => {
+          void load(sort, type, p);
+          gridTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      />
     </>
   );
 }

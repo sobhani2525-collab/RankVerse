@@ -116,6 +116,11 @@ export function isNotFoundError(err: unknown): boolean {
 }
 
 async function fetchEnvelope<T>(path: string, revalidateSeconds = RANKING_TTL, tags?: string[]): Promise<T> {
+  return (await fetchFullEnvelope<T>(path, revalidateSeconds, tags)).data;
+}
+
+/** Like fetchEnvelope, but keeps the envelope's meta (paged reads need meta.total). */
+async function fetchFullEnvelope<T>(path: string, revalidateSeconds = RANKING_TTL, tags?: string[]): Promise<Envelope<T>> {
   const res = await fetchWithTimeout(
     path,
     revalidateSeconds > 0 ? { next: { revalidate: revalidateSeconds, tags } } : { cache: "no-store" }
@@ -129,7 +134,7 @@ async function fetchEnvelope<T>(path: string, revalidateSeconds = RANKING_TTL, t
   if (json.error) {
     throw new Error(json.error.message);
   }
-  return json.data;
+  return json;
 }
 
 export async function getTopMovies(params: {
@@ -388,6 +393,15 @@ export async function authFetch<T>(
   token: string,
   options: { method?: string; body?: unknown } = {}
 ): Promise<T> {
+  return (await authFetchEnvelope<T>(path, token, options)).data;
+}
+
+/** Like authFetch, but keeps the envelope's meta (paged reads need meta.total). */
+export async function authFetchEnvelope<T>(
+  path: string,
+  token: string,
+  options: { method?: string; body?: unknown } = {}
+): Promise<Envelope<T>> {
   const res = await fetchWithAuthRetry(path, {
     method: options.method || "GET",
     headers: {
@@ -401,7 +415,7 @@ export async function authFetch<T>(
   if (!res.ok || json.error) {
     throw new Error(json.error?.message || `CinemeGozin API error (${res.status}) on ${path}`);
   }
-  return json.data;
+  return json;
 }
 
 // --- Lists: public reads ---
@@ -422,6 +436,21 @@ export async function discoverLists(params: {
   if (params.sort) qs.set("sort", params.sort);
   if (params.q) qs.set("q", params.q);
   return fetchEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, revalidateSeconds, tags);
+}
+
+/** Lists per page on /lists (the server render and the browser pager share it). */
+export const LISTS_PAGE_SIZE = 6;
+
+/** One page of discoverLists plus the total count, for a numbered pager. */
+export async function discoverListsPage(
+  params: Parameters<typeof discoverLists>[0] = {},
+  revalidateSeconds: number = COMMUNITY_TTL,
+  tags?: string[],
+): Promise<{ items: ListSummary[]; total: number | null }> {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  const json = await fetchFullEnvelope<ListSummary[]>(`/lists?${qs.toString()}`, revalidateSeconds, tags);
+  return { items: json.data, total: json.meta?.total ?? null };
 }
 
 /** Total number of public lists (envelope meta.total of a one-item page). */

@@ -12,6 +12,13 @@ export default function ListHero({ detail }: { detail: ListDetail }) {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-[18px] lg:gap-6">
+      {/* the way back to every list, the same pill the battle pages wear */}
+      <Link
+        href="/lists"
+        className="self-start rounded-full border border-border px-4 py-1.5 text-xs font-bold text-muted transition hover:border-gold/40 hover:text-gold"
+      >
+        فهرست‌های کاربران
+      </Link>
       <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
         {detail.title}
       </h1>

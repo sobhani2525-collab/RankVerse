@@ -3,7 +3,7 @@ import Link from "next/link";
 import ListsExplorer from "@/components/lists/lists-explorer";
 import MarqueeSign from "@/components/lists/marquee-sign";
 import CreateListStrip from "@/components/lists/create-list-strip";
-import { discoverLists, LISTS_CACHE_TAG } from "@/lib/api";
+import { discoverListsPage, LISTS_CACHE_TAG, LISTS_PAGE_SIZE } from "@/lib/api";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
@@ -29,11 +29,12 @@ export const metadata: Metadata = {
 };
 
 export default async function ListsPage() {
-  let lists: Awaited<ReturnType<typeof discoverLists>> = [];
+  let lists: Awaited<ReturnType<typeof discoverListsPage>>["items"] = [];
+  let total: number | null = null;
   let loadError: string | null = null;
 
   try {
-    lists = await discoverLists({ page_size: 30, sort: "newest" }, undefined, [LISTS_CACHE_TAG]);
+    ({ items: lists, total } = await discoverListsPage({ page_size: LISTS_PAGE_SIZE, sort: "newest" }, undefined, [LISTS_CACHE_TAG]));
   } catch (err) {
     rethrowOutsideBuild(err);
     loadError = err instanceof Error ? err.message : "خطا در دریافت اطلاعات";
@@ -80,7 +81,7 @@ export default async function ListsPage() {
         </div>
       ) : (
         <>
-          <ListsExplorer initialLists={lists} />
+          <ListsExplorer initialLists={lists} initialTotal={total} />
           <CreateListStrip />
         </>
       )}
