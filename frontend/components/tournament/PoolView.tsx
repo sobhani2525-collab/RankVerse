@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { toFaDigits } from "@/lib/format-number";
@@ -251,6 +251,12 @@ export default function PoolView({
   const [myRows, setMyRows] = useState<RunRow[]>([]);
   const [editing, setEditing] = useState(false);
   const signedIn = !authLoading && isAuthenticated;
+  // ?view=results (the home page's "نتیجهٔ جمعی" link after a run there) opens on the
+  // standings instead of a fresh run; &mine= marks that run's champion.
+  const params = useSearchParams();
+  const [resultsFirst, setResultsFirst] = useState(() => params.get("view") === "results");
+  const linkedChampion = params.get("mine");
+  const linkedMine = battle.participants.some((p) => p.id === linkedChampion) ? linkedChampion : null;
 
   const items: WinnerStaysItem[] = useMemo(
     () =>
@@ -311,6 +317,9 @@ export default function PoolView({
 
   const playable = battle.status === "active";
   const showResults = playable ? runDone : battle.status !== "draft";
+  // Only while there is something to show: the standings (viewer has played), or the guest's login prompt.
+  const resultsOnly =
+    playable && resultsFirst && !runDone && !authLoading && (battle.leaderboard != null || !isAuthenticated);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -373,7 +382,23 @@ export default function PoolView({
 
       {battle.is_owner && editing && <OwnerPanel key={battle.status} battle={battle} onChange={onChange} />}
 
-      {playable ? (
+      {resultsOnly ? (
+        <section className="mt-10">
+          <CommunityResults battle={battle} mine={linkedMine} />
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setResultsFirst(false);
+                router.replace(`/battles/${battle.slug}`, { scroll: false });
+              }}
+              className="btn-secondary text-sm hover:border-gold/40 hover:text-gold"
+            >
+              انجام دوبارهٔ این نبرد
+            </button>
+          </div>
+        </section>
+      ) : playable ? (
         <section className="mt-10">
           {showResults && myRows.length > 0 && <MyResults rows={myRows} />}
           <div className={showResults ? "mt-2" : ""}>

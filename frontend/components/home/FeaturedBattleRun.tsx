@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -23,6 +23,7 @@ export default function FeaturedBattleRun({ battle }: { battle: TournamentDetail
   const router = useRouter();
   const { getToken, isAuthenticated, loading: authLoading } = useAuth();
   const signedIn = !authLoading && isAuthenticated;
+  const [champion, setChampion] = useState<string | null>(null);
 
   const items: WinnerStaysItem[] = useMemo(
     () =>
@@ -77,10 +78,14 @@ export default function FeaturedBattleRun({ battle }: { battle: TournamentDetail
         reason="هر بار برنده می‌ماند و با گزینهٔ بعدی روبه‌رو می‌شود"
         share={{ url: absoluteUrl(`/battles/${battle.slug}`), topic: null, battleName: battle.title }}
         savePick={savePick}
+        onDone={setChampion}
         onNext={() => router.push("/battles")}
         onSkipBattle={() => router.push("/battles")}
         extraDoneActions={
-          <Link href={`/battles/${battle.slug}`} className={DONE_ACTION}>
+          <Link
+            href={`/battles/${battle.slug}?view=results${champion ? `&mine=${encodeURIComponent(champion)}` : ""}`}
+            className={DONE_ACTION}
+          >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M5 20V10M12 20V4M19 20v-7" />
             </svg>
