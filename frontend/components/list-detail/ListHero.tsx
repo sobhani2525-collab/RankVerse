@@ -19,12 +19,12 @@ export default function ListHero({ detail }: { detail: ListDetail }) {
       >
         فهرست‌های کاربران
       </Link>
-      <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
+      <h1 className="text-[28px] font-black leading-[1.35] text-ink sm:text-4xl sm:leading-[1.3]">
         {detail.title}
       </h1>
 
       {detail.description && (
-        <p className="max-w-[720px] whitespace-pre-line text-[15px] leading-[1.9] text-ink-dim lg:text-lg">
+        <p className="max-w-[720px] whitespace-pre-line text-sm leading-7 text-ink-dim">
           {detail.description}
         </p>
       )}
