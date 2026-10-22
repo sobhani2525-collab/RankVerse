@@ -22,9 +22,10 @@ const TYPE_OPTIONS: { value: ListTypeFilter; label: string }[] = [
   { value: "person", label: "هنرمند" },
 ];
 
-const chip = "inline-flex min-h-[44px] items-center rounded-full border px-5 text-sm transition";
-const chipIdle = "border-[#232A42] text-[#8A93A6] hover:text-[#F2F0E8]";
-const chipActive = "border-[#E8B34A] bg-[#E8B34A]/[.12] font-bold text-[#E8B34A]";
+// Same bar as the battles hub: type chips on one side, sort chips on the other.
+const chip = "rounded-xl border px-4 py-1.5 text-sm transition";
+const chipIdle = "border-transparent text-muted hover:text-ink";
+const chipActive = "border-gold bg-gold/10 text-gold";
 
 /** Filter bar + card grid. The server renders the default view (so the page
  *  stays ISR-cached); changing a filter or loading more fetches from the API
@@ -106,21 +107,21 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
         />
       </div>
 
-      <div className="mb-8 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:gap-10">
-        <Group label="SORT">
-          {SORT_OPTIONS.map((o) => (
-            <button key={o.value} type="button" aria-pressed={sort === o.value} onClick={() => pick(o.value, type)} className={`${chip} ${sort === o.value ? chipActive : chipIdle}`}>
-              {o.label}
-            </button>
-          ))}
-        </Group>
-        <Group label="TYPE">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
+        <div className="flex flex-wrap gap-1">
           {TYPE_OPTIONS.map((o) => (
             <button key={o.value} type="button" aria-pressed={type === o.value} onClick={() => pick(sort, o.value)} className={`${chip} ${type === o.value ? chipActive : chipIdle}`}>
               {o.label}
             </button>
           ))}
-        </Group>
+        </div>
+        <div className="flex gap-1">
+          {SORT_OPTIONS.map((o) => (
+            <button key={o.value} type="button" aria-pressed={sort === o.value} onClick={() => pick(o.value, type)} className={`${chip} ${sort === o.value ? chipActive : chipIdle}`}>
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error && (
@@ -157,14 +158,5 @@ export default function ListsExplorer({ initialLists }: { initialLists: ListSumm
         </div>
       )}
     </>
-  );
-}
-
-function Group({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span dir="ltr" className="ml-1 font-mono text-[11px] uppercase tracking-[.3em] text-[#5A6380]">{label}</span>
-      {children}
-    </div>
   );
 }
