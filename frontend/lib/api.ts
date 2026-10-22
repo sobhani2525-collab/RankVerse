@@ -217,7 +217,13 @@ export async function sendContactMessage(
   if (res.ok) return;
   const json = await res.json().catch(() => null);
   if (res.status === 429) throw new Error(json?.error?.message || "تعداد پیام‌ها زیاد است. کمی بعد دوباره امتحان کن.");
-  if (res.status === 422) throw new Error("لطفاً فیلدها را بررسی کن؛ ایمیل یا متن پیام معتبر نیست.");
+  if (res.status === 422) {
+    // FastAPI names the bad field in detail[].loc, e.g. ["body", "email"].
+    const fields: string[] = Array.isArray(json?.detail) ? json.detail.map((d: { loc?: unknown[] }) => String(d.loc?.at(-1))) : [];
+    const label: Record<string, string> = { email: "ایمیل", subject: "عنوان", message: "متن پیام", page_url: "لینک صفحه", name: "نام" };
+    const named = fields.map((f) => label[f]).filter(Boolean);
+    throw new Error(named.length ? `${named.join("، ")} معتبر نیست؛ لطفاً بررسی کن.` : "لطفاً فیلدهای فرم را بررسی کن.");
+  }
   throw new Error("ارسال پیام ممکن نشد. دوباره امتحان کن.");
 }
 

@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+_BARE_DOMAIN = re.compile(r"^(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?:[/?#]\S*)?$", re.I)
+
 Category = Literal["bug", "inappropriate", "content_error", "suggestion", "copyright", "other"]
 
 
@@ -35,16 +37,19 @@ class ContactCreate(BaseModel):
 
     @field_validator("page_url")
     @classmethod
-    def _page_url_is_web(cls, v: str | None) -> str | None:
-        # Shown as a link in the admin inbox: only site paths and http(s) URLs.
-        if v is not None and not (re.match(r"^/(?!/)", v) or re.match(r"^https?://", v, re.I)):
-            raise ValueError("page_url must be a site path or an http(s) URL")
+    def _page_url_scheme(cls, v: str | None) -> str | None:
+        # Free text is fine (the admin inbox only links site paths and http(s)
+        # URLs); a bare "cinemagozin.ir/movies/x" gets its scheme back.
+        if v is not None and _BARE_DOMAIN.match(v):
+            return f"https://{v}"
         return v
 
     @field_validator("email", mode="before")
     @classmethod
     def _blank_email(cls, v):
-        return None if isinstance(v, str) and not v.strip() else v
+        if isinstance(v, str):
+            return v.strip() or None
+        return v
 
 
 class ContactUpdate(BaseModel):

@@ -49,7 +49,14 @@ async def test_invalid_payloads_are_rejected(client):
     assert (await client.post(URL, json={**BODY, "category": "nope"})).status_code == 422
     assert (await client.post(URL, json={**BODY, "message": "   کوتاه   "})).status_code == 422
     assert (await client.post(URL, json={**BODY, "email": "not-an-email"})).status_code == 422
-    assert (await client.post(URL, json={**BODY, "page_url": "javascript:alert(1)"})).status_code == 422
+
+
+async def test_page_url_is_free_text_with_bare_domains_fixed(client, db_session):
+    assert (await client.post(URL, json={**BODY, "page_url": "cinemagozin.ir/movies/x", "email": " a@b.co "})).status_code == 201
+    assert (await client.post(URL, json={**BODY, "page_url": "صفحهٔ فیلم پدرخوانده"})).status_code == 201
+    rows = (await db_session.execute(select(ContactMessage).order_by(ContactMessage.created_at))).scalars().all()
+    assert sorted(m.page_url for m in rows) == sorted(["https://cinemagozin.ir/movies/x", "صفحهٔ فیلم پدرخوانده"])
+    assert any(m.email == "a@b.co" for m in rows)
 
 
 async def test_admin_inbox_needs_an_admin(client, auth_headers):

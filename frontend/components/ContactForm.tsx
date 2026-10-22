@@ -127,7 +127,7 @@ export default function ContactForm() {
         {needsPage && (
           <div>
             <label htmlFor="contact-page" className="mb-1.5 block text-sm text-muted">
-              لینک صفحه <span className="text-dim">(اختیاری)</span>
+              لینک یا نام صفحه <span className="text-dim">(اختیاری)</span>
             </label>
             <input
               id="contact-page"
