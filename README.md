@@ -31,7 +31,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-سرور روی `http://localhost:8000` بالا می‌آید. مستندات خودکار API: `http://localhost:8000/docs`
+سرور روی `http://localhost:8000` بالا می‌آید. مستندات خودکار API: `http://localhost:8000/docs` (فقط وقتی `API_DOCS_ENABLED=true` در `.env` باشد؛ در production خاموش است)
 
 ### ۳. وارد کردن اولین داده‌ها (Sync با TMDb)
 

@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -32,7 +32,27 @@ app = FastAPI(
     title="CinemeGozin Core Engine",
     description="Knowledge-graph-based ranking platform for movies, series and artists",
     version="0.1.0",
+    docs_url="/docs" if settings.api_docs_enabled else None,
+    redoc_url="/redoc" if settings.api_docs_enabled else None,
+    openapi_url="/openapi.json" if settings.api_docs_enabled else None,
 )
+
+# Sent on every API response. The API only serves JSON, so nothing may frame
+# it or sniff it as another type, and URLs never leak to other sites.
+SECURITY_HEADERS = {
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for key, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(key, value)
+    return response
 
 app.add_middleware(
     CORSMiddleware,    

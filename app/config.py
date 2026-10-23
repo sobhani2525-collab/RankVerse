@@ -67,6 +67,11 @@ class Settings(BaseSettings):
 
     internal_api_key: str = ""
 
+    # Swagger UI (/docs, /redoc) and /openapi.json. Off unless explicitly
+    # enabled (local .env), so production never lists the internal and admin
+    # endpoints even if ENVIRONMENT isn't set there.
+    api_docs_enabled: bool = False
+
     # Error reporting (see app/main.py). Empty DSN = disabled.
     sentry_dsn: str = ""
     sentry_environment: str = ""  # defaults to ENVIRONMENT
