@@ -78,8 +78,9 @@ const FALLBACK_MIRROR = (process.env.NEXT_PUBLIC_TMDB_IMAGE_FALLBACK_BASE || "")
 
 const FALLBACK_HEAD_START_MS = 2500;
 
-// w500 covers the poster's drawn width (<= 380px) and is the size the page's
-// posters already use, so it is usually in the browser cache. The primary
+// w500 covers the poster's drawn width (<= 380px); proxyTmdbUrl caps it to
+// the size the page's posters already use, so it is usually in the browser
+// cache (see MAX_MIRROR_WIDTH in tmdb-image-url.ts). The primary
 // mirror can stall or cut big downloads off on some VPN paths, so (like
 // TmdbImageFallback does for the page) the fallback mirror joins in when the
 // primary fails or is still loading after a short head start; first one wins.
