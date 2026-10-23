@@ -18,6 +18,8 @@ from app.modules.admin.entities_router import router as admin_entities_router
 from app.modules.admin.dashboard_router import router as admin_dashboard_router
 from app.modules.admin.analytics_router import router as admin_analytics_router
 from app.modules.admin.seo_router import router as admin_seo_router
+from app.modules.admin.ingestion_router import router as admin_ingestion_router
+from app.modules.admin.algorithms_router import router as admin_algorithms_router
 from app.modules.daily_battle.router import router as daily_battle_router
 from app.modules.daily_battle.admin_router import router as admin_daily_battle_router
 from app.modules.battles.admin_router import router as admin_battles_router
@@ -37,6 +39,8 @@ api_router.include_router(admin_entities_router)
 api_router.include_router(admin_dashboard_router)
 api_router.include_router(admin_analytics_router)
 api_router.include_router(admin_seo_router)
+api_router.include_router(admin_ingestion_router)
+api_router.include_router(admin_algorithms_router)
 api_router.include_router(admin_watch_router)
 api_router.include_router(watch_router)
 api_router.include_router(notifications_router)

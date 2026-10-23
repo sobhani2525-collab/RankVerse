@@ -33,6 +33,10 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "admin.login": "ورود ادمین",
   "admin.password_change": "تغییر رمز ادمین",
   "audit_log.export": "خروجی تاریخچهٔ مدیریتی",
+  "entity.overview.set": "نوشتن خلاصهٔ دستی",
+  "entity.overview.reset": "حذف خلاصهٔ دستی",
+  "ingestion.sync": "همگام‌سازی از TMDb",
+  "ranking.recompute": "بازمحاسبهٔ امتیاز",
 };
 
 export const AUDIT_TARGET_LABELS: Record<string, string> = {
@@ -41,6 +45,7 @@ export const AUDIT_TARGET_LABELS: Record<string, string> = {
   daily_battle: "نبرد روز",
   admin: "ادمین",
   audit_log: "تاریخچه",
+  entity: "عنوان",
 };
 
 export const auditActionLabel = (action: string) => AUDIT_ACTION_LABELS[action] ?? action;

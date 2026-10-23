@@ -1,4 +1,5 @@
 from bisect import bisect_left
+from dataclasses import dataclass
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +48,27 @@ ELO_BASELINE = 1200.0
 ELO_SPREAD = 400.0
 
 
+@dataclass
+class ScoreBreakdown:
+    """Every input and intermediate step behind one entity's computed_score
+    (what recompute_entities stores, and what the admin "why this score?" view shows)."""
+
+    platform_avg: float  # C, 1-5
+    user_avg: float | None  # R, 1-5
+    user_votes: int  # v
+    bayesian: float  # 1-5
+    external_source: str  # imdb | tmdb | prior
+    external_rating: float | None  # the raw 0-10 rating used
+    external_votes: int
+    external: float  # shrunk 0-10
+    user_weight: float  # alpha after the v/(v+m) ramp
+    blended: float  # 0-10
+    elo: float | None
+    matches: int
+    battle_adjustment: float
+    final: float
+
+
 class RankingService:
     """
     Computes the CinemeGozin score for each entity using a Bayesian-average
@@ -90,18 +112,23 @@ class RankingService:
             return C
         return (v / (v + self.m)) * R + (self.m / (v + self.m)) * C
 
+    def external_inputs(self, attrs: dict) -> tuple[str, float | None, int, int]:
+        """(source, rating, votes, shrinkage m) external_score works from."""
+        imdb, imdb_votes = attrs.get("imdb_rating"), attrs.get("imdb_votes")
+        if imdb is not None and imdb_votes:
+            return "imdb", float(imdb), int(imdb_votes), self.imdb_m
+        tmdb = attrs.get("external_rating")
+        if tmdb is None:
+            return "prior", None, 0, 0
+        return "tmdb", float(tmdb), int(attrs.get("external_vote_count") or 0), self.tmdb_m
+
     def external_score(self, attrs: dict) -> float:
         """0-10 external quality score, Bayesian-shrunk toward the catalog
         mean by vote count. IMDb (rating + votes) is preferred; TMDb's
         vote_average/vote_count is the fallback. No rating -> the prior."""
-        imdb, imdb_votes = attrs.get("imdb_rating"), attrs.get("imdb_votes")
-        if imdb is not None and imdb_votes:
-            r, v, m = float(imdb), int(imdb_votes), self.imdb_m
-        else:
-            tmdb = attrs.get("external_rating")
-            if tmdb is None:
-                return self.ext_prior
-            r, v, m = float(tmdb), int(attrs.get("external_vote_count") or 0), self.tmdb_m
+        source, r, v, m = self.external_inputs(attrs)
+        if source == "prior":
+            return self.ext_prior
         return (v * r + m * self.ext_prior) / (v + m)
 
     def blend_with_external(
@@ -112,13 +139,16 @@ class RankingService:
         # otherwise a perfect 5-star average tops out at half of a perfect
         # external score and every blended score is compressed/deflated.
         external = external_0_10 if external_0_10 is not None else C * 2
-        alpha = self.alpha
-        if user_votes is not None:
-            # With no user votes the "user" term is just the platform
-            # average -- a constant that only dilutes the external score
-            # -- so its weight grows with the votes actually collected.
-            alpha = self.alpha * user_votes / (user_votes + self.m)
+        alpha = self.user_weight(user_votes)
         return round(alpha * (bayesian * 2) + (1 - alpha) * external, 2)
+
+    def user_weight(self, user_votes: int | None) -> float:
+        # With no user votes the "user" term is just the platform
+        # average -- a constant that only dilutes the external score
+        # -- so its weight grows with the votes actually collected.
+        if user_votes is None:
+            return self.alpha
+        return self.alpha * user_votes / (user_votes + self.m)
 
     def battle_adjustment(self, elo: float | None, matches: int) -> float:
         """Points added to (or taken from) the blended score for battle
@@ -134,14 +164,12 @@ class RankingService:
         """Recompute and persist the score for a single entity."""
         return (await self.recompute_entities([entity]))[entity.id]
 
-    async def recompute_entities(self, entities: list[Entity]) -> dict:
+    async def score_breakdowns(self, entities: list[Entity]) -> dict:
         """
-        Recompute and persist the scores of several entities (e.g. both
-        sides of a battle) -- same formula as the per-entity helpers above,
-        but the platform average, each entity's rating stats and battle
-        stats come back in one query and the ranking rows in a second,
-        instead of ~6 sequential round trips per entity. Returns entity id
-        -> EntityRanking.
+        Compute (without writing anything) what each entity's score would be
+        now, with every step kept -- the platform average, each entity's
+        rating stats and battle stats come back in one query. Returns
+        entity id -> ScoreBreakdown.
         """
         if not entities:
             return {}
@@ -176,23 +204,47 @@ class RankingService:
         )
         stats = {row[0]: row[1:] for row in (await self.db.execute(stats_stmt)).all()}
 
-        existing = await self.db.execute(select(EntityRanking).where(EntityRanking.entity_id.in_(ids)))
-        rankings = {r.entity_id: r for r in existing.scalars().all()}
-
+        out = {}
         for entity in entities:
             platform_avg, avg, votes, elo, matches = stats[entity.id]
             C = float(platform_avg) if platform_avg is not None else 3.0  # neutral midpoint of the 1-5 scale
             R = float(avg) if avg is not None else None
             v = votes or 0
+            attrs = entity.attributes or {}
             bayesian = self.bayesian_score(v, R, C)
+            source, ext_rating, ext_votes, _m = self.external_inputs(attrs)
+            external = self.external_score(attrs)
+            blended = self.blend_with_external(bayesian, external, C, user_votes=v)
+            battle = self.battle_adjustment(elo, matches or 0)
+            out[entity.id] = ScoreBreakdown(
+                platform_avg=C, user_avg=R, user_votes=v, bayesian=bayesian,
+                external_source=source, external_rating=ext_rating, external_votes=ext_votes, external=external,
+                user_weight=self.user_weight(v), blended=blended,
+                elo=float(elo) if elo is not None else None, matches=matches or 0, battle_adjustment=battle,
+                final=round(blended + battle, 2),
+            )
+        return out
 
+    async def recompute_entities(self, entities: list[Entity]) -> dict:
+        """
+        Recompute and persist the scores of several entities (e.g. both
+        sides of a battle) -- same formula as the per-entity helpers above,
+        computed by score_breakdowns in one query, with the ranking rows in
+        a second, instead of ~6 sequential round trips per entity. Returns
+        entity id -> EntityRanking.
+        """
+        if not entities:
+            return {}
+        ids = [e.id for e in entities]
+        breakdowns = await self.score_breakdowns(entities)
+
+        existing = await self.db.execute(select(EntityRanking).where(EntityRanking.entity_id.in_(ids)))
+        rankings = {r.entity_id: r for r in existing.scalars().all()}
+
+        for entity in entities:
+            b = breakdowns[entity.id]
             # TMDb rating is 0-10 already; stored in attributes at ingest time
             external_score = entity.attributes.get("external_rating")
-            final = round(
-                self.blend_with_external(bayesian, self.external_score(entity.attributes), C, user_votes=v)
-                + self.battle_adjustment(elo, matches or 0),
-                2,
-            )
 
             ranking = rankings.get(entity.id)
             if ranking is None:
@@ -200,10 +252,10 @@ class RankingService:
                 self.db.add(ranking)
                 rankings[entity.id] = ranking
 
-            ranking.avg_user_score = R
-            ranking.total_votes = v
+            ranking.avg_user_score = b.user_avg
+            ranking.total_votes = b.user_votes
             ranking.external_score = external_score
-            ranking.computed_score = final
+            ranking.computed_score = b.final
 
         await self.db.flush()
         return rankings
