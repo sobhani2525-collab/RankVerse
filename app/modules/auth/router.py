@@ -3,9 +3,8 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.core.database import get_db
-from app.core.email import email_enabled, password_reset_email, send_email, verification_email
+from app.core.email import dev_auth_links_enabled, password_reset_email, send_email, verification_email
 from app.core.rate_limit import client_ip, enforce
 from app.core.schemas import envelope
 from app.core.security import create_access_token, decode_token, token_matches_password
@@ -101,7 +100,7 @@ async def resend_verification(
     subject, text, html = verification_email(link)
     background.add_task(send_email, current_user.email, subject, text, html)
     data: dict = {"sent": True}
-    if settings.environment != "production" and not email_enabled():
+    if dev_auth_links_enabled():
         data["dev_verify_link"] = link
     return envelope(data=data)
 
@@ -121,9 +120,8 @@ async def forgot_password(
     if reset_link:
         subject, text, html = password_reset_email(reset_link)
         background.add_task(send_email, payload.email, subject, text, html)
-        # Local convenience only: never in production, and not once real
-        # email is configured.
-        if settings.environment != "production" and not email_enabled():
+        # Local convenience only: explicit opt-in, never once email works.
+        if dev_auth_links_enabled():
             data["dev_reset_link"] = reset_link
     return envelope(data=data)
 

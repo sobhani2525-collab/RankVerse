@@ -15,7 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 def email_enabled() -> bool:
-    return settings.email_provider == "smtp" and bool(settings.smtp_host and settings.email_from)
+    return settings.email_provider.strip().lower() == "smtp" and bool(settings.smtp_host and settings.email_from)
+
+
+def dev_auth_links_enabled() -> bool:
+    """Whether auth responses may include the reset/verify link itself (local
+    dev without email). Anyone could then reset any account, so it needs an
+    explicit DEV_AUTH_LINKS=true and never applies once email is configured."""
+    return settings.dev_auth_links and not email_enabled()
 
 
 def _send_smtp(to: str, subject: str, text: str, html: str | None) -> None:

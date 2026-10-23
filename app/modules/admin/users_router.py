@@ -5,10 +5,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.core.database import get_db
 from app.core.exceptions import ValidationError
-from app.core.email import email_enabled, password_reset_email, send_email
+from app.core.email import dev_auth_links_enabled, password_reset_email, send_email
 from app.core.schemas import Meta, envelope
 from app.modules.admin.dependencies import get_current_admin
 from app.modules.admin.models import AdminAccount
@@ -174,7 +173,7 @@ async def send_password_reset(
     background.add_task(send_email, user.email, subject, text, html)
     data: dict = {"sent": True}
     # Same local-only convenience as /auth/forgot-password.
-    if settings.environment != "production" and not email_enabled():
+    if dev_auth_links_enabled():
         data["dev_reset_link"] = link
     return envelope(data=data)
 

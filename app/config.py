@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_starttls: bool = True  # STARTTLS on the (usually 587) connection
     smtp_use_ssl: bool = False  # implicit TLS (usually 465); overrides STARTTLS
+    # Local dev only: return reset/verify links in API responses (see
+    # app.core.email.dev_auth_links_enabled). Off unless explicitly set, so a
+    # missing ENVIRONMENT or a broken email config can't expose them.
+    dev_auth_links: bool = False
 
     tmdb_api_key: str = ""
     tmdb_base_url: str = "https://api.themoviedb.org/3"
