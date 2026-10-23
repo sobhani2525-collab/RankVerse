@@ -83,7 +83,10 @@ async def movie_ranking_highlights(slug: str):
     async def load():
         async with _database.background_read_session() as db:
             entity = await EntityService(db).get_movie_entity(slug)
-            highlights = await RankingService(db).get_entity_highlights(entity)
+            service = RankingService(db)
+            groups = await service.get_ranking_groups(entity)
+        # Out of the block: the per-group loads take connections of their own.
+        highlights = await service.highlights_in_groups(entity, groups)
         return envelope(data=[h.model_dump() for h in highlights])
 
     return await cached(("highlights", "movie", slug), settings.cache_ttl_lists, load)
@@ -121,7 +124,10 @@ async def tv_series_ranking_highlights(slug: str):
     async def load():
         async with _database.background_read_session() as db:
             entity = await EntityService(db).get_tv_series_entity(slug)
-            highlights = await RankingService(db).get_entity_highlights(entity)
+            service = RankingService(db)
+            groups = await service.get_ranking_groups(entity)
+        # Out of the block: the per-group loads take connections of their own.
+        highlights = await service.highlights_in_groups(entity, groups)
         return envelope(data=[h.model_dump() for h in highlights])
 
     return await cached(("highlights", "tv_series", slug), settings.cache_ttl_lists, load)

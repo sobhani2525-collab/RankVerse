@@ -222,10 +222,12 @@ class RankingService:
         (ORDER BY score DESC NULLS LAST) == 1 + the number of members with a
         strictly higher score (members without a score share the last rank).
         """
-        min_group_size = min_group_size if min_group_size is not None else settings.ranking_group_min_size
-        group_entity = aliased(Entity)
+        return await self.highlights_in_groups(entity, await self.get_ranking_groups(entity), min_group_size)
 
-        own_groups = (
+    async def get_ranking_groups(self, entity: Entity) -> list:
+        """(relation_type, group id, slug, title, title_fa) of each ranking group the entity belongs to."""
+        group_entity = aliased(Entity)
+        return (
             await self.db.execute(
                 select(
                     RelationshipEdge.relation_type,
@@ -241,6 +243,18 @@ class RankingService:
                 )
             )
         ).all()
+
+    async def highlights_in_groups(
+        self, entity: Entity, own_groups: list, min_group_size: int | None = None
+    ) -> list[RankingHighlight]:
+        """
+        The highlights for groups from get_ranking_groups. Doesn't touch
+        self.db: each group's scores load on a session of their own, so a
+        caller should close its session first -- holding one connection while
+        waiting on several more is how a few concurrent title pages used to
+        drain the whole pool and stall every request.
+        """
+        min_group_size = min_group_size if min_group_size is not None else settings.ranking_group_min_size
         if not own_groups:
             return []
 

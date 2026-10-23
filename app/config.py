@@ -9,13 +9,14 @@ class Settings(BaseSettings):
     bulk_database_url: str = ""
     redis_url: str = "redis://localhost:6379/0"
 
-    # Connection pool of ONE backend process. Supabase's session pooler caps ALL
-    # clients (this API, local dev servers, scripts) at 15 connections, so the
-    # SQLAlchemy default (5 + 10 overflow = 15) lets a single process use the
-    # whole budget. Keep this process well under it and fail fast, instead of
-    # hanging a request for 30s, when the pool is exhausted.
-    db_pool_size: int = 5
-    db_max_overflow: int = 5
+    # Connection pool of ONE backend process. The Liara Postgres allows 100
+    # connections for ALL clients (this API, local dev servers, scripts); a
+    # cold title page fans out to several at once (one per ranking group), so
+    # 5 + 5 ran dry under a handful of concurrent visitors. Stay well under
+    # the server cap and fail fast, instead of hanging a request for 30s,
+    # when the pool is exhausted.
+    db_pool_size: int = 10
+    db_max_overflow: int = 10
     db_pool_timeout: int = 15  # seconds to wait for a free connection
     db_pool_recycle: int = 300  # drop connections the pooler may have closed
 

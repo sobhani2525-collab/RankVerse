@@ -59,8 +59,8 @@ def test_engine_pool_stays_under_the_shared_connection_cap():
 
     assert engine.pool.size() == settings.db_pool_size
     assert engine.pool._max_overflow == settings.db_max_overflow
-    # One process must not be able to take the whole 15-connection pooler budget.
-    assert settings.db_pool_size + settings.db_max_overflow <= 12
+    # One process must leave most of the DB's 100 connections to everyone else.
+    assert settings.db_pool_size + settings.db_max_overflow <= 30
 
 
 async def test_admin_password_change_limit_holds_without_redis():
