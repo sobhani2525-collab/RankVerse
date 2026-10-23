@@ -40,6 +40,7 @@ const COLUMNS = [
   {
     title: "پشتیبانی",
     links: [
+      { href: "/about", label: "درباره ما" },
       { href: "/contact", label: "ارتباط با ما" },
       { href: "/contact?topic=bug", label: "گزارش خطا" },
       { href: "/contact?topic=inappropriate", label: "گزارش محتوای نامناسب" },
@@ -81,7 +82,15 @@ export default function Footer() {
 
       <div className="border-t border-border/60">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-5 text-xs leading-6 text-dim md:flex-row md:items-center md:justify-between">
-          <p>© {SITE_NAME} — همهٔ حقوق محفوظ است.</p>
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>© {SITE_NAME} — همهٔ حقوق محفوظ است.</span>
+            <Link href="/terms" className="text-muted hover:text-gold">
+              قوانین استفاده
+            </Link>
+            <Link href="/privacy" className="text-muted hover:text-gold">
+              حریم خصوصی
+            </Link>
+          </p>
           <p dir="rtl">
             اطلاعات فیلم‌ها از{" "}
             <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-gold">

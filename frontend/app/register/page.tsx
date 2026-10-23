@@ -77,6 +77,18 @@ export default function RegisterPage() {
           </p>
         )}
 
+        <p className="text-xs leading-6 text-muted">
+          با ثبت‌نام،{" "}
+          <Link href="/terms" target="_blank" className="text-teal hover:underline">
+            قوانین استفاده
+          </Link>{" "}
+          و{" "}
+          <Link href="/privacy" target="_blank" className="text-teal hover:underline">
+            حریم خصوصی
+          </Link>{" "}
+          سینماگزین را می‌پذیرید.
+        </p>
+
         <button
           type="submit"
           disabled={loading}
