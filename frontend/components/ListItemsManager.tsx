@@ -11,6 +11,7 @@ import { entityPosterUrl } from "@/lib/list-constellation";
 import EntityMedia from "@/components/entities/entity-media";
 import { toFaDigits } from "@/lib/format-number";
 import { ThumbsDownIcon, ThumbsUpIcon } from "@/components/list-detail/icons";
+import CardTitle from "@/components/entities/card-title";
 
 // Mirrors the default in app/config.py (list_item_score_global_avg) so a
 // freshly-voted item can be re-sorted optimistically before the next full
@@ -220,8 +221,8 @@ export default function ListItemsManager({
                   {entityTypeLabel(item.entity.entity_type)}
                 </span>
 
-                <Link href={href} className="truncate text-sm font-bold text-ink hover:text-teal">
-                  {item.entity.title}
+                <Link href={href} className="min-w-0 text-sm font-bold text-ink hover:text-teal">
+                  <CardTitle entity={item.entity} className="truncate" />
                 </Link>
 
                 {item.note && <p className="truncate text-xs text-muted">{item.note}</p>}

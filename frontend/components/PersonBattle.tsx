@@ -11,6 +11,7 @@ import { toFaDigits } from "@/lib/format-number";
 import { entityHref, entityPosterUrl } from "@/lib/list-constellation";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { PickMark, useBattlePick } from "@/components/battle/PickMark";
+import CardTitle from "@/components/entities/card-title";
 
 type Side = "left" | "right";
 
@@ -259,11 +260,13 @@ export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => 
           return (
             <div key={side === "left" ? `champion-${champion}` : `challenger-${step}`} className="flex flex-col gap-0.5">
               {href ? (
-                <Link href={href} className="text-[15px] font-extrabold leading-snug text-ink hover:text-gold">
-                  {displayTitle(item)}
+                <Link href={href} className="min-w-0 text-[15px] font-extrabold leading-snug text-ink hover:text-gold">
+                  <CardTitle entity={item} subClassName="text-xs text-muted" />
                 </Link>
               ) : (
-                <span className="text-[15px] font-extrabold leading-snug text-ink">{displayTitle(item)}</span>
+                <span className="min-w-0 text-[15px] font-extrabold leading-snug text-ink">
+                  <CardTitle entity={item} subClassName="text-xs text-muted" />
+                </span>
               )}
               {item.year ? <span className="num text-xs text-dim">{toFaDigits(item.year)}</span> : null}
             </div>

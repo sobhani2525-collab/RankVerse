@@ -13,6 +13,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { castBattleVote } from "@/lib/api";
 import { publishEntityScore } from "@/components/LiveScore";
 import { PickMark } from "@/components/battle/PickMark";
+import CardTitle from "@/components/entities/card-title";
 
 export interface BattleReason {
   text: string;
@@ -75,11 +76,13 @@ function TitleBlock({ entity, score }: { entity: SuggestedBattleEntity; score: n
   return (
     <div className="flex flex-col items-start gap-1 text-start">
       {href ? (
-        <Link href={href} className="text-[15px] font-extrabold leading-snug text-ink transition hover:text-gold">
-          {title}
+        <Link href={href} className="w-full min-w-0 text-[15px] font-extrabold leading-snug text-ink transition hover:text-gold">
+          <CardTitle entity={entity} subClassName="text-xs text-muted" />
         </Link>
       ) : (
-        <span className="text-[15px] font-extrabold leading-snug text-ink">{title}</span>
+        <span className="w-full min-w-0 text-[15px] font-extrabold leading-snug text-ink">
+          <CardTitle entity={entity} subClassName="text-xs text-muted" />
+        </span>
       )}
       {score != null && (
         <span className="num text-xs text-dim">{toFaDigits(score.toFixed(1))}</span>

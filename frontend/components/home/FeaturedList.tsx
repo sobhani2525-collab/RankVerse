@@ -4,9 +4,9 @@ import Image from "next/image";
 import SectionHeading from "./SectionHeading";
 import ScrollRow from "../ScrollRow";
 import { ListDetail } from "@/lib/types";
-import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { entityPosterUrl } from "@/lib/list-constellation";
+import CardTitle from "@/components/entities/card-title";
 
 // Vertical offsets give the strip an orbit-like wave instead of a flat grid row.
 const OFFSETS = ["mt-0", "mt-10", "mt-4", "mt-14", "mt-2", "mt-8"];
@@ -47,7 +47,9 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
                     #{toFaDigits(i + 1)}
                   </span>
                 </span>
-                <span className="mt-3 block line-clamp-2 text-sm leading-6 text-ink">{displayTitle(item.entity)}</span>
+                <span className="mt-3 block min-w-0 text-sm leading-6 text-ink">
+                  <CardTitle entity={item.entity} className="truncate" subClassName="text-[11px] leading-5 text-muted" />
+                </span>
                 {item.composite_score != null && <span className="num text-xs text-gold/80">{toFaDigits(item.composite_score.toFixed(1))}</span>}
               </>
             );

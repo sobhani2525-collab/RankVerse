@@ -12,6 +12,7 @@ import { BATTLE_SECTION_ID, battleLink, battleOpponents, entityHref, entityPoste
 import { SectionHeading } from "./ui";
 import { nextAnchor, useListBattle } from "./ListBattleContext";
 import { useListViewer } from "./ListViewerContext";
+import CardTitle from "@/components/entities/card-title";
 
 type Side = "left" | "right";
 
@@ -232,11 +233,13 @@ function BattleRun({ items, anchor, onNext }: { items: ListItem[]; anchor: numbe
               className={`flex flex-col gap-0.5 ${side === "right" || champion !== anchor ? "battle-swap" : ""}`}
             >
               {href ? (
-                <Link href={href} className="text-[15px] font-extrabold leading-snug text-ink hover:text-gold">
-                  {shortTitle(item)}
+                <Link href={href} className="min-w-0 text-[15px] font-extrabold leading-snug text-ink hover:text-gold">
+                  <CardTitle entity={item.entity} subClassName="text-xs text-muted" />
                 </Link>
               ) : (
-                <span className="text-[15px] font-extrabold leading-snug text-ink">{shortTitle(item)}</span>
+                <span className="min-w-0 text-[15px] font-extrabold leading-snug text-ink">
+                  <CardTitle entity={item.entity} subClassName="text-xs text-muted" />
+                </span>
               )}
               <span className="text-xs text-dim">
                 #{toFaDigits(index + 1)} در فهرست

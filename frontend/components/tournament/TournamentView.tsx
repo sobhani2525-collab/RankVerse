@@ -21,6 +21,7 @@ import { absoluteUrl } from "@/lib/site";
 import OwnerPanel from "./OwnerPanel";
 import PoolView from "./PoolView";
 import Poster from "./Poster";
+import CardTitle from "@/components/entities/card-title";
 
 const POLL_MS = 30_000;
 
@@ -67,7 +68,9 @@ function Side({
       } ${canVote ? "hover:border-gold/60" : "cursor-default"}`}
     >
       <Poster entity={entity} size="w185" />
-      <span className="line-clamp-2 min-h-[2.5rem] text-sm text-ink">{displayTitle(entity)}</span>
+      <span className="min-h-[2.5rem] min-w-0 text-sm text-ink">
+        <CardTitle entity={entity} className="line-clamp-2" />
+      </span>
       {pct !== null && (
         <span className="num text-xs text-ink-dim">
           {toFaDigits(pct)}٪ · {toFaDigits(votes ?? 0)} رأی

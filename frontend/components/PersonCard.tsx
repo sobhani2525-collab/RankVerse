@@ -3,8 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { toFaDigits } from "@/lib/format-number";
-import { displayTitle } from "@/lib/title";
 import type { PersonListItem } from "@/lib/api";
+import CardTitle from "@/components/entities/card-title";
 
 /** Poster-card look for a person: 2:3 photo, name, credit-count pill. */
 export default function PersonCard({ person, hideWorks = false }: { person: PersonListItem; hideWorks?: boolean }) {
@@ -54,8 +54,8 @@ export default function PersonCard({ person, hideWorks = false }: { person: Pers
         </button>
       </div>
 
-      <Link href={href} className="truncate text-sm font-bold text-ink transition hover:text-gold">
-        {displayTitle(person)}
+      <Link href={href} className="min-w-0 text-sm font-bold text-ink transition hover:text-gold">
+        <CardTitle entity={person} className="truncate" />
       </Link>
 
       {!hideWorks && <span className="w-fit rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-muted">

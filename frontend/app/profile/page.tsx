@@ -23,6 +23,7 @@ import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
 import { StarIcon, ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { toFaDigits } from "@/lib/format-number";
 import { displayTitle } from "@/lib/title";
+import CardTitle from "@/components/entities/card-title";
 
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
@@ -424,8 +425,8 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-                  <span className="truncate text-sm font-bold text-ink transition group-hover:text-teal">
-                    {title}
+                  <span className="min-w-0 text-sm font-bold text-ink transition group-hover:text-teal">
+                    <CardTitle entity={{ title: r.movie_title, title_fa: r.movie_title_fa }} className="truncate" />
                   </span>
                 </Link>
                 );

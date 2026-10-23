@@ -5,6 +5,7 @@ import { BattleEntity } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { entityTypeLabel } from "@/lib/constants";
 import { toFaDigits } from "@/lib/format-number";
+import CardTitle from "@/components/entities/card-title";
 
 function posterSrc(poster: string | null): string | null {
   if (!poster) return null;
@@ -121,7 +122,9 @@ export default function BattleCard({
 
       <div className="flex flex-1 flex-col gap-1 p-3">
         <span className="text-[10px] font-semibold text-muted">{entityTypeLabel(entityType)}</span>
-        <h3 className="line-clamp-2 font-medium text-ink">{displayTitle(entity)}</h3>
+        <h3 className="min-w-0 font-medium text-ink">
+          <CardTitle entity={entity} className="line-clamp-2" subClassName="text-xs text-muted" />
+        </h3>
         {revealScore && (
           <span className="num text-xs text-muted">
             امتیاز Elo: {toFaDigits(Math.round(entity.elo_score))}

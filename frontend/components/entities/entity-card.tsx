@@ -6,6 +6,7 @@ import { detailPathFor } from "@/lib/entity-routes";
 import { displayTitle } from "@/lib/title";
 import { entityTypeLabel } from "@/lib/constants";
 import { toFaDigits } from "@/lib/format-number";
+import CardTitle from "@/components/entities/card-title";
 
 export interface EntityCardNotableRanking {
   label: string;
@@ -154,8 +155,8 @@ export default function EntityCard({
       <div className="mt-2.5 flex flex-col gap-1.5">
         <span className="text-[10.5px] font-semibold text-muted">{entityTypeLabel(entity.entity_type)}</span>
 
-        <Link href={href} className="truncate text-sm font-bold text-ink hover:text-teal md:text-[15px]">
-          {title}
+        <Link href={href} className="min-w-0 text-sm font-bold text-ink hover:text-teal md:text-[15px]">
+          <CardTitle entity={entity} className="truncate" />
         </Link>
 
         {(entity.year != null || entity.genre) && (

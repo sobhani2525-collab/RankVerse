@@ -5,6 +5,7 @@ import { useFavorites } from "@/contexts/FavoritesContext";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { entityHref } from "@/lib/list-constellation";
+import CardTitle from "@/components/entities/card-title";
 
 const FAVORITABLE_ENTITY_TYPES = new Set(["movie", "tv_series"]);
 
@@ -138,8 +139,8 @@ export default function PosterCard({
         )}
       </div>
 
-      <Link href={href} className="truncate text-sm font-bold text-ink transition hover:text-gold">
-        {title}
+      <Link href={href} className="min-w-0 text-sm font-bold text-ink transition hover:text-gold">
+        <CardTitle entity={entity} className="truncate" />
       </Link>
 
       {entity.year != null && (

@@ -5,6 +5,7 @@ import { detailPathFor } from "@/lib/entity-routes";
 import { entityTypeLabel } from "@/lib/constants";
 import { toFaDigits } from "@/lib/format-number";
 import { displayTitle } from "@/lib/title";
+import CardTitle from "@/components/entities/card-title";
 
 /**
  * Poster tile (not a list row) -- same gallery treatment as TasteAnchorRow
@@ -43,7 +44,9 @@ export default function TastePredictedPickRow({ pick }: { pick: PredictedPick })
       </div>
 
       <div className="mt-2.5 min-w-0">
-        <p className="truncate text-sm font-medium text-ink">{title}</p>
+        <p className="text-sm font-medium text-ink">
+          <CardTitle entity={entity} className="truncate" />
+        </p>
         <p className="mt-1 text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</p>
       </div>
     </>

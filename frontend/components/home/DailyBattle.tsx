@@ -16,6 +16,7 @@ import { SITE_NAME, absoluteUrl } from "@/lib/site";
 import { renderStoryCard } from "@/lib/story-card";
 import { downloadBlob } from "@/lib/share";
 import { formatCountdown, formatJalaliDate, getGuestId, percents, sharePercent } from "@/lib/daily-battle";
+import CardTitle from "@/components/entities/card-title";
 
 /** Below this many votes the percentages say little, so they carry a caveat. */
 const LOW_VOTES = 5;
@@ -224,7 +225,9 @@ function DailyBody({
       <div className="mt-3 grid grid-cols-2 gap-4 sm:gap-10">
         {sides.map(([side, film]) => (
           <div key={side} className="text-center">
-            <p className="line-clamp-2 text-sm font-medium text-ink">{displayTitle(film)}</p>
+            <p className="min-w-0 text-sm font-medium text-ink">
+              <CardTitle entity={film} className="line-clamp-2" center />
+            </p>
             {film.year != null && <p className="num text-xs text-gold">{toFaDigits(film.year)}</p>}
           </div>
         ))}
