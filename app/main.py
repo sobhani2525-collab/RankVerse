@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -73,3 +73,15 @@ async def _start_daily_battle_precreate():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# TEMPORARY: shows how Liara's proxies build X-Forwarded-For, so client_ip()
+# can pick the right hop. Remove once rate limiting is fixed.
+@app.get("/health/forwarded")
+async def health_forwarded(request: Request):
+    return {
+        "x_forwarded_for": request.headers.get("x-forwarded-for"),
+        "x_real_ip": request.headers.get("x-real-ip"),
+        "forwarded": request.headers.get("forwarded"),
+        "peer": request.client.host if request.client else None,
+    }

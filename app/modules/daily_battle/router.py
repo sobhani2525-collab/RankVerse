@@ -5,6 +5,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import client_ip
 from app.core.redis import get_redis
 from app.modules.auth.dependencies import get_current_user_optional
 
@@ -23,13 +24,6 @@ def parse_guest_id(raw: str | None) -> str | None:
         return str(uuid.UUID(raw.strip()))
     except ValueError:
         return None
-
-
-def client_ip(request: Request) -> str | None:
-    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-    if ip:
-        return ip[:64]
-    return request.client.host if request.client else None
 
 
 @router.get("/today", response_model=DailyBattleToday)

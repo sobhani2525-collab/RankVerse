@@ -15,7 +15,7 @@ from fastapi import Request
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.rate_limit import client_ip
+from app.core.rate_limit import forwarded_ip
 from app.modules.admin.models import AdminAccount, AdminAuditLog
 
 # Never written to before/after, whatever a caller passes in.
@@ -61,7 +61,7 @@ class AuditLogService:
             target_id=str(target_id),
             before=_clean(before),
             after=_clean(after),
-            ip=client_ip(request) if request is not None else None,
+            ip=forwarded_ip(request) if request is not None else None,
             user_agent=user_agent,
         )
         self.db.add(row)

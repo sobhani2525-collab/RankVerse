@@ -8,7 +8,7 @@ from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, RateLimitedError, UnauthorizedError, ValidationError
-from app.core.rate_limit import hit_local
+from app.core.rate_limit import client_ip, hit_local
 from app.core.security import create_admin_access_token, hash_password, verify_password
 from app.modules.admin.audit import AuditLogService, diff
 from app.modules.admin.models import AdminAccount
@@ -36,7 +36,7 @@ class AdminAuthService:
         if not admin or not verify_password(payload.password, admin.password_hash):
             from app.modules.alerts.service import note_admin_login_failure
 
-            note_admin_login_failure(request.client.host if request and request.client else None, payload.email)
+            note_admin_login_failure(client_ip(request) if request else None, payload.email)
             raise UnauthorizedError("Invalid email or password")
         if not admin.is_active:
             raise UnauthorizedError("This admin account is disabled")

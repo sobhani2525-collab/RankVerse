@@ -42,6 +42,34 @@ async def test_window_expiry_resets_counter(monkeypatch):
     await rate_limit.enforce("t-win", "k", 1, 60)
 
 
+def _request(xff: str | None, peer: str | None = "10.1.2.3"):
+    from starlette.requests import Request
+
+    headers = [(b"x-forwarded-for", xff.encode())] if xff is not None else []
+    scope = {"type": "http", "headers": headers, "client": (peer, 1234) if peer else None}
+    return Request(scope)
+
+
+def test_client_ip_ignores_forged_left_hops():
+    # The proxy appends the real caller after whatever the client sent.
+    assert rate_limit.client_ip(_request("1.2.3.4, 5.6.7.8, 203.0.113.9")) == "203.0.113.9"
+    assert rate_limit.client_ip(_request("garbage, 203.0.113.9, 10.0.0.7")) == "203.0.113.9"
+
+
+def test_client_ip_skips_internal_proxies():
+    assert rate_limit.client_ip(_request("198.51.100.1, 10.0.0.1, 172.20.0.5")) == "198.51.100.1"
+    assert rate_limit.client_ip(_request("2001:db8::1, fd00::2")) == "2001:db8::1"
+    # No header: the socket peer, even when it's internal (local dev).
+    assert rate_limit.client_ip(_request(None, "198.51.100.4")) == "198.51.100.4"
+    assert rate_limit.client_ip(_request(None, "127.0.0.1")) == "127.0.0.1"
+    assert rate_limit.client_ip(_request(None, None)) == "unknown"
+
+
+def test_forwarded_ip_is_the_claimed_first_hop():
+    assert rate_limit.forwarded_ip(_request("198.51.100.7, 203.0.113.9")) == "198.51.100.7"
+    assert rate_limit.forwarded_ip(_request(None, "127.0.0.1")) == "127.0.0.1"
+
+
 def test_email_disabled_by_default():
     assert email_enabled() is False
 
