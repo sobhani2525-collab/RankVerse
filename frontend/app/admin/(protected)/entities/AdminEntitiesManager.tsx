@@ -13,6 +13,8 @@ interface OverviewRow {
   overview: string | null;
   overview_en: string | null;
   overview_source: "tmdb_fa" | "machine" | "manual" | "en" | null;
+  trailer_key: string | null; // YouTube, from TMDb
+  aparat_trailer: string | null;
 }
 
 interface Envelope<T> {
@@ -55,10 +57,12 @@ export function AdminEntitiesManager() {
   const initialQ = useSearchParams().get("q") ?? "";
   const [q, setQ] = useState(initialQ);
   const [source, setSource] = useState(initialQ ? "" : "en");
+  const [trailer, setTrailer] = useState("");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [trailerDrafts, setTrailerDrafts] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -66,6 +70,7 @@ export function AdminEntitiesManager() {
     const qs = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
     if (q.trim()) qs.set("q", q.trim());
     if (source) qs.set("source", source);
+    if (trailer) qs.set("trailer", trailer);
     try {
       const res = await call<OverviewRow[]>(`?${qs.toString()}`);
       setRows(res.data);
@@ -75,7 +80,7 @@ export function AdminEntitiesManager() {
     } finally {
       setLoading(false);
     }
-  }, [page, q, source]);
+  }, [page, q, source, trailer]);
 
   useEffect(() => {
     const t = setTimeout(load, 250);
@@ -93,10 +98,12 @@ export function AdminEntitiesManager() {
     try {
       await fn();
       setNotice({ ok: true, text: `${success}: «${row.title}»` });
-      setDrafts((d) => {
+      const drop = (d: Record<string, string>) => {
         const { [row.id]: _drop, ...rest } = d;
         return rest;
-      });
+      };
+      setDrafts(drop);
+      setTrailerDrafts(drop);
       setOpenId(null);
       await load();
     } catch (err) {
@@ -112,6 +119,14 @@ export function AdminEntitiesManager() {
   function reset(row: OverviewRow) {
     if (!window.confirm(`متن دستی «${row.title}» حذف شود؟ عنوان به حالت ترجمه‌نشده برمی‌گردد و در اجرای بعدی ترجمه دوباره ترجمه می‌شود.`)) return;
     void run(row, () => call(`/${row.id}/overview`, { method: "DELETE" }), "متن دستی حذف شد");
+  }
+
+  const saveTrailer = (row: OverviewRow) =>
+    run(row, () => call(`/${row.id}/trailer`, { method: "PUT", body: JSON.stringify({ url: trailerDrafts[row.id] ?? "" }) }), "تریلر آپارات ذخیره شد");
+
+  function removeTrailer(row: OverviewRow) {
+    if (!window.confirm(`تریلر آپارات «${row.title}» حذف شود؟`)) return;
+    void run(row, () => call(`/${row.id}/trailer`, { method: "DELETE" }), "تریلر آپارات حذف شد");
   }
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -131,6 +146,11 @@ export function AdminEntitiesManager() {
           <option value="manual">دستی</option>
           <option value="tmdb_fa">TMDb فارسی</option>
           <option value="">همه</option>
+        </select>
+        <select className={field} value={trailer} onChange={(e) => { setTrailer(e.target.value); setPage(1); }}>
+          <option value="">تریلر: همه</option>
+          <option value="none">بدون تریلر</option>
+          <option value="aparat">تریلر آپارات دارد</option>
         </select>
       </div>
 
@@ -156,8 +176,13 @@ export function AdminEntitiesManager() {
                   {row.vote_count != null ? ` · ${toFaDigits(row.vote_count)} رأی` : ""}
                 </span>
               </span>
-              <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-                {row.overview_source ? SOURCE_LABELS[row.overview_source] : "بدون خلاصه"}
+              <span className="flex shrink-0 gap-1.5">
+                {row.aparat_trailer && (
+                  <span className="rounded-full border border-teal/40 px-2 py-0.5 text-xs text-teal">آپارات</span>
+                )}
+                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+                  {row.overview_source ? SOURCE_LABELS[row.overview_source] : "بدون خلاصه"}
+                </span>
               </span>
             </button>
 
@@ -200,6 +225,56 @@ export function AdminEntitiesManager() {
                       حذف متن دستی
                     </button>
                   )}
+                </div>
+
+                <div className="space-y-2 border-t border-border pt-3">
+                  <label className="block text-xs text-muted" htmlFor={`tr-${row.id}`}>
+                    تریلر آپارات — لینک ویدیو (aparat.com/v/…) یا کد embed
+                    {row.trailer_key ? " · تریلر یوتیوب از TMDb هم دارد" : " · تریلر یوتیوب ندارد"}
+                  </label>
+                  {row.aparat_trailer && (
+                    <p className="text-xs text-ink">
+                      فعلی:{" "}
+                      <a
+                        href={`https://www.aparat.com/v/${encodeURIComponent(row.aparat_trailer)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        dir="ltr"
+                        className="text-gold hover:underline"
+                      >
+                        {row.aparat_trailer}
+                      </a>
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      id={`tr-${row.id}`}
+                      dir="ltr"
+                      maxLength={2000}
+                      placeholder="https://www.aparat.com/v/…"
+                      className={`${field} min-w-56 flex-1`}
+                      value={trailerDrafts[row.id] ?? ""}
+                      onChange={(e) => setTrailerDrafts((d) => ({ ...d, [row.id]: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      disabled={busyId === row.id || !(trailerDrafts[row.id] ?? "").trim()}
+                      onClick={() => saveTrailer(row)}
+                      className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-bg disabled:opacity-50"
+                    >
+                      {row.aparat_trailer ? "جایگزینی تریلر" : "ذخیرهٔ تریلر"}
+                    </button>
+                    {row.aparat_trailer && (
+                      <button
+                        type="button"
+                        disabled={busyId === row.id}
+                        onClick={() => removeTrailer(row)}
+                        className="rounded-lg border border-border px-4 py-2 text-sm text-ink disabled:opacity-50"
+                      >
+                        حذف تریلر
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

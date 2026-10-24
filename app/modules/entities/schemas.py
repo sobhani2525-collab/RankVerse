@@ -73,6 +73,7 @@ class MovieDetail(MovieListItem, ImdbInfo):
     cast: list[PersonSummary] = []
     more_cast: list[CastMember] = []
     trailer_key: str | None = None  # YouTube video id
+    aparat_trailer: str | None = None  # Aparat video hash, set by an admin
     watch_links: list[WatchLinkPublic] = []
     genres: list[GenreSummary] = []
 
@@ -91,6 +92,7 @@ class TVSeriesDetail(MovieListItem, ImdbInfo):
     cast: list[PersonSummary] = []
     more_cast: list[CastMember] = []
     trailer_key: str | None = None  # YouTube video id
+    aparat_trailer: str | None = None  # Aparat video hash, set by an admin
     watch_links: list[WatchLinkPublic] = []
     genres: list[GenreSummary] = []
     networks: list[GenreSummary] = []

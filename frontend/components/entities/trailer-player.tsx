@@ -2,13 +2,87 @@
 
 import { useState } from "react";
 
+type Source = "aparat" | "youtube";
+
+/**
+ * Trailer from Aparat (set by an admin; plays in Iran without a VPN) and/or
+ * YouTube (from TMDb). Aparat is shown first when both exist, with a switch
+ * to the other. Each source has a plain link as a fallback for networks
+ * where embeds don't load.
+ */
+export default function TrailerPlayer({
+  youtubeKey,
+  aparatKey,
+  title,
+}: {
+  youtubeKey?: string | null;
+  aparatKey?: string | null;
+  title: string;
+}) {
+  const sources: Source[] = [...(aparatKey ? ["aparat" as const] : []), ...(youtubeKey ? ["youtube" as const] : [])];
+  const [source, setSource] = useState<Source | undefined>(sources[0]);
+  if (!source) return null;
+
+  return (
+    <div>
+      {sources.length > 1 && (
+        <div className="mb-3 inline-flex rounded-full border border-border p-0.5 text-xs" role="tablist" aria-label="منبع تریلر">
+          {sources.map((s) => (
+            <button
+              key={s}
+              type="button"
+              role="tab"
+              aria-selected={source === s}
+              onClick={() => setSource(s)}
+              className={`rounded-full px-3 py-1 transition ${source === s ? "bg-gold text-bg" : "text-muted hover:text-ink"}`}
+            >
+              {s === "aparat" ? "آپارات" : "یوتیوب"}
+            </button>
+          ))}
+        </div>
+      )}
+      {source === "aparat" && aparatKey ? (
+        <AparatTrailer videoHash={aparatKey} title={title} />
+      ) : youtubeKey ? (
+        <YouTubeTrailer youtubeKey={youtubeKey} title={title} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Aparat's own embed: it shows its poster and waits for play, so it can mount straight away. */
+function AparatTrailer({ videoHash, title }: { videoHash: string; title: string }) {
+  const hash = encodeURIComponent(videoHash);
+  return (
+    <div>
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-surface2">
+        <iframe
+          src={`https://www.aparat.com/video/video/embed/videohash/${hash}/vt/frame`}
+          title={`تریلر ${title}`}
+          loading="lazy"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          className="absolute inset-0 h-full w-full"
+        />
+      </div>
+      <a
+        href={`https://www.aparat.com/v/${hash}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 inline-block text-xs text-muted hover:text-gold"
+      >
+        اگر پخش نشد، در آپارات ببینید ←
+      </a>
+    </div>
+  );
+}
+
 /**
  * YouTube trailer that only loads the player when asked: the poster is the
  * video's own thumbnail (a plain image, no player/scripts) and the iframe
- * only mounts when the visitor presses play, plus a plain link
- * as a fallback for networks where embeds don't load.
+ * only mounts when the visitor presses play.
  */
-export default function TrailerPlayer({ youtubeKey, title }: { youtubeKey: string; title: string }) {
+function YouTubeTrailer({ youtubeKey, title }: { youtubeKey: string; title: string }) {
   const [playing, setPlaying] = useState(false);
   // maxresdefault is sharpest but missing for some videos; hqdefault always exists.
   const [thumb, setThumb] = useState<"maxresdefault" | "hqdefault" | null>("maxresdefault");

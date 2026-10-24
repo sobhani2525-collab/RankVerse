@@ -217,11 +217,11 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           rankingHighlights={rankingHighlights}
           entityId={movie.id}
           aboveGraph={
-            movie.trailer_key ? (
+            movie.trailer_key || movie.aparat_trailer ? (
               <section aria-label="تریلر">
                 <SectionHeading en="TRAILER" fa="تریلر" />
                 <div className="mt-4">
-                  <TrailerPlayer youtubeKey={movie.trailer_key} title={displayTitle(movie)} />
+                  <TrailerPlayer youtubeKey={movie.trailer_key} aparatKey={movie.aparat_trailer} title={displayTitle(movie)} />
                 </div>
               </section>
             ) : undefined

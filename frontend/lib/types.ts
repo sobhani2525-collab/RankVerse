@@ -89,6 +89,7 @@ export interface MovieDetail extends MovieListItem, ImdbInfo {
   cast: PersonSummary[];
   more_cast?: CastMember[];
   trailer_key?: string | null; // YouTube video id
+  aparat_trailer?: string | null; // Aparat video hash, set by an admin
   watch_links?: WatchLink[];
   genres: GenreSummary[];
 }
@@ -106,6 +107,7 @@ export interface TvSeriesDetail extends MovieListItem, ImdbInfo {
   cast: PersonSummary[];
   more_cast?: CastMember[];
   trailer_key?: string | null; // YouTube video id
+  aparat_trailer?: string | null; // Aparat video hash, set by an admin
   watch_links?: WatchLink[];
   genres: GenreSummary[];
   networks: GenreSummary[];

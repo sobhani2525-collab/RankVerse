@@ -1,7 +1,8 @@
+import re
 import uuid
 
 from fastapi import Request
-from sqlalchemy import Integer, cast, func, select
+from sqlalchemy import Integer, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationError
@@ -14,6 +15,22 @@ from app.modules.sync.translation import is_persian
 
 OVERVIEW_ENTITY_TYPES = ("movie", "tv_series")
 OVERVIEW_SOURCES = ("tmdb_fa", "machine", "manual", "en")
+
+_APARAT_HASH = r"[A-Za-z0-9]{3,32}"
+_APARAT_URL = re.compile(
+    rf"aparat\.com/(?:v/|video/video/embed/videohash/|embed/)({_APARAT_HASH})(?![A-Za-z0-9])", re.IGNORECASE
+)
+
+
+def parse_aparat_hash(value: str) -> str | None:
+    """The video hash from an Aparat watch link (aparat.com/v/<hash>/...),
+    embed URL (.../embed/videohash/<hash>/vt/frame, /embed/<hash>?...), a
+    pasted iframe/script snippet containing one, or a bare hash."""
+    value = value.strip()
+    if re.fullmatch(_APARAT_HASH, value):
+        return value
+    match = _APARAT_URL.search(value)
+    return match.group(1) if match else None
 
 
 def _row(entity: Entity) -> AdminEntityOverviewRow:
@@ -30,6 +47,8 @@ def _row(entity: Entity) -> AdminEntityOverviewRow:
         overview=attrs.get("overview"),
         overview_en=attrs.get("overview_en"),
         overview_source=attrs.get("overview_source"),
+        trailer_key=attrs.get("trailer_key"),
+        aparat_trailer=attrs.get("aparat_trailer"),
     )
 
 
@@ -37,7 +56,11 @@ class AdminEntityService:
     """Hand-written Persian overviews for movies and series, for the titles
     TMDb has none for. A manual overview is marked overview_source="manual":
     sync (SyncService._merge_preserved_attributes) and the machine
-    translation (sync/translation.english_source) both leave it alone."""
+    translation (sync/translation.english_source) both leave it alone.
+
+    Also Aparat trailers (attributes.aparat_trailer), for titles whose only
+    trailer is on YouTube -- or none at all, as with most Iranian ones.
+    A re-sync keeps them too."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -49,14 +72,22 @@ class AdminEntityService:
         return entity
 
     async def search(
-        self, q: str | None, source: str | None, page: int, page_size: int
+        self, q: str | None, source: str | None, page: int, page_size: int, trailer: str | None = None
     ) -> tuple[list[AdminEntityOverviewRow], int]:
         conditions = [Entity.entity_type.in_(OVERVIEW_ENTITY_TYPES)]
         if q:
             pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-            conditions.append(Entity.title.ilike(pattern, escape="\\"))
+            conditions.append(or_(
+                Entity.title.ilike(pattern, escape="\\"),
+                Entity.attributes["title_fa"].astext.ilike(pattern, escape="\\"),
+            ))
         if source:
             conditions.append(Entity.attributes["overview_source"].astext == source)
+        if trailer == "aparat":
+            conditions.append(Entity.attributes.has_key("aparat_trailer"))
+        elif trailer == "none":
+            conditions.append(~Entity.attributes.has_key("aparat_trailer"))
+            conditions.append(~Entity.attributes.has_key("trailer_key"))
         total = (await self.db.execute(select(func.count()).select_from(Entity).where(*conditions))).scalar_one()
         votes = cast(Entity.attributes["external_vote_count"].astext, Integer)
         rows = (
@@ -112,6 +143,42 @@ class AdminEntityService:
         await AuditLogService(self.db).record(
             admin, "entity.overview.reset", "entity", entity.id,
             before=before, after={"overview": english, "overview_source": attrs["overview_source"]}, request=request,
+        )
+        await self.db.commit()
+        invalidate_title_detail(entity.entity_type, entity.slug)
+        return _row(entity)
+
+    async def set_aparat_trailer(
+        self, admin: AdminAccount, entity_id: uuid.UUID, url: str, request: Request | None = None
+    ) -> AdminEntityOverviewRow:
+        video_hash = parse_aparat_hash(url)
+        if video_hash is None:
+            raise ValidationError("Not an Aparat video link")
+        entity = await self._get(entity_id)
+        attrs = dict(entity.attributes or {})
+        before = {"aparat_trailer": attrs.get("aparat_trailer")}
+        attrs["aparat_trailer"] = video_hash
+        entity.attributes = attrs
+        await AuditLogService(self.db).record(
+            admin, "entity.trailer.set", "entity", entity.id,
+            before=before, after={"aparat_trailer": video_hash}, request=request,
+        )
+        await self.db.commit()
+        invalidate_title_detail(entity.entity_type, entity.slug)
+        return _row(entity)
+
+    async def remove_aparat_trailer(
+        self, admin: AdminAccount, entity_id: uuid.UUID, request: Request | None = None
+    ) -> AdminEntityOverviewRow:
+        entity = await self._get(entity_id)
+        attrs = dict(entity.attributes or {})
+        if "aparat_trailer" not in attrs:
+            raise ValidationError("This title has no Aparat trailer")
+        before = {"aparat_trailer": attrs.pop("aparat_trailer")}
+        entity.attributes = attrs
+        await AuditLogService(self.db).record(
+            admin, "entity.trailer.remove", "entity", entity.id,
+            before=before, after={"aparat_trailer": None}, request=request,
         )
         await self.db.commit()
         invalidate_title_detail(entity.entity_type, entity.slug)

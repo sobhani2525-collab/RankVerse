@@ -209,6 +209,7 @@ class EntityService:
             cast=cast,
             more_cast=_more_cast(entity.attributes),
             trailer_key=entity.attributes.get("trailer_key"),
+            aparat_trailer=entity.attributes.get("aparat_trailer"),
             watch_links=await public_links_for(self.db, entity.id),
             genres=genres,
         )
@@ -281,6 +282,7 @@ class EntityService:
             cast=cast,
             more_cast=_more_cast(entity.attributes),
             trailer_key=entity.attributes.get("trailer_key"),
+            aparat_trailer=entity.attributes.get("aparat_trailer"),
             watch_links=await public_links_for(self.db, entity.id),
             genres=genres,
             networks=networks,

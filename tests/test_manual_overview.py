@@ -205,3 +205,54 @@ def test_obscure_asian_language_titles_are_low_priority_but_popular_ones_are_not
     assert not is_low_priority({"original_language": "ko", "external_vote_count": 17000})
     assert not is_low_priority({"original_language": "en", "external_vote_count": 3})
     assert not is_low_priority({})
+
+
+# -- Aparat trailers -------------------------------------------------------------
+
+def test_parse_aparat_hash_accepts_links_embeds_and_bare_hashes():
+    from app.modules.admin.entities_service import parse_aparat_hash
+
+    assert parse_aparat_hash("https://www.aparat.com/v/abC12") == "abC12"
+    assert parse_aparat_hash("aparat.com/v/x9Yz8/some-title?ref=1") == "x9Yz8"
+    assert parse_aparat_hash(
+        '<iframe src="https://www.aparat.com/video/video/embed/videohash/Qw7e3/vt/frame" allowFullScreen></iframe>'
+    ) == "Qw7e3"
+    assert parse_aparat_hash('<script src="https://www.aparat.com/embed/Rt5y6?data[rnddiv]=1"></script>') == "Rt5y6"
+    assert parse_aparat_hash("  k8L2m  ") == "k8L2m"
+    assert parse_aparat_hash("https://www.youtube.com/watch?v=abc123") is None
+    assert parse_aparat_hash("not a link") is None
+
+
+def test_sync_keeps_aparat_trailer():
+    merged = _merge_preserved_attributes({"aparat_trailer": "abC12", "trailer_key": "old"}, {"trailer_key": "new"})
+    assert merged == {"aparat_trailer": "abC12", "trailer_key": "new"}
+
+
+async def test_admin_sets_and_removes_aparat_trailer(client, db_session, admin_headers):
+    movie = await _movie(db_session, title_fa="فیلم ایرانی")
+    other = await _movie(db_session, trailer_key="yt")
+    await db_session.commit()
+
+    res = await client.put(f"/api/v1/admin/entities/{movie.id}/trailer", json={"url": "youtube.com/x"}, headers=admin_headers)
+    assert res.status_code == 400
+
+    listed = await client.get("/api/v1/admin/entities?trailer=none", headers=admin_headers)
+    assert [r["id"] for r in listed.json()["data"]] == [str(movie.id)]
+
+    res = await client.put(
+        f"/api/v1/admin/entities/{movie.id}/trailer", json={"url": "https://www.aparat.com/v/abC12"}, headers=admin_headers
+    )
+    assert res.status_code == 200 and res.json()["data"]["aparat_trailer"] == "abC12"
+
+    listed = await client.get("/api/v1/admin/entities?trailer=aparat&q=ایرانی", headers=admin_headers)
+    assert [r["id"] for r in listed.json()["data"]] == [str(movie.id)]
+
+    detail = await client.get(f"/api/v1/movies/{movie.slug}")
+    assert detail.json()["data"]["aparat_trailer"] == "abC12"
+
+    res = await client.delete(f"/api/v1/admin/entities/{movie.id}/trailer", headers=admin_headers)
+    assert res.status_code == 200 and res.json()["data"]["aparat_trailer"] is None
+    assert (await client.delete(f"/api/v1/admin/entities/{other.id}/trailer", headers=admin_headers)).status_code == 400
+
+    actions = [a.action for a in (await db_session.execute(AdminAuditLog.__table__.select())).all()]
+    assert sorted(actions) == ["entity.trailer.remove", "entity.trailer.set"]

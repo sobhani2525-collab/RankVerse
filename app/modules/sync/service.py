@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 # Attributes that aren't from TMDb's /movie or /tv response, so a re-sync
 # (which rebuilds attributes from that response) must carry them over.
 IMDB_ATTRIBUTE_KEYS = ("imdb_rating", "imdb_votes")
+# Set by an admin (PUT /admin/entities/{id}/trailer), never by TMDb.
+MANUAL_ATTRIBUTE_KEYS = ("aparat_trailer",)
 
 
 def _merge_preserved_attributes(old: dict, new: dict) -> dict:
@@ -34,6 +36,7 @@ def _merge_preserved_attributes(old: dict, new: dict) -> dict:
       gets picked up by the next translation run.
     - IMDb rating/votes (written by scripts/sync_imdb_ratings.py) are kept
       while the imdb_id is unchanged.
+    - An Aparat trailer (set by an admin) is always kept.
     """
     merged = dict(new)
     if old.get("overview_source") == "manual":
@@ -52,6 +55,9 @@ def _merge_preserved_attributes(old: dict, new: dict) -> dict:
         for key in IMDB_ATTRIBUTE_KEYS:
             if key in old:
                 merged[key] = old[key]
+    for key in MANUAL_ATTRIBUTE_KEYS:
+        if key in old:
+            merged[key] = old[key]
     return merged
 
 
