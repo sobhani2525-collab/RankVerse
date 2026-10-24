@@ -10,13 +10,12 @@ const PROXY_BASE = (
   process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE || (process.env.NODE_ENV === "production" ? "/tmdb-img" : "")
 ).replace(/\/+$/, "");
 
-// Largest size the browser may fetch through the mirror. Iranian networks cut
-// connections to the mirror's Cloudflare IPs after ~58KB (measured 2026-10-23:
-// the rest of the image never arrives, and no error fires to trigger the
-// fallback). w300 posters stay under ~52KB, while w342/w500 often go over.
-// TMDb serves w300 for posters and profiles too. Raise this once posters are
-// served from inside Iran.
-export const MAX_MIRROR_WIDTH = 300;
+// Largest size the browser may fetch through the mirror; no page needs more
+// than w500, and "original" can be 500KB+. If posters are ever served straight
+// from Cloudflare again, drop this to 300: Iranian networks cut connections to
+// Cloudflare's IPs after ~58KB (measured 2026-10-23), and w300 posters stay
+// under ~52KB while w342/w500 often go over.
+export const MAX_MIRROR_WIDTH = 500;
 
 /** Shrinks a TMDb size segment ("w500", "h632", "original") to the mirror cap. */
 export function capTmdbSize(size: string): string {

@@ -22,7 +22,9 @@ const UPSTREAMS = (
   .map((u) => u.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
-const UPSTREAM_TIMEOUT_MS = 10_000;
+// Liara fetches a poster from Cloudflare in ~0.2-0.5s, but now and then one
+// mirror hangs; give up on it quickly and try the next.
+const UPSTREAM_TIMEOUT_MS = 5_000;
 const CACHE_DIR = process.env.TMDB_IMAGE_CACHE_DIR || path.join(tmpdir(), "tmdb-img-cache");
 // Stop writing new files past this much, so a crawl can't fill the disk.
 const MAX_CACHE_BYTES = Number(process.env.TMDB_IMAGE_CACHE_MAX_MB || 1500) * 1024 * 1024;
