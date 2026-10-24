@@ -175,8 +175,6 @@ class AdminListService:
                 recipient_id=lst.user_id, actor_id=None, type="list_featured", target_type="list",
                 target_id=lst.id, payload={"list_title": lst.title, "list_slug": lst.slug},
             )
-        # TODO(audit-log): the admin Audit Log page is still a placeholder, so
-        # curation actions are only logged for now.
         logger.info("admin %s curated list %s: %s", admin.id, list_id, payload.model_dump(exclude_unset=True))
         return row
 

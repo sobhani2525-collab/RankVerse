@@ -34,9 +34,8 @@ def _percent(part: int, total: int) -> int | None:
 
 
 class AdminDailyBattleService:
-    """Planning and curation of the daily pair. Admin actions are logger-only
-    for now: the admin Audit Log page is still a placeholder (same as
-    AdminListService)."""
+    """Planning and curation of the daily pair. Admin actions are recorded in
+    the audit log (AuditLogService), like AdminListService's."""
 
     def __init__(self, db: AsyncSession):
         self.db = db

@@ -281,6 +281,9 @@ class Settings(BaseSettings):
     cache_stale_seconds: int = 3600
     # Background rebuild of the person_stats table (people ranking); 0 disables.
     person_stats_refresh_hours: int = 12
+    # In-app housekeeping loop (app/core/periodic.py): tournament round
+    # deadlines, notification and admin-alert cleanup.
+    periodic_jobs_enabled: bool = True
 
     # --- In-app notifications (app/modules/notifications) ---
     notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once
@@ -297,7 +300,7 @@ class Settings(BaseSettings):
     alert_slow_request_seconds: float = 4.0  # home-page style queries slower than this raise a warning
     alert_slow_paths: str = "/api/v1/ranking,/api/v1/lists/featured,/api/v1/movies,/api/v1/battles"  # comma-separated prefixes watched for slowness
     alert_admin_login_fail_threshold: int = 5
-    alert_db_size_warn_mb: int = 400  # 0 disables; Supabase free tier caps at 500
+    alert_db_size_warn_mb: int = 8000  # 0 disables; the Liara Postgres plan has a 10 GB disk
     alert_admin_login_fail_window_seconds: int = 600
     alert_retention_days: int = 90  # resolved alerts older than this are purged
 

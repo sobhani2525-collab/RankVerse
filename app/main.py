@@ -8,6 +8,7 @@ from app.config import settings
 from app.api.v1.router import api_router
 from app.modules.alerts.middleware import SlowRequestMiddleware
 from app.modules.entities.ego import warm_hero_pool
+from app.core.periodic import periodic_loop
 from app.modules.daily_battle.precreate import precreate_loop
 from app.modules.entities.person_stats import refresh_loop
 from app.core.exceptions import (
@@ -82,6 +83,13 @@ async def _start_person_stats_refresh():
     # periodically so it doesn't go stale (see entities/person_stats.py).
     if settings.person_stats_refresh_hours > 0:
         app.state.person_stats_task = asyncio.create_task(refresh_loop(settings.person_stats_refresh_hours))
+
+
+@app.on_event("startup")
+async def _start_periodic_jobs():
+    # Tournament rounds, notification and alert cleanup (see core/periodic.py).
+    if settings.periodic_jobs_enabled:
+        app.state.periodic_task = asyncio.create_task(periodic_loop())
 
 
 @app.on_event("startup")
