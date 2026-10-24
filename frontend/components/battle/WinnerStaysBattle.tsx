@@ -304,40 +304,44 @@ export default function WinnerStaysBattle({
           const isChampion = side === "left";
           const gold = pickAnim.picked === side || (isChampion && streak > 0);
           return (
-            <button
-              key={isChampion ? `champion-${champion}` : `challenger-${step}`}
-              type="button"
-              onClick={() => pick(side)}
-              disabled={pickAnim.busy}
-              aria-label={`انتخاب ${item.title_fa || item.title}`}
-              className="group relative text-right transition"
-            >
-              <span
-                className={`relative block aspect-[2/3] w-full overflow-hidden rounded-2xl border-[1.5px] bg-surface2 ${
-                  gold
-                    ? "border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)]"
-                    : "border-violet-light shadow-[0_0_0_4px_rgba(169,155,255,0.14)] group-hover:shadow-[0_0_0_4px_rgba(169,155,255,0.28)]"
-                }`}
+            <div key={isChampion ? `champion-${champion}` : `challenger-${step}`} className="text-right">
+              <button
+                type="button"
+                onClick={() => pick(side)}
+                disabled={pickAnim.busy}
+                aria-label={`انتخاب ${item.title_fa || item.title}`}
+                className="group relative block w-full text-right transition"
               >
-                <BattlePoster item={item} sizes="(max-width: 768px) 45vw, 320px" zoom />
-                {pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
-              </span>
-              {isChampion && streak > 0 && (
-                <span className="absolute start-3 top-3 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
-                  <span className="num">{toFaDigits(streak)}</span> برد
+                <span
+                  className={`relative block aspect-[2/3] w-full overflow-hidden rounded-2xl border-[1.5px] bg-surface2 ${
+                    gold
+                      ? "border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)]"
+                      : "border-violet-light shadow-[0_0_0_4px_rgba(169,155,255,0.14)] group-hover:shadow-[0_0_0_4px_rgba(169,155,255,0.28)]"
+                  }`}
+                >
+                  <BattlePoster item={item} sizes="(max-width: 768px) 45vw, 320px" zoom />
+                  {pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
                 </span>
-              )}
-              {/* a fixed height, so both titles line up however long they are */}
-              <span className="block h-[5.5rem] overflow-hidden px-1 pt-3">
-                <span className="block line-clamp-1 text-base font-bold text-ink">{item.title_fa || item.title}</span>
-                {item.title_fa && (
-                  <span className="block line-clamp-1 text-sm text-ink-dim" dir="ltr">
-                    {item.title}
+                {isChampion && streak > 0 && (
+                  <span className="absolute start-3 top-3 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
+                    <span className="num">{toFaDigits(streak)}</span> برد
                   </span>
                 )}
+              </button>
+              {/* a fixed height, so both titles line up however long they are;
+                  outside the vote button so the title can link to its page */}
+              <div className="h-[5.5rem] overflow-hidden px-1 pt-3">
+                <Link href={detailPathFor(item.entity_type, item.slug) ?? `/movies/${item.slug}`} className="group/title block">
+                  <span className="block line-clamp-1 text-base font-bold text-ink transition group-hover/title:text-gold">{item.title_fa || item.title}</span>
+                  {item.title_fa && (
+                    <span className="block line-clamp-1 text-sm text-ink-dim" dir="ltr">
+                      {item.title}
+                    </span>
+                  )}
+                </Link>
                 {item.year ? <span className="num block text-sm text-muted">{toFaDigits(item.year)}</span> : null}
-              </span>
-            </button>
+              </div>
+            </div>
           );
         })}
         <VsBadge style={{ top: "calc((100% - 5.5rem) / 2)" }} />

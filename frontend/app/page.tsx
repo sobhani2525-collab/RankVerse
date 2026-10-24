@@ -140,7 +140,7 @@ export default async function HomePage() {
           <h3 className="mb-5 text-lg font-bold text-ink">سایر فهرست‌های برگزیده</h3>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {otherFeatured.map((list) => (
-              <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} />
+              <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} plainPosters />
             ))}
           </div>
           <div className="mt-8 text-center">

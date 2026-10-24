@@ -11,12 +11,21 @@ import { castDailyVote, getDailyBattle } from "@/lib/api";
 import { DailyBattleToday, DailyFilm, DailySide } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
-import { reasonOf } from "@/lib/battle-theme";
 import { SITE_NAME, absoluteUrl } from "@/lib/site";
 import { renderStoryCard } from "@/lib/story-card";
 import { downloadBlob } from "@/lib/share";
 import { formatCountdown, formatJalaliDate, getGuestId, percents, sharePercent } from "@/lib/daily-battle";
 import CardTitle from "@/components/entities/card-title";
+import Link from "next/link";
+import { genreLabel } from "@/lib/genre-labels";
+
+/** Why these two were paired, as a short headline over the posters. */
+function pairingOf(theme: DailyBattleToday["theme"]): string {
+  if (theme.kind === "genre") return `نبرد دو فیلم ${genreLabel(theme.value)}`;
+  if (theme.kind === "decade") return `نبرد دو فیلم از دههٔ ${toFaDigits(theme.value)} میلادی`;
+  if (theme.kind === "director") return `نبرد دو فیلم از ${theme.value}`;
+  return "دو فیلم محبوب، رو در رو";
+}
 
 /** Below this many votes the percentages say little, so they carry a caveat. */
 const LOW_VOTES = 5;
@@ -104,8 +113,28 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
   if (status === "none") return null; // no battle today: the section stays quiet
 
   return (
-    <section className={`relative border-y border-border/60 bg-[#080B14]/70`} aria-label="نبرد امروز">
-      <div className={`mx-auto px-6 ${large ? "max-w-4xl py-14" : "max-w-5xl py-20"}`}>
+    <section className={`relative overflow-hidden border-y border-border/60 bg-[#080B14]/70`} aria-label="نبرد امروز">
+      {/* Spotlight behind the posters plus a faint dot texture, so the pair
+          stands out of the dark instead of floating in it. Decorative. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 45% 55% at 50% 55%, rgba(145,99,245,0.16), transparent 70%), radial-gradient(ellipse 30% 30% at 50% 50%, rgba(232,179,74,0.07), transparent 70%)",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        style={{
+          backgroundImage: "radial-gradient(rgba(242,240,232,0.09) 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+          maskImage: "radial-gradient(ellipse 60% 65% at 50% 55%, black, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse 60% 65% at 50% 55%, black, transparent 75%)",
+        }}
+      />
+      <div className={`relative mx-auto px-6 ${large ? "max-w-4xl py-14" : "max-w-5xl py-20"}`}>
         <SectionHeading
           center
           kicker="Battle of the day"
@@ -177,10 +206,14 @@ function DailyBody({
 
   return (
     <div className={`mx-auto max-w-xl`}>
-      <p className="mb-6 flex items-center justify-center gap-2 text-center text-[13px] text-violet-light">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
-        {reasonOf({ ...data.theme, personalized: false })}
-      </p>
+      {/* Why this pair: sits straight above the VS badge's column. */}
+      <div className="mb-6 flex flex-col items-center gap-1 text-center">
+        <span className="text-[11px] tracking-wide text-muted">چرا این دو؟</span>
+        <p className="flex items-center gap-2 rounded-full border border-violet-light/30 bg-violet/10 px-4 py-1.5 text-[13px] font-medium text-violet-light">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
+          {pairingOf(data.theme)}
+        </p>
+      </div>
 
       {/* RTL grid: left_item sits on the right, like the battle arena. The VS
           badge sits in the posters-only grid so it centers on the posters,
@@ -225,9 +258,9 @@ function DailyBody({
       <div className="mt-3 grid grid-cols-2 gap-4 sm:gap-10">
         {sides.map(([side, film]) => (
           <div key={side} className="text-center">
-            <p className="min-w-0 text-sm font-medium text-ink">
+            <Link href={`/movies/${film.slug}`} className="block min-w-0 text-sm font-medium text-ink transition hover:text-gold">
               <CardTitle entity={film} className="line-clamp-2" center />
-            </p>
+            </Link>
             {film.year != null && <p className="num text-xs text-gold">{toFaDigits(film.year)}</p>}
           </div>
         ))}
@@ -245,14 +278,9 @@ function DailyBody({
         <span>
           نبرد بعدی تا <span className="num text-ink-dim" aria-live="off">{formatCountdown(secondsLeft)}</span>
         </span>
-        {typeof data.streak === "number" && data.streak > 0 && (
-          <span className="rounded-full border border-gold/40 bg-gold/10 px-3 py-1 font-bold text-gold">
-            <span className="num">{toFaDigits(data.streak)}</span> روز پیاپی
-          </span>
-        )}
       </div>
 
-      {data.previous && <Previous previous={data.previous} />}
+      {data.previous && data.previous.total > 0 && <Previous previous={data.previous} />}
     </div>
   );
 }
@@ -392,23 +420,19 @@ function Previous({ previous }: { previous: NonNullable<DailyBattleToday["previo
   return (
     <div className="mt-8 rounded-xl border border-border bg-surface/60 px-4 py-3 text-center text-xs text-muted">
       <p className="mb-1 font-bold text-ink-dim">نتیجهٔ دیروز</p>
-      {previous.total === 0 ? (
-        <p>دیروز کسی رأی نداد.</p>
-      ) : (
-        <p>
-          {winnerFilm ? (
-            <>
-              برنده: <span className="font-bold text-gold">{displayTitle(winnerFilm)}</span>
-              {" · "}
-              <span className="num">{toFaDigits(sharePercent(previous, previous.winner as DailySide))}٪</span>
-            </>
-          ) : (
-            "مساوی"
-          )}
-          {" · "}
-          <span className="num">{toFaDigits(previous.total)}</span> رأی
-        </p>
-      )}
+      <p>
+        {winnerFilm ? (
+          <>
+            برنده: <span className="font-bold text-gold">{displayTitle(winnerFilm)}</span>
+            {" · "}
+            <span className="num">{toFaDigits(sharePercent(previous, previous.winner as DailySide))}٪</span>
+          </>
+        ) : (
+          "مساوی"
+        )}
+        {" · "}
+        <span className="num">{toFaDigits(previous.total)}</span> رأی
+      </p>
     </div>
   );
 }

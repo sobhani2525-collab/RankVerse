@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { HomeTitle, posterUrlFor } from "@/lib/home-data";
 import { getGenreBySlug, getMovieBySlug, getPersonBySlug, getTvSeriesBySlug, getWatchLaterItems } from "@/lib/api";
 import { MovieDetail, MovieListItem, TvSeriesDetail } from "@/lib/types";
-import { displayTitle } from "@/lib/title";
+import { splitTitle } from "@/lib/title";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 import { detailPathFor } from "@/lib/entity-routes";
@@ -32,6 +32,8 @@ interface Satellite {
   kind: Kind;
   slug?: string;
   label: string;
+  // The original (English) title, shown on its own line under the Persian one.
+  subLabel?: string | null;
   relation: string;
   posterUrl?: string | null;
   // Nodes without their own graph page (a year) link out instead.
@@ -42,6 +44,7 @@ interface Focus {
   kind: Exclude<Kind, "year">;
   slug: string;
   label: string;
+  subLabel?: string | null;
   caption: string;
   posterUrl: string | null;
   satellites: Satellite[];
@@ -67,13 +70,15 @@ function yearHref(year: number, kind: "movie" | "tv_series"): string | undefined
 
 function titleSatellite(item: MovieListItem, relation: string): Satellite {
   const kind: Kind = item.entity_type === "tv_series" ? "tv_series" : "movie";
-  return { key: `${kind}:${item.slug}`, kind, slug: item.slug, label: displayTitle(item), relation, posterUrl: posterUrlFor(item, "w185") };
+  const { primary, secondary } = splitTitle(item);
+  return { key: `${kind}:${item.slug}`, kind, slug: item.slug, label: primary, subLabel: secondary, relation, posterUrl: posterUrlFor(item, "w185") };
 }
 
 function focusFromTitle(t: {
   kind: "movie" | "tv_series";
   slug: string;
   label: string;
+  subLabel?: string | null;
   posterUrl: string | null;
   year: number | null;
   directors: { slug: string; title: string; title_fa?: string | null }[];
@@ -93,6 +98,7 @@ function focusFromTitle(t: {
     kind: t.kind,
     slug: t.slug,
     label: t.label,
+    subLabel: t.subLabel,
     caption: t.kind === "tv_series" ? "سریال" : "فیلم",
     posterUrl: t.posterUrl,
     satellites: unique.slice(0, MAX_SATELLITES),
@@ -103,7 +109,8 @@ function focusFromDetail(d: MovieDetail | TvSeriesDetail, kind: "movie" | "tv_se
   return focusFromTitle({
     kind,
     slug: d.slug,
-    label: displayTitle(d),
+    label: splitTitle(d).primary,
+    subLabel: splitTitle(d).secondary,
     posterUrl: posterUrlFor(d),
     year: d.year,
     directors: d.directors,
@@ -148,7 +155,8 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
   const initial = focusFromTitle({
     kind: seed.entity_type === "tv_series" ? "tv_series" : "movie",
     slug: seed.slug,
-    label: displayTitle(seed),
+    label: splitTitle(seed).primary,
+    subLabel: splitTitle(seed).secondary,
     posterUrl: seed.posterUrl,
     year: seed.year,
     directors: seed.directors,
@@ -418,6 +426,11 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                 )}
               </div>
               <p className="mt-2 line-clamp-2 text-xs font-medium leading-5 text-ink sm:text-sm">{focus.label}</p>
+              {focus.subLabel && (
+                <p dir="ltr" className="max-w-full truncate text-[10px] leading-4 text-muted sm:text-xs">
+                  {focus.subLabel}
+                </p>
+              )}
               <p className={`text-[10px] ${KIND_STYLE[focus.kind].text}`}>{focus.caption}</p>
             </div>
 
@@ -428,14 +441,19 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
               const isLoading = loadingKey === `${s.kind}:${s.slug}`;
               const content = (
                 <>
-                  <span className={`relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border bg-surface sm:h-11 sm:w-11 ${style.ring} ${isLoading ? "animate-pulse" : ""}`}>
+                  <span className={`relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border bg-surface sm:h-14 sm:w-14 ${style.ring} ${isLoading ? "animate-pulse" : ""}`}>
                     {s.posterUrl ? (
-                      <Image src={s.posterUrl} alt="" fill sizes="44px" className="object-cover" />
+                      <Image src={s.posterUrl} alt="" fill sizes="56px" className="object-cover" />
                     ) : (
                       <span className={`h-2 w-2 rounded-full ${style.dot}`} />
                     )}
                   </span>
                   <span className="mt-1 line-clamp-2 max-w-[92px] text-[10px] leading-4 text-ink-dim sm:max-w-[120px] sm:text-xs">{s.label}</span>
+                  {s.subLabel && (
+                    <span dir="ltr" className="block max-w-[92px] truncate text-[9px] leading-4 text-muted sm:max-w-[120px] sm:text-[11px]">
+                      {s.subLabel}
+                    </span>
+                  )}
                   <span className={`text-[9px] sm:text-[10px] ${style.text}`}>{s.relation}</span>
                 </>
               );
@@ -527,6 +545,11 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
               <div className="min-w-0 flex-1">
               <p className={`text-xs ${KIND_STYLE[focus.kind].text}`}>{focus.caption}</p>
               <p className="mt-1 text-lg font-medium text-ink">{focus.label}</p>
+              {focus.subLabel && (
+                <p dir="ltr" className="truncate text-right text-sm text-muted">
+                  {focus.subLabel}
+                </p>
+              )}
               {focusHref && (
                 <span className="mt-4 inline-flex items-center gap-1 text-sm text-gold">
                   رفتن به صفحهٔ {focus.caption}

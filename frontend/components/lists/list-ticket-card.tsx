@@ -33,7 +33,14 @@ const NAME_SHADOW = { textShadow: "0 1px 3px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0
 /** "Cinema ticket" list card: poster collage on top, a torn-ticket
  *  perforation, then the list's text and stats. The whole card is one link,
  *  so nothing inside is interactive. */
-export default function ListTicketCard({ list }: { list: TicketCardList }) {
+export default function ListTicketCard({
+  list,
+  plainPosters = false,
+}: {
+  list: TicketCardList;
+  /** Posters only: no rank numbers or titles drawn over them. */
+  plainPosters?: boolean;
+}) {
   // People lists (actors, directors, ...) are labelled just "هنرمند" here.
   const typeLabel = list.entityType === "person" ? "هنرمند" : list.entityType ? entityTypeLabel(list.entityType) : null;
 
@@ -72,23 +79,27 @@ export default function ListTicketCard({ list }: { list: TicketCardList }) {
                       className="object-cover"
                     />
                   )}
-                  <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 to-transparent" />
-                  <span
-                    className={`absolute right-2 top-1 font-display leading-none ${
-                      first ? "text-[30px] text-[#E8B34A]" : "text-[18px] text-white"
-                    }`}
-                    style={NAME_SHADOW}
-                  >
-                    <span className="num">{toFaDigits(i + 1)}</span>
-                  </span>
-                  <span
-                    className={`absolute inset-x-1.5 bottom-1.5 truncate font-bold text-white ${
-                      first ? "text-[12px]" : "text-[10px]"
-                    }`}
-                    style={NAME_SHADOW}
-                  >
-                    {poster.title}
-                  </span>
+                  {!plainPosters && (
+                    <>
+                      <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 to-transparent" />
+                      <span
+                        className={`absolute right-2 top-1 font-display leading-none ${
+                          first ? "text-[30px] text-[#E8B34A]" : "text-[18px] text-white"
+                        }`}
+                        style={NAME_SHADOW}
+                      >
+                        <span className="num">{toFaDigits(i + 1)}</span>
+                      </span>
+                      <span
+                        className={`absolute inset-x-1.5 bottom-1.5 truncate font-bold text-white ${
+                          first ? "text-[12px]" : "text-[10px]"
+                        }`}
+                        style={NAME_SHADOW}
+                      >
+                        {poster.title}
+                      </span>
+                    </>
+                  )}
                 </>
               )}
             </div>

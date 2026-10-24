@@ -50,7 +50,6 @@ export default function FeaturedList({ list }: { list: ListDetail }) {
                 <span className="mt-3 block min-w-0 text-sm leading-6 text-ink">
                   <CardTitle entity={item.entity} className="truncate" subClassName="text-[11px] leading-5 text-muted" />
                 </span>
-                {item.composite_score != null && <span className="num text-xs text-gold/80">{toFaDigits(item.composite_score.toFixed(1))}</span>}
               </>
             );
             return (
