@@ -43,7 +43,7 @@ export default function BattleArena() {
   }, [inView, authLoading, loadFeatured]);
 
   return (
-    <section ref={sectionRef} className="relative border-y border-border/60 bg-[#080B14]/70">
+    <section ref={sectionRef} id="battle-arena" className="relative scroll-mt-16 border-y border-border/60 bg-[#080B14]/70">
       <div className="mx-auto max-w-5xl px-6 py-24">
         {featured === null && (
           // only the themed fallback needs the section's own title; a featured battle brings its own header

@@ -196,12 +196,42 @@
   animation-delay: var(--rv-delay, 0ms);
 }
 
+/* Hero backdrop (components/home/HeroStarfield.tsx): stars drift upward
+   very slowly; the nebulae breathe. Both far below reading attention. */
+@keyframes rv-starfield {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-3%, -12%); }
+}
+.rv-starfield {
+  animation: rv-starfield 80s ease-in-out infinite alternate;
+}
+@keyframes rv-nebula {
+  0%, 100% { opacity: 0.8; transform: translate(0, 0) scale(1); }
+  50% { opacity: 1; transform: translate(6%, -4%) scale(1.12); }
+}
+.rv-nebula {
+  animation: rv-nebula 22s ease-in-out infinite;
+}
+
+/* Hero primary CTA: brighter brand gradient with a coloured glow. */
+.btn-glow {
+  background-image: linear-gradient(135deg, #a78bfa, #5fd3bf);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.35), 0 8px 28px -6px rgba(145, 99, 245, 0.65), 0 0 22px -4px rgba(79, 184, 166, 0.55);
+  transition: box-shadow 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+}
+.btn-glow:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.5), 0 12px 36px -6px rgba(145, 99, 245, 0.8), 0 0 30px -2px rgba(79, 184, 166, 0.7);
+}
+
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .rv-reveal { opacity: 1; transform: none; transition: none; }
-  .rv-drift, .rv-halo, .rv-twinkle, .rv-rise { animation: none; }
+  .rv-drift, .rv-halo, .rv-twinkle, .rv-rise, .rv-starfield, .rv-nebula { animation: none; }
+  .btn-glow, .btn-glow:hover { transition: none; transform: none; }
   .rv-draw { animation: none; stroke-dashoffset: 0; }
   .rv-motion { transition: none !important; }
 }

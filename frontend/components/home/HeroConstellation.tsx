@@ -222,8 +222,10 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
   }
 
   const activeNode = active !== null ? nodes[active] : null;
+  const centerNode = nodes[0]?.node ?? null;
 
   return (
+    <>
     <div
       className="relative aspect-square w-full"
       onMouseLeave={hideSoon}
@@ -363,6 +365,26 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
 
       {activeNode && <InfoCard node={activeNode} onEnter={() => show(active!)} onLeave={hideSoon} />}
     </div>
+    {/* The centre is drawn at random on every visit; say whose sky this is. */}
+    <p className="relative z-10 mb-4 min-h-6 text-center text-sm text-muted" aria-live="polite">
+      {centerNode && (
+        <>
+          امروز کهکشانت را با محوریت{" "}
+          <button
+            type="button"
+            className="font-semibold text-gold underline decoration-gold/30 underline-offset-4 transition hover:decoration-gold"
+            onClick={() => {
+              requestGraphFocus({ kind: centerNode.entity_type as GraphFocusKind, slug: centerNode.slug });
+              scrollToGraph();
+            }}
+          >
+            {nameOf(centerNode)}
+          </button>{" "}
+          کشف کن
+        </>
+      )}
+    </p>
+    </>
   );
 }
 
