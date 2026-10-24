@@ -7,6 +7,7 @@ interface OverviewRow {
   id: string;
   entity_type: string;
   title: string;
+  title_fa: string | null;
   slug: string;
   year: number | null;
   vote_count: number | null;
@@ -48,6 +49,30 @@ async function call<T>(path: string, init?: RequestInit): Promise<Envelope<T>> {
 }
 
 const hasPersian = (s: string | null) => !!s && /[؀-ۿ]/.test(s);
+
+/** Copies a title, e.g. to search for its trailer on Aparat. */
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.prompt("کپی کنید:", text);
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={text}
+      className={`rounded-md border px-2 py-0.5 text-xs transition ${copied ? "border-teal/40 text-teal" : "border-border text-muted hover:text-ink"}`}
+    >
+      {copied ? "کپی شد ✓" : label}
+    </button>
+  );
+}
 
 export function AdminEntitiesManager() {
   const [rows, setRows] = useState<OverviewRow[]>([]);
@@ -167,24 +192,33 @@ export function AdminEntitiesManager() {
       <ul className="space-y-2">
         {rows.map((row) => (
           <li key={row.id} className="rounded-xl border border-border bg-surface">
-            <button type="button" onClick={() => toggle(row)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start">
-              <span className="min-w-0">
-                <span className="block truncate font-medium text-ink">{row.title}</span>
-                <span className="text-xs text-muted">
-                  {TYPE_LABELS[row.entity_type] ?? row.entity_type}
-                  {row.year ? ` · ${toFaDigits(row.year)}` : ""}
-                  {row.vote_count != null ? ` · ${toFaDigits(row.vote_count)} رأی` : ""}
+            <div className="flex items-center gap-2 pe-3">
+              <button type="button" onClick={() => toggle(row)} className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 ps-4 text-start">
+                <span className="min-w-0">
+                  {row.title_fa && <span className="block truncate font-medium text-ink">{row.title_fa}</span>}
+                  <span dir="ltr" className={`block truncate text-start ${row.title_fa ? "text-sm text-muted" : "font-medium text-ink"}`}>
+                    {row.title}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {TYPE_LABELS[row.entity_type] ?? row.entity_type}
+                    {row.year ? ` · ${toFaDigits(row.year)}` : ""}
+                    {row.vote_count != null ? ` · ${toFaDigits(row.vote_count)} رأی` : ""}
+                  </span>
                 </span>
-              </span>
-              <span className="flex shrink-0 gap-1.5">
-                {row.aparat_trailer && (
-                  <span className="rounded-full border border-teal/40 px-2 py-0.5 text-xs text-teal">آپارات</span>
-                )}
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-                  {row.overview_source ? SOURCE_LABELS[row.overview_source] : "بدون خلاصه"}
+                <span className="flex shrink-0 gap-1.5">
+                  {row.aparat_trailer && (
+                    <span className="rounded-full border border-teal/40 px-2 py-0.5 text-xs text-teal">آپارات</span>
+                  )}
+                  <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+                    {row.overview_source ? SOURCE_LABELS[row.overview_source] : "بدون خلاصه"}
+                  </span>
                 </span>
+              </button>
+              <span className="flex shrink-0 flex-col gap-1">
+                {row.title_fa && <CopyButton text={row.title_fa} label="کپی فارسی" />}
+                <CopyButton text={row.title} label="کپی انگلیسی" />
               </span>
-            </button>
+            </div>
 
             {openId === row.id && (
               <div className="space-y-3 border-t border-border px-4 py-4">

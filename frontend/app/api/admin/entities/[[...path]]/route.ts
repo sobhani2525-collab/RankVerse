@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
 // Same cookie-to-Bearer proxy as /api/admin/lists: the admin JWT is httpOnly,
 // so the browser can't call /admin/entities on the backend directly.
+// After a successful edit (overview, trailer) this also revalidates that
+// title's ISR page (revalidate=3600), so the change shows at once.
 async function forward(request: NextRequest, path: string[] | undefined) {
   const token = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value;
   if (!token) {
@@ -20,7 +23,14 @@ async function forward(request: NextRequest, path: string[] | undefined) {
     body: hasBody ? await request.text() : undefined,
     cache: "no-store",
   });
-  return NextResponse.json(await res.json(), { status: res.status });
+  const json = await res.json();
+
+  const row = json?.data;
+  if (request.method !== "GET" && res.ok && row?.slug) {
+    if (row.entity_type === "movie") revalidatePath(`/movies/${row.slug}`);
+    else if (row.entity_type === "tv_series") revalidatePath(`/tv-series/${row.slug}`);
+  }
+  return NextResponse.json(json, { status: res.status });
 }
 
 type Ctx = { params: Promise<{ path?: string[] }> };

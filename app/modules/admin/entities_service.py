@@ -41,6 +41,7 @@ def _row(entity: Entity) -> AdminEntityOverviewRow:
         id=entity.id,
         entity_type=entity.entity_type,
         title=entity.title,
+        title_fa=attrs.get("title_fa"),
         slug=entity.slug,
         year=year if isinstance(year, int) else None,
         vote_count=votes if isinstance(votes, int) else None,

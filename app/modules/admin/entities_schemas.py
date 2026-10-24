@@ -20,6 +20,7 @@ class AdminEntityOverviewRow(BaseModel):
     id: uuid.UUID
     entity_type: str
     title: str
+    title_fa: str | None = None
     slug: str
     year: int | None = None
     vote_count: int | None = None
