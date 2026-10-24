@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import TasteDnaRing from "./TasteDnaRing";
-import { ConfidenceHint, TasteSnapshot, TasteDimension } from "@/lib/types";
+import TasteReading from "./TasteReading";
+import { ConfidenceHint, RatingStyle, TasteInsight, TasteSnapshot, TasteDimension } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDecimal, toFaDigits } from "@/lib/format-number";
 
@@ -66,41 +67,60 @@ interface TasteDnaCardProps {
   dimensions: TasteDimension[];
   /** Owner-only "N more ratings to X%" line; omitted on public profiles. */
   confidenceHint?: ConfidenceHint | null;
+  insight?: TasteInsight | null;
+  ratingStyle?: RatingStyle | null;
+  perspective?: "self" | "other";
 }
 
-export default function TasteDnaCard({ snapshot, dimensions, confidenceHint }: TasteDnaCardProps) {
+/**
+ * The Taste DNA headline as one card: who the user is (confidence ring,
+ * archetype, written reading, rating style) beside how each genre compares
+ * with the average. Both halves live in one card so a short reading never
+ * leaves a half-empty card next to a tall chart.
+ */
+export default function TasteDnaCard({
+  snapshot,
+  dimensions,
+  confidenceHint,
+  insight = null,
+  ratingStyle = null,
+  perspective = "self",
+}: TasteDnaCardProps) {
   const [showAll, setShowAll] = useState(false);
   const rows = showAll ? dimensions : dimensions.slice(0, VISIBLE_ROWS);
   const liked = dimensions.filter((d) => d.score > 50).slice(0, 2);
   const scale = Math.max(MIN_BAR_SCALE, ...dimensions.map((d) => Math.abs(d.score - 50)));
 
   return (
-    <div className="rounded-2xl border border-border-soft bg-surface/60 p-6">
-      <div className="flex items-center gap-4 sm:gap-6">
-        <TasteDnaRing confidencePercent={snapshot.model_confidence * 100} size={124} centerLabel="دقت شناخت" />
-        <div className="min-w-0">
-          <p className="text-[11px] text-dim">تیپ سینمایی</p>
-          {/* snapshot.label is a " + "-joined archetype string, e.g.
-              "کاوشگر علمی-تخیلی + داستان‌جو" (compute.py's ARCHETYPE_MAP),
-              named only by above-average genres. */}
-          <h3 className="mt-1 text-xl font-bold leading-8 text-ink">{snapshot.label}</h3>
-          {liked.length > 0 && (
-            <p className="mt-1 text-sm text-muted">
-              بیشترین گرایش: {liked.map((d) => genreLabel(d.dimension_key)).join(" و ")}
-            </p>
-          )}
-          {confidenceHint && (
-            <p className="mt-2.5 text-xs text-gold">
-              <span className="num">{toFaDigits(confidenceHint.ratings_needed)}</span> امتیاز دیگر تا دقت{" "}
-              <span className="num">{toFaDigits(Math.round(confidenceHint.next_target * 100))}٪</span>
-            </p>
-          )}
+    <div className="grid grid-cols-1 gap-8 rounded-2xl border border-border-soft bg-surface/60 p-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-10">
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <TasteDnaRing confidencePercent={snapshot.model_confidence * 100} size={124} centerLabel="دقت شناخت" />
+          <div className="min-w-0">
+            <p className="text-[11px] text-dim">تیپ سینمایی</p>
+            {/* snapshot.label is a " + "-joined archetype string, e.g.
+                "کاوشگر علمی-تخیلی + داستان‌جو" (compute.py's ARCHETYPE_MAP),
+                named only by above-average genres. */}
+            <h3 className="mt-1 text-xl font-bold leading-8 text-ink">{snapshot.label}</h3>
+            {liked.length > 0 && (
+              <p className="mt-1 text-sm text-muted">
+                بیشترین گرایش: {liked.map((d) => genreLabel(d.dimension_key)).join(" و ")}
+              </p>
+            )}
+            {confidenceHint && (
+              <p className="mt-2.5 text-xs text-gold">
+                <span className="num">{toFaDigits(confidenceHint.ratings_needed)}</span> امتیاز دیگر تا دقت{" "}
+                <span className="num">{toFaDigits(Math.round(confidenceHint.next_target * 100))}٪</span>
+              </p>
+            )}
+          </div>
         </div>
+        <TasteReading insight={insight} ratingStyle={ratingStyle} perspective={perspective} />
       </div>
 
       {dimensions.length > 0 && (
-        <div className="mt-7">
-          <div className="mb-3 grid grid-cols-[4.5rem_1fr_2rem] sm:grid-cols-[6.5rem_1fr_2.5rem] gap-3 text-[10px] text-dim">
+        <div className="lg:border-r lg:border-border-soft lg:pr-10">
+          <div className="mb-3 grid grid-cols-[4.5rem_1fr_2rem] gap-3 text-[10px] text-dim sm:grid-cols-[6.5rem_1fr_2.5rem]">
             <span>ژانر</span>
             <div className="flex justify-between">
               <span>

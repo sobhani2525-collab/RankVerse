@@ -14,6 +14,7 @@ from app.modules.entities.repository import EntityRepository
 from app.modules.taste.compute import (
     PERSPECTIVE_OTHER,
     PERSPECTIVE_SELF,
+    SNAPSHOT_MODEL_VERSION,
     GenreStat,
     TasteDimensionComputer,
     TasteFacetComputer,
@@ -64,6 +65,8 @@ async def test_battle_wins_are_not_below_a_generous_raters_average(db_session, t
     assert stats[drama.slug].affinity > 0.7
     assert stats[comedy.slug].affinity < 0.3
     assert stats[drama.slug].score > 50 > stats[comedy.slug].score
+    # Two ratings are too few to claim how often they pick a genre.
+    assert stats[drama.slug].lift is None
 
 
 async def test_a_genre_everyone_watches_does_not_outrank_a_distinctive_one(db_session, test_user):
@@ -119,7 +122,7 @@ async def test_public_taste_dna_speaks_in_the_third_person(client, db_session, t
     res = await client.get(f"/api/v1/users/{test_user.username}/taste-dna")
     assert res.status_code == 200
     data = res.json()["data"]
-    assert data["snapshot"]["model_version"] == "genre-v2"
+    assert data["snapshot"]["model_version"] == SNAPSHOT_MODEL_VERSION
     text = data["insight"]["insight_text"]
     assert "می‌کنی" not in text and "دلت" not in text and "انتخاب‌هات" not in text
     assert data["dimensions"][0]["affinity"] is not None

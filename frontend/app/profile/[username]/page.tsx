@@ -1,12 +1,10 @@
 import { notFound } from "next/navigation";
 import { AuthorAvatar } from "@/components/lists/list-card";
 import ListTicketCard from "@/components/lists/list-ticket-card";
-import StatTile from "@/components/profile/stat-tile";
 import TasteDnaSection from "@/components/TasteDnaSection";
-import ContributionTierStrip from "@/components/profile/contribution-tier";
+import ProfileStats from "@/components/profile/profile-stats";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
-import { toFaDigits } from "@/lib/format-number";
 import { getPublicUser, getPublicUserLists, getPublicTasteDna, isNotFoundError } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 
@@ -63,33 +61,14 @@ export default async function PublicProfilePage({
       </div>
 
       <div className="mt-10">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          <StatTile
-            mono="LISTS"
-            value={toFaDigits(lists.length)}
-            label="فهرست‌های ساخته‌شده"
-            icon={<ListIcon size={20} />}
-            accent="#4FB8A6"
-            valueClassName="text-teal"
-          />
-          <StatTile
-            mono="BATTLES"
-            value={toFaDigits(contribution?.battles_count ?? 0)}
-            label="نبرد"
-            icon={<SwordsIcon size={20} />}
-            accent="#A99BFF"
-            valueClassName="text-violet-light"
-          />
-          <StatTile
-            mono="COMMENTS"
-            value={toFaDigits(contribution?.comments_count ?? 0)}
-            label="نظر"
-            icon={<MessageCircleIcon size={20} />}
-            accent="#8A93A6"
-          />
-        </div>
-
-        {contribution != null && <ContributionTierStrip score={contribution.contribution_score} />}
+        <ProfileStats
+          contributionScore={contribution?.contribution_score ?? null}
+          stats={[
+            { key: "lists", value: lists.length, label: "فهرست ساخته‌شده", icon: <ListIcon size={18} />, tone: "text-teal" },
+            { key: "votes", value: contribution?.battles_count ?? 0, label: "رأی در نبردها", icon: <SwordsIcon size={18} />, tone: "text-violet-light" },
+            { key: "comments", value: contribution?.comments_count ?? 0, label: "نظر", icon: <MessageCircleIcon size={18} />, tone: "text-ink-dim" },
+          ]}
+        />
       </div>
 
       {taste && (

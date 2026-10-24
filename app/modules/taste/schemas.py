@@ -46,6 +46,8 @@ class TasteAnchorPublic(BaseModel):
     anchor_strength: str
     match_score: float
     rank: int
+    # The user's own 1-5 rating of it (anchors are picked from high ratings).
+    user_rating: int | None = None
 
 
 class PredictedPickPublic(BaseModel):
@@ -53,6 +55,9 @@ class PredictedPickPublic(BaseModel):
     # -- same fields TastePredictedPicksCard needs as TasteAnchorsCard's row.
     entity: TasteAnchorEntity
     match_score: float
+    # Liked genre slugs this title has, strongest first (the card's "why").
+    reason_genres: list[str] = []
+    year: int | None = None
 
 
 class TasteInsightPublic(BaseModel):

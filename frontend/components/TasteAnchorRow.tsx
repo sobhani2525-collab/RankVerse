@@ -7,11 +7,6 @@ import { toFaDigits } from "@/lib/format-number";
 import { displayTitle } from "@/lib/title";
 import CardTitle from "@/components/entities/card-title";
 
-const STRENGTH_LABELS: Record<string, string> = {
-  primary: "محور اصلی",
-  strong_signal: "سیگنال قوی",
-};
-
 /**
  * Poster tile (not a list row) so a handful of anchors reads as a small
  * gallery -- matches the poster-grid language used everywhere else an
@@ -46,23 +41,23 @@ export default function TasteAnchorRow({ anchor }: { anchor: TasteAnchor }) {
           </div>
         )}
 
-        {/* match_score is already 0-100 (compute.py: round(100 * anchor_score)),
-            unlike model_confidence which is a 0-1 fraction -- verified live. */}
-        <div className="num absolute right-2 top-2 rounded-full border border-teal/40 bg-bg/80 px-2 py-0.5 text-[11px] font-bold text-teal backdrop-blur-sm">
-          {toFaDigits(Math.round(anchor.match_score))}٪
-        </div>
+        {/* The user's own rating, not anchor.match_score: an internal blend of
+            rating and graph centrality that read as a confusing percentage. */}
+        {anchor.user_rating != null && (
+          <div
+            className="num absolute right-2 top-2 rounded-full border border-gold/40 bg-bg/80 px-2 py-0.5 text-[11px] font-bold text-gold backdrop-blur-sm"
+            aria-label={`امتیاز: ${anchor.user_rating} از ۵`}
+          >
+            ★ {toFaDigits(anchor.user_rating)}
+          </div>
+        )}
       </div>
 
       <div className="mt-2.5 min-w-0">
         <p className="text-sm font-medium text-ink">
           <CardTitle entity={entity} className="truncate" />
         </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</span>
-          <span className="inline-block rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[10px] text-gold">
-            {STRENGTH_LABELS[anchor.anchor_strength] ?? anchor.anchor_strength}
-          </span>
-        </div>
+        <p className="mt-1 text-[11px] text-muted">{entityTypeLabel(entity.entity_type)}</p>
       </div>
     </>
   );

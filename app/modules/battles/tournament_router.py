@@ -201,14 +201,24 @@ async def featured_random_battle(
 
 @router.get("/mine")
 async def my_battles(
-    tab: Literal["draft", "active", "completed", "following"] = "active",
+    tab: Literal["draft", "active", "completed", "following", "played"] = "active",
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
     mode: Literal["pool", "tournament"] = "pool",
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if tab == "following":
+    if tab == "played":
+        # Battles the user took part in, in either mode: a pick in a pool
+        # battle or a vote on a tournament match. Newest activity isn't
+        # stored per battle, so they're ordered by the battle's creation.
+        played = select(BattlePick.battle_id).where(BattlePick.user_id == user.id).union(
+            select(BattleMatch.battle_id)
+            .join(BattleVote, BattleVote.match_id == BattleMatch.id)
+            .where(BattleVote.user_id == user.id)
+        )
+        conditions = [Battle.id.in_(played), Battle.status.in_(("active", "completed"))]
+    elif tab == "following":
         conditions = [
             Battle.mode == mode,
             Battle.id.in_(select(BattleFollow.battle_id).where(BattleFollow.user_id == user.id)),

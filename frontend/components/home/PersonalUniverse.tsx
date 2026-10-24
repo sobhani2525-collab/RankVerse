@@ -9,7 +9,7 @@ import { useInView } from "@/lib/use-in-view";
 import { getMyListStats, getMyPredictedPicks, getMyRatings, getMyTasteDna, MyListStats, UserRating } from "@/lib/api";
 import { PredictedPick, TasteProfile } from "@/lib/types";
 import { ListIcon, StarIcon, SwordsIcon } from "@/components/list-detail/icons";
-import TastePredictedPickRow from "@/components/TastePredictedPickRow";
+import PosterCard from "@/components/entities/poster-card";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 
@@ -103,15 +103,27 @@ function PersonalUniverseInner({ startHref }: { startHref: string }) {
 
         {ready && ratings.length > 0 && picks.length > 0 && (
           <div className="mt-12">
-            <p className="kicker text-muted/70">For you</p>
-            <h3 className="mt-1 text-lg font-bold text-ink">پیشنهاد برای تو، بر اساس سلیقه‌ات</h3>
-            <p className="mt-2 max-w-2xl text-xs leading-6 text-muted">
-              درصد روی هر پوستر نشان می‌دهد آن عنوان چقدر به سلیقهٔ تو نزدیک است (۱۰۰٪ یعنی کاملاً منطبق). این عدد از ژانرهای
-              موردعلاقه‌ات و جایگاه عنوان در رتبه‌بندی کل سایت حساب می‌شود.
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="kicker text-muted/70">For you</p>
+                <h3 className="mt-1 text-lg font-bold text-ink">پیشنهاد برای تو</h3>
+                <p className="mt-2 max-w-2xl text-xs leading-6 text-muted">
+                  عنوان‌های خوش‌رتبه‌ای که هنوز امتیاز نداده‌ای، از ژانرهایی که بیشتر از بقیه دوست داری. زیر هر پوستر
+                  آمده که به خاطر کدام علاقه‌ات پیشنهاد شده.
+                </p>
+              </div>
+              <Link href="/profile" className="text-xs font-semibold text-gold hover:underline">
+                دی‌ان‌ای سلیقهٔ من
+              </Link>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               {picks.map((pick) => (
-                <TastePredictedPickRow key={pick.entity.id} pick={pick} />
+                <PosterCard
+                  key={pick.entity.id}
+                  fluid
+                  entity={{ ...pick.entity, year: pick.year ?? null }}
+                  why={(pick.reason_genres ?? []).map((g) => ({ text: genreLabel(g), tone: "genre" as const }))}
+                />
               ))}
             </div>
           </div>

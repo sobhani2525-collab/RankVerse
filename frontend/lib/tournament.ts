@@ -175,6 +175,11 @@ export const tournamentApi = {
     call<TournamentDetail | null>(`/featured/random${qs({ exclude })}`, token),
   mine: (token: string, p: { tab: string; page?: number }) =>
     call<TournamentSummary[]>(`/mine${qs({ ...p, page_size: 12 })}`, token),
+  /** One page of /mine plus the total count (e.g. the profile's "battles played"). */
+  minePage: async (token: string, p: { tab: string; page?: number; page_size: number }) => {
+    const json = await callEnvelope<TournamentSummary[]>(`/mine${qs(p)}`, token);
+    return { items: json.data, total: json.meta?.total ?? json.data.length };
+  },
   closeRound: (token: string, slug: string) => call<TournamentDetail>(`/${slug}/close-round`, token, { method: "POST" }),
   finish: (token: string, slug: string) => call<TournamentDetail>(`/${slug}/finish`, token, { method: "POST" }),
   extend: (token: string, slug: string, seconds: number) =>

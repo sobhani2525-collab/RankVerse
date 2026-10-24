@@ -43,11 +43,14 @@ CANDIDATE_POOL_SIZE = 600
 
 
 class PredictedPick:
-    __slots__ = ("entity", "match_score")
+    __slots__ = ("entity", "match_score", "reason_genres")
 
-    def __init__(self, entity: Entity, match_score: float):
+    def __init__(self, entity: Entity, match_score: float, reason_genres: list[str] | None = None):
         self.entity = entity
         self.match_score = match_score
+        # The user's liked genres this title has, strongest first -- the
+        # "why" shown on the card.
+        self.reason_genres = reason_genres or []
 
 
 # Points an already-picked title sharing a candidate's leading genre costs it,
@@ -154,6 +157,7 @@ class PredictedPicksService:
         # Preserve the existing Python scoring and rounding behavior.
         scored = []
         top_genres: dict[uuid.UUID, str] = {}
+        reasons: dict[uuid.UUID, list[str]] = {}
         for row in rows:
             dimension_match = float(row.dimension_match)
             ranking_normalized = max(
@@ -172,6 +176,9 @@ class PredictedPicksService:
             top_genres[row.entity_id] = max(
                 row.genre_slugs, key=lambda slug: dimension_scores.get(slug, 0)
             )
+            reasons[row.entity_id] = sorted(
+                set(row.genre_slugs), key=lambda slug: -dimension_scores.get(slug, 0)
+            )[:2]
     
         scored.sort(key=lambda item: (-item[1], str(item[0])))
         top_scored = self._diversify(scored, top_genres, limit)
@@ -189,7 +196,7 @@ class PredictedPicksService:
         }
     
         return [
-            PredictedPick(entity=entities_by_id[entity_id], match_score=score)
+            PredictedPick(entity=entities_by_id[entity_id], match_score=score, reason_genres=reasons.get(entity_id))
             for entity_id, score in top_scored
             if entity_id in entities_by_id
         ]

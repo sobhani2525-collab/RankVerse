@@ -67,6 +67,8 @@ async def my_predicted_picks(
                     title_fa=pick.entity.attributes.get("title_fa"),
                 ),
                 match_score=pick.match_score,
+                reason_genres=pick.reason_genres,
+                year=pick.entity.attributes.get("year") if isinstance(pick.entity.attributes.get("year"), int) else None,
             ).model_dump()
             for pick in picks
         ]
@@ -74,7 +76,7 @@ async def my_predicted_picks(
     # The candidate query scores every unrated title in the user's genres, so
     # a short per-user cache keeps repeat home/profile loads off the database.
     data = await cached(
-        ("predicted-picks", current_user.id, limit),
+        ("predicted-picks-v2", current_user.id, limit),
         settings.cache_ttl_lists,
         load,
     )

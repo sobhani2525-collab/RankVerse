@@ -354,3 +354,18 @@ async def test_creator_follows_their_battle_and_list_items_carry_counts(client, 
     assert item["creator"]["username"] == "tester"
     assert (item["players_count"], item["follower_count"]) == (1, 2)
     assert len(item["preview"]) == 4
+
+
+async def test_mine_played_tab_lists_battles_the_user_took_part_in(client, db_session, auth_headers):
+    entities = await _entities(db_session, 4)
+    played_slug, _ = await _pool(client, auth_headers, entities)
+    untouched_slug, _ = await _pool(client, auth_headers, entities)
+    other = await _other_user(db_session)
+    a, b = entities[:2]
+    body = {"champion_id": str(a.id), "challenger_id": str(b.id), "winner_id": str(a.id)}
+    assert (await client.post(f"{URL}/{played_slug}/picks", json=body, headers=other)).status_code == 200
+
+    played = await client.get(f"{URL}/mine", params={"tab": "played"}, headers=other)
+    assert played.status_code == 200
+    assert [x["slug"] for x in played.json()["data"]] == [played_slug]
+    assert untouched_slug != played_slug

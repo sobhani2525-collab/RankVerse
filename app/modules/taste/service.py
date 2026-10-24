@@ -140,6 +140,18 @@ class TasteService:
         )
 
         genres = genre_stats_from_rows(dimension_rows)
+        anchor_ratings = {}
+        if anchor_rows:
+            anchor_ratings = dict(
+                (
+                    await self.db.execute(
+                        select(UserRating.entity_id, UserRating.score).where(
+                            UserRating.user_id == user_id,
+                            UserRating.entity_id.in_([entity.id for _, entity in anchor_rows]),
+                        )
+                    )
+                ).all()
+            )
         by_type: dict[str, list] = {}
         for row in dimension_rows:
             by_type.setdefault(row.dimension_type, []).append(row)
@@ -203,6 +215,7 @@ class TasteService:
                     anchor_strength=anchor.anchor_strength,
                     match_score=anchor.match_score,
                     rank=anchor.rank,
+                    user_rating=anchor_ratings.get(entity.id),
                 )
                 for anchor, entity in anchor_rows
             ],

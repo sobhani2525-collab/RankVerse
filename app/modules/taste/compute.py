@@ -108,7 +108,10 @@ AFFINITY_PRIOR = 3.0
 # preference component (and the same distance below bottoms it out).
 AFFINITY_SPAN_STARS = 2.0
 # Lift shrinkage toward 1x, in pseudo-items drawn at the base rate.
-LIFT_PRIOR = 8.0
+LIFT_PRIOR = 12.0
+# Titles the user must have chosen (rated or ♥) before lift counts at all --
+# two ratings can't say someone picks thrillers "4.5x more than average".
+LIFT_MIN_CHOSEN = 8
 # The catalog's own genre mix, in pseudo-items, blended into the platform's
 # base rate -- keeps the base rate sane while the platform has few users.
 CATALOG_BASE_WEIGHT = 200.0
@@ -343,7 +346,7 @@ class TasteDimensionComputer:
 
     @staticmethod
     def _genre_lift(chosen: int, total_chosen: int, base_rate: float) -> float:
-        if total_chosen == 0 or base_rate <= 0:
+        if total_chosen < LIFT_MIN_CHOSEN or base_rate <= 0:
             return 1.0
         share = (chosen + LIFT_PRIOR * base_rate) / (total_chosen + LIFT_PRIOR)
         return min(MAX_LIFT, share / base_rate)
@@ -390,7 +393,7 @@ class TasteDimensionComputer:
 
         base_rates = await genre_base_rates(self.db)
         total_chosen = sum(s.chosen for s in by_genre.values())
-        lift_weight = self.lift_weight if total_chosen > 0 else 0.0
+        lift_weight = self.lift_weight if total_chosen >= LIFT_MIN_CHOSEN else 0.0
 
         genre_rows, affinity_rows, lift_rows = [], [], []
         for genre_slug, signals in by_genre.items():
@@ -407,7 +410,8 @@ class TasteDimensionComputer:
             common = {"dimension_key": genre_slug, "confidence": confidence, "sample_size": signals.sample_size}
             genre_rows.append({**common, "score": max(0.0, min(100.0, round(100 * blended, 1)))})
             affinity_rows.append({**common, "score": round(100 * affinity, 1)})
-            lift_rows.append({**common, "score": min(100.0, round(LIFT_STORE_SCALE * lift, 2))})
+            if lift_weight:
+                lift_rows.append({**common, "score": min(100.0, round(LIFT_STORE_SCALE * lift, 2))})
 
         await self.repo.bulk_upsert_dimensions(user_id, GENRE_DIMENSION_TYPE, genre_rows)
         await self.repo.bulk_upsert_dimensions(user_id, GENRE_AFFINITY_TYPE, affinity_rows)
@@ -575,11 +579,11 @@ ARCHETYPE_MAP: dict[str, str] = {
     "tv-movie": "داستان‌جو",
 }
 
-# genre-v2: scores are preference + lift over the platform base rate, with
+# genre-v2(.1): scores are preference + lift over the platform base rate, with
 # genre_affinity/genre_lift companion rows and the facet dimensions. A
 # snapshot with an older version is recomputed on the next profile read
 # (see taste/router.py), so existing users don't wait for their next vote.
-SNAPSHOT_MODEL_VERSION = "genre-v2"
+SNAPSHOT_MODEL_VERSION = "genre-v2.1"
 # Revisit once TV series (or other entity_scopes) get their own ratings
 # and dimensions -- for now every snapshot is movie-scoped.
 SNAPSHOT_ENTITY_SCOPE = "movie"

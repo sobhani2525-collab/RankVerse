@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { useWatchLater } from "@/contexts/WatchLaterContext";
-import { getMyRatings, getMyLists, getMyTasteDna, getMyPredictedPicks, getWatchLaterItems, UserRating } from "@/lib/api";
-import { TasteProfile, PredictedPick, ListSummary, EntityMini } from "@/lib/types";
+import { getMyRatings, getMyLists, getMyTasteDna, getWatchLaterItems, UserRating } from "@/lib/api";
+import { TasteProfile, ListSummary, EntityMini } from "@/lib/types";
+import { tournamentApi, TournamentSummary } from "@/lib/tournament";
+import TournamentCard from "@/components/tournament/TournamentCard";
 import Loading from "@/components/Loading";
 import TasteDnaSection from "@/components/TasteDnaSection";
 import TasteDnaErrorState from "@/components/TasteDnaErrorState";
@@ -15,8 +17,7 @@ import PosterCard from "@/components/entities/poster-card";
 import { AuthorAvatar } from "@/components/lists/list-card";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
-import StatTile from "@/components/profile/stat-tile";
-import ContributionTierStrip from "@/components/profile/contribution-tier";
+import ProfileStats from "@/components/profile/profile-stats";
 import ProfileEditor from "@/components/profile/profile-editor";
 import AccountSettings from "@/components/profile/account-settings";
 import { SectionHeading } from "@/components/list-detail/ui";
@@ -28,6 +29,17 @@ import CardTitle from "@/components/entities/card-title";
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
 const TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w185";
+// Ratings shown before "show all" -- one row at the widest breakpoint.
+const RATINGS_PREVIEW = 6;
+
+function TrophyIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
+      <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 20h6" />
+    </svg>
+  );
+}
 
 export default function ProfilePage() {
   const { user, token, loading: authLoading } = useAuth();
@@ -49,7 +61,9 @@ export default function ProfilePage() {
   const [tasteError, setTasteError] = useState<string | null>(null);
   const [tasteReloadKey, setTasteReloadKey] = useState(0);
 
-  const [predictedPicks, setPredictedPicks] = useState<PredictedPick[]>([]);
+  const [playedBattles, setPlayedBattles] = useState<TournamentSummary[]>([]);
+  const [playedTotal, setPlayedTotal] = useState(0);
+  const [showAllRatings, setShowAllRatings] = useState(false);
 
   const [watchLater, setWatchLater] = useState<EntityMini[] | null>(null);
   const [loadingWatchLater, setLoadingWatchLater] = useState(true);
@@ -130,20 +144,21 @@ export default function ProfilePage() {
     };
   }, [token, tasteReloadKey]);
 
-  // پیش‌بینی انتخاب بعدی — endpoint جدا از taste-dna اصلی (query سنگین‌تره،
-  // یه محاسبه‌ی زنده‌ست نه خوندن داده‌ی از‌قبل‌محاسبه‌شده)، پس لود اولیه‌ی
-  // پروفایل رو کند نمی‌کنه. شکست خوردنش هم چیز مهمی نیست -- کارت پیشنهادی
-  // یه افزونه‌ست نه بخش اصلی پروفایل، پس فقط مثل حالت خالی نشونش نمی‌دیم.
+  // Battles (pool or tournament) the user picked or voted in. Optional
+  // extra like the old predicted-picks card: a failure just hides it.
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
 
-    getMyPredictedPicks(token)
-      .then((data) => {
-        if (!cancelled) setPredictedPicks(data);
+    tournamentApi
+      .minePage(token, { tab: "played", page_size: 6 })
+      .then(({ items, total }) => {
+        if (cancelled) return;
+        setPlayedBattles(items);
+        setPlayedTotal(total);
       })
       .catch(() => {
-        if (!cancelled) setPredictedPicks([]);
+        if (!cancelled) setPlayedBattles([]);
       });
 
     return () => {
@@ -271,44 +286,21 @@ export default function ProfilePage() {
       {editing && <ProfileEditor onDone={() => setEditing(false)} />}
       {settingsOpen && <AccountSettings />}
 
-      {/* --- Stats: ratings + activity/contribution merged into one strip -- */}
-      <div className="mt-10">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-          <StatTile
-            mono="RATINGS"
-            value={loadingRatings ? "—" : toFaDigits(totalCount)}
-            label="رتبه‌بندی‌های ثبت‌شده"
-            icon={<StarIcon size={20} />}
-            accent="#E8B34A"
-            valueClassName="text-gold"
-          />
-          <StatTile
-            mono="LISTS"
-            value={loadingLists ? "—" : toFaDigits(lists?.length ?? 0)}
-            label="فهرست‌های ساخته‌شده"
-            icon={<ListIcon size={20} />}
-            accent="#4FB8A6"
-            valueClassName="text-teal"
-          />
-          <StatTile
-            mono="BATTLES"
-            value={loadingTaste ? "—" : toFaDigits(contribution?.battles_count ?? 0)}
-            label="نبرد"
-            icon={<SwordsIcon size={20} />}
-            accent="#A99BFF"
-            valueClassName="text-violet-light"
-          />
-          <StatTile
-            mono="COMMENTS"
-            value={loadingTaste ? "—" : toFaDigits(contribution?.comments_count ?? 0)}
-            label="نظر"
-            icon={<MessageCircleIcon size={20} />}
-            accent="#8A93A6"
+      {/* --- Activity: non-zero counts + contribution level, one card --- */}
+      {!loadingRatings && !loadingLists && !loadingTaste && (
+        <div className="mt-10">
+          <ProfileStats
+            contributionScore={contribution?.contribution_score ?? null}
+            stats={[
+              { key: "ratings", value: totalCount, label: "امتیاز ثبت‌شده", icon: <StarIcon size={18} />, tone: "text-gold", href: "#my-ratings" },
+              { key: "lists", value: lists?.length ?? 0, label: "فهرست ساخته‌شده", icon: <ListIcon size={18} />, tone: "text-teal", href: "#my-lists" },
+              { key: "votes", value: contribution?.battles_count ?? 0, label: "رأی در نبردها", icon: <SwordsIcon size={18} />, tone: "text-violet-light" },
+              { key: "played", value: playedTotal, label: "نبرد شرکت‌کرده", icon: <TrophyIcon />, tone: "text-violet-light", href: "#my-battles" },
+              { key: "comments", value: contribution?.comments_count ?? 0, label: "نظر", icon: <MessageCircleIcon size={18} />, tone: "text-ink-dim" },
+            ]}
           />
         </div>
-
-        {!loadingTaste && contribution != null && <ContributionTierStrip score={contribution.contribution_score} />}
-      </div>
+      )}
 
       {/* --- Taste DNA --- */}
       <section className="mt-14">
@@ -318,7 +310,7 @@ export default function ProfilePage() {
           {!loadingTaste && tasteError && (
             <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
           )}
-          {!loadingTaste && !tasteError && taste && <TasteDnaSection profile={taste} predictedPicks={predictedPicks} />}
+          {!loadingTaste && !tasteError && taste && <TasteDnaSection profile={taste} />}
         </div>
       </section>
 
@@ -364,9 +356,43 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      {/* --- Battles played --- */}
+      {playedBattles.length > 0 && (
+        <section id="my-battles" className="mt-16 scroll-mt-24">
+          <SectionHeading
+            en="YOUR BATTLES"
+            fa="نبردهایی که در آن شرکت کرده‌اید"
+            aside={
+              <Link href="/battles" className="text-xs font-semibold text-gold hover:underline">
+                همهٔ نبردها
+              </Link>
+            }
+          />
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {playedBattles.map((b) => (
+              <TournamentCard key={b.slug} battle={b} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* --- Ratings --- */}
       <section id="my-ratings" className="mt-16 scroll-mt-24">
-        <SectionHeading en="YOUR RATINGS" fa="رتبه‌بندی‌های شما" />
+        <SectionHeading
+          en="YOUR RATINGS"
+          fa="امتیازهای شما"
+          aside={
+            ratings && ratings.length > RATINGS_PREVIEW ? (
+              <button
+                type="button"
+                onClick={() => setShowAllRatings((v) => !v)}
+                className="text-xs font-semibold text-gold hover:underline"
+              >
+                {showAllRatings ? "نمایش کمتر" : `نمایش همه (${toFaDigits(ratings.length)})`}
+              </button>
+            ) : undefined
+          }
+        />
 
         <div className="mt-5">
           {loadingRatings && <Loading />}
@@ -388,7 +414,7 @@ export default function ProfilePage() {
 
           {!loadingRatings && !ratingsError && ratings && ratings.length > 0 && (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 lg:gap-5">
-              {ratings.map((r) => {
+              {(showAllRatings ? ratings : ratings.slice(0, RATINGS_PREVIEW)).map((r) => {
                 const title = displayTitle({ title: r.movie_title, title_fa: r.movie_title_fa });
                 return (
                 <Link key={r.id} href={`/movies/${r.movie_slug}`} className="group flex flex-col gap-2">
@@ -399,15 +425,11 @@ export default function ProfilePage() {
                       mediaKind="image"
                     />
                     <div
-                      className="pointer-events-none absolute right-2 top-2 h-9 w-9 rounded-full p-[1.5px]"
-                      style={{ background: "linear-gradient(135deg, #9163f5, #4FB8A6)" }}
+                      className="num pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full border border-gold/40 px-2 py-0.5 text-xs font-bold text-gold backdrop-blur-sm"
+                      style={{ background: "rgba(7,11,22,.85)" }}
+                      aria-label={`امتیاز شما: ${r.score} از ۵`}
                     >
-                      <div
-                        className="num flex h-full w-full items-center justify-center rounded-full text-xs font-bold text-ink backdrop-blur-sm"
-                        style={{ background: "rgba(7,11,22,.85)" }}
-                      >
-                        {toFaDigits(r.score.toFixed(1))}
-                      </div>
+                      ★ {toFaDigits(r.score)}
                     </div>
                   </div>
                   <span className="min-w-0 text-sm font-bold text-ink transition group-hover:text-teal">

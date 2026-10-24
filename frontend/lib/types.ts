@@ -437,6 +437,8 @@ export interface TasteAnchor {
   anchor_strength: string; // "primary" | "strong_signal"
   match_score: number;
   rank: number;
+  /** The user's own 1-5 rating of it. */
+  user_rating?: number | null;
 }
 
 // From GET /users/me/predicted-picks -- a separate, lazily-fetched endpoint
@@ -445,6 +447,9 @@ export interface TasteAnchor {
 export interface PredictedPick {
   entity: TasteAnchorEntity;
   match_score: number;
+  /** The user's liked genre slugs this title has, strongest first. */
+  reason_genres?: string[];
+  year?: number | null;
 }
 
 // user_taste_insights is single-row-per-user (see the backend's
