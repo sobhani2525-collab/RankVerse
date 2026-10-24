@@ -25,10 +25,7 @@ const nextConfig = {
     loader: "custom",
     loaderFile: "./lib/tmdb-image-loader.ts",
   },
-  // Same-origin proxy for TMDb posters (the CDN is filtered in Iran).
-  async rewrites() {
-    return [{ source: "/tmdb-img/:path*", destination: "https://image.tmdb.org/t/p/:path*" }];
-  },
+  // /tmdb-img/* (same-origin posters) is app/tmdb-img/[...path]/route.ts.
   async headers() {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
@@ -37,10 +34,6 @@ const nextConfig = {
         source,
         headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
       })),
-      {
-        source: "/tmdb-img/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, s-maxage=31536000, immutable" }],
-      },
     ];
   },
 };
