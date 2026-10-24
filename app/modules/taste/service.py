@@ -1,11 +1,13 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, literal, select, union_all
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import parallel
 from app.core.cache import cached
-from app.modules.entities.models import Entity
+from app.modules.battles.models import PairVote, VoteOutcome
+from app.modules.entities.models import Entity, RelationshipEdge
 from app.modules.taste.compute import (
     FACET_ACTOR,
     FACET_COUNTRY,
@@ -26,6 +28,7 @@ from app.modules.taste.schemas import (
     TasteAnchorEntity,
     TasteAnchorPublic,
     TasteDimensionPublic,
+    TasteExampleTitle,
     TasteFacets,
     TasteInsightPublic,
     TastePersonEntity,
@@ -34,7 +37,15 @@ from app.modules.taste.schemas import (
     TasteSharePublic,
     TasteSnapshotPublic,
 )
-from app.modules.users.models import UserRating
+from app.modules.users.models import UserFavorite, UserRating
+
+# Example titles shown under each genre row.
+GENRE_EXAMPLES = 3
+# How much each kind of liked title counts when picking a genre's examples:
+# a rating by its stars above the user's average (+1), a ♥ like a rating
+# 1.5 stars above it, each battle win a little.
+FAVORITE_EXAMPLE_WEIGHT = 1.5
+BATTLE_WIN_EXAMPLE_WEIGHT = 0.3
 
 # Fewer ratings than this and "how strict a rater" is just noise.
 RATING_STYLE_MIN_RATINGS = 3
@@ -94,6 +105,63 @@ class TasteService:
                     )
                 )
             out.append(people)
+        return out
+
+    async def _genre_examples(
+        self, user_id: uuid.UUID, genre_keys: list[str], ratings_avg: float | None
+    ) -> dict[str, list[TasteExampleTitle]]:
+        """
+        Up to GENRE_EXAMPLES of the user's liked titles per genre -- rated at
+        or above their own average, ♥'d, or picked in battles -- strongest
+        first. Lets the profile show *which* films put a genre where it is
+        (a genre is a blend of many titles, not just the anchors).
+        """
+        if not genre_keys:
+            return {}
+        won = case((PairVote.winner == VoteOutcome.LEFT, PairVote.left_item), else_=PairVote.right_item)
+        parts = [
+            select(UserFavorite.entity_id.label("entity_id"), literal(FAVORITE_EXAMPLE_WEIGHT).label("w")).where(
+                UserFavorite.user_id == user_id
+            ),
+            select(won.label("entity_id"), literal(BATTLE_WIN_EXAMPLE_WEIGHT).label("w")).where(
+                PairVote.user_id == user_id, PairVote.winner != VoteOutcome.SKIP
+            ),
+        ]
+        if ratings_avg is not None:
+            parts.append(
+                select(
+                    UserRating.entity_id.label("entity_id"),
+                    (UserRating.score - ratings_avg + 1).label("w"),
+                ).where(UserRating.user_id == user_id, UserRating.score >= ratings_avg)
+            )
+        liked = union_all(*parts).subquery()
+        Genre = aliased(Entity)
+        Title = aliased(Entity)
+        stmt = (
+            select(
+                Genre.slug,
+                Title.slug,
+                Title.title,
+                Title.attributes["title_fa"].astext,
+                Title.entity_type,
+                func.sum(liked.c.w).label("weight"),
+            )
+            .select_from(liked)
+            .join(Title, Title.id == liked.c.entity_id)
+            .join(
+                RelationshipEdge,
+                (RelationshipEdge.from_entity_id == Title.id) & (RelationshipEdge.relation_type == "has_genre"),
+            )
+            .join(Genre, Genre.id == RelationshipEdge.to_entity_id)
+            .where(Genre.slug.in_(genre_keys))
+            .group_by(Genre.slug, Title.id, Title.slug, Title.title, Title.attributes["title_fa"].astext, Title.entity_type)
+        )
+        rows = sorted((await self.db.execute(stmt)).all(), key=lambda r: (-r.weight, r[1]))
+        out: dict[str, list[TasteExampleTitle]] = {}
+        for genre_slug, slug, title, title_fa, entity_type, _ in rows:
+            bucket = out.setdefault(genre_slug, [])
+            if len(bucket) < GENRE_EXAMPLES:
+                bucket.append(TasteExampleTitle(slug=slug, title=title, title_fa=title_fa or None, entity_type=entity_type))
         return out
 
     @staticmethod
@@ -165,6 +233,9 @@ class TasteService:
         )
 
         ratings_count, ratings_avg = rating_stats
+        examples = await self._genre_examples(
+            user_id, [g.dimension_key for g in genres], float(ratings_avg) if ratings_avg is not None else None
+        )
         rating_style = None
         if ratings_count >= RATING_STYLE_MIN_RATINGS and ratings_avg is not None:
             rating_style = RatingStylePublic(
@@ -199,6 +270,7 @@ class TasteService:
                     updated_at=g.updated_at,
                     affinity=g.affinity,
                     lift=g.lift,
+                    examples=examples.get(g.dimension_key, []),
                 )
                 for g in genres
             ],

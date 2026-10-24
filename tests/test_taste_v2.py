@@ -151,3 +151,50 @@ async def test_facets_find_the_director_and_decade_behind_liked_titles(db_sessio
     assert directors[0].sample_size == 3
     assert decades[0].dimension_key == "1990" and decades[0].score == 100
     assert countries[0].dimension_key == "US"
+
+
+async def test_good_films_winning_battles_is_not_a_genre_taste(db_session, test_user):
+    """Music titles here are all far better rated than their opponents, so
+    picking them is what anyone would do -- it must not read as a strong
+    taste for music the way an even-matchup win would."""
+    from app.modules.entities.models import EntityRanking
+
+    repo = EntityRepository(db_session)
+    music = await _entity(repo, "genre", "Music")
+    western = await _entity(repo, "genre", "Western")
+    for i in range(8):
+        acclaimed = await _movie(repo, f"Acclaimed Music {i}", music)
+        mediocre = await _movie(repo, f"Mediocre Opponent {i}", western)
+        db_session.add(EntityRanking(entity_id=acclaimed.id, computed_score=8.6, total_votes=100))
+        db_session.add(EntityRanking(entity_id=mediocre.id, computed_score=5.2, total_votes=100))
+        db_session.add(
+            PairVote(user_id=test_user.id, category="movie", left_item=acclaimed.id, right_item=mediocre.id,
+                     winner=VoteOutcome.LEFT)
+        )
+    await db_session.commit()
+
+    await TasteDimensionComputer(db_session).compute_genre_dimensions(test_user.id)
+    stats = {s.dimension_key: s for s in await load_genre_stats(TasteRepository(db_session), test_user.id)}
+
+    assert stats[music.slug].affinity < 0.6
+    assert stats[western.slug].affinity > 0.4
+
+
+async def test_genre_rows_carry_example_titles(client, db_session, test_user):
+    repo = EntityRepository(db_session)
+    horror = await _entity(repo, "genre", "Horror")
+    titles = []
+    for i, score in enumerate([5, 5, 4, 4, 4, 1]):
+        movie = await _movie(repo, f"Example Horror {i}", horror)
+        titles.append(movie)
+        db_session.add(UserRating(user_id=test_user.id, entity_id=movie.id, score=score))
+    await db_session.commit()
+    await recompute_taste_dna(db_session, test_user.id)
+    await db_session.commit()
+
+    data = (await client.get(f"/api/v1/users/{test_user.username}/taste-dna")).json()["data"]
+    examples = data["dimensions"][0]["examples"]
+    assert len(examples) == 3
+    assert {e["slug"] for e in examples} <= {t.slug for t in titles[:2]} | {t.slug for t in titles[2:5]}
+    assert titles[5].slug not in {e["slug"] for e in examples}  # rated below their average
+    assert examples[0]["slug"] in {titles[0].slug, titles[1].slug}

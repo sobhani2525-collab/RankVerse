@@ -35,11 +35,12 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import case, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.config import settings
 from app.core.cache import cached
 from app.modules.battles.models import PairVote, VoteOutcome
-from app.modules.entities.models import Entity, RelationshipEdge
+from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.lists.models import ListComment
 from app.modules.taste.insight_templates import INSIGHT_SENTENCES, genre_fa
 from app.modules.taste.repository import TasteRepository
@@ -118,14 +119,30 @@ CATALOG_BASE_WEIGHT = 200.0
 GENRE_BASE_RATES_TTL = 3600
 
 
+# Battle results are judged against what the two titles' platform scores
+# (EntityRanking.computed_score, 0-10) already predict: a gap of this many
+# points makes the better title ~73% likely to win (logistic). Without it,
+# genres made mostly of acclaimed titles (music, family, ...) "won" most
+# battles simply because their titles are good -- read as a taste for the
+# genre when it was a taste for good films.
+BATTLE_QUALITY_SCALE = 1.0
+
+
+def expected_win(score: float | None, other: float | None) -> float:
+    if score is None or other is None:
+        return 0.5
+    return 1 / (1 + math.exp(-(score - other) / BATTLE_QUALITY_SCALE))
+
+
 @dataclass
 class GenreSignals:
     # Explicit ratings plus ♥ pseudo-ratings: titles the user chose to
     # watch/mark, the only signals that say anything about how *often* they
     # pick a genre (battle pairs are assigned to them, not chosen).
     ratings: list[float] = field(default_factory=list)
-    wins: int = 0
-    losses: int = 0
+    # One per battle where only one side had this genre: the result minus
+    # the quality-expected result for that side (see expected_win), -1..1.
+    battle_residuals: list[float] = field(default_factory=list)
 
     @property
     def chosen(self) -> int:
@@ -133,7 +150,7 @@ class GenreSignals:
 
     @property
     def sample_size(self) -> int:
-        return len(self.ratings) + self.wins + self.losses
+        return len(self.ratings) + len(self.battle_residuals)
 
 
 @dataclass
@@ -231,10 +248,11 @@ class TasteDimensionComputer:
 
       * preference -- does the user like this genre more than the rest of
         what they watch? Explicit ratings relative to *their own* average
-        (so a generous rater doesn't love everything), ♥ favorites, and the
-        genre's win rate in their battles (the winner's genres win, the
-        loser's lose -- a battle is never turned into a pseudo-rating, so it
-        can't be misread as "below their average").
+        (so a generous rater doesn't love everything), ♥ favorites, and how
+        the genre does in their battles beyond what the titles' platform
+        scores predict (_battle_genre_residuals_for_user -- a battle is never
+        turned into a pseudo-rating, so it can't be misread as "below their
+        average", and a good film winning isn't read as a genre taste).
       * choice lift -- do they pick this genre more often than the
         platform's users do? Their share of the genre among the titles they
         chose (ratings + ♥) over the base rate from genre_base_rates.
@@ -302,46 +320,56 @@ class TasteDimensionComputer:
         result = await self.db.execute(stmt)
         return [slug for (slug,) in result.all()]
 
-    async def _battle_genre_outcomes_for_user(self, user_id: uuid.UUID) -> list[tuple[str, bool]]:
+    async def _battle_genre_residuals_for_user(self, user_id: uuid.UUID) -> list[tuple[str, float]]:
         """
-        One (genre slug, won) row per genre of each side of every non-skip
-        battle vote: the picked title's genres win, the other title's lose.
-        A genre both titles share gets one of each, i.e. stays neutral --
-        exactly right, since that vote said nothing about it.
+        One (genre slug, residual) per genre that only one side of a
+        non-skip battle vote had: the side's result (1 won, 0 lost) minus
+        its quality-expected result. A genre both titles share says nothing
+        about that vote and is skipped. Picking a much better-rated title is
+        a small positive signal; picking the weaker one is a strong one.
         """
         left_won = PairVote.winner == VoteOutcome.LEFT
-        votes = (
-            select(
-                case((left_won, PairVote.left_item), else_=PairVote.right_item).label("won_id"),
-                case((left_won, PairVote.right_item), else_=PairVote.left_item).label("lost_id"),
-            )
+        WonRank = aliased(EntityRanking)
+        LostRank = aliased(EntityRanking)
+        won_id = case((left_won, PairVote.left_item), else_=PairVote.right_item)
+        lost_id = case((left_won, PairVote.right_item), else_=PairVote.left_item)
+        votes_stmt = (
+            select(won_id.label("won_id"), lost_id.label("lost_id"), WonRank.computed_score, LostRank.computed_score)
+            .select_from(PairVote)
+            .outerjoin(WonRank, WonRank.entity_id == won_id)
+            .outerjoin(LostRank, LostRank.entity_id == lost_id)
             .where(PairVote.user_id == user_id, PairVote.winner != VoteOutcome.SKIP)
-            .subquery()
         )
-        sides = union_all(
-            select(votes.c.won_id.label("entity_id"), literal(True).label("won")),
-            select(votes.c.lost_id.label("entity_id"), literal(False).label("won")),
-        ).subquery()
-        stmt = (
-            select(Entity.slug, sides.c.won)
-            .select_from(sides)
-            .join(
-                RelationshipEdge,
-                (RelationshipEdge.from_entity_id == sides.c.entity_id)
-                & (RelationshipEdge.relation_type == "has_genre"),
-            )
+        votes = (await self.db.execute(votes_stmt)).all()
+        if not votes:
+            return []
+
+        entity_ids = {v.won_id for v in votes} | {v.lost_id for v in votes}
+        genres_stmt = (
+            select(RelationshipEdge.from_entity_id, Entity.slug)
             .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+            .where(RelationshipEdge.relation_type == "has_genre", RelationshipEdge.from_entity_id.in_(entity_ids))
         )
-        result = await self.db.execute(stmt)
-        return [(slug, bool(won)) for slug, won in result.all()]
+        genres: dict[uuid.UUID, set[str]] = {}
+        for entity_id, slug in (await self.db.execute(genres_stmt)).all():
+            genres.setdefault(entity_id, set()).add(slug)
+
+        out = []
+        for won, lost, won_score, lost_score in votes:
+            e_won = expected_win(won_score, lost_score)
+            won_genres, lost_genres = genres.get(won, set()), genres.get(lost, set())
+            out += [(g, 1 - e_won) for g in won_genres - lost_genres]
+            out += [(g, -(1 - e_won)) for g in lost_genres - won_genres]
+        return out
 
     # --- scoring ---
 
     def _genre_affinity(self, signals: GenreSignals, user_avg: float) -> float:
         weighted = sum(_clamp01(0.5 + (r - user_avg) / AFFINITY_SPAN_STARS) for r in signals.ratings)
         weight = float(len(signals.ratings))
-        weighted += self.battle_weight * signals.wins
-        weight += self.battle_weight * (signals.wins + signals.losses)
+        # An even matchup won scores 1, lost 0; a predictable result ~0.5.
+        weighted += self.battle_weight * sum(_clamp01(0.5 + r) for r in signals.battle_residuals)
+        weight += self.battle_weight * len(signals.battle_residuals)
         return (weighted + AFFINITY_PRIOR * 0.5) / (weight + AFFINITY_PRIOR)
 
     @staticmethod
@@ -362,8 +390,8 @@ class TasteDimensionComputer:
         """
         votes = await self._genre_votes_for_user(user_id)
         favorite_genre_slugs = await self._favorited_unrated_genre_slugs_for_user(user_id)
-        battle_outcomes = await self._battle_genre_outcomes_for_user(user_id)
-        if not votes and not favorite_genre_slugs and not battle_outcomes:
+        battle_residuals = await self._battle_genre_residuals_for_user(user_id)
+        if not votes and not favorite_genre_slugs and not battle_residuals:
             for dimension_type in (GENRE_DIMENSION_TYPE, GENRE_AFFINITY_TYPE, GENRE_LIFT_TYPE):
                 await self.repo.bulk_upsert_dimensions(user_id, dimension_type, [])
             return 0
@@ -384,12 +412,8 @@ class TasteDimensionComputer:
             by_genre.setdefault(vote.genre_slug, GenreSignals()).ratings.append(vote.score)
         for genre_slug in favorite_genre_slugs:
             by_genre.setdefault(genre_slug, GenreSignals()).ratings.append(favorite_pseudo_rating)
-        for genre_slug, won in battle_outcomes:
-            signals = by_genre.setdefault(genre_slug, GenreSignals())
-            if won:
-                signals.wins += 1
-            else:
-                signals.losses += 1
+        for genre_slug, residual in battle_residuals:
+            by_genre.setdefault(genre_slug, GenreSignals()).battle_residuals.append(residual)
 
         base_rates = await genre_base_rates(self.db)
         total_chosen = sum(s.chosen for s in by_genre.values())
@@ -583,7 +607,7 @@ ARCHETYPE_MAP: dict[str, str] = {
 # genre_affinity/genre_lift companion rows and the facet dimensions. A
 # snapshot with an older version is recomputed on the next profile read
 # (see taste/router.py), so existing users don't wait for their next vote.
-SNAPSHOT_MODEL_VERSION = "genre-v2.1"
+SNAPSHOT_MODEL_VERSION = "genre-v2.2"
 # Revisit once TV series (or other entity_scopes) get their own ratings
 # and dimensions -- for now every snapshot is movie-scoped.
 SNAPSHOT_ENTITY_SCOPE = "movie"

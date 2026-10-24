@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import TasteDnaRing from "./TasteDnaRing";
 import TasteReading from "./TasteReading";
 import { ConfidenceHint, RatingStyle, TasteInsight, TasteSnapshot, TasteDimension } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
+import { detailPathFor } from "@/lib/entity-routes";
 import { toFaDigits } from "@/lib/format-number";
 
 // Rows shown before "show all": enough for the clear likes and dislikes.
@@ -68,6 +70,9 @@ function GenreRow({ d, perspective }: { d: TasteDimension; perspective: Perspect
   const style = VERDICT_STYLES[v];
   const width = Math.max(4, Math.min(100, ((d.score - BAR_MIN) / (BAR_MAX - BAR_MIN)) * 100));
   const sentence = genreSentence(d, perspective);
+  // Examples are titles the user liked, so they only read right under a
+  // genre they like; under a weaker one they'd look like counterexamples.
+  const examples = v <= 1 ? (d.examples ?? []) : [];
 
   return (
     <div title={`بر پایهٔ ${toFaDigits(d.sample_size)} امتیاز، ♥ و رأی نبرد`}>
@@ -82,7 +87,33 @@ function GenreRow({ d, perspective }: { d: TasteDimension; perspective: Perspect
           {VERDICTS[perspective][v]}
         </span>
       </div>
-      {sentence && <p className="mt-1 pr-[5.75rem] text-[11px] text-dim sm:pr-[6.75rem]">{sentence}</p>}
+      {(sentence || examples.length > 0) && (
+        <p className="mt-1 pr-[5.75rem] text-[11px] leading-5 text-dim sm:pr-[6.75rem]">
+          {sentence}
+          {examples.length > 0 && (
+            <>
+              {sentence && " · "}
+              <span className="text-muted">مثل </span>
+              {examples.map((e, i) => {
+                const href = detailPathFor(e.entity_type, e.slug);
+                const name = e.title_fa || e.title;
+                return (
+                  <span key={e.slug}>
+                    {i > 0 && "، "}
+                    {href ? (
+                      <Link href={href} className="text-ink-dim hover:text-gold hover:underline">
+                        {name}
+                      </Link>
+                    ) : (
+                      name
+                    )}
+                  </span>
+                );
+              })}
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

@@ -421,6 +421,8 @@ export interface TasteDimension {
   affinity?: number | null;
   /** How many times the platform's base rate the user picks this genre (1 = average). */
   lift?: number | null;
+  /** A few of the user's liked titles in this genre -- what its place is built from. */
+  examples?: { slug: string; title: string; title_fa?: string | null; entity_type: string }[];
 }
 
 export interface TasteAnchorEntity {

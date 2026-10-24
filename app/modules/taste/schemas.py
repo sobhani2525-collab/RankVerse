@@ -13,6 +13,13 @@ class TasteSnapshotPublic(BaseModel):
     model_version: str
 
 
+class TasteExampleTitle(BaseModel):
+    slug: str
+    title: str
+    title_fa: str | None = None
+    entity_type: str
+
+
 class TasteDimensionPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     dimension_type: str
@@ -27,6 +34,9 @@ class TasteDimensionPublic(BaseModel):
     # base rate the user chooses this genre.
     affinity: float | None = None
     lift: float | None = None
+    # A few of the user's liked titles in this genre -- what the genre's
+    # place in their profile is built from (see TasteService._genre_examples).
+    examples: list[TasteExampleTitle] = []
 
 
 class TasteAnchorEntity(BaseModel):
