@@ -1,5 +1,4 @@
 import ProgressBar from "@/components/ProgressBar";
-import { MonoLabel } from "@/components/list-detail/ui";
 import { CONTRIBUTION_TIERS, contributionTier } from "@/lib/contribution-tier";
 import { toFaDigits } from "@/lib/format-number";
 
@@ -32,20 +31,24 @@ export default function ProfileStats({ stats, contributionScore }: { stats: Prof
         aria-hidden="true"
       />
       {shown.length > 0 && (
-        <div className="grid grid-cols-2 sm:flex sm:divide-x sm:divide-x-reverse sm:divide-border-soft">
-          {shown.map((s) => {
+        <div className="flex flex-wrap" dir="rtl">
+          {shown.map((s, i) => {
             const body = (
               <>
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] ${s.tone}`}>
+                <span className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] ${s.tone}`}>
                   {s.icon}
                 </span>
-                <span className="min-w-0">
-                  <span className={`num block text-2xl font-bold leading-none ${s.tone}`}>{toFaDigits(s.value)}</span>
-                  <span className="mt-1.5 block truncate text-xs text-muted">{s.label}</span>
+                <span className={`num mt-3 block text-3xl font-bold leading-none sm:text-4xl ${s.tone}`}>
+                  {toFaDigits(s.value)}
                 </span>
+                <span className="mt-2 block text-sm text-muted">{s.label}</span>
               </>
             );
-            const cls = "flex flex-1 items-center gap-3 px-5 py-5 sm:px-6";
+            // Cells share the row evenly; a hairline sits on each cell's
+            // inline-end edge (left, in RTL) except the last one.
+            const cls = `flex min-w-[50%] flex-1 flex-col items-center px-4 py-6 text-center sm:min-w-0 ${
+              i < shown.length - 1 ? "sm:border-e sm:border-border-soft" : ""
+            }`;
             return s.href ? (
               <a key={s.key} href={s.href} className={`${cls} transition hover:bg-white/[0.03]`}>
                 {body}
@@ -60,22 +63,22 @@ export default function ProfileStats({ stats, contributionScore }: { stats: Prof
       )}
 
       {tier && (
-        <div className={`px-5 py-4 sm:px-6 ${shown.length > 0 ? "border-t border-border-soft" : ""}`}>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-            <div className="flex items-baseline gap-2.5">
-              <span className="text-sm font-bold text-teal">{tier.current.name}</span>
-              <MonoLabel size="text-[10px]">
-                LEVEL {tier.level}/{CONTRIBUTION_TIERS.length}
-              </MonoLabel>
+        <div className={`px-5 py-5 sm:px-7 ${shown.length > 0 ? "border-t border-border-soft" : ""}`}>
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+            <div>
+              <span className="block text-xs text-muted">
+                سطح <span className="num">{toFaDigits(tier.level)}</span> از <span className="num">{toFaDigits(CONTRIBUTION_TIERS.length)}</span>
+              </span>
+              <span className="mt-1 block text-lg font-bold text-teal">{tier.current.name}</span>
             </div>
-            <span className="text-xs text-muted">
-              امتیاز مشارکت <span className="num text-ink">{toFaDigits(Math.round(contributionScore!))}</span>
+            <span className="text-sm text-muted">
+              امتیاز مشارکت <span className="num text-base font-bold text-ink">{toFaDigits(Math.round(contributionScore!))}</span>
             </span>
           </div>
-          <div className="mt-2.5">
-            <ProgressBar value={tier.progress} fillClassName="bg-gradient-to-l from-teal to-gold" />
+          <div className="mt-3">
+            <ProgressBar value={tier.progress} trackClassName="bg-surface2 !h-2.5" fillClassName="bg-gradient-to-l from-teal to-gold" />
           </div>
-          <p className="mt-1.5 text-[11px] text-dim">
+          <p className="mt-2 text-xs text-dim">
             {tier.next ? (
               <>
                 <span className="num">{toFaDigits(tier.remaining)}</span> امتیاز تا سطح «{tier.next.name}»

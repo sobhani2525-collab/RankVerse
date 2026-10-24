@@ -18,6 +18,7 @@ import { AuthorAvatar } from "@/components/lists/list-card";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import ProfileStats from "@/components/profile/profile-stats";
+import ExpandableSection from "@/components/profile/expandable-section";
 import ProfileEditor from "@/components/profile/profile-editor";
 import AccountSettings from "@/components/profile/account-settings";
 import { SectionHeading } from "@/components/list-detail/ui";
@@ -29,12 +30,14 @@ import CardTitle from "@/components/entities/card-title";
 // TMDb poster base — اگه جای دیگه‌ای توی پروژه یه هلپر برای این داری
 // (مثلاً lib/tmdb.ts)، به‌جای این ثابت از همون استفاده کن.
 const TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w185";
-// Ratings shown before "show all" -- one row at the widest breakpoint.
-const RATINGS_PREVIEW = 6;
+// Items shown before "show all": one row at the widest breakpoint --
+// six posters, or three of the larger list / battle cards.
+const PREVIEW = 6;
+const LIST_PREVIEW = 3;
 
 function TrophyIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
       <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 20h6" />
     </svg>
@@ -63,7 +66,6 @@ export default function ProfilePage() {
 
   const [playedBattles, setPlayedBattles] = useState<TournamentSummary[]>([]);
   const [playedTotal, setPlayedTotal] = useState(0);
-  const [showAllRatings, setShowAllRatings] = useState(false);
 
   const [watchLater, setWatchLater] = useState<EntityMini[] | null>(null);
   const [loadingWatchLater, setLoadingWatchLater] = useState(true);
@@ -151,7 +153,7 @@ export default function ProfilePage() {
     let cancelled = false;
 
     tournamentApi
-      .minePage(token, { tab: "played", page_size: 6 })
+      .minePage(token, { tab: "played", page_size: 24 })
       .then(({ items, total }) => {
         if (cancelled) return;
         setPlayedBattles(items);
@@ -204,41 +206,39 @@ export default function ProfilePage() {
   // Its own section after Taste DNA (it's a to-watch list, not part of the
   // taste reading); #watch-later deep links land here.
   const watchLaterSection = (
-    <section id="watch-later" className="mt-16 scroll-mt-24">
-      <SectionHeading en="WATCH LATER" fa="تماشا خواهم کرد" />
-
-      <div className="mt-5">
-        {loadingWatchLater && <Loading />}
-
-        {!loadingWatchLater && watchLaterError && (
-          <p className="text-center text-sm text-muted">{watchLaterError}</p>
-        )}
-
-        {!loadingWatchLater && !watchLaterError && watchLater && watchLater.length === 0 && (
-          <div className="text-center">
+    <ExpandableSection
+      id="watch-later"
+      en="WATCH LATER"
+      fa="تماشا خواهم کرد"
+      preview={PREVIEW}
+      gridClassName="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+      fallback={
+        loadingWatchLater ? (
+          <Loading />
+        ) : watchLaterError ? (
+          <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center text-sm text-muted">{watchLaterError}</div>
+        ) : (
+          <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center">
             <p className="text-sm text-muted">هنوز چیزی را برای تماشای بعدی ذخیره نکرده‌اید.</p>
             <Link href="/" className="mt-3 inline-block text-sm text-gold hover:underline">
               رفتن به فهرست فیلم‌ها
             </Link>
           </div>
-        )}
-
-        {!loadingWatchLater && !watchLaterError && watchLater && watchLater.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {watchLater.map((entity) => (
-              <PosterCard
-                key={entity.id}
-                entity={entity}
-                onRemove={(e) => {
-                  toggleWatchLater(e.id);
-                  setWatchLater((prev) => prev?.filter((x) => x.id !== e.id) ?? prev);
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
+        )
+      }
+    >
+      {(watchLater ?? []).map((entity) => (
+        <PosterCard
+          key={entity.id}
+          entity={entity}
+          fluid
+          onRemove={(e) => {
+            toggleWatchLater(e.id);
+            setWatchLater((prev) => prev?.filter((x) => x.id !== e.id) ?? prev);
+          }}
+        />
+      ))}
+    </ExpandableSection>
   );
 
   if (authLoading || !user) {
@@ -292,11 +292,11 @@ export default function ProfilePage() {
           <ProfileStats
             contributionScore={contribution?.contribution_score ?? null}
             stats={[
-              { key: "ratings", value: totalCount, label: "امتیاز ثبت‌شده", icon: <StarIcon size={18} />, tone: "text-gold", href: "#my-ratings" },
-              { key: "lists", value: lists?.length ?? 0, label: "فهرست ساخته‌شده", icon: <ListIcon size={18} />, tone: "text-teal", href: "#my-lists" },
-              { key: "votes", value: contribution?.battles_count ?? 0, label: "رأی در نبردها", icon: <SwordsIcon size={18} />, tone: "text-violet-light" },
+              { key: "ratings", value: totalCount, label: "امتیاز ثبت‌شده", icon: <StarIcon size={22} />, tone: "text-gold", href: "#my-ratings" },
+              { key: "lists", value: lists?.length ?? 0, label: "فهرست ساخته‌شده", icon: <ListIcon size={22} />, tone: "text-teal", href: "#my-lists" },
+              { key: "votes", value: contribution?.battles_count ?? 0, label: "رأی در نبردها", icon: <SwordsIcon size={22} />, tone: "text-violet-light" },
               { key: "played", value: playedTotal, label: "نبرد شرکت‌کرده", icon: <TrophyIcon />, tone: "text-violet-light", href: "#my-battles" },
-              { key: "comments", value: contribution?.comments_count ?? 0, label: "نظر", icon: <MessageCircleIcon size={18} />, tone: "text-ink-dim" },
+              { key: "comments", value: contribution?.comments_count ?? 0, label: "نظر", icon: <MessageCircleIcon size={22} />, tone: "text-ink-dim" },
             ]}
           />
         </div>
@@ -317,131 +317,100 @@ export default function ProfilePage() {
       {watchLaterSection}
 
       {/* --- Lists --- */}
-      <section id="my-lists" className="mt-16 scroll-mt-24">
-        <SectionHeading
-          en="YOUR LISTS"
-          fa="فهرست‌های شما"
-          aside={
-            <Link href="/lists/new" className="text-xs font-semibold text-gold hover:underline">
-              + فهرست جدید
-            </Link>
-          }
-        />
-
-        <div className="mt-5">
-          {loadingLists && <Loading />}
-
-          {!loadingLists && listsError && (
-            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-6 text-center text-sm text-muted">
-              {listsError}
-            </div>
-          )}
-
-          {!loadingLists && !listsError && lists && lists.length === 0 && (
+      <ExpandableSection
+        id="my-lists"
+        en="YOUR LISTS"
+        fa="فهرست‌های شما"
+        aside={
+          <Link href="/lists/new" className="text-xs font-semibold text-gold hover:underline">
+            + فهرست جدید
+          </Link>
+        }
+        preview={LIST_PREVIEW}
+        gridClassName="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3"
+        fallback={
+          loadingLists ? (
+            <Loading />
+          ) : listsError ? (
+            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center text-sm text-muted">{listsError}</div>
+          ) : (
             <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center">
               <p className="text-sm text-muted">هنوز هیچ فهرستی نساخته‌اید.</p>
               <Link href="/lists/new" className="mt-4 inline-block text-sm text-gold hover:underline">
                 ساخت اولین فهرست
               </Link>
             </div>
-          )}
-
-          {!loadingLists && !listsError && lists && lists.length > 0 && (
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {lists.map((list) => (
-                <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+          )
+        }
+      >
+        {(lists ?? []).map((list) => (
+          <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
+        ))}
+      </ExpandableSection>
 
       {/* --- Battles played --- */}
       {playedBattles.length > 0 && (
-        <section id="my-battles" className="mt-16 scroll-mt-24">
-          <SectionHeading
-            en="YOUR BATTLES"
-            fa="نبردهایی که در آن شرکت کرده‌اید"
-            aside={
-              <Link href="/battles" className="text-xs font-semibold text-gold hover:underline">
-                همهٔ نبردها
-              </Link>
-            }
-          />
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {playedBattles.map((b) => (
-              <TournamentCard key={b.slug} battle={b} />
-            ))}
-          </div>
-        </section>
+        <ExpandableSection
+          id="my-battles"
+          en="YOUR BATTLES"
+          fa="نبردهایی که در آن شرکت کرده‌اید"
+          preview={LIST_PREVIEW}
+          total={playedTotal}
+          gridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {playedBattles.map((b) => (
+            <TournamentCard key={b.slug} battle={b} />
+          ))}
+        </ExpandableSection>
       )}
 
       {/* --- Ratings --- */}
-      <section id="my-ratings" className="mt-16 scroll-mt-24">
-        <SectionHeading
-          en="YOUR RATINGS"
-          fa="امتیازهای شما"
-          aside={
-            ratings && ratings.length > RATINGS_PREVIEW ? (
-              <button
-                type="button"
-                onClick={() => setShowAllRatings((v) => !v)}
-                className="text-xs font-semibold text-gold hover:underline"
-              >
-                {showAllRatings ? "نمایش کمتر" : `نمایش همه (${toFaDigits(ratings.length)})`}
-              </button>
-            ) : undefined
-          }
-        />
-
-        <div className="mt-5">
-          {loadingRatings && <Loading />}
-
-          {!loadingRatings && ratingsError && (
-            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-6 text-center text-sm text-muted">
-              {ratingsError}
-            </div>
-          )}
-
-          {!loadingRatings && !ratingsError && ratings && ratings.length === 0 && (
-            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-10 text-center">
-              <p className="text-sm text-muted">هنوز هیچ فیلمی رتبه‌بندی نکرده‌اید.</p>
+      <ExpandableSection
+        id="my-ratings"
+        en="YOUR RATINGS"
+        fa="امتیازهای شما"
+        preview={PREVIEW}
+        gridClassName="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 lg:gap-5"
+        fallback={
+          loadingRatings ? (
+            <Loading />
+          ) : ratingsError ? (
+            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center text-sm text-muted">{ratingsError}</div>
+          ) : (
+            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center">
+              <p className="text-sm text-muted">هنوز به هیچ فیلمی امتیاز نداده‌اید.</p>
               <Link href="/" className="mt-4 inline-block text-sm text-gold hover:underline">
                 رفتن به فهرست فیلم‌ها
               </Link>
             </div>
-          )}
-
-          {!loadingRatings && !ratingsError && ratings && ratings.length > 0 && (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 lg:gap-5">
-              {(showAllRatings ? ratings : ratings.slice(0, RATINGS_PREVIEW)).map((r) => {
-                const title = displayTitle({ title: r.movie_title, title_fa: r.movie_title_fa });
-                return (
-                <Link key={r.id} href={`/movies/${r.movie_slug}`} className="group flex flex-col gap-2">
-                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border-soft bg-surface2">
-                    <EntityMedia
-                      src={r.movie_poster_path ? `${TMDB_POSTER_BASE}${r.movie_poster_path}` : null}
-                      alt={title}
-                      mediaKind="image"
-                    />
-                    <div
-                      className="num pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full border border-gold/40 px-2 py-0.5 text-xs font-bold text-gold backdrop-blur-sm"
-                      style={{ background: "rgba(7,11,22,.85)" }}
-                      aria-label={`امتیاز شما: ${r.score} از ۵`}
-                    >
-                      ★ {toFaDigits(r.score)}
-                    </div>
-                  </div>
-                  <span className="min-w-0 text-sm font-bold text-ink transition group-hover:text-teal">
-                    <CardTitle entity={{ title: r.movie_title, title_fa: r.movie_title_fa }} className="truncate" />
-                  </span>
-                </Link>
-                );
-              })}
+          )
+        }
+      >
+        {(ratings ?? []).map((r) => {
+          const title = displayTitle({ title: r.movie_title, title_fa: r.movie_title_fa });
+          return (
+            <Link key={r.id} href={`/movies/${r.movie_slug}`} className="group flex flex-col gap-2">
+            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border-soft bg-surface2">
+              <EntityMedia
+                src={r.movie_poster_path ? `${TMDB_POSTER_BASE}${r.movie_poster_path}` : null}
+                alt={title}
+                mediaKind="image"
+              />
+              <div
+                className="num pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-full border border-gold/40 px-2 py-0.5 text-xs font-bold text-gold backdrop-blur-sm"
+                style={{ background: "rgba(7,11,22,.85)" }}
+                aria-label={`امتیاز شما: ${r.score} از ۵`}
+              >
+                ★ {toFaDigits(r.score)}
+              </div>
             </div>
-          )}
-        </div>
-      </section>
+            <span className="min-w-0 text-sm font-bold text-ink transition group-hover:text-teal">
+              <CardTitle entity={{ title: r.movie_title, title_fa: r.movie_title_fa }} className="truncate" />
+            </span>
+          </Link>
+          );
+        })}
+      </ExpandableSection>
     </main>
   );
 }

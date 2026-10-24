@@ -5,59 +5,84 @@ import TasteDnaRing from "./TasteDnaRing";
 import TasteReading from "./TasteReading";
 import { ConfidenceHint, RatingStyle, TasteInsight, TasteSnapshot, TasteDimension } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
-import { toFaDecimal, toFaDigits } from "@/lib/format-number";
+import { toFaDigits } from "@/lib/format-number";
 
 // Rows shown before "show all": enough for the clear likes and dislikes.
 const VISIBLE_ROWS = 8;
-// Real deltas from 50 rarely pass +-25, so the bars scale to the profile's
-// largest one -- but never below this, so near-neutral profiles stay short.
-const MIN_BAR_SCALE = 15;
+type Perspective = "self" | "other";
 
-/**
- * How a genre compares with the platform's users, from its lift (genre-v2
- * profiles). Profiles not yet recomputed have no lift and show no line.
- */
-function liftLine(d: TasteDimension): string | null {
-  if (d.lift == null) return null;
-  if (d.lift >= 1.15) return `${toFaDecimal(d.lift)} برابر میانگین کاربران`;
-  if (d.lift <= 0.87) return "کمتر از میانگین کاربران";
-  return "هم‌اندازهٔ میانگین کاربران";
+// Score bands for the verdict word (50 = neutral, see TasteDimensionComputer).
+const LOVE_SCORE = 62;
+const LIKE_SCORE = 54;
+const MEH_SCORE = 46;
+// Bars stretch this score range across the track: real scores sit around
+// 30-70, and a 0-100 track made every bar look about the same.
+const BAR_MIN = 25;
+const BAR_MAX = 75;
+
+const VERDICTS: Record<Perspective, [string, string, string, string]> = {
+  self: ["عاشقشی", "دوستش داری", "معمولی", "کمتر به دلت می‌شینه"],
+  other: ["عاشقشه", "دوستش داره", "معمولی", "کمتر به دلش می‌شینه"],
+};
+const VERDICT_STYLES = [
+  { chip: "border-gold/40 bg-gold/10 text-gold", bar: "from-gold/70 to-gold" },
+  { chip: "border-teal/40 bg-teal/10 text-teal", bar: "from-teal/60 to-teal" },
+  { chip: "border-border bg-white/[0.03] text-muted", bar: "from-[#8A93A6]/40 to-[#8A93A6]/70" },
+  { chip: "border-[#C76B7E]/40 bg-[#C76B7E]/10 text-[#C76B7E]", bar: "from-[#C76B7E]/50 to-[#C76B7E]/80" },
+];
+
+function verdictIndex(score: number): number {
+  if (score >= LOVE_SCORE) return 0;
+  if (score >= LIKE_SCORE) return 1;
+  if (score >= MEH_SCORE) return 2;
+  return 3;
 }
 
 /**
- * One genre as a bar diverging from the center (score 50 = average): to the
- * right means a stronger-than-average taste, to the left a weaker one.
- * Physical left/right on purpose -- in this RTL layout "more" grows toward
- * the reading start (right), the same way ProgressBar fills.
+ * One plain sentence joining the score's two halves -- how much the user
+ * prefers the genre (affinity) and how often they pick it compared with
+ * other users (lift) -- so the two never read as contradicting numbers
+ * side by side. Profiles not yet recomputed have neither and get none.
  */
-function DivergingRow({ d, scale }: { d: TasteDimension; scale: number }) {
-  const delta = Math.max(-50, Math.min(50, d.score - 50));
-  const positive = delta >= 0;
-  const width = `${(Math.abs(delta) / scale) * 50}%`;
-  const line = liftLine(d);
+function genreSentence(d: TasteDimension, p: Perspective): string | null {
+  if (d.affinity == null) return null;
+  const likes = d.affinity >= 0.58 ? 1 : d.affinity <= 0.42 ? -1 : 0;
+  const picks = d.lift == null ? 0 : d.lift >= 1.25 ? 1 : d.lift <= 0.8 ? -1 : 0;
+  const self = p === "self";
+  if (likes === 1 && picks === 1) return self ? "زیاد سراغش می‌ری و راضی‌ات می‌کنه" : "زیاد سراغش می‌ره و راضی‌اش می‌کنه";
+  if (likes === 1 && picks === -1)
+    return self ? "کمتر سراغش می‌ری، ولی وقتی می‌بینی دوستش داری" : "کمتر سراغش می‌ره، ولی وقتی می‌بینه دوستش داره";
+  if (likes === 1) return "در امتیازها و نبردها معمولاً برنده‌ست";
+  if (likes === -1 && picks === 1) return self ? "زیاد می‌بینی، ولی کمتر راضی‌ات می‌کنه" : "زیاد می‌بینه، ولی کمتر راضی‌اش می‌کنه";
+  if (likes === -1) return "در امتیازها و نبردها معمولاً می‌بازه";
+  if (picks === 1) return self ? "بیشتر از بقیهٔ کاربران سراغش می‌ری" : "بیشتر از بقیهٔ کاربران سراغش می‌ره";
+  if (picks === -1) return self ? "کمتر از بقیهٔ کاربران سراغش می‌ری" : "کمتر از بقیهٔ کاربران سراغش می‌ره";
+  // Neither half stands out: follow the verdict so the two never disagree.
+  if (d.score >= LIKE_SCORE) return self ? "کمی بیشتر از بقیهٔ ژانرها به دلت می‌شینه" : "کمی بیشتر از بقیهٔ ژانرها به دلش می‌شینه";
+  if (d.score < MEH_SCORE) return self ? "کمی کمتر از بقیهٔ ژانرها به دلت می‌شینه" : "کمی کمتر از بقیهٔ ژانرها به دلش می‌شینه";
+  return self ? "نظرت درباره‌اش معمولیه" : "نظرش درباره‌اش معمولیه";
+}
+
+function GenreRow({ d, perspective }: { d: TasteDimension; perspective: Perspective }) {
+  const v = verdictIndex(d.score);
+  const style = VERDICT_STYLES[v];
+  const width = Math.max(4, Math.min(100, ((d.score - BAR_MIN) / (BAR_MAX - BAR_MIN)) * 100));
+  const sentence = genreSentence(d, perspective);
 
   return (
-    <div className="grid grid-cols-[4.5rem_1fr_2rem] sm:grid-cols-[6.5rem_1fr_2.5rem] items-center gap-3">
-      <bdi className="truncate text-xs text-ink-dim">{genreLabel(d.dimension_key)}</bdi>
-      <div>
-        <div className="relative h-2 rounded-full bg-surface2">
-          <div className="absolute inset-y-[-3px] left-1/2 w-px bg-border" aria-hidden="true" />
-          <div
-            className={`absolute inset-y-0 rounded-full ${
-              positive ? "bg-gradient-to-r from-teal to-gold" : "bg-gradient-to-l from-[#8A93A6]/70 to-[#C76B7E]"
-            }`}
-            style={positive ? { left: "50%", width } : { right: "50%", width }}
-          />
+    <div title={`بر پایهٔ ${toFaDigits(d.sample_size)} امتیاز، ♥ و رأی نبرد`}>
+      <div className="flex items-center gap-3">
+        <bdi className="w-20 shrink-0 truncate text-sm font-semibold text-ink sm:w-24">{genreLabel(d.dimension_key)}</bdi>
+        <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2">
+          {/* Fills from the reading start (right), like ProgressBar. */}
+          <div className={`ms-0 h-full rounded-full bg-gradient-to-l ${style.bar}`} style={{ width: `${width}%` }} />
         </div>
-        <p className="mt-1 text-[10px] text-dim">
-          {line && <>{line} · </>}
-          <span className="num">{toFaDigits(d.sample_size)}</span> نشانه
-        </p>
+        {/* Fixed width so every row's bar track has the same length. */}
+        <span className={`w-[7.5rem] shrink-0 truncate rounded-full border px-2 py-0.5 text-center text-[11px] ${style.chip}`}>
+          {VERDICTS[perspective][v]}
+        </span>
       </div>
-      <span className={`num text-left text-xs font-bold ${positive ? "text-teal" : "text-muted"}`} dir="ltr">
-        {delta > 0 ? "+" : ""}
-        {toFaDigits(Math.round(delta))}
-      </span>
+      {sentence && <p className="mt-1 pr-[5.75rem] text-[11px] text-dim sm:pr-[6.75rem]">{sentence}</p>}
     </div>
   );
 }
@@ -89,7 +114,6 @@ export default function TasteDnaCard({
   const [showAll, setShowAll] = useState(false);
   const rows = showAll ? dimensions : dimensions.slice(0, VISIBLE_ROWS);
   const liked = dimensions.filter((d) => d.score > 50).slice(0, 2);
-  const scale = Math.max(MIN_BAR_SCALE, ...dimensions.map((d) => Math.abs(d.score - 50)));
 
   return (
     <div className="grid grid-cols-1 gap-8 rounded-2xl border border-border-soft bg-surface/60 p-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-10">
@@ -120,30 +144,22 @@ export default function TasteDnaCard({
 
       {dimensions.length > 0 && (
         <div className="lg:border-r lg:border-border-soft lg:pr-10">
-          <div className="mb-3 grid grid-cols-[4.5rem_1fr_2rem] gap-3 text-[10px] text-dim sm:grid-cols-[6.5rem_1fr_2.5rem]">
-            <span>ژانر</span>
-            <div className="flex justify-between">
-              <span>
-                قوی‌تر<span className="hidden sm:inline"> از میانگین</span>
-              </span>
-              <span>
-                ضعیف‌تر<span className="hidden sm:inline"> از میانگین</span>
-              </span>
-            </div>
-            <span />
-          </div>
-          <div className="flex flex-col gap-3">
+          <p className="mb-4 text-xs text-muted">
+            {perspective === "self" ? "ژانرهای سلیقه‌ات، از بیشترین به کمترین" : "ژانرهای سلیقه‌اش، از بیشترین به کمترین"}
+          </p>
+          <div className="flex flex-col gap-3.5">
             {rows.map((d) => (
-              <DivergingRow key={d.dimension_key} d={d} scale={scale} />
+              <GenreRow key={d.dimension_key} d={d} perspective={perspective} />
             ))}
           </div>
           {dimensions.length > VISIBLE_ROWS && (
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="mt-4 text-xs text-teal hover:underline"
+              aria-expanded={showAll}
+              className="mt-4 text-xs font-semibold text-gold hover:underline"
             >
-              {showAll ? "نمایش کمتر" : `نمایش همهٔ ${toFaDigits(dimensions.length)} ژانر`}
+              {showAll ? "نمایش کمتر" : `نمایش همه (${toFaDigits(dimensions.length)})`}
             </button>
           )}
         </div>

@@ -3,6 +3,7 @@ import { AuthorAvatar } from "@/components/lists/list-card";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import TasteDnaSection from "@/components/TasteDnaSection";
 import ProfileStats from "@/components/profile/profile-stats";
+import ExpandableSection from "@/components/profile/expandable-section";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { getPublicUser, getPublicUserLists, getPublicTasteDna, isNotFoundError } from "@/lib/api";
@@ -64,9 +65,9 @@ export default async function PublicProfilePage({
         <ProfileStats
           contributionScore={contribution?.contribution_score ?? null}
           stats={[
-            { key: "lists", value: lists.length, label: "فهرست ساخته‌شده", icon: <ListIcon size={18} />, tone: "text-teal" },
-            { key: "votes", value: contribution?.battles_count ?? 0, label: "رأی در نبردها", icon: <SwordsIcon size={18} />, tone: "text-violet-light" },
-            { key: "comments", value: contribution?.comments_count ?? 0, label: "نظر", icon: <MessageCircleIcon size={18} />, tone: "text-ink-dim" },
+            { key: "lists", value: lists.length, label: "فهرست ساخته‌شده", icon: <ListIcon size={22} />, tone: "text-teal" },
+            { key: "votes", value: contribution?.battles_count ?? 0, label: "رأی در نبردها", icon: <SwordsIcon size={22} />, tone: "text-violet-light" },
+            { key: "comments", value: contribution?.comments_count ?? 0, label: "نظر", icon: <MessageCircleIcon size={22} />, tone: "text-ink-dim" },
           ]}
         />
       </div>
@@ -80,22 +81,21 @@ export default async function PublicProfilePage({
         </section>
       )}
 
-      <section className="mt-16">
-        <SectionHeading en="CREATED LISTS" fa="فهرست‌های ساخته‌شده" />
-        <div className="mt-5">
-          {lists.length === 0 ? (
-            <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center text-sm text-muted">
-              این کاربر هنوز فهرست عمومی‌ای نساخته.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {lists.map((list) => (
-                <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+      <ExpandableSection
+        en="CREATED LISTS"
+        fa="فهرست‌های ساخته‌شده"
+        preview={3}
+        gridClassName="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3"
+        fallback={
+          <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center text-sm text-muted">
+            این کاربر هنوز فهرست عمومی‌ای نساخته.
+          </div>
+        }
+      >
+        {lists.map((list) => (
+          <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
+        ))}
+      </ExpandableSection>
     </main>
   );
 }
