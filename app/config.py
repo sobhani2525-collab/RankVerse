@@ -136,29 +136,32 @@ class Settings(BaseSettings):
     ranking_battle_weight: float = 0.5
     ranking_battle_min_matches: int = 20
 
-    # Taste DNA dimension scoring (see app/modules/taste/compute.py). The
-    # confidence shrinkage is the same v/(v+k) family as ranking_min_votes
-    # above, just applied to one user's per-dimension sample size.
+    # Taste DNA genre scoring (see TasteDimensionComputer in
+    # app/modules/taste/compute.py). A genre's score blends two separate
+    # signals: how much the user *prefers* it (ratings relative to their own
+    # average, battle win rate, ♥) -- taste_dimension_rating_weight -- and
+    # how much more often they *choose* it than the platform's users do
+    # (lift over the platform/catalog base rate) --
+    # taste_dimension_engagement_weight. The confidence shrinkage is the
+    # same v/(v+k) family as ranking_min_votes above, applied to one user's
+    # per-genre signal count.
     taste_dimension_confidence_k: int = 10
     taste_dimension_rating_weight: float = 0.7
     taste_dimension_engagement_weight: float = 0.3
     taste_dimension_confidence_threshold: float = 0.35
 
-    # A ♥ favorite (UserFavorite) is a deliberately weaker, implicit signal
-    # than an explicit UserRating -- see TasteDimensionComputer's
-    # _favorited_unrated_genre_slugs_for_user. When a favorited entity
-    # hasn't also been rated, its genres get one extra data point worth
-    # this many stars (out of RATING_SCALE_MAX in taste/compute.py) rather
-    # than a real score; an entity the user has explicitly rated always
-    # uses that rating instead, never both.
+    # A ♥ favorite (UserFavorite) on a title the user hasn't rated counts as
+    # a pseudo-rating of at least this many stars -- and always at least
+    # half a star above the user's own average, so a generous rater's ♥
+    # never reads as "below average". An entity the user has explicitly
+    # rated always uses that rating instead, never both.
     taste_favorite_rating_equivalent: int = 4
 
-    # A battle win (PairVote) is the same kind of weaker, implicit signal
-    # as a ♥ favorite above -- see TasteDimensionComputer's
-    # _battle_won_unrated_genre_slugs_for_user. When the movie the user
-    # picked as the winner hasn't also been rated, its genres get one
-    # extra data point worth this many stars rather than a real score.
-    taste_battle_win_rating_equivalent: int = 4
+    # How much one battle vote (PairVote) weighs in a genre's preference
+    # relative to one explicit rating. A battle feeds the genre's win rate
+    # (winner's genres win, loser's genres lose) instead of a pseudo-rating,
+    # so it never gets compared against the user's rating average.
+    taste_battle_signal_weight: float = 0.5
 
     # Taste DNA anchor scoring (see TasteAnchorComputer in the same file).
     # taste_anchor_min_rating is expressed in raw UserRating.score units

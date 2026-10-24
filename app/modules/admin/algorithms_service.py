@@ -42,7 +42,7 @@ SETTING_GROUPS: dict[str, tuple[str, ...]] = {
     "taste": (
         "taste_dimension_confidence_k", "taste_dimension_rating_weight", "taste_dimension_engagement_weight",
         "taste_dimension_confidence_threshold", "taste_favorite_rating_equivalent",
-        "taste_battle_win_rating_equivalent", "taste_anchor_min_rating", "taste_anchor_rating_weight",
+        "taste_battle_signal_weight", "taste_anchor_min_rating", "taste_anchor_rating_weight",
         "taste_anchor_centrality_weight", "taste_anchor_max_count", "taste_snapshot_confidence_k",
         "taste_snapshot_dimension_weight", "taste_snapshot_vote_weight", "taste_contribution_vote_weight",
         "taste_contribution_battle_weight", "taste_contribution_comment_weight", "taste_contribution_favorite_weight",

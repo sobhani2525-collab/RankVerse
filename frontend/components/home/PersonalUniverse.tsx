@@ -123,7 +123,8 @@ function PersonalUniverseInner({ startHref }: { startHref: string }) {
 
 function Dashboard({ ratings, taste, listStats }: { ratings: UserRating[]; taste: TasteProfile | null; listStats: MyListStats | null }) {
   const topGenres = (taste?.dimensions ?? [])
-    .filter((d) => d.dimension_type === "genre")
+    // 50 = average on the genre score; below it isn't a favorite.
+    .filter((d) => d.dimension_type === "genre" && d.score > 50)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
   const stats = taste?.contribution_stats ?? null;

@@ -8,11 +8,10 @@ makes every compute_* method safe to call from either an on-demand path
 (e.g. right after a user casts their Nth new vote) or a nightly batch --
 there's no incremental state to reconcile between the two callers.
 
-Each dimension_type gets its own compute_<type>_dimensions method built
-on the same score/confidence machinery (_rating_component,
-_engagement_component, _score_and_confidence). Adding "mood"/"era"/
-"theme" later means adding another such method plus its own signal query
--- the shared scoring and persistence path doesn't change.
+TasteDimensionComputer writes three rows per genre: "genre" (the blended
+score), plus "genre_affinity" and "genre_lift" (its preference and choice
+halves) -- see the constants above it. TasteFacetComputer adds the
+director/actor/decade/country dimensions behind the titles a user likes.
 
 TasteAnchorComputer, below, fills user_taste_anchors (the movies that
 most define a user's taste) and reuses the same _rating_component
@@ -23,24 +22,26 @@ TasteSnapshotComputer rolls a user's already-persisted genre dimensions
 into the single-row user_taste_snapshots summary -- it reads what
 TasteDimensionComputer wrote, so it must run after it in any call chain.
 
-TasteInsightComputer, last, does the same read but produces a rule-based
-(not LLM) Persian insight_text from a fixed template bank
-(insight_templates.py), plus insight_tags. Also depends on
+TasteInsightComputer, last, does the same read but builds a rule-based
+(not LLM) Persian reading of the numbers (build_insight; sentences in
+insight_templates.py), plus insight_tags. Also depends on
 TasteDimensionComputer having run first.
 """
 
 import math
 import uuid
-from dataclasses import dataclass
+from datetime import datetime
+from dataclasses import dataclass, field
 
-from sqlalchemy import select, func, case
+from sqlalchemy import case, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.cache import cached
 from app.modules.battles.models import PairVote, VoteOutcome
 from app.modules.entities.models import Entity, RelationshipEdge
 from app.modules.lists.models import ListComment
-from app.modules.taste.insight_templates import TEMPLATES
+from app.modules.taste.insight_templates import INSIGHT_SENTENCES, genre_fa
 from app.modules.taste.repository import TasteRepository
 from app.modules.users.models import UserFavorite, UserRating
 
@@ -88,14 +89,160 @@ class GenreVote:
     score: int
 
 
+# Two extra dimension_type rows are written next to every "genre" row (same
+# dimension_key, confidence and sample_size), so the profile can show *why*
+# a genre scores what it does -- the preference half and the choice half of
+# the score -- without a schema change:
+#   genre_affinity: 100 * preference, 50 = neutral (see _genre_affinity)
+#   genre_lift:     LIFT_STORE_SCALE * lift over the base rate, capped at 100
+GENRE_DIMENSION_TYPE = "genre"
+GENRE_AFFINITY_TYPE = "genre_affinity"
+GENRE_LIFT_TYPE = "genre_lift"
+LIFT_STORE_SCALE = 20  # stored 0-100 <-> lift 0x-5x
+MAX_LIFT = 100 / LIFT_STORE_SCALE
+
+# This many neutral (0.5) pseudo-signals are mixed into every genre's
+# preference, so one battle win or one 5-star rating can't read as 100.
+AFFINITY_PRIOR = 3.0
+# A rating this many stars above the user's own average maxes out its
+# preference component (and the same distance below bottoms it out).
+AFFINITY_SPAN_STARS = 2.0
+# Lift shrinkage toward 1x, in pseudo-items drawn at the base rate.
+LIFT_PRIOR = 8.0
+# The catalog's own genre mix, in pseudo-items, blended into the platform's
+# base rate -- keeps the base rate sane while the platform has few users.
+CATALOG_BASE_WEIGHT = 200.0
+GENRE_BASE_RATES_TTL = 3600
+
+
+@dataclass
+class GenreSignals:
+    # Explicit ratings plus ♥ pseudo-ratings: titles the user chose to
+    # watch/mark, the only signals that say anything about how *often* they
+    # pick a genre (battle pairs are assigned to them, not chosen).
+    ratings: list[float] = field(default_factory=list)
+    wins: int = 0
+    losses: int = 0
+
+    @property
+    def chosen(self) -> int:
+        return len(self.ratings)
+
+    @property
+    def sample_size(self) -> int:
+        return len(self.ratings) + self.wins + self.losses
+
+
+@dataclass
+class GenreStat:
+    """One genre of a user's profile, merged from its three dimension rows."""
+    dimension_key: str
+    score: float
+    confidence: float
+    sample_size: int
+    affinity: float | None  # 0-1, 0.5 = neutral
+    lift: float | None  # x times the base rate, 1.0 = average
+    updated_at: datetime | None = None
+
+
+def _genre_sort_key(stat):
+    return (-stat.score, -stat.confidence, -stat.sample_size, stat.dimension_key)
+
+
+def genre_stats_from_rows(rows) -> list[GenreStat]:
+    """Merges a user's genre rows with their affinity/lift companions (rows
+    of any other dimension_type are ignored), score DESC with the same
+    tiebreak chain as TasteRepository.list_dimensions."""
+    affinity = {r.dimension_key: r.score / 100 for r in rows if r.dimension_type == GENRE_AFFINITY_TYPE}
+    lift = {r.dimension_key: r.score / LIFT_STORE_SCALE for r in rows if r.dimension_type == GENRE_LIFT_TYPE}
+    stats = [
+        GenreStat(
+            dimension_key=r.dimension_key,
+            score=r.score,
+            confidence=r.confidence,
+            sample_size=r.sample_size,
+            affinity=affinity.get(r.dimension_key),
+            lift=lift.get(r.dimension_key),
+            updated_at=r.updated_at,
+        )
+        for r in rows
+        if r.dimension_type == GENRE_DIMENSION_TYPE
+    ]
+    return sorted(stats, key=_genre_sort_key)
+
+
+async def load_genre_stats(repo: TasteRepository, user_id: uuid.UUID) -> list[GenreStat]:
+    rows = await repo.list_dimensions(
+        user_id, dimension_type=(GENRE_DIMENSION_TYPE, GENRE_AFFINITY_TYPE, GENRE_LIFT_TYPE)
+    )
+    return genre_stats_from_rows(rows)
+
+
+async def genre_base_rates(db: AsyncSession) -> dict[str, float]:
+    """
+    Share of each genre among what the platform's users choose (ratings +
+    ♥, one row per title-genre pair), blended with the catalog's own genre
+    mix (CATALOG_BASE_WEIGHT pseudo-items). This is the "average user" a
+    user's own genre mix is compared against: drama is in most titles, so
+    rating a lot of dramas is not, by itself, a taste for drama.
+    """
+    async def load():
+        chosen = union_all(select(UserRating.entity_id), select(UserFavorite.entity_id)).subquery()
+        platform_stmt = (
+            select(Entity.slug, func.count())
+            .select_from(chosen)
+            .join(
+                RelationshipEdge,
+                (RelationshipEdge.from_entity_id == chosen.c.entity_id)
+                & (RelationshipEdge.relation_type == "has_genre"),
+            )
+            .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+            .group_by(Entity.slug)
+        )
+        catalog_stmt = (
+            select(Entity.slug, func.count())
+            .select_from(RelationshipEdge)
+            .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
+            .where(RelationshipEdge.relation_type == "has_genre")
+            .group_by(Entity.slug)
+        )
+        platform = dict((await db.execute(platform_stmt)).all())
+        catalog = dict((await db.execute(catalog_stmt)).all())
+        platform_total = sum(platform.values())
+        catalog_total = sum(catalog.values())
+        if platform_total + catalog_total == 0:
+            return {}
+        catalog_weight = CATALOG_BASE_WEIGHT if catalog_total else 0.0
+        denominator = platform_total + catalog_weight
+        return {
+            slug: (platform.get(slug, 0) + catalog_weight * catalog.get(slug, 0) / (catalog_total or 1)) / denominator
+            for slug in set(platform) | set(catalog)
+        }
+
+    return await cached(("taste-genre-base-rates",), GENRE_BASE_RATES_TTL, load)
+
+
 class TasteDimensionComputer:
     """
-    The confidence shrinkage here (sample_size / (sample_size + k)) is the
-    same v / (v + m) family RankingService uses for its Bayesian blend
-    (app/modules/ranking/service.py) -- just applied to one user's
-    per-dimension sample size instead of an entity's vote count. k plays
-    the role m plays there: a "how many samples before we trust this"
-    knob, tunable via settings instead of hardcoded.
+    A genre's score is two separate questions blended together:
+
+      * preference -- does the user like this genre more than the rest of
+        what they watch? Explicit ratings relative to *their own* average
+        (so a generous rater doesn't love everything), ♥ favorites, and the
+        genre's win rate in their battles (the winner's genres win, the
+        loser's lose -- a battle is never turned into a pseudo-rating, so it
+        can't be misread as "below their average").
+      * choice lift -- do they pick this genre more often than the
+        platform's users do? Their share of the genre among the titles they
+        chose (ratings + ♥) over the base rate from genre_base_rates.
+        Without this, drama and comedy -- simply the most common genres --
+        topped every profile.
+
+    Both are shrunk toward neutral by a prior (AFFINITY_PRIOR, LIFT_PRIOR)
+    and blended as taste_dimension_rating_weight : _engagement_weight into
+    a 0-100 score where 50 means "average". The confidence shrinkage
+    (sample_size / (sample_size + k)) is the same v / (v + m) family
+    RankingService uses for its Bayesian blend.
     """
 
     def __init__(self, db: AsyncSession):
@@ -103,30 +250,11 @@ class TasteDimensionComputer:
         self.repo = TasteRepository(db)
         self.confidence_k = settings.taste_dimension_confidence_k
         self.confidence_threshold = settings.taste_dimension_confidence_threshold
-        self.rating_weight = settings.taste_dimension_rating_weight
-        self.engagement_weight = settings.taste_dimension_engagement_weight
+        self.preference_weight = settings.taste_dimension_rating_weight
+        self.lift_weight = settings.taste_dimension_engagement_weight
+        self.battle_weight = settings.taste_battle_signal_weight
 
-    # --- shared scoring machinery ---
-
-    def _engagement_component(self, sample_size: int, max_sample_size: int) -> float:
-        return math.log(sample_size + 1) / math.log(max_sample_size + 1)
-
-    def _score_and_confidence(
-        self, ratings: list[int], user_avg: float, max_sample_size: int
-    ) -> tuple[float, float, int]:
-        sample_size = len(ratings)
-        dimension_mean = sum(ratings) / sample_size
-
-        rating_component = _rating_component(dimension_mean, user_avg)
-        engagement_component = self._engagement_component(sample_size, max_sample_size)
-
-        raw_score = 100 * (self.rating_weight * rating_component + self.engagement_weight * engagement_component)
-        score = max(0.0, min(100.0, round(raw_score)))
-
-        confidence = sample_size / (sample_size + self.confidence_k)
-        return score, confidence, sample_size
-
-    # --- genre dimension (v1) ---
+    # --- signal queries ---
 
     async def _genre_votes_for_user(self, user_id: uuid.UUID) -> list[GenreVote]:
         """
@@ -171,58 +299,70 @@ class TasteDimensionComputer:
         result = await self.db.execute(stmt)
         return [slug for (slug,) in result.all()]
 
-    async def _battle_won_unrated_genre_slugs_for_user(self, user_id: uuid.UUID) -> list[str]:
+    async def _battle_genre_outcomes_for_user(self, user_id: uuid.UUID) -> list[tuple[str, bool]]:
         """
-        One row per (genre of a movie the user picked as the winner in a
-        battle, that they haven't separately rated) -- the battle-picks
-        counterpart of _favorited_unrated_genre_slugs_for_user above. An
-        explicit rating on the same movie is still strictly more
-        informative, so it's excluded here exactly like favorites are.
-        SKIP votes carry no preference and are excluded.
+        One (genre slug, won) row per genre of each side of every non-skip
+        battle vote: the picked title's genres win, the other title's lose.
+        A genre both titles share gets one of each, i.e. stays neutral --
+        exactly right, since that vote said nothing about it.
         """
-        rated_entity_ids = select(UserRating.entity_id).where(UserRating.user_id == user_id)
-        won_entity_id = case(
-            (PairVote.winner == VoteOutcome.LEFT, PairVote.left_item),
-            (PairVote.winner == VoteOutcome.RIGHT, PairVote.right_item),
-        ).label("won_entity_id")
-        won_subq = (
-            select(won_entity_id)
+        left_won = PairVote.winner == VoteOutcome.LEFT
+        votes = (
+            select(
+                case((left_won, PairVote.left_item), else_=PairVote.right_item).label("won_id"),
+                case((left_won, PairVote.right_item), else_=PairVote.left_item).label("lost_id"),
+            )
             .where(PairVote.user_id == user_id, PairVote.winner != VoteOutcome.SKIP)
             .subquery()
         )
+        sides = union_all(
+            select(votes.c.won_id.label("entity_id"), literal(True).label("won")),
+            select(votes.c.lost_id.label("entity_id"), literal(False).label("won")),
+        ).subquery()
         stmt = (
-            select(Entity.slug)
-            .select_from(won_subq)
+            select(Entity.slug, sides.c.won)
+            .select_from(sides)
             .join(
                 RelationshipEdge,
-                (RelationshipEdge.from_entity_id == won_subq.c.won_entity_id)
+                (RelationshipEdge.from_entity_id == sides.c.entity_id)
                 & (RelationshipEdge.relation_type == "has_genre"),
             )
             .join(Entity, Entity.id == RelationshipEdge.to_entity_id)
-            .where(won_subq.c.won_entity_id.not_in(rated_entity_ids))
         )
         result = await self.db.execute(stmt)
-        return [slug for (slug,) in result.all()]
+        return [(slug, bool(won)) for slug, won in result.all()]
+
+    # --- scoring ---
+
+    def _genre_affinity(self, signals: GenreSignals, user_avg: float) -> float:
+        weighted = sum(_clamp01(0.5 + (r - user_avg) / AFFINITY_SPAN_STARS) for r in signals.ratings)
+        weight = float(len(signals.ratings))
+        weighted += self.battle_weight * signals.wins
+        weight += self.battle_weight * (signals.wins + signals.losses)
+        return (weighted + AFFINITY_PRIOR * 0.5) / (weight + AFFINITY_PRIOR)
+
+    @staticmethod
+    def _genre_lift(chosen: int, total_chosen: int, base_rate: float) -> float:
+        if total_chosen == 0 or base_rate <= 0:
+            return 1.0
+        share = (chosen + LIFT_PRIOR * base_rate) / (total_chosen + LIFT_PRIOR)
+        return min(MAX_LIFT, share / base_rate)
 
     async def compute_genre_dimensions(self, user_id: uuid.UUID) -> int:
         """
-        Recomputes dimension_type="genre" rows for one user from their
-        explicit movie ratings + has_genre relationships, plus two weaker
-        implicit signals from movies they haven't rated: ♥ favorites (see
-        _favorited_unrated_genre_slugs_for_user) and battle picks (see
-        _battle_won_unrated_genre_slugs_for_user) -- a movie chosen as the
-        winner in a battle says as much about taste as a favorite does.
-        Flushes but does NOT commit -- the caller (on-demand trigger or
-        batch loop) owns the transaction boundary, same convention as
-        RankingService.recompute_entity.
+        Recomputes the user's genre / genre_affinity / genre_lift rows from
+        their ratings, ♥ favorites and battle votes. Flushes but does NOT
+        commit -- the caller (on-demand trigger or batch loop) owns the
+        transaction boundary, same convention as RankingService.recompute_entity.
 
-        Returns the number of dimension rows persisted (post-threshold).
+        Returns the number of genre rows persisted (post-threshold).
         """
         votes = await self._genre_votes_for_user(user_id)
         favorite_genre_slugs = await self._favorited_unrated_genre_slugs_for_user(user_id)
-        battle_won_genre_slugs = await self._battle_won_unrated_genre_slugs_for_user(user_id)
-        if not votes and not favorite_genre_slugs and not battle_won_genre_slugs:
-            await self.repo.bulk_upsert_dimensions(user_id, "genre", [])
+        battle_outcomes = await self._battle_genre_outcomes_for_user(user_id)
+        if not votes and not favorite_genre_slugs and not battle_outcomes:
+            for dimension_type in (GENRE_DIMENSION_TYPE, GENRE_AFFINITY_TYPE, GENRE_LIFT_TYPE):
+                await self.repo.bulk_upsert_dimensions(user_id, dimension_type, [])
             return 0
 
         user_avg = await _overall_avg_rating(self.db, user_id)
@@ -232,44 +372,55 @@ class TasteDimensionComputer:
             # convention as RankingService.recompute_entities' platform-average
             # default.
             user_avg = (RATING_SCALE_MIN + RATING_SCALE_MAX) / 2
+        favorite_pseudo_rating = min(
+            RATING_SCALE_MAX, max(settings.taste_favorite_rating_equivalent, user_avg + 0.5)
+        )
 
-        by_genre: dict[str, list[int]] = {}
+        by_genre: dict[str, GenreSignals] = {}
         for vote in votes:
-            by_genre.setdefault(vote.genre_slug, []).append(vote.score)
+            by_genre.setdefault(vote.genre_slug, GenreSignals()).ratings.append(vote.score)
         for genre_slug in favorite_genre_slugs:
-            by_genre.setdefault(genre_slug, []).append(settings.taste_favorite_rating_equivalent)
-        for genre_slug in battle_won_genre_slugs:
-            by_genre.setdefault(genre_slug, []).append(settings.taste_battle_win_rating_equivalent)
+            by_genre.setdefault(genre_slug, GenreSignals()).ratings.append(favorite_pseudo_rating)
+        for genre_slug, won in battle_outcomes:
+            signals = by_genre.setdefault(genre_slug, GenreSignals())
+            if won:
+                signals.wins += 1
+            else:
+                signals.losses += 1
 
-        max_sample_size = max(len(scores) for scores in by_genre.values())
+        base_rates = await genre_base_rates(self.db)
+        total_chosen = sum(s.chosen for s in by_genre.values())
+        lift_weight = self.lift_weight if total_chosen > 0 else 0.0
 
-        rows = []
-        for genre_slug, scores in by_genre.items():
-            score, confidence, sample_size = self._score_and_confidence(scores, user_avg, max_sample_size)
+        genre_rows, affinity_rows, lift_rows = [], [], []
+        for genre_slug, signals in by_genre.items():
+            confidence = signals.sample_size / (signals.sample_size + self.confidence_k)
             if confidence < self.confidence_threshold:
                 continue
-            rows.append(
-                {
-                    "dimension_key": genre_slug,
-                    "score": score,
-                    "confidence": confidence,
-                    "sample_size": sample_size,
-                }
+            affinity = self._genre_affinity(signals, user_avg)
+            lift = self._genre_lift(signals.chosen, total_chosen, base_rates.get(genre_slug, 0.0))
+            # tanh(ln x) maps lift onto -1..1 symmetrically: 2x -> +0.6, 0.5x -> -0.6.
+            lift_component = 0.5 + 0.5 * math.tanh(math.log(lift))
+            blended = (self.preference_weight * affinity + lift_weight * lift_component) / (
+                self.preference_weight + lift_weight
             )
+            common = {"dimension_key": genre_slug, "confidence": confidence, "sample_size": signals.sample_size}
+            genre_rows.append({**common, "score": max(0.0, min(100.0, round(100 * blended, 1)))})
+            affinity_rows.append({**common, "score": round(100 * affinity, 1)})
+            lift_rows.append({**common, "score": min(100.0, round(LIFT_STORE_SCALE * lift, 2))})
 
-        await self.repo.bulk_upsert_dimensions(user_id, "genre", rows)
-        return len(rows)
+        await self.repo.bulk_upsert_dimensions(user_id, GENRE_DIMENSION_TYPE, genre_rows)
+        await self.repo.bulk_upsert_dimensions(user_id, GENRE_AFFINITY_TYPE, affinity_rows)
+        await self.repo.bulk_upsert_dimensions(user_id, GENRE_LIFT_TYPE, lift_rows)
+        return len(genre_rows)
 
     async def compute_genre_dimensions_batch(self, user_ids: list[uuid.UUID] | None = None) -> int:
         """
         Nightly/batch entry point. Pass explicit user_ids for a partial
         run (e.g. only users with new ratings/favorites/battle votes since
         the last run); omit to recompute every user with at least one
-        rating, favorite, OR battle vote (a favorites/battles-only user
-        still has genre signal to compute, per
-        _favorited_unrated_genre_slugs_for_user and
-        _battle_won_unrated_genre_slugs_for_user). Commits once at the
-        end, matching RankingService.recompute_all.
+        rating, favorite, OR battle vote. Commits once at the end, matching
+        RankingService.recompute_all.
         """
         if user_ids is None:
             rated_ids = select(UserRating.user_id)
@@ -391,7 +542,7 @@ class TasteAnchorComputer:
         return len(rows)
 
 
-# --- taste snapshot (v1) ---
+# --- taste snapshot (v2) ---
 
 # dimension_key (genre slug) -> archetype label. Extend as more TMDb
 # genres get seeded; anything missing falls back to a title-cased
@@ -424,10 +575,19 @@ ARCHETYPE_MAP: dict[str, str] = {
     "tv-movie": "داستان‌جو",
 }
 
-SNAPSHOT_MODEL_VERSION = "genre-v1"
+# genre-v2: scores are preference + lift over the platform base rate, with
+# genre_affinity/genre_lift companion rows and the facet dimensions. A
+# snapshot with an older version is recomputed on the next profile read
+# (see taste/router.py), so existing users don't wait for their next vote.
+SNAPSHOT_MODEL_VERSION = "genre-v2"
 # Revisit once TV series (or other entity_scopes) get their own ratings
 # and dimensions -- for now every snapshot is movie-scoped.
 SNAPSHOT_ENTITY_SCOPE = "movie"
+# Only genres above "average" (50) can name the archetype -- a genre that's
+# merely the least-bad of a user's genres says nothing about them.
+LABEL_MIN_SCORE = 50.0
+# Confidence steps the profile counts down to ("8 more votes to 60%").
+CONFIDENCE_STEP = 0.1
 
 
 def _archetype_for(genre_slug: str) -> str:
@@ -436,37 +596,64 @@ def _archetype_for(genre_slug: str) -> str:
     return f"طرفدار {genre_slug.replace('-', ' ').title()}"
 
 
-def _dimension_sort_key(dimension):
+def taste_signal_count(ratings: int, favorites: int, battles: int) -> float:
+    """How much evidence the whole profile rests on: a battle vote is worth
+    taste_battle_signal_weight of a rating, same as in genre preference."""
+    return ratings + favorites + settings.taste_battle_signal_weight * battles
+
+
+def snapshot_confidence(dimension_confidence_avg: float, signals: float) -> float:
+    vote_shrinkage = signals / (signals + settings.taste_snapshot_confidence_k)
+    return _clamp01(
+        settings.taste_snapshot_dimension_weight * dimension_confidence_avg
+        + settings.taste_snapshot_vote_weight * vote_shrinkage
+    )
+
+
+def label_genres(stats: list[GenreStat]) -> list[GenreStat]:
+    """The 1-2 genres that name the user's archetype (already score-sorted)."""
+    above = [s for s in stats if s.score > LABEL_MIN_SCORE]
+    return (above or stats[:1])[: settings.taste_snapshot_label_dimension_count]
+
+
+def confidence_hint(current: float, dimension_confidence_avg: float, signals: float) -> dict | None:
     """
-    score DESC, confidence DESC, sample_size DESC, dimension_key ASC --
-    the deterministic tiebreak chain also applied at the DB level in
-    TasteRepository.list_dimensions. Shared here so every place that
-    picks a "top N dimensions" (snapshot label, insight text/tags) agrees
-    on the same order instead of each re-deriving it.
+    The next CONFIDENCE_STEP milestone and how many more ratings reach it,
+    holding the per-genre confidence where it is -- so the count is an
+    upper bound (each new rating also raises the genre confidences).
+    None once the next step is out of reach of the vote half alone.
     """
-    return (-dimension.score, -dimension.confidence, -dimension.sample_size, dimension.dimension_key)
+    target = (math.floor(current / CONFIDENCE_STEP + 1e-9) + 1) * CONFIDENCE_STEP
+    if target > 1.0:
+        return None
+    needed = 0
+    while snapshot_confidence(dimension_confidence_avg, signals + needed) < target:
+        needed += 1
+        if needed > 500:
+            return None
+    return {"next_target": round(target, 2), "ratings_needed": max(1, needed)}
 
 
 class TasteSnapshotComputer:
     """
-    Rolls the top 1-2 genre dimensions (already confidence-filtered by
-    TasteDimensionComputer when they were persisted) into a
-    human-readable label + one overall model_confidence for the user's
-    Taste DNA profile.
+    Rolls the top 1-2 above-average genres into a human-readable label +
+    one overall model_confidence for the user's Taste DNA profile.
     """
 
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = TasteRepository(db)
-        self.confidence_k = settings.taste_snapshot_confidence_k
-        self.dimension_weight = settings.taste_snapshot_dimension_weight
-        self.vote_weight = settings.taste_snapshot_vote_weight
-        self.label_dimension_count = settings.taste_snapshot_label_dimension_count
 
-    async def _total_rated_movies(self, user_id: uuid.UUID) -> int:
-        stmt = select(func.count(UserRating.id)).where(UserRating.user_id == user_id)
-        result = await self.db.execute(stmt)
-        return result.scalar_one()
+    async def _signal_count(self, user_id: uuid.UUID) -> float:
+        counts = select(
+            select(func.count()).select_from(UserRating).where(UserRating.user_id == user_id).scalar_subquery(),
+            select(func.count()).select_from(UserFavorite).where(UserFavorite.user_id == user_id).scalar_subquery(),
+            select(func.count()).select_from(PairVote).where(
+                PairVote.user_id == user_id, PairVote.winner != VoteOutcome.SKIP
+            ).scalar_subquery(),
+        )
+        ratings, favorites, battles = (await self.db.execute(counts)).one()
+        return taste_signal_count(ratings, favorites, battles)
 
     async def compute_snapshot(self, user_id: uuid.UUID, entity_scope: str = SNAPSHOT_ENTITY_SCOPE) -> bool:
         """
@@ -479,24 +666,15 @@ class TasteSnapshotComputer:
         Returns whether a snapshot was written; False means the user has
         no qualifying dimensions yet and any prior snapshot was cleared.
         """
-        dimensions = await self.repo.list_dimensions(user_id, dimension_type="genre")
-        if not dimensions:
+        stats = await load_genre_stats(self.repo, user_id)
+        if not stats:
             await self.repo.replace_snapshot(user_id, entity_scope, None)
             return False
 
-        # list_dimensions already returns this order from the DB; re-sorting
-        # here with the shared tiebreak key makes that guarantee explicit
-        # instead of silently relying on the caller not reordering the list.
-        top = sorted(dimensions, key=_dimension_sort_key)[: self.label_dimension_count]
-        label = " + ".join(_archetype_for(d.dimension_key) for d in top)
-        dimension_confidence_avg = sum(d.confidence for d in top) / len(top)
-
-        total_rated_movies = await self._total_rated_movies(user_id)
-        overall_vote_shrinkage = total_rated_movies / (total_rated_movies + self.confidence_k)
-
-        model_confidence = _clamp01(
-            self.dimension_weight * dimension_confidence_avg + self.vote_weight * overall_vote_shrinkage
-        )
+        top = label_genres(stats)
+        label = " + ".join(_archetype_for(s.dimension_key) for s in top)
+        dimension_confidence_avg = sum(s.confidence for s in top) / len(top)
+        model_confidence = snapshot_confidence(dimension_confidence_avg, await self._signal_count(user_id))
 
         await self.repo.replace_snapshot(
             user_id,
@@ -510,87 +688,245 @@ class TasteSnapshotComputer:
         return True
 
 
-# --- taste insight (v1, rule-based) ---
+# --- taste insight (v2, rule-based) ---
 
-BREADTH_LOYALIST = "loyalist"
-BREADTH_BALANCED_EXPLORER = "balanced_explorer"
-BREADTH_ECLECTIC_EXPLORER = "eclectic_explorer"
+PERSPECTIVE_SELF = "self"
+PERSPECTIVE_OTHER = "other"
+
+# Thresholds for each fact in build_insight to be worth a sentence.
+INSIGHT_MIN_LIFT = 1.3
+INSIGHT_MIN_LOVE = 0.6
+INSIGHT_MAX_DISLIKE = 0.4
+INSIGHT_LIKED_SCORE = 55.0
+
+
+def _fa_number(value: float) -> str:
+    text = f"{value:.1f}".rstrip("0").rstrip(".")
+    return text.replace(".", "٫").translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+
+
+def build_insight(stats: list[GenreStat], perspective: str = PERSPECTIVE_SELF) -> tuple[str, list[str]]:
+    """
+    A short Persian reading of the profile built from its actual numbers
+    (lift, preference, breadth) -- no LLM. `perspective` picks the second-
+    person sentences for the owner or the third-person ones for anyone
+    viewing a public profile. Returns (text, archetype tags).
+    """
+    t = INSIGHT_SENTENCES[perspective]
+    sentences: list[str] = []
+
+    lifted = max((s for s in stats if s.lift is not None), key=lambda s: s.lift, default=None)
+    loved = max((s for s in stats if s.affinity is not None), key=lambda s: s.affinity, default=None)
+    disliked = min((s for s in stats if s.affinity is not None), key=lambda s: s.affinity, default=None)
+
+    lift_used = lifted is not None and lifted.lift >= INSIGHT_MIN_LIFT
+    love_used = loved is not None and loved.affinity >= INSIGHT_MIN_LOVE
+    if lift_used:
+        times = _fa_number(lifted.lift)
+        if love_used and loved.dimension_key == lifted.dimension_key:
+            sentences.append(t["lift_and_love"].format(genre=genre_fa(lifted.dimension_key), times=times))
+            love_used = False
+        else:
+            sentences.append(t["lift"].format(genre=genre_fa(lifted.dimension_key), times=times))
+    if love_used:
+        sentences.append(t["love"].format(genre=genre_fa(loved.dimension_key)))
+    if disliked is not None and disliked.affinity <= INSIGHT_MAX_DISLIKE and (
+        loved is None or disliked.dimension_key != loved.dimension_key
+    ):
+        sentences.append(t["dislike"].format(genre=genre_fa(disliked.dimension_key)))
+
+    liked_count = sum(1 for s in stats if s.score >= INSIGHT_LIKED_SCORE)
+    if len(sentences) < 3:
+        if liked_count >= 4:
+            sentences.append(t["broad"])
+        elif liked_count == 1 and len(stats) >= 3:
+            sentences.append(t["focused"])
+
+    if not sentences:
+        sentences.append(t["unclear"])
+
+    tags = [_archetype_for(s.dimension_key) for s in stats[:3]]
+    return " ".join(sentences), tags
 
 
 class TasteInsightComputer:
     """
-    Turns a user's already-persisted genre dimensions into one Persian
-    insight_text, picked from a fixed template bank (insight_templates.py)
-    -- no LLM call. Reuses ARCHETYPE_MAP/_archetype_for from
-    TasteSnapshotComputer's section above instead of redefining it, and
-    the same _dimension_sort_key for "top N dimensions" ordering.
-
-    NOTE on insight_tags: the model column (user_taste_insights.insight_tags,
-    JSONB) and the read schema (TasteInsightPublic.insight_tags: list[str])
-    are both shaped as a plain list, so this stores the top-3 archetype
-    *labels* as a list of strings -- not a {label: score} dict. A dict
-    would round-trip through the DB fine (JSONB doesn't care), but would
-    fail Pydantic validation on read. If a scored dict is actually wanted,
-    that's a small follow-up touching models.py's type hint and
-    schemas.py's TasteInsightPublic, not just this method.
+    Persists the owner's (second-person) reading from build_insight. Public
+    profiles rebuild the third-person one at read time from the same
+    dimensions (TasteService), so the stored text is never shown to
+    someone else as if addressed to them.
     """
 
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = TasteRepository(db)
 
-    def _breadth_category(self, qualifying_count: int) -> str:
-        if qualifying_count == 1:
-            return BREADTH_LOYALIST
-        if qualifying_count <= 3:
-            return BREADTH_BALANCED_EXPLORER
-        return BREADTH_ECLECTIC_EXPLORER
-
-    def _pick_template(self, user_id: uuid.UUID, category: str) -> str:
-        """
-        Deterministic per user, not random and not Python's hash() --
-        hash() on a str is salted per-process (PYTHONHASHSEED) so
-        hash(str(user_id)) would pick a different template after every
-        app restart even with identical data. uuid.UUID.int is a plain
-        128-bit integer with no hashing involved, so this is stable
-        forever for a given user_id.
-        """
-        options = TEMPLATES[category]
-        return options[user_id.int % len(options)]
-
     async def compute_insight(self, user_id: uuid.UUID) -> bool:
         """
         Recomputes the user's single current insight row from their
-        already-persisted dimension_type="genre" rows -- expects
-        compute_genre_dimensions to have run first in the same call
-        chain (same dependency TasteSnapshotComputer has). Flushes but
-        does NOT commit.
+        already-persisted genre rows -- expects compute_genre_dimensions to
+        have run first in the same call chain. Flushes but does NOT commit.
 
         Returns whether an insight was written; False means the user has
         no qualifying dimensions yet and any prior insight was cleared.
         """
-        dimensions = await self.repo.list_dimensions(user_id, dimension_type="genre")
-        if not dimensions:
+        stats = await load_genre_stats(self.repo, user_id)
+        if not stats:
             await self.repo.replace_insight(user_id, None)
             return False
 
-        ranked = sorted(dimensions, key=_dimension_sort_key)
-        category = self._breadth_category(len(ranked))
-        template = self._pick_template(user_id, category)
-
-        if category == BREADTH_LOYALIST:
-            text = template.format(archetype=_archetype_for(ranked[0].dimension_key))
-        else:
-            top_two = ranked[:2]
-            text = template.format(
-                archetype1=_archetype_for(top_two[0].dimension_key),
-                archetype2=_archetype_for(top_two[1].dimension_key),
-            )
-
-        tags = [_archetype_for(d.dimension_key) for d in ranked[:3]]
-
+        text, tags = build_insight(stats, PERSPECTIVE_SELF)
         await self.repo.replace_insight(user_id, {"insight_text": text, "insight_tags": tags})
         return True
+
+
+# --- taste facets: people, decades, countries ---
+
+FACET_DIRECTOR = "director"
+FACET_ACTOR = "actor"
+FACET_DECADE = "decade"
+FACET_COUNTRY = "country"
+FACET_TYPES = (FACET_DIRECTOR, FACET_ACTOR, FACET_DECADE, FACET_COUNTRY)
+
+# Liked titles needed before any facet is shown -- below this a "favorite
+# decade" is just whatever the first two ratings happened to be.
+FACET_MIN_TITLES = 5
+# A person needs this many liked titles to count as a taste, not a fluke.
+PERSON_MIN_TITLES = 2
+PERSON_LIMIT = 6
+# Only top-billed cast (acted_in edge_metadata.order below this) counts.
+ACTOR_MAX_BILLING = 5
+SHARE_LIMIT = 6
+# A liked title's weight from a battle win, relative to a ♥ (1.0).
+BATTLE_WIN_FACET_WEIGHT = 0.5
+# A rated title counts as liked from this preference component up -- i.e.
+# rated at or above the user's own average.
+LIKED_MIN_WEIGHT = 0.5
+
+
+class TasteFacetComputer:
+    """
+    Who and what sits behind the titles a user likes: favorite directors
+    and lead actors (from directed_by / acted_in edges), and the decades
+    and countries those titles come from. A liked title is one rated at or
+    above the user's own average (weighted by how far above), a ♥, or a
+    battle winner; each facet value scores the summed weight of its titles.
+
+    Stored as plain dimension rows: director/actor keys are the person's
+    entity id (resolved to name/slug/photo at read time), decade keys the
+    decade's first year ("1990"), country keys an ISO 3166-1 code.
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.repo = TasteRepository(db)
+
+    async def _liked_title_weights(self, user_id: uuid.UUID) -> dict[uuid.UUID, float]:
+        weights: dict[uuid.UUID, float] = {}
+        ratings = (
+            await self.db.execute(
+                select(UserRating.entity_id, UserRating.score).where(UserRating.user_id == user_id)
+            )
+        ).all()
+        if ratings:
+            user_avg = sum(score for _, score in ratings) / len(ratings)
+            for entity_id, score in ratings:
+                weight = _clamp01(0.5 + (score - user_avg) / AFFINITY_SPAN_STARS)
+                if weight >= LIKED_MIN_WEIGHT:
+                    weights[entity_id] = weight
+        rated = {entity_id for entity_id, _ in ratings}
+
+        favorites = await self.db.execute(select(UserFavorite.entity_id).where(UserFavorite.user_id == user_id))
+        for (entity_id,) in favorites.all():
+            if entity_id not in rated:
+                weights[entity_id] = 1.0
+
+        won = case((PairVote.winner == VoteOutcome.LEFT, PairVote.left_item), else_=PairVote.right_item)
+        wins = await self.db.execute(
+            select(won).where(PairVote.user_id == user_id, PairVote.winner != VoteOutcome.SKIP)
+        )
+        for (entity_id,) in wins.all():
+            if entity_id not in rated:
+                weights[entity_id] = min(1.0, weights.get(entity_id, 0.0) + BATTLE_WIN_FACET_WEIGHT)
+        return weights
+
+    async def _people_rows(self, weights: dict[uuid.UUID, float], relation_type: str) -> list[dict]:
+        stmt = select(RelationshipEdge.from_entity_id, RelationshipEdge.to_entity_id).where(
+            RelationshipEdge.from_entity_id.in_(list(weights)),
+            RelationshipEdge.relation_type == relation_type,
+        )
+        if relation_type == "acted_in":
+            stmt = stmt.where(RelationshipEdge.edge_metadata["order"].as_integer() < ACTOR_MAX_BILLING)
+        totals: dict[uuid.UUID, float] = {}
+        counts: dict[uuid.UUID, int] = {}
+        for title_id, person_id in (await self.db.execute(stmt)).all():
+            totals[person_id] = totals.get(person_id, 0.0) + weights[title_id]
+            counts[person_id] = counts.get(person_id, 0) + 1
+        ranked = sorted(
+            (p for p in totals if counts[p] >= PERSON_MIN_TITLES),
+            key=lambda p: (-totals[p], -counts[p], str(p)),
+        )[:PERSON_LIMIT]
+        if not ranked:
+            return []
+        top = totals[ranked[0]]
+        return [
+            {
+                "dimension_key": str(p),
+                "score": round(100 * totals[p] / top, 1),
+                "confidence": counts[p] / (counts[p] + PERSON_MIN_TITLES),
+                "sample_size": counts[p],
+            }
+            for p in ranked
+        ]
+
+    @staticmethod
+    def _share_rows(values: list[tuple[str, float]]) -> list[dict]:
+        """values: one (facet key, title weight) per liked title with that facet."""
+        totals: dict[str, float] = {}
+        counts: dict[str, int] = {}
+        for key, weight in values:
+            totals[key] = totals.get(key, 0.0) + weight
+            counts[key] = counts.get(key, 0) + 1
+        grand_total = sum(totals.values())
+        if grand_total <= 0:
+            return []
+        ranked = sorted(totals, key=lambda k: (-totals[k], k))[:SHARE_LIMIT]
+        return [
+            {
+                "dimension_key": k,
+                "score": round(100 * totals[k] / grand_total, 1),
+                "confidence": counts[k] / (counts[k] + PERSON_MIN_TITLES),
+                "sample_size": counts[k],
+            }
+            for k in ranked
+        ]
+
+    async def compute_facets(self, user_id: uuid.UUID) -> int:
+        """Flushes but does NOT commit, same as the other compute_* methods.
+        Returns the number of facet rows persisted."""
+        weights = await self._liked_title_weights(user_id)
+        rows_by_type: dict[str, list[dict]] = {t: [] for t in FACET_TYPES}
+
+        if len(weights) >= FACET_MIN_TITLES:
+            rows_by_type[FACET_DIRECTOR] = await self._people_rows(weights, "directed_by")
+            rows_by_type[FACET_ACTOR] = await self._people_rows(weights, "acted_in")
+            attrs = await self.db.execute(
+                select(Entity.id, Entity.attributes["year"].as_integer(), Entity.attributes["country"].as_string()).where(
+                    Entity.id.in_(list(weights))
+                )
+            )
+            decades, countries = [], []
+            for entity_id, year, country in attrs.all():
+                if year and year > 1000:
+                    decades.append((str(year // 10 * 10), weights[entity_id]))
+                if country and len(country) == 2:
+                    countries.append((country.upper(), weights[entity_id]))
+            rows_by_type[FACET_DECADE] = self._share_rows(decades)
+            rows_by_type[FACET_COUNTRY] = self._share_rows(countries)
+
+        for dimension_type, rows in rows_by_type.items():
+            await self.repo.bulk_upsert_dimensions(user_id, dimension_type, rows)
+        return sum(len(rows) for rows in rows_by_type.values())
 
 
 class ContributionStatsComputer:

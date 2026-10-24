@@ -2,8 +2,8 @@
 Taste DNA refresh after a user action that changes its inputs (a rating,
 a favorite toggle, a non-skip battle vote).
 
-The genre dimensions, snapshot, insight and anchors take ~14 sequential
-queries (~2s from the backend to the DB), so they run after the response
+The genre dimensions, snapshot, insight, anchors and facets take ~20
+sequential queries (~2s from the backend to the DB), so they run after the response
 instead of inside the request: `refresh` schedules a background task that
 recomputes them in its own session. Contribution stats stay in the request
 (ContributionStatsComputer, two queries) since the profile shows them.
@@ -28,6 +28,7 @@ from app.core.database import AsyncSessionLocal
 from app.modules.taste.compute import (
     TasteAnchorComputer,
     TasteDimensionComputer,
+    TasteFacetComputer,
     TasteInsightComputer,
     TasteSnapshotComputer,
 )
@@ -44,6 +45,7 @@ async def recompute_taste_dna(db: AsyncSession, user_id: uuid.UUID) -> None:
     await TasteSnapshotComputer(db).compute_snapshot(user_id)
     await TasteInsightComputer(db).compute_insight(user_id)
     await TasteAnchorComputer(db).compute_anchors(user_id)
+    await TasteFacetComputer(db).compute_facets(user_id)
 
 
 async def refresh_later(db: AsyncSession, user_id: uuid.UUID) -> None:

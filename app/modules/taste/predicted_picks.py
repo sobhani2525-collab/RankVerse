@@ -36,6 +36,8 @@ CANDIDATE_ENTITY_TYPES = ("movie", "tv_series")
 # match_score on the same 0-100 scale the rest of Taste DNA's percentages use.
 RANKING_SCORE_SCALE = 10
 
+GENRE_NEUTRAL_SCORE = 50.0
+
 # How many of the best-ranked unrated titles in the user's genres get scored.
 CANDIDATE_POOL_SIZE = 600
 
@@ -71,8 +73,11 @@ class PredictedPicksService:
         if not dimensions or limit <= 0:
             return []
     
+        # 50 is "average" on the genre score: below it the user prefers the
+        # genre *less* than the rest, so it shouldn't pull picks toward it.
+        liked = [d for d in dimensions if d.score > GENRE_NEUTRAL_SCORE] or dimensions[:1]
         dimension_scores = {
-            d.dimension_key: d.score for d in dimensions
+            d.dimension_key: d.score for d in liked
         }
     
         GenreEntity = aliased(Entity)

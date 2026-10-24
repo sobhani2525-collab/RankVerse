@@ -3,7 +3,7 @@ import { AuthorAvatar } from "@/components/lists/list-card";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import StatTile from "@/components/profile/stat-tile";
 import TasteDnaSection from "@/components/TasteDnaSection";
-import ProgressBar from "@/components/ProgressBar";
+import ContributionTierStrip from "@/components/profile/contribution-tier";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { toFaDigits } from "@/lib/format-number";
@@ -42,8 +42,6 @@ export default async function PublicProfilePage({
   }
   const [lists, taste] = await Promise.all([listsPromise, tastePromise]);
   const contribution = taste?.contribution_stats ?? null;
-  const contributionPercent =
-    contribution != null ? Math.max(0, Math.min(100, contribution.contribution_score)) : null;
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 pb-24 pt-10 lg:px-20 lg:pt-16">
@@ -91,22 +89,14 @@ export default async function PublicProfilePage({
           />
         </div>
 
-        {contribution != null && contributionPercent != null && (
-          <div className="mt-4 rounded-2xl border border-border-soft bg-surface/60 px-6 py-4">
-            <div className="mb-1.5 flex items-center justify-between text-xs text-muted">
-              <span>امتیاز مشارکت</span>
-              <span className="num text-ink">{toFaDigits(Math.round(contribution.contribution_score))}</span>
-            </div>
-            <ProgressBar value={contributionPercent} fillClassName="bg-teal" />
-          </div>
-        )}
+        {contribution != null && <ContributionTierStrip score={contribution.contribution_score} />}
       </div>
 
       {taste && (
         <section className="mt-14">
           <SectionHeading en="TASTE DNA" fa="دی‌ان‌ای سلیقه" />
           <div className="mt-5">
-            <TasteDnaSection profile={taste} hideAnchors />
+            <TasteDnaSection profile={taste} hideAnchors perspective="other" />
           </div>
         </section>
       )}

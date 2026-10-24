@@ -17,10 +17,16 @@ class TasteDimensionPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     dimension_type: str
     dimension_key: str
+    # 0-100, 50 = average (see TasteDimensionComputer).
     score: float
     confidence: float
     sample_size: int
-    updated_at: datetime
+    updated_at: datetime | None = None
+    # The score's two halves (genre-v2 profiles; None before a recompute):
+    # preference 0-1 with 0.5 = neutral, and how many times the platform's
+    # base rate the user chooses this genre.
+    affinity: float | None = None
+    lift: float | None = None
 
 
 class TasteAnchorEntity(BaseModel):
@@ -67,6 +73,50 @@ class ContributionStatsPublic(BaseModel):
     updated_at: datetime
 
 
+class TastePersonEntity(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    title_fa: str | None = None
+    profile_path: str | None = None
+
+
+class TastePersonPublic(BaseModel):
+    entity: TastePersonEntity
+    # 0-100 relative to the user's top person in the same role.
+    score: float
+    # Liked titles behind it.
+    sample_size: int
+
+
+class TasteSharePublic(BaseModel):
+    # Decade's first year ("1990") or ISO 3166-1 country code.
+    key: str
+    # Percent of the user's liked-title weight.
+    share: float
+    sample_size: int
+
+
+class TasteFacets(BaseModel):
+    directors: list[TastePersonPublic] = []
+    actors: list[TastePersonPublic] = []
+    decades: list[TasteSharePublic] = []
+    countries: list[TasteSharePublic] = []
+
+
+class RatingStylePublic(BaseModel):
+    ratings_count: int
+    user_avg: float
+    platform_avg: float | None = None
+
+
+class ConfidenceHintPublic(BaseModel):
+    # Next model_confidence milestone (0-1) and how many more ratings reach
+    # it at most (see compute.confidence_hint).
+    next_target: float
+    ratings_needed: int
+
+
 class TasteProfile(BaseModel):
     snapshot: TasteSnapshotPublic | None = None
     dimensions: list[TasteDimensionPublic] = []
@@ -76,3 +126,6 @@ class TasteProfile(BaseModel):
     # mirrors snapshot/contribution_stats as a nullable single object, not a list.
     insight: TasteInsightPublic | None = None
     contribution_stats: ContributionStatsPublic | None = None
+    facets: TasteFacets = TasteFacets()
+    rating_style: RatingStylePublic | None = None
+    confidence_hint: ConfidenceHintPublic | None = None

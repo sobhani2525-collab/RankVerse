@@ -9,11 +9,21 @@ from app.core.schemas import envelope
 from app.modules.auth.dependencies import get_current_user_read
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
+from app.modules.taste import refresh as taste_refresh
+from app.modules.taste.compute import PERSPECTIVE_OTHER, SNAPSHOT_MODEL_VERSION
 from app.modules.taste.predicted_picks import PredictedPicksService
 from app.modules.taste.schemas import PredictedPickPublic, TasteAnchorEntity
 from app.modules.taste.service import TasteService
 
 router = APIRouter(tags=["taste"])
+
+
+async def _upgrade_if_stale(db: AsyncSession, user_id, profile) -> None:
+    """A profile computed by an older model version gets recomputed in the
+    background, so existing users see the current Taste DNA on their next
+    visit instead of after their next vote (there's no nightly batch)."""
+    if profile.snapshot is not None and profile.snapshot.model_version != SNAPSHOT_MODEL_VERSION:
+        await taste_refresh.refresh(db, user_id)
 
 
 @router.get("/users/me/taste-dna")
@@ -24,6 +34,7 @@ async def my_taste_dna(
 ):
     service = TasteService(db)
     profile = await service.get_taste_profile(current_user.id, entity_scope)
+    await _upgrade_if_stale(db, current_user.id, profile)
     return envelope(data=profile.model_dump())
 
 
@@ -80,5 +91,6 @@ async def public_taste_dna(
     user = await UserRepository(db).get_by_username(username)
     if not user:
         raise NotFoundError(f"User '{username}' not found")
-    profile = await TasteService(db).get_taste_profile(user.id, entity_scope)
+    profile = await TasteService(db).get_taste_profile(user.id, entity_scope, perspective=PERSPECTIVE_OTHER)
+    await _upgrade_if_stale(db, user.id, profile)
     return envelope(data=profile.model_dump())

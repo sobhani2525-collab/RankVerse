@@ -120,7 +120,7 @@ class BattleService:
 
         if payload.winner.value != "skip":
             # A skip carries no genre preference -- see
-            # TasteDimensionComputer._battle_won_unrated_genre_slugs_for_user,
+            # TasteDimensionComputer._battle_genre_outcomes_for_user,
             # which already excludes SKIP votes, so refreshing for one would
             # be a wasted background recompute.
             await taste_refresh.refresh(self.repo.db, user_id)

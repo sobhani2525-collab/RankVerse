@@ -28,7 +28,7 @@ class TasteRepository:
         return result.scalar_one_or_none()
 
     async def list_dimensions(
-        self, user_id: uuid.UUID, dimension_type: str | None = None
+        self, user_id: uuid.UUID, dimension_type: str | tuple[str, ...] | None = None
     ) -> list[UserTasteDimension]:
         """
         Ordered score DESC, with confidence DESC, sample_size DESC, then
@@ -39,7 +39,9 @@ class TasteRepository:
         unspecified order for equal sort keys and could vary between runs.
         """
         stmt = select(UserTasteDimension).where(UserTasteDimension.user_id == user_id)
-        if dimension_type:
+        if isinstance(dimension_type, tuple):
+            stmt = stmt.where(UserTasteDimension.dimension_type.in_(dimension_type))
+        elif dimension_type:
             stmt = stmt.where(UserTasteDimension.dimension_type == dimension_type)
         stmt = stmt.order_by(
             UserTasteDimension.score.desc(),

@@ -412,10 +412,15 @@ export interface TasteSnapshot {
 export interface TasteDimension {
   dimension_type: string;
   dimension_key: string;
+  /** 0-100, 50 = average (preference + choice lift, see TasteDimensionComputer). */
   score: number;
   confidence: number;
   sample_size: number;
-  updated_at: string;
+  updated_at: string | null;
+  /** Preference 0-1, 0.5 = neutral. Null until the profile is recomputed as genre-v2. */
+  affinity?: number | null;
+  /** How many times the platform's base rate the user picks this genre (1 = average). */
+  lift?: number | null;
 }
 
 export interface TasteAnchorEntity {
@@ -456,8 +461,45 @@ export interface ContributionStats {
   votes_count: number;
   battles_count: number;
   comments_count: number;
+  favorites_count?: number;
   contribution_score: number;
   updated_at: string;
+}
+
+export interface TastePerson {
+  entity: { id: string; slug: string; title: string; title_fa?: string | null; profile_path?: string | null };
+  /** 0-100 relative to the user's top person in the same role. */
+  score: number;
+  /** Liked titles behind it. */
+  sample_size: number;
+}
+
+export interface TasteShare {
+  /** Decade's first year ("1990") or ISO 3166-1 country code. */
+  key: string;
+  /** Percent of the user's liked-title weight. */
+  share: number;
+  sample_size: number;
+}
+
+export interface TasteFacets {
+  directors: TastePerson[];
+  actors: TastePerson[];
+  decades: TasteShare[];
+  countries: TasteShare[];
+}
+
+export interface RatingStyle {
+  ratings_count: number;
+  user_avg: number;
+  platform_avg: number | null;
+}
+
+export interface ConfidenceHint {
+  /** Next model_confidence milestone, 0-1. */
+  next_target: number;
+  /** At most this many more ratings reach it. */
+  ratings_needed: number;
 }
 
 export interface TasteProfile {
@@ -466,6 +508,9 @@ export interface TasteProfile {
   anchors: TasteAnchor[];
   insight: TasteInsight | null;
   contribution_stats: ContributionStats | null;
+  facets?: TasteFacets;
+  rating_style?: RatingStyle | null;
+  confidence_hint?: ConfidenceHint | null;
 }
 
 // --- Daily battle (GET/POST /daily-battle, raw JSON like /battles) ---

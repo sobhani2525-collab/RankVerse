@@ -12,14 +12,14 @@ import TasteDnaSection from "@/components/TasteDnaSection";
 import TasteDnaErrorState from "@/components/TasteDnaErrorState";
 import EntityMedia from "@/components/entities/entity-media";
 import PosterCard from "@/components/entities/poster-card";
-import ProgressBar from "@/components/ProgressBar";
 import { AuthorAvatar } from "@/components/lists/list-card";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import StatTile from "@/components/profile/stat-tile";
+import ContributionTierStrip from "@/components/profile/contribution-tier";
 import ProfileEditor from "@/components/profile/profile-editor";
 import AccountSettings from "@/components/profile/account-settings";
-import { SectionHeading, MonoLabel } from "@/components/list-detail/ui";
+import { SectionHeading } from "@/components/list-detail/ui";
 import { StarIcon, ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
 import { toFaDigits } from "@/lib/format-number";
 import { displayTitle } from "@/lib/title";
@@ -185,16 +185,12 @@ export default function ProfilePage() {
 
   const totalCount = ratings?.length ?? 0;
   const contribution = taste?.contribution_stats ?? null;
-  const contributionScorePercent =
-    contribution != null ? Math.max(0, Math.min(100, contribution.contribution_score)) : null;
 
-  // Styled like its new neighbors inside the Taste DNA section (NEXT PICK,
-  // TASTE ANCHORS): a bordered card with a mono kicker, sitting right
-  // after predicted picks -- see TasteDnaSection's afterPredictedPicks slot.
+  // Its own section after Taste DNA (it's a to-watch list, not part of the
+  // taste reading); #watch-later deep links land here.
   const watchLaterSection = (
-    <div id="watch-later" className="scroll-mt-24 rounded-2xl border border-border-soft bg-surface/60 p-6">
-      <MonoLabel size="text-[10px]">WATCH LATER</MonoLabel>
-      <h3 className="mt-1 text-base font-bold text-ink">تماشا خواهم کرد</h3>
+    <section id="watch-later" className="mt-16 scroll-mt-24">
+      <SectionHeading en="WATCH LATER" fa="تماشا خواهم کرد" />
 
       <div className="mt-5">
         {loadingWatchLater && <Loading />}
@@ -227,7 +223,7 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 
   if (authLoading || !user) {
@@ -311,15 +307,7 @@ export default function ProfilePage() {
           />
         </div>
 
-        {!loadingTaste && contributionScorePercent != null && (
-          <div className="mt-4 rounded-2xl border border-border-soft bg-surface/60 px-6 py-4">
-            <div className="mb-1.5 flex items-center justify-between text-xs text-muted">
-              <span>امتیاز مشارکت</span>
-              <span className="num text-ink">{toFaDigits(Math.round(contribution!.contribution_score))}</span>
-            </div>
-            <ProgressBar value={contributionScorePercent} fillClassName="bg-teal" />
-          </div>
-        )}
+        {!loadingTaste && contribution != null && <ContributionTierStrip score={contribution.contribution_score} />}
       </div>
 
       {/* --- Taste DNA --- */}
@@ -328,16 +316,13 @@ export default function ProfilePage() {
         <div className="mt-5">
           {loadingTaste && <Loading />}
           {!loadingTaste && tasteError && (
-            <div className="flex flex-col gap-5">
-              <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
-              {watchLaterSection}
-            </div>
+            <TasteDnaErrorState onRetry={() => setTasteReloadKey((k) => k + 1)} />
           )}
-          {!loadingTaste && !tasteError && taste && (
-            <TasteDnaSection profile={taste} predictedPicks={predictedPicks} afterPredictedPicks={watchLaterSection} />
-          )}
+          {!loadingTaste && !tasteError && taste && <TasteDnaSection profile={taste} predictedPicks={predictedPicks} />}
         </div>
       </section>
+
+      {watchLaterSection}
 
       {/* --- Lists --- */}
       <section id="my-lists" className="mt-16 scroll-mt-24">
