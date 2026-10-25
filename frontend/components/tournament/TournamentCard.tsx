@@ -106,7 +106,7 @@ export default function TournamentCard({ battle }: { battle: TournamentSummary }
 
       <div className="flex flex-1 flex-col px-4 pb-3 pt-3.5">
         <h3 className="line-clamp-2 text-base font-extrabold leading-7 text-ink transition-colors group-hover:text-gold">
-          {battle.title}
+          {toFaDigits(battle.title)}
         </h3>
 
         {(winner || showStatus) && (

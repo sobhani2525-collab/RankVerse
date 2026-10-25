@@ -241,7 +241,7 @@ export default function TournamentView({ slug }: { slug: string }) {
           {battle.is_official && <span className="text-gold">رسمی</span>}
           {battle.visibility === "unlisted" && <span>فقط با لینک</span>}
         </div>
-        <h1 className="font-display text-3xl text-ink sm:text-4xl">{battle.title}</h1>
+        <h1 className="font-display text-3xl text-ink sm:text-4xl">{toFaDigits(battle.title)}</h1>
         {battle.description && <p className="max-w-2xl text-sm leading-7 text-muted">{battle.description}</p>}
         <div className="flex flex-wrap items-center gap-4 text-sm text-ink-dim">
           <span className="num">{toFaDigits(battle.total_votes)} رأی</span>

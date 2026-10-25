@@ -36,12 +36,12 @@ export default function BattleHeader({
       {badge}
       {titleHref ? (
         <Link href={titleHref} className={`${titleClass} transition hover:text-gold`}>
-          {battle.title}
+          {toFaDigits(battle.title)}
         </Link>
       ) : (
-        <h1 className={titleClass}>{battle.title}</h1>
+        <h1 className={titleClass}>{toFaDigits(battle.title)}</h1>
       )}
-      {battle.description && <p className="max-w-xl whitespace-pre-line text-sm leading-7 text-ink-dim">{battle.description}</p>}
+      {battle.description && <p className="max-w-xl whitespace-pre-line text-sm leading-7 text-ink-dim">{toFaDigits(battle.description)}</p>}
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted">
         {creator && (
           <Link href={`/profile/${encodeURIComponent(creator.username)}`} className="flex items-center gap-2 text-ink-dim transition hover:text-ink">
