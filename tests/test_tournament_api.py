@@ -340,6 +340,31 @@ async def test_pool_related_battles_and_lists_share_entries(client, db_session, 
     assert r["winner"] is None
 
 
+async def test_pool_of_one_actors_films_relates_lists_holding_that_actor(client, db_session, auth_headers):
+    from app.modules.entities.models import RelationshipEdge
+    from app.modules.lists.models import UserList, UserListItem
+    from app.modules.users.repository import UserRepository
+
+    films = await _entities(db_session, 4)
+    actor, extra = await _entities(db_session, 2, entity_type="person")
+    for f in films:
+        db_session.add(RelationshipEdge(from_entity_id=f.id, to_entity_id=actor.id, relation_type="acted_in"))
+    db_session.add(RelationshipEdge(from_entity_id=films[0].id, to_entity_id=extra.id, relation_type="acted_in"))  # one film only
+    owner = await UserRepository(db_session).get_by_email("tester@example.com")
+    lists = {}
+    for name, person in (("actor", actor), ("extra", extra)):
+        lst = UserList(user_id=owner.id, title=name, slug=f"l-{uuid.uuid4().hex[:6]}", visibility="public")
+        db_session.add(lst)
+        await db_session.flush()
+        db_session.add(UserListItem(list_id=lst.id, entity_id=person.id, entity_type="person", added_by_user_id=owner.id))
+        lists[name] = lst.slug
+    await db_session.commit()
+
+    slug, _ = await _pool(client, auth_headers, films)
+    r = (await client.get(f"{URL}/{slug}/related")).json()["data"]
+    assert [(l["slug"], l["shared_item_count"]) for l in r["lists"]] == [(lists["actor"], 0)]
+
+
 async def test_battles_with_entity_lists_the_public_battles_it_is_in(client, db_session, auth_headers):
     entities = await _entities(db_session, 8)
     first, _ = await _pool(client, auth_headers, entities[:4])
