@@ -150,7 +150,7 @@ export const tournamentApi = {
   list: (token: string | null, p: { page?: number; status?: string; entity_type?: string; sort?: string }) =>
     call<TournamentSummary[]>(`${qs({ ...p, page_size: 12 })}`, token),
   /** One page of the hub plus the total count, for a numbered pager. */
-  listPage: async (token: string | null, p: { page?: number; page_size: number; status?: string; entity_type?: string; sort?: string }) => {
+  listPage: async (token: string | null, p: { page?: number; page_size: number; status?: string; entity_type?: string; sort?: string; q?: string }) => {
     const json = await callEnvelope<TournamentSummary[]>(qs(p), token);
     return { items: json.data, total: json.meta?.total ?? null };
   },

@@ -8,6 +8,7 @@ import EntityLists from "@/components/EntityLists";
 import MediaPlayer from "@/components/MediaPlayer";
 import PosterCard from "@/components/entities/poster-card";
 import RankingFilters from "@/components/RankingFilters";
+import { NavTransitionBody, NavTransitionProvider, TransitionLink } from "@/components/NavTransition";
 import RankingsPager from "@/components/RankingsPager";
 import JsonLd from "@/components/JsonLd";
 import { getGenreBySlug, getRankingsPage, isNotFoundError, RankingsPage } from "@/lib/api";
@@ -153,6 +154,7 @@ export default async function GenrePage({
       <MediaPlayer media={genre.media} />
       <EntityDescription text={genre.description} />
 
+      <NavTransitionProvider>
       <div className="mt-10 flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-full border border-border bg-surface/60 p-1" role="tablist" aria-label="نوع رتبه‌بندی">
           {(
@@ -161,7 +163,7 @@ export default async function GenrePage({
               ["tv_series", "سریال"],
             ] as const
           ).map(([value, text]) => (
-            <Link
+            <TransitionLink
               key={value}
               href={href(value, 1)}
               role="tab"
@@ -169,7 +171,7 @@ export default async function GenrePage({
               className={`rounded-full px-4 py-1.5 text-sm transition ${type === value ? "bg-gold/15 text-gold" : "text-muted hover:text-ink"}`}
             >
               {text}
-            </Link>
+            </TransitionLink>
           ))}
         </div>
 
@@ -202,6 +204,7 @@ export default async function GenrePage({
       </div>
 
       <section className="mt-8">
+        <NavTransitionBody contentKey={href(type, page)}>
         {loadError ? (
           <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
             اتصال به CinemaGozin Core Engine برقرار نشد.
@@ -218,9 +221,11 @@ export default async function GenrePage({
             ))}
           </div>
         )}
+        </NavTransitionBody>
       </section>
 
       {!loadError && <RankingsPager page={page} totalPages={totalPages} hasNext={hasNext} hrefFor={(p) => href(type, p)} />}
+      </NavTransitionProvider>
 
       <EntityLists entityId={genre.id} />
     </main>

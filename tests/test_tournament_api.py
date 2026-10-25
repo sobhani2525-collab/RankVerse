@@ -409,3 +409,22 @@ async def test_mine_played_tab_lists_battles_the_user_took_part_in(client, db_se
     assert played.status_code == 200
     assert [x["slug"] for x in played.json()["data"]] == [played_slug]
     assert untouched_slug != played_slug
+
+
+async def test_public_list_searches_title_with_persian_folding_and_digits(client, db_session, auth_headers):
+    entities = await _entities(db_session, 4)
+    slugs = {}
+    for title in ("بهترین فيلم‌های دهه 90", "سریال‌های جنایی"):
+        r = await client.post(URL, json={"title": title, "entity_type": "movie", "bracket_size": 4}, headers=auth_headers)
+        slug = r.json()["data"]["slug"]
+        await client.put(f"{URL}/{slug}/entries", json={"entity_ids": [str(e.id) for e in entities]}, headers=auth_headers)
+        assert (await client.post(f"{URL}/{slug}/publish", json={"visibility": "public"}, headers=auth_headers)).status_code == 200
+        slugs[title] = slug
+
+    async def found(q):
+        return [b["slug"] for b in (await client.get(URL, params={"q": q})).json()["data"]]
+
+    # Arabic ي in the title, Persian ی and digits in the query, ZWNJ typed as a space
+    assert await found("فیلم های دهه ۹۰") == [slugs["بهترین فيلم‌های دهه 90"]]
+    assert await found("جنایی") == [slugs["سریال‌های جنایی"]]
+    assert await found("100%") == []

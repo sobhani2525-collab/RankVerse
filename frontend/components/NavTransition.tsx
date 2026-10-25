@@ -61,12 +61,27 @@ export function NavTransitionBody({ contentKey, children }: { contentKey: string
   const nav = useNavTransition();
   const pending = nav?.pending ?? false;
   return (
-    <div id={RESULTS_ID} className="relative scroll-mt-24" aria-busy={pending}>
-      <div key={contentKey} className={`rv-fade-in transition-opacity duration-300 ${pending ? "pointer-events-none opacity-40" : ""}`}>
+    <div id={RESULTS_ID} className="scroll-mt-24">
+      <LoadingArea loading={pending} contentKey={contentKey}>
+        {children}
+      </LoadingArea>
+    </div>
+  );
+}
+
+/**
+ * Dims its content under a sticky "loading" pill while `loading` -- the same
+ * look for server-rendered grids (via NavTransitionBody) and grids that fetch
+ * in the browser (lists, battles). A changed `contentKey` fades the content in.
+ */
+export function LoadingArea({ loading, contentKey, className = "", children }: { loading: boolean; contentKey?: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={`relative ${className}`} aria-busy={loading}>
+      <div key={contentKey} className={`${contentKey !== undefined ? "rv-fade-in " : ""}transition-opacity duration-300 ${loading ? "pointer-events-none opacity-40" : ""}`}>
         {children}
       </div>
-      {pending && (
-        <div role="status" className="pointer-events-none absolute inset-0 flex flex-col items-center">
+      {loading && (
+        <div role="status" className="pointer-events-none absolute inset-0 flex min-h-[8rem] flex-col items-center">
           <span className="sticky top-[40vh] mt-16 flex items-center gap-3 rounded-full border border-border bg-surface/90 px-4 py-2 text-sm text-ink shadow-lg backdrop-blur">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold/30 border-t-gold" aria-hidden="true" />
             در حال بارگذاری…

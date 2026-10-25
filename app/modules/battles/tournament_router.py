@@ -10,7 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -20,6 +20,7 @@ from app.modules.auth.dependencies import ensure_email_verified, get_current_use
 from app.modules.sync.dependencies import verify_internal_api_key
 from app.modules.entities.models import Entity
 from app.modules.lists.service import ListService
+from app.modules.search.router import _FOLD_TABLE, _escape_like, _fold_sql
 from app.modules.users.models import User
 
 from . import pool
@@ -113,6 +114,29 @@ async def create_battle(
     return envelope(data={"slug": battle.slug})
 
 
+_DIGITS_FROM = "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩"
+_DIGITS_TO = "01234567890123456789"
+
+
+def _search_conditions(q: str) -> list:
+    """Title/description match with the global search's Persian folding, plus
+    Persian/Arabic digits folded to Latin (titles are shown in Persian digits
+    but may be stored either way)."""
+    term = _escape_like(" ".join(q.translate(_FOLD_TABLE).translate(str.maketrans(_DIGITS_FROM, _DIGITS_TO)).split()))
+    if not term:
+        return []
+
+    def fold(expr):
+        return func.translate(_fold_sql(expr), _DIGITS_FROM, _DIGITS_TO)
+
+    return [
+        or_(
+            fold(Battle.title).ilike(f"%{term}%"),
+            fold(func.coalesce(Battle.description, "")).ilike(f"%{term}%"),
+        )
+    ]
+
+
 @router.get("")
 async def list_public_battles(
     page: int = Query(1, ge=1),
@@ -121,6 +145,7 @@ async def list_public_battles(
     entity_type: EntityType | None = None,
     sort: Literal["newest", "popular"] = "newest",
     mode: Literal["pool", "tournament"] = "pool",
+    q: str | None = Query(None, max_length=100),
     user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
@@ -132,6 +157,8 @@ async def list_public_battles(
         conditions.append(Battle.status == status)
     if entity_type:
         conditions.append(Battle.entity_type == entity_type)
+    if q:
+        conditions.extend(_search_conditions(q))
     total = (await db.execute(select(func.count()).select_from(Battle).where(*conditions))).scalar_one()
     query = select(Battle).where(*conditions)
     if sort == "popular":

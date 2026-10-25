@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import ClientPager from "@/components/ClientPager";
+import { LoadingArea } from "@/components/NavTransition";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { discoverListsPage, LISTS_PAGE_SIZE } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
@@ -139,17 +140,19 @@ export default function ListsExplorer({ initialLists, initialTotal }: { initialL
         </div>
       )}
 
-      {lists.length === 0 && !loading && !error ? (
-        <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
-          {type === "all" && !query.trim() ? "هنوز فهرستی ساخته نشده. اولین نفر باشید!" : "فهرستی با این جستجو یا فیلتر پیدا نشد."}
-        </div>
-      ) : (
-        <div className={`grid grid-cols-1 gap-8 transition-opacity md:grid-cols-2 lg:grid-cols-3 ${loading ? "opacity-50" : ""}`}>
-          {lists.map((list) => (
-            <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
-          ))}
-        </div>
-      )}
+      <LoadingArea loading={loading}>
+        {lists.length === 0 && !loading && !error ? (
+          <div className="rounded-xl border border-border bg-surface/60 px-6 py-10 text-center text-muted">
+            {type === "all" && !query.trim() ? "هنوز فهرستی ساخته نشده. اولین نفر باشید!" : "فهرستی با این جستجو یا فیلتر پیدا نشد."}
+          </div>
+        ) : (
+          <div className="grid min-h-[8rem] grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {lists.map((list) => (
+              <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
+            ))}
+          </div>
+        )}
+      </LoadingArea>
 
       <ClientPager
         page={page}

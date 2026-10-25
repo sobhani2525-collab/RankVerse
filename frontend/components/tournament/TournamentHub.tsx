@@ -7,6 +7,7 @@ import SectionHeading from "@/components/home/SectionHeading";
 import { ENTITY_TYPE_LABELS, TournamentSummary, tournamentApi } from "@/lib/tournament";
 import TournamentCard from "./TournamentCard";
 import ClientPager from "@/components/ClientPager";
+import { LoadingArea } from "@/components/NavTransition";
 
 const PAGE_SIZE = 6;
 
@@ -36,6 +37,9 @@ export default function TournamentHub() {
   const { requireAuth } = useAuthGate();
   const [entityType, setEntityType] = useState("");
   const [sort, setSort] = useState("newest");
+  const [query, setQuery] = useState("");
+  // the query the grid is loaded for: follows `query` after a short typing pause
+  const [search, setSearch] = useState("");
   const [items, setItems] = useState<TournamentSummary[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -44,24 +48,38 @@ export default function TournamentHub() {
   // the admin-curated strip on top, like the featured lists
   const [featured, setFeatured] = useState<TournamentSummary[]>([]);
   const gridTop = useRef<HTMLDivElement>(null);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(query.trim()), 350);
+    return () => clearTimeout(t);
+  }, [query]);
 
   const load = useCallback(
     async (nextPage: number) => {
+      const id = ++requestId.current;
       setLoading(true);
       setError(null);
       try {
-        const { items: rows, total } = await tournamentApi.listPage(getToken(), { page: nextPage, page_size: PAGE_SIZE, entity_type: entityType, sort });
+        const { items: rows, total } = await tournamentApi.listPage(getToken(), {
+          page: nextPage,
+          page_size: PAGE_SIZE,
+          entity_type: entityType,
+          sort,
+          q: search || undefined,
+        });
+        if (id !== requestId.current) return; // a newer request superseded this one
         setItems(rows);
         setPage(nextPage);
         // without a total, offer one more page while this one came back full
         setTotalPages(total !== null ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : rows.length === PAGE_SIZE ? nextPage + 1 : nextPage);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "خطا در دریافت نبردها");
+        if (id === requestId.current) setError(err instanceof Error ? err.message : "خطا در دریافت نبردها");
       } finally {
-        setLoading(false);
+        if (id === requestId.current) setLoading(false);
       }
     },
-    [getToken, entityType, sort]
+    [getToken, entityType, sort, search]
   );
 
   useEffect(() => {
@@ -119,6 +137,21 @@ export default function TournamentHub() {
         </section>
       )}
 
+      <div className="mb-6">
+        <label htmlFor="battles-search" className="sr-only">
+          جستجوی نبردها
+        </label>
+        <input
+          id="battles-search"
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          maxLength={80}
+          placeholder="جستجوی نبردها: عنوان یا توضیح…"
+          className="w-full max-w-md rounded-2xl border border-[#232A42] bg-[#0B0F1A] px-5 py-3 text-sm text-ink placeholder:text-muted/60 focus:border-gold/50 focus:outline-none"
+        />
+      </div>
+
       <div ref={gridTop} className="mb-8 flex scroll-mt-24 flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-2">
         <div className="flex flex-wrap gap-1">
           <Chip active={entityType === ""} onClick={() => setEntityType("")}>
@@ -140,17 +173,19 @@ export default function TournamentHub() {
       </div>
 
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
-      {!loading && !error && items.length === 0 && (
-        <p className="rounded-2xl border border-border bg-surface p-10 text-center text-muted">
-          هنوز نبردی با این فیلتر نیست. اولین نبرد را خودت بساز!
-        </p>
-      )}
-      <div className={`grid gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-3 ${loading ? "opacity-50" : ""}`}>
-        {items.map((b) => (
-          <TournamentCard key={b.slug} battle={b} />
-        ))}
-      </div>
-      {loading && items.length === 0 && <p className="mt-6 text-center text-sm text-muted">در حال بارگذاری…</p>}
+      <LoadingArea loading={loading}>
+        {!loading && !error && items.length === 0 ? (
+          <p className="rounded-2xl border border-border bg-surface p-10 text-center text-muted">
+            {search ? "نبردی با این جستجو پیدا نشد." : "هنوز نبردی با این فیلتر نیست. اولین نبرد را خودت بساز!"}
+          </p>
+        ) : (
+          <div className="grid min-h-[8rem] gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((b) => (
+              <TournamentCard key={b.slug} battle={b} />
+            ))}
+          </div>
+        )}
+      </LoadingArea>
       <ClientPager page={page} totalPages={totalPages} onPage={goTo} disabled={loading} />
     </main>
   );
