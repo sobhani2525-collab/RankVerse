@@ -86,7 +86,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
           </div>
 
           <MediaPlayer media={data.media} />
-          <EntityDescription text={data.biography} />
+          <EntityDescription text={data.biography} textClassName="text-base leading-[1.95]" />
         </div>
       </div>
 

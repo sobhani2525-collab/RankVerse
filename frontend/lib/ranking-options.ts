@@ -5,7 +5,7 @@ export const RANKING_PAGE_SIZE = 24;
 export type RankingType = "movie" | "tv_series";
 
 export const SORT_OPTIONS = [
-  ["score", "امتیاز CinemeGozin"],
+  ["score", "امتیاز CinemaGozin"],
   ["votes", "بیشترین رأی"],
   ["year_desc", "جدیدترین"],
   ["year_asc", "قدیمی‌ترین"],

@@ -104,7 +104,7 @@ export default async function RankingsPageRoute({
       <NavTransitionProvider>
       <p className="kicker text-teal/80">The universe, ranked</p>
       <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">رتبه‌بندی کامل</h1>
-      <p className="mt-2 text-sm text-muted">بر اساس امتیاز ترکیبی CinemeGozin — رأی کاربران به‌همراه داده‌های بیرونی.</p>
+      <p className="mt-2 text-sm text-muted">بر اساس امتیاز ترکیبی CinemaGozin — رأی کاربران به‌همراه داده‌های بیرونی.</p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-full border border-border bg-surface/60 p-1" role="tablist" aria-label="نوع رتبه‌بندی">
@@ -175,7 +175,7 @@ export default async function RankingsPageRoute({
         <NavTransitionBody contentKey={buildHref(type, page, filters)}>
         {loadError ? (
           <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
-            اتصال به CinemeGozin Core Engine برقرار نشد.
+            اتصال به CinemaGozin Core Engine برقرار نشد.
             <span className="num mt-1 block text-xs text-gold/70">{loadError}</span>
           </div>
         ) : result.items.length === 0 ? (

@@ -356,7 +356,7 @@ export default function PoolView({
             {battle.status !== "draft" && (
               <ShareMenu
                 url={absoluteUrl(`/battles/${battle.slug}`)}
-                title={`${battle.title} | CinemeGozin`}
+                title={`${battle.title} | CinemaGozin`}
                 text={battle.title}
                 size={48}
                 shape="square"

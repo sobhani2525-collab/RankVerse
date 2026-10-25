@@ -254,7 +254,7 @@ export default function TournamentView({ slug }: { slug: string }) {
           {!isDraft && (
             <ShareMenu
               url={absoluteUrl(`/battles/${battle.slug}`)}
-              title={`${battle.title} | CinemeGozin`}
+              title={`${battle.title} | CinemaGozin`}
               text={battle.title}
               size={36}
             />

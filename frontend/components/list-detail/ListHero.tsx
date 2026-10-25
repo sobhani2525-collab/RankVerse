@@ -24,7 +24,7 @@ export default function ListHero({ detail }: { detail: ListDetail }) {
       </h1>
 
       {detail.description && (
-        <p className="max-w-[720px] whitespace-pre-line text-sm leading-7 text-ink-dim">
+        <p className="max-w-[720px] whitespace-pre-line text-[15px] leading-[2.1] text-[#DDE1EC]">
           {detail.description}
         </p>
       )}

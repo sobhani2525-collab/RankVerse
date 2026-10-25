@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import RelatedLists from "@/components/RelatedLists";
+import BackToTop from "@/components/BackToTop";
 import ListComments from "@/components/ListComments";
 import { ListViewerProvider } from "@/components/list-detail/ListViewerContext";
 import ListHero from "@/components/list-detail/ListHero";
@@ -214,6 +215,7 @@ export default async function ListDetailPage({
             روش امتیازدهی
           </Link>
         </footer>
+        <BackToTop />
       </main>
       </ListBattleProvider>
     </ListViewerProvider>

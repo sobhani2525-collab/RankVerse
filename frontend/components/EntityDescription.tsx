@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 
 interface EntityDescriptionProps {
   text?: string | null;
+  /** Font size + line height of the text; the person page reads a step larger. */
+  textClassName?: string;
 }
 
 // Past this many characters the text starts collapsed to a few lines with a
@@ -12,7 +14,7 @@ interface EntityDescriptionProps {
 // Length-based (not measured) so server and client render the same thing.
 const COLLAPSE_AFTER_CHARS = 420;
 
-export default function EntityDescription({ text }: EntityDescriptionProps) {
+export default function EntityDescription({ text, textClassName = "text-sm leading-relaxed" }: EntityDescriptionProps) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
   if (!text) return null;
@@ -27,7 +29,7 @@ export default function EntityDescription({ text }: EntityDescriptionProps) {
       <p
         id={id}
         dir="auto"
-        className={`whitespace-pre-line text-sm leading-relaxed text-ink/90 ${collapsed ? "line-clamp-5" : ""}`}
+        className={`whitespace-pre-line ${textClassName} text-ink/90 ${collapsed ? "line-clamp-5" : ""}`}
       >
         {text}
       </p>

@@ -9,7 +9,7 @@ import { genreLabel } from "@/lib/genre-labels";
 import {
   entityHref, entityPosterUrl, GENRE_CHIP, PEOPLE_CHIP, typeLabel,
 } from "@/lib/list-constellation";
-import { Chip, MonoLabel, RowLabel } from "./ui";
+import { Chip, RowLabel } from "./ui";
 import ItemVoteButtons from "./ItemVoteButtons";
 import { BattleJumpButton, RemoveItemButton } from "./ItemRowActions";
 
@@ -21,11 +21,8 @@ function PosterFallback({ title }: { title: string }) {
   return (
     <div
       dir="ltr"
-      className="flex h-full w-full flex-col justify-between bg-gradient-to-br from-surface-2 to-bg p-3.5 text-left sm:p-2.5"
+      className="flex h-full w-full flex-col justify-end bg-gradient-to-br from-surface-2 to-bg p-3.5 text-left sm:p-2.5"
     >
-      <MonoLabel size="text-[9px] sm:text-[9px]" className="text-dim/70">
-        POSTER
-      </MonoLabel>
       <span className="font-mono text-sm leading-snug text-muted sm:text-[11px]">{title}</span>
     </div>
   );
@@ -86,12 +83,7 @@ export default function ListNodeItem({
       <div className="flex min-w-0 flex-1 flex-col gap-3.5 pt-4 sm:gap-3 sm:p-0">
         <div className="flex flex-col items-start gap-1.5 text-start sm:gap-2.5">
           <div className="flex w-full items-center justify-between gap-2">
-            <div className="flex items-center gap-2 sm:gap-2.5">
-              <MonoLabel size="text-[10px] sm:text-[11px]" className="text-gold">
-                {type.en}
-              </MonoLabel>
-              <span className="text-xs text-muted sm:text-[13px]">{type.fa}</span>
-            </div>
+            <span className="text-xs font-bold text-gold sm:text-[13px]">{type.fa}</span>
             {score != null && (
               <div className="flex items-baseline gap-1.5 lg:hidden">
                 <span className="text-[11px] text-muted">امتیاز ترکیبی</span>
@@ -115,7 +107,7 @@ export default function ListNodeItem({
           <div className="flex flex-col gap-3.5 pt-1 sm:flex-row sm:flex-wrap sm:gap-7 sm:pt-3">
             {people.length > 0 && (
               <div className="flex flex-col items-start gap-2">
-                <RowLabel dot="bg-violet-light" en="PEOPLE" fa="هنرمندان" />
+                <RowLabel dot="bg-violet-light" fa="هنرمندان" />
                 <div className="flex flex-wrap gap-1.5">
                   {people.map((p) => (
                     <Chip key={p.id} href={entityHref("person", p.slug)} tone={PEOPLE_CHIP} ltr={!p.title_fa}>
@@ -128,7 +120,7 @@ export default function ListNodeItem({
             <div className="flex gap-5 sm:contents">
               {genres.length > 0 && (
                 <div className="flex flex-1 flex-col items-start gap-2 sm:flex-none">
-                  <RowLabel dot="bg-teal" en="GENRES" fa="ژانرها" />
+                  <RowLabel dot="bg-teal" fa="ژانرها" />
                   <div className="flex flex-wrap gap-1.5">
                     {genres.map((g) => (
                       <Chip key={g.id} href={entityHref("genre", g.slug)} tone={GENRE_CHIP}>
@@ -140,7 +132,7 @@ export default function ListNodeItem({
               )}
               {item.year ? (
                 <div className="flex shrink-0 flex-col items-start gap-2">
-                  <RowLabel dot="bg-ink-dim" en="YEAR" fa="سال" />
+                  <RowLabel dot="bg-ink-dim" fa="سال" />
                   <Chip tone="border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
                     <span className="num">{toFaDigits(item.year)}</span>
                   </Chip>
@@ -152,9 +144,7 @@ export default function ListNodeItem({
 
         {item.note && (
           <div className="flex flex-col items-start gap-1 border-t border-border-soft pt-3 text-start sm:border-0 sm:pt-1">
-            <MonoLabel size="text-[10px]" className="shrink-0 text-dim">
-              WHY HERE
-            </MonoLabel>
+            <span className="shrink-0 text-xs text-dim">چرا این‌جا</span>
             <p className="whitespace-pre-line text-[13px] leading-[1.8] text-ink-dim sm:text-sm sm:leading-[1.8]">{item.note}</p>
           </div>
         )}
@@ -192,9 +182,6 @@ export default function ListNodeItem({
 
       {score != null && (
         <div className="hidden w-[118px] shrink-0 flex-col items-start gap-1 border-r border-border-soft pr-5 text-start lg:flex">
-          <MonoLabel size="text-[10px]" className="text-dim">
-            SCORE
-          </MonoLabel>
           <span className="num text-4xl font-extrabold leading-tight text-ink">{formatScore(score)}</span>
           <span className="text-xs text-muted">امتیاز ترکیبی</span>
         </div>

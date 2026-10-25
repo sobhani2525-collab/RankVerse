@@ -19,7 +19,7 @@ async function adminEnvelope<T>(path: string, init: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, init);
   const json: Envelope<T> = await res.json();
   if (!res.ok || json.error) {
-    throw new Error(json.error?.message || `CinemeGozin admin API error (${res.status}) on ${path}`);
+    throw new Error(json.error?.message || `CinemaGozin admin API error (${res.status}) on ${path}`);
   }
   return json.data;
 }

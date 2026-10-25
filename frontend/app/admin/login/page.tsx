@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-14">
-      <h1 className="text-center text-2xl font-bold text-ink">پنل مدیریت CinemeGozin</h1>
+      <h1 className="text-center text-2xl font-bold text-ink">پنل مدیریت CinemaGozin</h1>
       <p className="mt-2 text-center text-sm text-muted">
         ورود مخصوص مدیران پلتفرم
       </p>

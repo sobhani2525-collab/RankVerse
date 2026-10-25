@@ -97,7 +97,7 @@ export default async function PeoplePage({
       <NavTransitionProvider>
       <p className="kicker text-teal/80">The people behind the screen</p>
       <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">هنرمندان</h1>
-      <p className="mt-2 text-sm text-muted">کارگردانان، بازیگران و سازندگان، بر اساس تعداد آثار و امتیاز آثارشان در CinemeGozin.</p>
+      <p className="mt-2 text-sm text-muted">کارگردانان، بازیگران و سازندگان، بر اساس تعداد آثار و امتیاز آثارشان در CinemaGozin.</p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <RankingFilters
@@ -134,7 +134,7 @@ export default async function PeoplePage({
         <NavTransitionBody contentKey={buildHref(page, filters)}>
         {loadError ? (
           <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
-            اتصال به CinemeGozin Core Engine برقرار نشد.
+            اتصال به CinemaGozin Core Engine برقرار نشد.
             <span className="num mt-1 block text-xs text-gold/70">{loadError}</span>
           </div>
         ) : result.items.length === 0 ? (

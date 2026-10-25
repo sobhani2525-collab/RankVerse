@@ -30,7 +30,7 @@ if settings.sentry_dsn:
     )
 
 app = FastAPI(
-    title="CinemeGozin Core Engine",
+    title="CinemaGozin Core Engine",
     description="Knowledge-graph-based ranking platform for movies, series and artists",
     version="0.1.0",
     docs_url="/docs" if settings.api_docs_enabled else None,

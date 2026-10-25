@@ -52,13 +52,12 @@ export function SectionHeading({
   );
 }
 
-/** Row label used on item cards: colored dot + mono EN + Persian. */
-export function RowLabel({ dot, en, fa }: { dot: string; en: string; fa?: string }) {
+/** Row label used on item cards: colored dot + Persian label. */
+export function RowLabel({ dot, fa }: { dot: string; fa: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
-      <MonoLabel size="text-[10px]">{en}</MonoLabel>
-      {fa && <span className="text-xs text-muted">{fa}</span>}
+      <span className="text-xs text-muted">{fa}</span>
     </div>
   );
 }

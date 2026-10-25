@@ -76,19 +76,21 @@ function GenreRow({ d, perspective }: { d: TasteDimension; perspective: Perspect
 
   return (
     <div title={`بر پایهٔ ${toFaDigits(d.sample_size)} امتیاز، ♥ و رأی نبرد`}>
-      <div className="flex items-center gap-3">
-        <bdi className="w-20 shrink-0 truncate text-sm font-semibold text-ink sm:w-24">{genreLabel(d.dimension_key)}</bdi>
-        <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface2">
+      {/* Mobile: name + verdict on one line, the bar full width under them.
+          sm+: name, bar, verdict in one row. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap">
+        <bdi className="min-w-0 flex-1 truncate text-sm font-semibold text-ink sm:w-24 sm:flex-none sm:shrink-0">{genreLabel(d.dimension_key)}</bdi>
+        <div className="order-last h-1.5 min-w-0 basis-full overflow-hidden rounded-full bg-surface2 sm:order-none sm:flex-1 sm:basis-auto">
           {/* Fills from the reading start (right), like ProgressBar. */}
           <div className={`ms-0 h-full rounded-full bg-gradient-to-l ${style.bar}`} style={{ width: `${width}%` }} />
         </div>
         {/* Fixed width so every row's bar track has the same length. */}
-        <span className={`w-[7.5rem] shrink-0 truncate rounded-full border px-2 py-0.5 text-center text-[11px] ${style.chip}`}>
+        <span className={`shrink-0 truncate rounded-full border px-3 py-0.5 text-center text-[11px] sm:w-[7.5rem] sm:px-2 ${style.chip}`}>
           {VERDICTS[perspective][v]}
         </span>
       </div>
       {(sentence || examples.length > 0) && (
-        <p className="mt-1 pr-[5.75rem] text-[11px] leading-5 text-dim sm:pr-[6.75rem]">
+        <p className="mt-2 text-xs leading-6 text-dim sm:mt-1 sm:pr-[6.75rem] sm:text-[11px] sm:leading-5">
           {sentence}
           {examples.length > 0 && (
             <>
@@ -178,7 +180,7 @@ export default function TasteDnaCard({
           <p className="mb-4 text-xs text-muted">
             {perspective === "self" ? "ژانرهای سلیقه‌ات، از بیشترین به کمترین" : "ژانرهای سلیقه‌اش، از بیشترین به کمترین"}
           </p>
-          <div className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-5 sm:gap-3.5">
             {rows.map((d) => (
               <GenreRow key={d.dimension_key} d={d} perspective={perspective} />
             ))}

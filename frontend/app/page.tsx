@@ -8,6 +8,7 @@ import DailyBattle from "@/components/home/DailyBattle";
 import FeaturedList from "@/components/home/FeaturedList";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
 import ListCreatorPromo from "@/components/home/ListCreatorPromo";
+import BackToTop from "@/components/BackToTop";
 import {
   getRankingsPage, getHeroGraphs, getListsTotal, getBattlesTotal, getPeoplePage, getMovieBySlug, discoverLists, getListBySlugCached, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
 } from "@/lib/api";
@@ -115,7 +116,7 @@ export default async function HomePage() {
         <section className="mx-auto max-w-7xl px-6 py-14">
           {loadError ? (
             <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
-              اتصال به CinemeGozin Core Engine برقرار نشد.
+              اتصال به CinemaGozin Core Engine برقرار نشد.
               <span className="num mt-1 block text-xs text-gold/70">{loadError}</span>
             </div>
           ) : (
@@ -152,6 +153,7 @@ export default async function HomePage() {
       )}
       <ListCreatorPromo />
       <PersonalUniverse startHref={`/movies/${leader.slug}`} />
+      <BackToTop />
     </main>
   );
 }

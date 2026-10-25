@@ -14,11 +14,12 @@ export default function PersonCard({ person, hideWorks = false }: { person: Pers
   const favorited = isFavorite(person.id);
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-2">
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface-2">
+    <div className="group flex w-full min-w-0 flex-col gap-2">
+      {/* Same hover as PosterCard: lift, gold rim and glow, a touch of zoom. */}
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface-2 transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-gold/50 group-hover:shadow-[0_18px_40px_-16px_rgba(232,179,74,0.45)] motion-reduce:transform-none">
         <Link href={href} className="absolute inset-0" aria-label={person.title_fa ?? person.title}>
           {photo ? (
-            <Image src={photo} alt={person.title_fa ?? person.title} fill sizes="(max-width: 768px) 50vw, 220px" className="object-cover" />
+            <Image src={photo} alt={person.title_fa ?? person.title} fill sizes="(max-width: 768px) 50vw, 220px" className="object-cover transition-transform duration-500 ease-out group-hover:scale-105 motion-reduce:transform-none" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-muted">بدون تصویر</div>
           )}
@@ -54,7 +55,7 @@ export default function PersonCard({ person, hideWorks = false }: { person: Pers
         </button>
       </div>
 
-      <Link href={href} className="min-w-0 text-sm font-bold text-ink transition hover:text-gold">
+      <Link href={href} className="min-w-0 text-sm font-bold text-ink transition group-hover:text-gold">
         <CardTitle entity={person} className="truncate" />
       </Link>
 

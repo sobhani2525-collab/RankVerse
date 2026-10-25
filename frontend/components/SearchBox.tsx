@@ -78,7 +78,7 @@ export default function SearchBox({ className = "min-w-0 flex-1" }: { className?
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => query.trim() && setOpen(true)}
-        placeholder="جستجو در CinemeGozin..."
+        placeholder="جستجو در CinemaGozin..."
         className="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-gold/50 focus:outline-none"
       />
 

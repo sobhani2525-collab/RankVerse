@@ -87,7 +87,7 @@ async function fetchWithTimeout(path: string, init: RequestInit): Promise<Respon
     return await fetch(`${API_BASE}${path}`, { ...init, signal: AbortSignal.timeout(READ_TIMEOUT_MS) });
   } catch (err) {
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-      throw new Error(`CinemeGozin API timeout (${READ_TIMEOUT_MS / 1000}s) on ${path}`);
+      throw new Error(`CinemaGozin API timeout (${READ_TIMEOUT_MS / 1000}s) on ${path}`);
     }
     throw err;
   }
@@ -127,7 +127,7 @@ async function fetchFullEnvelope<T>(path: string, revalidateSeconds = RANKING_TT
   );
 
   if (!res.ok) {
-    throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
+    throw new ApiError(res.status, `CinemaGozin API error (${res.status}) on ${path}`);
   }
 
   const json: Envelope<T> = await res.json();
@@ -191,7 +191,7 @@ async function postEnvelope<T>(path: string, body: unknown): Promise<T> {
   });
   const json: Envelope<T> = await res.json();
   if (!res.ok || json.error) {
-    throw new Error(json.error?.message || `CinemeGozin API error (${res.status}) on ${path}`);
+    throw new Error(json.error?.message || `CinemaGozin API error (${res.status}) on ${path}`);
   }
   return json.data;
 }
@@ -444,7 +444,7 @@ export async function authFetchEnvelope<T>(
   });
   const json: Envelope<T> = await res.json();
   if (!res.ok || json.error) {
-    throw new Error(json.error?.message || `CinemeGozin API error (${res.status}) on ${path}`);
+    throw new Error(json.error?.message || `CinemaGozin API error (${res.status}) on ${path}`);
   }
   return json;
 }
@@ -489,7 +489,7 @@ export async function getListsTotal(revalidateSeconds: number = RANKING_TTL): Pr
   const path = "/lists?page_size=1";
   const res = await fetchWithTimeout(path, { next: { revalidate: revalidateSeconds, tags: [LISTS_CACHE_TAG] } });
   if (!res.ok) {
-    throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
+    throw new ApiError(res.status, `CinemaGozin API error (${res.status}) on ${path}`);
   }
   const json: Envelope<ListSummary[]> = await res.json();
   if (json.error) {
@@ -503,7 +503,7 @@ export async function getBattlesTotal(revalidateSeconds: number = RANKING_TTL): 
   const path = "/battles?page_size=1";
   const res = await fetchWithTimeout(path, { next: { revalidate: revalidateSeconds } });
   if (!res.ok) {
-    throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
+    throw new ApiError(res.status, `CinemaGozin API error (${res.status}) on ${path}`);
   }
   const json: Envelope<unknown[]> = await res.json();
   if (json.error) {
@@ -811,7 +811,7 @@ export async function getNextBattle(
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(
-      body?.detail || `CinemeGozin API error (${res.status}) on /battles/next`
+      body?.detail || `CinemaGozin API error (${res.status}) on /battles/next`
     );
   }
   return res.json();
@@ -839,7 +839,7 @@ export async function getThemedBattle(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.detail || `CinemeGozin API error (${res.status}) on /battles/themed`);
+    throw new Error(body?.detail || `CinemaGozin API error (${res.status}) on /battles/themed`);
   }
   return res.json();
 }
@@ -864,7 +864,7 @@ export async function castBattleVote(
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(
-      body?.detail || `CinemeGozin API error (${res.status}) on /battles/vote`
+      body?.detail || `CinemaGozin API error (${res.status}) on /battles/vote`
     );
   }
   return res.json();
@@ -880,7 +880,7 @@ export async function getDailyBattle(token: string | null, guestId: string | nul
   if (res.status === 404) return null;
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(typeof body?.detail === "string" ? body.detail : `CinemeGozin API error (${res.status}) on /daily-battle/today`);
+    throw new Error(typeof body?.detail === "string" ? body.detail : `CinemaGozin API error (${res.status}) on /daily-battle/today`);
   }
   return res.json();
 }
@@ -897,7 +897,7 @@ export async function castDailyVote(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(typeof body?.detail === "string" ? body.detail : `CinemeGozin API error (${res.status}) on /daily-battle/vote`);
+    throw new Error(typeof body?.detail === "string" ? body.detail : `CinemaGozin API error (${res.status}) on /daily-battle/vote`);
   }
   return res.json();
 }
@@ -979,7 +979,7 @@ export async function getPeoplePage(
 
   const res = await fetchWithTimeout(path, { next: { revalidate: RANKING_TTL } });
   if (!res.ok) {
-    throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
+    throw new ApiError(res.status, `CinemaGozin API error (${res.status}) on ${path}`);
   }
   const json: Envelope<PersonListItem[]> = await res.json();
   if (json.error) {
@@ -1008,7 +1008,7 @@ export async function getRankingsPage(
     options.fresh ? { cache: "no-store" } : { next: { revalidate: RANKING_TTL } }
   );
   if (!res.ok) {
-    throw new ApiError(res.status, `CinemeGozin API error (${res.status}) on ${path}`);
+    throw new ApiError(res.status, `CinemaGozin API error (${res.status}) on ${path}`);
   }
   const json: Envelope<MovieListItem[]> = await res.json();
   if (json.error) {

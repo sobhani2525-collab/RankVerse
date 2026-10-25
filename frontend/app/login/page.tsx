@@ -8,7 +8,7 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-14">
-      <h1 className="text-center text-2xl font-bold text-ink">ورود به CinemeGozin</h1>
+      <h1 className="text-center text-2xl font-bold text-ink">ورود به CinemaGozin</h1>
       <p className="mt-2 text-center text-sm text-muted">
         برای رای‌دادن به فیلم‌ها وارد حساب خود شوید
       </p>
