@@ -17,6 +17,7 @@ import { downloadBlob } from "@/lib/share";
 import { formatCountdown, formatJalaliDate, getGuestId, percents, sharePercent } from "@/lib/daily-battle";
 import CardTitle from "@/components/entities/card-title";
 import Link from "next/link";
+import BattleSpotlight from "./BattleSpotlight";
 import { genreLabel } from "@/lib/genre-labels";
 
 /** Why these two were paired, as a short headline over the posters. */
@@ -113,27 +114,8 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
   if (status === "none") return null; // no battle today: the section stays quiet
 
   return (
-    <section className={`relative overflow-hidden border-y border-border/60 bg-[#080B14]/70`} aria-label="نبرد امروز">
-      {/* Spotlight behind the posters plus a faint dot texture, so the pair
-          stands out of the dark instead of floating in it. Decorative. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 45% 55% at 50% 55%, rgba(145,99,245,0.16), transparent 70%), radial-gradient(ellipse 30% 30% at 50% 50%, rgba(232,179,74,0.07), transparent 70%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage: "radial-gradient(rgba(242,240,232,0.09) 1px, transparent 1px)",
-          backgroundSize: "18px 18px",
-          maskImage: "radial-gradient(ellipse 60% 65% at 50% 55%, black, transparent 75%)",
-          WebkitMaskImage: "radial-gradient(ellipse 60% 65% at 50% 55%, black, transparent 75%)",
-        }}
-      />
+    <section className={`relative border-y border-border/60 bg-[#080B14]/70`} aria-label="نبرد امروز">
+      <BattleSpotlight />
       <div className={`relative mx-auto px-6 ${large ? "max-w-4xl py-14" : "max-w-5xl py-20"}`}>
         <SectionHeading
           center

@@ -12,6 +12,7 @@ import { absoluteUrl } from "@/lib/site";
 import { TournamentDetail, tournamentApi } from "@/lib/tournament";
 import WinnerStaysBattle from "@/components/battle/WinnerStaysBattle";
 import FeaturedBattleRun from "./FeaturedBattleRun";
+import BattleSpotlight from "./BattleSpotlight";
 
 // The home page's Daily battle draws with these; they live with the winner-stays component.
 export { BattlePoster as Poster, VsBadge } from "@/components/battle/WinnerStaysBattle";
@@ -44,7 +45,8 @@ export default function BattleArena() {
 
   return (
     <section ref={sectionRef} id="battle-arena" className="relative scroll-mt-16 border-y border-border/60 bg-[#080B14]/70">
-      <div className="mx-auto max-w-5xl px-6 py-24">
+      <BattleSpotlight />
+      <div className="relative mx-auto max-w-5xl px-6 py-24">
         {featured === null && (
           // only the themed fallback needs the section's own title; a featured battle brings its own header
           <SectionHeading
