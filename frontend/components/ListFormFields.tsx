@@ -1,5 +1,6 @@
 "use client";
 import TagComposer from "@/components/TagComposer";
+import { LIST_FIELD } from "@/components/form-styles";
 
 /**
  * Title / description / tags, shared by the new-list form and the list
@@ -29,8 +30,8 @@ export default function ListFormFields({
 }) {
   return (
     <>
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-bold text-ink-dim">عنوان فهرست</span>
+      <label className="block">
+        <span className="mb-1.5 block text-sm text-ink-dim">عنوان فهرست</span>
         <input
           type="text"
           required
@@ -39,22 +40,20 @@ export default function ListFormFields({
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder={titlePlaceholder}
           autoFocus={autoFocus}
-          className="w-full border-b-2 border-border bg-transparent pb-3 text-2xl font-extrabold leading-snug text-ink outline-none transition placeholder:font-bold placeholder:text-dim focus:border-gold lg:text-2xl"
+          className={LIST_FIELD}
         />
       </label>
 
       {titleHint}
 
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-bold text-ink-dim">
-          توضیح <span className="font-normal text-dim">(اختیاری)</span>
-        </span>
+      <label className="block">
+        <span className="mb-1.5 block text-sm text-ink-dim">توضیح (اختیاری)</span>
         <textarea
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}
           placeholder="این فهرست دربارهٔ چیست؟ چرا این آیتم‌ها؟"
           rows={3}
-          className="w-full resize-none rounded-xl border border-border bg-bg/40 px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none transition placeholder:text-dim focus:border-teal/50"
+          className={LIST_FIELD}
         />
       </label>
 

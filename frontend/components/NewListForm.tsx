@@ -64,10 +64,7 @@ export default function NewListForm() {
     <main className="mx-auto max-w-4xl px-6 py-12">
       <ListStepper current={1} />
 
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-7 rounded-3xl border border-border bg-gradient-to-b from-surface to-surface/40 p-5 shadow-[0_20px_60px_-30px_rgba(122,92,255,0.35)] sm:p-8"
-      >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <ListFormFields
           title={title}
           description={description}
@@ -81,14 +78,14 @@ export default function NewListForm() {
         />
 
         {error && (
-          <p className="rounded-lg border border-gold/30 bg-gold/5 px-4 py-2 text-sm text-gold">{error}</p>
+          <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</p>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col items-start gap-3">
           <button
             type="submit"
             disabled={submitting || !title.trim()}
-            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-gold text-[15px] font-extrabold text-bg transition hover:bg-gold/90 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-gold"
+            className="flex items-center justify-center gap-2 rounded-xl bg-gold px-6 py-2.5 text-sm font-bold text-bg disabled:opacity-50"
           >
             {submitting && (
               <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -96,9 +93,9 @@ export default function NewListForm() {
                 <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             )}
-            {submitting ? "در حال ساخت..." : "ادامه و افزودن آیتم‌ها"}
+            {submitting ? "در حال ساخت…" : "مرحلهٔ بعد"}
           </button>
-          <p className="text-center text-xs text-dim">
+          <p className="text-sm text-muted">
             فهرست تا زمانی که منتشرش نکنید پیش‌نویس است و فقط خودتان آن را می‌بینید.
           </p>
         </div>
