@@ -1,13 +1,35 @@
-const PHRASES: { text: string; size: number }[] = [
-  { text: "بهترین‌های من", size: 36 },
-  { text: "برترین‌های نولان", size: 36 },
-  { text: "ترسناک‌های شب جمعه", size: 36 },
-  { text: "کلاسیک‌های ایرانی", size: 36 },
-  { text: "رازآلودترین سریال‌ها", size: 32 },
-  { text: "دیدنی‌های آخر هفته", size: 36 },
-  { text: "شاهکارهای دهه ۹۰", size: 36 },
-  { text: "انیمیشن‌های محبوبم", size: 36 },
+// Fallbacks for when there aren't enough (short enough) user list titles.
+const DEFAULT_PHRASES = [
+  "بهترین‌های من",
+  "برترین‌های نولان",
+  "ترسناک‌های شب جمعه",
+  "کلاسیک‌های ایرانی",
+  "رازآلودترین سریال‌ها",
+  "دیدنی‌های آخر هفته",
+  "شاهکارهای دهه ۹۰",
+  "انیمیشن‌های محبوبم",
 ];
+
+// The animation in globals.css (.marquee-phrase) is timed for exactly 8 slots.
+const SLOTS = 8;
+// Longer titles don't fit the 300-unit plate at a readable size.
+const MARQUEE_MAX_CHARS = 28;
+
+/** Shrink long phrases so they fit the plate (Lalezar runs ~0.45em per glyph). */
+function sizeFor(text: string): number {
+  return Math.max(22, Math.min(36, Math.floor(300 / (text.length * 0.45))));
+}
+
+function phrasesFrom(titles: string[]): { text: string; size: number }[] {
+  const picked: string[] = [];
+  for (const t of [...titles, ...DEFAULT_PHRASES]) {
+    const text = t.trim().replace(/\s+/g, " ");
+    if (!text || text.length > MARQUEE_MAX_CHARS || picked.includes(text)) continue;
+    picked.push(text);
+    if (picked.length === SLOTS) break;
+  }
+  return picked.map((text) => ({ text, size: sizeFor(text) }));
+}
 
 // Gold frame rect; bulbs run on a ring inset 10 units inside it, every 20.
 const FX = 30, FY = 20, FW = 380, FH = 140, STEP = 20, INSET = 10;
@@ -28,9 +50,11 @@ const STARS: [number, number, number][] = [
 ];
 
 /** Old-cinema marquee sign: blinking bulbs, rotating list-title phrases and
- *  an "ADMIT ONE" ticket. Purely decorative; animations live in globals.css
- *  (.marquee-*) and stop under prefers-reduced-motion. */
-export default function MarqueeSign({ className = "" }: { className?: string }) {
+ *  an "ADMIT ONE" ticket. `titles` are real user list titles, shown first.
+ *  Purely decorative; animations live in globals.css (.marquee-*) and stop
+ *  under prefers-reduced-motion. */
+export default function MarqueeSign({ className = "", titles = [] }: { className?: string; titles?: string[] }) {
+  const phrases = phrasesFrom(titles);
   return (
     <svg
       viewBox="0 0 440 293"
@@ -70,7 +94,7 @@ export default function MarqueeSign({ className = "" }: { className?: string }) 
       </text>
 
       <g clipPath="url(#marquee-text-clip)">
-        {PHRASES.map((p, i) => (
+        {phrases.map((p, i) => (
           <text
             key={p.text}
             className="marquee-phrase"

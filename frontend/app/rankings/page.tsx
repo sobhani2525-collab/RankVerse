@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavTransitionBody, NavTransitionProvider, TransitionLink } from "@/components/NavTransition";
 import RankingsPager from "@/components/RankingsPager";
 import PosterCard from "@/components/entities/poster-card";
 import RankingFilters from "@/components/RankingFilters";
@@ -101,6 +101,7 @@ export default async function RankingsPageRoute({
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
+      <NavTransitionProvider>
       <p className="kicker text-teal/80">The universe, ranked</p>
       <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">رتبه‌بندی کامل</h1>
       <p className="mt-2 text-sm text-muted">بر اساس امتیاز ترکیبی CinemeGozin — رأی کاربران به‌همراه داده‌های بیرونی.</p>
@@ -113,7 +114,7 @@ export default async function RankingsPageRoute({
               ["tv_series", "سریال"],
             ] as const
           ).map(([value, label]) => (
-            <Link
+            <TransitionLink
               key={value}
               href={buildHref(value, 1, filters)}
               role="tab"
@@ -121,7 +122,7 @@ export default async function RankingsPageRoute({
               className={`rounded-full px-4 py-1.5 text-sm transition ${type === value ? "bg-gold/15 text-gold" : "text-muted hover:text-ink"}`}
             >
               {label}
-            </Link>
+            </TransitionLink>
           ))}
         </div>
 
@@ -171,6 +172,7 @@ export default async function RankingsPageRoute({
       </div>
 
       <div className="mt-8">
+        <NavTransitionBody contentKey={buildHref(type, page, filters)}>
         {loadError ? (
           <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
             اتصال به CinemeGozin Core Engine برقرار نشد.
@@ -187,9 +189,11 @@ export default async function RankingsPageRoute({
             ))}
           </div>
         )}
+        </NavTransitionBody>
       </div>
 
       {!loadError && <RankingsPager page={page} totalPages={totalPages} hasNext={hasNext} hrefFor={(p) => buildHref(type, p, filters)} />}
+      </NavTransitionProvider>
     </main>
   );
 }

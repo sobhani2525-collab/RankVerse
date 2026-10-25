@@ -6,6 +6,7 @@ import CreateListStrip from "@/components/lists/create-list-strip";
 import { discoverListsPage, LISTS_CACHE_TAG, LISTS_PAGE_SIZE } from "@/lib/api";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
+import { toFaDigits } from "@/lib/format-number";
 
 export const revalidate = 600;
 
@@ -32,6 +33,15 @@ export default async function ListsPage() {
   let lists: Awaited<ReturnType<typeof discoverListsPage>>["items"] = [];
   let total: number | null = null;
   let loadError: string | null = null;
+
+  // Real list titles for the marquee sign; it falls back to its own phrases.
+  let marqueeTitles: string[] = [];
+  try {
+    const { items } = await discoverListsPage({ page_size: 30, sort: "popular" }, undefined, [LISTS_CACHE_TAG]);
+    marqueeTitles = items.map((l) => toFaDigits(l.title));
+  } catch {
+    // decorative only
+  }
 
   try {
     ({ items: lists, total } = await discoverListsPage({ page_size: LISTS_PAGE_SIZE, sort: "newest" }, undefined, [LISTS_CACHE_TAG]));
@@ -71,7 +81,7 @@ export default async function ListsPage() {
             <span className="text-[13px] text-[#8A93A6]">فقط چند دقیقه وقت می‌گیرد</span>
           </div>
         </div>
-        <MarqueeSign className="h-auto w-full max-w-[440px] shrink-0" />
+        <MarqueeSign className="h-auto w-full max-w-[440px] shrink-0" titles={marqueeTitles} />
       </section>
 
       {loadError ? (

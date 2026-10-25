@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import RankingsPager from "@/components/RankingsPager";
+import { NavTransitionBody, NavTransitionProvider } from "@/components/NavTransition";
 import PersonCard from "@/components/PersonCard";
 import RankingFilters from "@/components/RankingFilters";
 import { getPeoplePage } from "@/lib/api";
@@ -8,7 +9,7 @@ import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 1800;
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 12;
 
 const ROLE_OPTIONS = [
   ["all", "همه"],
@@ -23,10 +24,12 @@ const ORIGIN_OPTIONS = [
   ["foreign", "خارجی"],
 ] as const;
 
+// The first one is the default (left out of the URL).
 const SORT_OPTIONS = [
-  ["score", "بالاترین امتیاز آثار"],
   ["works", "بیشترین آثار"],
+  ["score", "بالاترین امتیاز آثار"],
 ] as const;
+const DEFAULT_SORT = SORT_OPTIONS[0][0];
 
 interface Filters {
   role?: string;
@@ -38,7 +41,7 @@ function buildHref(page: number, f: Filters = {}): string {
   const qs = new URLSearchParams();
   if (f.role && f.role !== "all") qs.set("role", f.role);
   if (f.origin && f.origin !== "all") qs.set("origin", f.origin);
-  if (f.sort && f.sort !== "score") qs.set("sort", f.sort);
+  if (f.sort && f.sort !== DEFAULT_SORT) qs.set("sort", f.sort);
   if (page > 1) qs.set("page", String(page));
   const s = qs.toString();
   return s ? `/people?${s}` : "/people";
@@ -52,7 +55,7 @@ export async function generateMetadata({
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const role = ROLE_OPTIONS.find(([v]) => v === params.role && v !== "all");
-  const filtered = (params.origin ?? "all") !== "all" || (params.sort !== undefined && params.sort !== "score");
+  const filtered = (params.origin ?? "all") !== "all" || (params.sort !== undefined && params.sort !== DEFAULT_SORT);
   const canonical = buildHref(page, { role: role?.[0] });
   const base = role ? `${role[1]}‌های سینما` : "هنرمندان سینما";
   const title = page > 1 ? `${base} — صفحهٔ ${toFaDigits(page)}` : base;
@@ -74,7 +77,7 @@ export default async function PeoplePage({
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const role = ROLE_OPTIONS.some(([v]) => v === params.role) ? params.role! : "all";
-  const sort = SORT_OPTIONS.some(([v]) => v === params.sort) ? params.sort! : "score";
+  const sort = SORT_OPTIONS.some(([v]) => v === params.sort) ? params.sort! : DEFAULT_SORT;
   const origin = ORIGIN_OPTIONS.some(([v]) => v === params.origin) ? params.origin! : "all";
   const filters: Filters = { role, sort, origin };
 
@@ -91,6 +94,7 @@ export default async function PeoplePage({
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-14">
+      <NavTransitionProvider>
       <p className="kicker text-teal/80">The people behind the screen</p>
       <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">هنرمندان</h1>
       <p className="mt-2 text-sm text-muted">کارگردانان، بازیگران و سازندگان، بر اساس تعداد آثار و امتیاز آثارشان در CinemeGozin.</p>
@@ -127,6 +131,7 @@ export default async function PeoplePage({
       </div>
 
       <div className="mt-8">
+        <NavTransitionBody contentKey={buildHref(page, filters)}>
         {loadError ? (
           <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
             اتصال به CinemeGozin Core Engine برقرار نشد.
@@ -143,34 +148,11 @@ export default async function PeoplePage({
             ))}
           </div>
         )}
+        </NavTransitionBody>
       </div>
 
-      {!loadError && (page > 1 || hasNext) && (
-        <nav aria-label="صفحه‌بندی" className="mt-10 flex items-center justify-between gap-4">
-          {page > 1 ? (
-            <Link href={buildHref(page - 1, filters)} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
-              → قبلی
-            </Link>
-          ) : (
-            <span />
-          )}
-          <span className="text-xs text-muted">
-            صفحهٔ <span className="num">{toFaDigits(page)}</span>
-            {totalPages !== null && (
-              <>
-                {" "}از <span className="num">{toFaDigits(totalPages)}</span>
-              </>
-            )}
-          </span>
-          {hasNext ? (
-            <Link href={buildHref(page + 1, filters)} className="btn-secondary text-sm hover:border-gold/40 hover:text-gold">
-              بعدی ←
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
-      )}
+      {!loadError && <RankingsPager page={page} totalPages={totalPages} hasNext={hasNext} hrefFor={(p) => buildHref(p, filters)} />}
+      </NavTransitionProvider>
     </main>
   );
 }

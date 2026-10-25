@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TransitionLink as Link } from "@/components/NavTransition";
 import { pageWindow } from "@/lib/pagination";
 import { toFaDigits } from "@/lib/format-number";
 

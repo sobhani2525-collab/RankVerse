@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MonoLabel } from "@/components/list-detail/ui";
+import { useNavTransition } from "@/components/NavTransition";
 
 export interface FilterSelect {
   label: string;
@@ -17,6 +18,7 @@ export interface FilterSelect {
  *  mono caption header, 44px rows with a teal check on the active one. */
 function Dropdown({ sel }: { sel: FilterSelect }) {
   const router = useRouter();
+  const nav = useNavTransition();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -84,7 +86,7 @@ function Dropdown({ sel }: { sel: FilterSelect }) {
                   aria-selected={active}
                   onClick={() => {
                     setOpen(false);
-                    if (!active) router.push(href);
+                    if (!active) (nav ? nav.navigate(href) : router.push(href));
                   }}
                   className="flex min-h-[44px] w-full items-center justify-between gap-2 px-3.5 text-start text-sm text-ink transition hover:bg-surface-2"
                 >
