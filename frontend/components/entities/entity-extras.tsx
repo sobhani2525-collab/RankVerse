@@ -10,8 +10,8 @@ export default function EntityExtras({
 }) {
   return (
     <div className="mt-16 flex flex-col gap-14">
-      <section aria-label="نظرات" className="max-w-3xl">
-        <EntityComments entityId={entityId} />
+      <section aria-label="نقد و بررسی‌ها" className="max-w-3xl">
+        <EntityComments entityId={entityId} heading={{ en: "REVIEWS", fa: "نقد و بررسی‌ها" }} />
       </section>
     </div>
   );

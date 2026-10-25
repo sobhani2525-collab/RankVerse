@@ -18,8 +18,11 @@ export default function ListComments({
   initialComments,
   tone,
   ownerUsername,
+  heading,
 }: {
   tone?: string;
+  /** Section heading; defaults to COMMENTS / "نظرها". The count is appended to `fa`. */
+  heading?: { en: string; fa: string };
   /** A list's owner may delete anyone's comment on it. */
   ownerUsername?: string | null;
   /** A list's slug... */
@@ -95,7 +98,7 @@ export default function ListComments({
 
   return (
     <section id="comments" aria-label="نظرها" className="flex scroll-mt-24 flex-col gap-4">
-      <SectionHeading en="COMMENTS" fa={`نظرها · ${toFaDigits(comments.length)}`} tone={tone} />
+      <SectionHeading en={heading?.en ?? "COMMENTS"} fa={`${heading?.fa ?? "نظرها"} · ${toFaDigits(comments.length)}`} tone={tone} />
 
       <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-2">
         <textarea

@@ -5,6 +5,13 @@ import Link from "next/link";
  * No hooks -- usable from both server and client components.
  */
 
+/**
+ * Frosted dark glass: for controls and panels that sit over a busy, coloured
+ * backdrop (the movie / series hero's ambient poster glow), so they stay
+ * readable whatever the poster's colours are. Pair with `border`.
+ */
+export const GLASS = "border-white/10 bg-[#0A0F18]/55 backdrop-blur-md";
+
 /** Uppercase mono English label (JetBrains Mono, wide tracking). */
 export function MonoLabel({
   children,

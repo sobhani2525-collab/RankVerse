@@ -1,4 +1,4 @@
-import { MonoLabel } from "@/components/list-detail/ui";
+import { GLASS, MonoLabel } from "@/components/list-detail/ui";
 import { toFaDigits } from "@/lib/format-number";
 import LiveScore from "@/components/LiveScore";
 import StarRating, { RatableEntity } from "@/components/rating/StarRating";
@@ -31,21 +31,21 @@ export default function EntityScoreRow({
   if (score == null && imdbRating == null && !hasRating) return null;
 
   return (
-    <div className="mt-5 flex flex-col overflow-hidden rounded-2xl border border-border sm:flex-row sm:items-stretch">
+    <div className={`mt-5 flex flex-col overflow-hidden rounded-2xl border shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] sm:flex-row sm:items-stretch ${GLASS}`}>
       {score != null && (
-        <div className="flex flex-col items-start gap-1 border-b border-border p-4 sm:border-b-0 sm:border-e sm:p-5">
-          <MonoLabel size="text-[10px]" className="text-dim">
+        <div className="flex flex-col items-start gap-1 border-b border-white/10 p-4 sm:border-b-0 sm:border-e sm:p-5">
+          <MonoLabel size="text-[10px]" className="text-white/55">
             SCORE
           </MonoLabel>
           <span className="num text-3xl font-extrabold leading-tight text-ink">
             {entityId ? <LiveScore entityId={entityId} score={score} /> : toFaDigits(score.toFixed(1))}
           </span>
-          <span className="text-xs text-muted">امتیاز ترکیبی</span>
+          <span className="text-xs text-white/60">امتیاز ترکیبی</span>
         </div>
       )}
 
       {imdbRating != null && (
-        <div className="flex flex-col items-start gap-1 border-b border-border p-4 sm:border-b-0 sm:border-e sm:p-5">
+        <div className="flex flex-col items-start gap-1 border-b border-white/10 p-4 sm:border-b-0 sm:border-e sm:p-5">
           <MonoLabel size="text-[10px]" className="text-gold">
             IMDb
           </MonoLabel>
@@ -64,7 +64,7 @@ export default function EntityScoreRow({
             </span>
           )}
           {imdbVotes != null && (
-            <span className="num text-xs text-muted">{imdbVotes.toLocaleString("fa-IR")} رأی</span>
+            <span className="num text-xs text-white/60">{imdbVotes.toLocaleString("fa-IR")} رأی</span>
           )}
         </div>
       )}
@@ -72,10 +72,10 @@ export default function EntityScoreRow({
       {hasRating && (
         <div className="flex flex-1 flex-col items-start gap-2 p-4 sm:p-5">
           <div className="flex items-center gap-2">
-            <MonoLabel size="text-[10px]" className="text-dim">
+            <MonoLabel size="text-[10px]" className="text-white/55">
               YOUR RATING
             </MonoLabel>
-            <span className="text-xs text-muted">رأی شما</span>
+            <span className="text-xs text-white/60">رأی شما</span>
           </div>
           <StarRating entity={ratingEntity} bare />
         </div>

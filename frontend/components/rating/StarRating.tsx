@@ -133,7 +133,7 @@ export default function StarRating({ entity, bare = false }: { entity: RatableEn
             other -- only the gold->teal one's clip-path animates with hover,
             so the DOM/width never changes shape (no wrapper resizing, no
             spans mounting/unmounting) and can't nudge the card's layout. */}
-        <div className="pointer-events-none absolute inset-0 flex text-muted/50" aria-hidden="true">
+        <div className={`pointer-events-none absolute inset-0 flex ${bare ? "text-white/25" : "text-muted/50"}`} aria-hidden="true">
           {Array.from({ length: STAR_COUNT }, (_, i) => (
             <span key={i} className="flex h-11 w-11 shrink-0 items-center justify-center text-[32px] leading-none">
               ★
@@ -171,7 +171,7 @@ export default function StarRating({ entity, bare = false }: { entity: RatableEn
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 font-sans text-sm text-muted">
+      <div className={`mt-2 flex flex-wrap items-center gap-2 font-sans text-sm ${bare ? "text-white/60" : "text-muted"}`}>
         {busy ? (
           <>
             <Spinner className="h-4 w-4" />

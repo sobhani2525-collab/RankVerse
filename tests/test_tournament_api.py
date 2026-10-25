@@ -340,6 +340,17 @@ async def test_pool_related_battles_and_lists_share_entries(client, db_session, 
     assert r["winner"] is None
 
 
+async def test_battles_with_entity_lists_the_public_battles_it_is_in(client, db_session, auth_headers):
+    entities = await _entities(db_session, 8)
+    first, _ = await _pool(client, auth_headers, entities[:4])
+    second, _ = await _pool(client, auth_headers, [entities[0], entities[4], entities[5], entities[6]])
+    await _pool(client, auth_headers, entities[4:])  # without entities[0]
+
+    r = (await client.get(f"{URL}/with-entity/{entities[0].id}")).json()["data"]
+    assert [b["slug"] for b in r] == [second, first]  # newest first
+    assert (await client.get(f"{URL}/with-entity/{uuid.uuid4()}")).json()["data"] == []
+
+
 async def test_creator_follows_their_battle_and_list_items_carry_counts(client, db_session, auth_headers):
     entities = await _entities(db_session, 4)
     slug, detail = await _pool(client, auth_headers, entities)

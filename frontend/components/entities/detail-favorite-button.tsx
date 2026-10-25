@@ -31,7 +31,7 @@ export default function DetailFavoriteButton({
     shape === "square"
       ? favorited
         ? "border-[#F07178] bg-[rgba(240,113,120,0.14)] text-[#F07178]"
-        : "border-border bg-surface text-ink hover:border-[#F07178]/40"
+        : "border-white/10 bg-[#0A0F18]/55 text-ink backdrop-blur-md hover:border-[#F07178]/40"
       : favorited
         ? "border-border bg-surface/60 text-gold"
         : "border-border bg-surface/60 text-muted hover:border-gold/40";

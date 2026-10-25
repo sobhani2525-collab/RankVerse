@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getWatchedEntityIds, toggleWatched } from "@/lib/api";
 import { RATING_NUDGE_EVENT } from "@/components/rating/StarRating";
+import { GLASS } from "@/components/list-detail/ui";
 
 /**
  * "تماشا کرده‌ام" -- persists a watched mark. Marking (not un-marking) also
@@ -52,7 +53,7 @@ export default function WatchedButton({ entityId, slug }: { entityId: string; sl
       className={`flex h-11 items-center gap-1.5 rounded-xl border px-4 text-sm font-bold transition ${
         watched
           ? "border-gold/60 bg-gold/15 text-gold"
-          : "border-border bg-surface text-ink hover:border-gold/50 hover:bg-surface-2"
+          : `${GLASS} text-ink hover:border-gold/50 hover:bg-[#0A0F18]/75`
       }`}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

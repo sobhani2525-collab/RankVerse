@@ -1,25 +1,25 @@
 import { cache } from "react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import DetailShareButton from "@/components/entities/detail-share-button";
 import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
-import WatchLaterButton from "@/components/entities/watch-later-button";
+import { AmbientGlow, DetailPoster } from "@/components/entities/detail-hero-art";
 import TrailerPlayer from "@/components/entities/trailer-player";
 import WatchedButton from "@/components/entities/watched-button";
 import WatchLinks from "@/components/entities/watch-links";
 import EntityScoreRow from "@/components/EntityScoreRow";
-import { MonoLabel, Chip, SectionHeading } from "@/components/list-detail/ui";
+import { MonoLabel, Chip, SectionHeading, GLASS } from "@/components/list-detail/ui";
 import { countryNameFa } from "@/lib/country";
-import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
+import { entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
 import EntityBattle from "@/components/EntityBattle";
 import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
-import { getMovieBySlug, getRelatedEntities, getMovieRankings, getPersonBySlug, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
+import EntityOverviewGraph, { OverviewPerson } from "@/components/EntityOverviewGraph";
+import { getMovieBySlug, getRelatedEntities, getMovieRankings, getPersonBySlug, getEgoGraph, EgoGraph, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
@@ -50,12 +50,17 @@ export async function generateStaticParams() {
   return [];
 }
 
+// Genre chips over the hero's poster glow: the usual teal outline on a dark
+// glass fill, so they don't vanish over a teal or blue poster.
+const HERO_GENRE_CHIP = "border-teal/50 bg-[#0A0F18]/55 text-teal backdrop-blur-md hover:border-teal";
+
 export default async function MovieDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   // Each backend read costs ~1.5s (DB round trips), so reads are issued as
   // soon as their input is known instead of one after another: rankings
   // only need the URL slug, related/director only need the movie.
   const rankingsPromise = getMovieRankings(slug).catch((): RankingHighlight[] => []);
+  const egoPromise = getEgoGraph(slug).catch((): EgoGraph | null => null);
   let movie;
   try {
     movie = await loadMovie(slug);
@@ -74,9 +79,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   const mainDirector = movie.directors[0] ?? null;
   const movieId = movie.id;
   let battlePool: MovieListItem[] = [];
-  const [related, rankingHighlights, directorWorks] = await Promise.all([
+  const [related, rankingHighlights, ego, directorWorks] = await Promise.all([
     getRelatedEntities(movieId).catch((): RelatedEntity[] => []),
     rankingsPromise,
+    egoPromise,
     mainDirector
       ? getPersonBySlug(mainDirector.slug)
           .then((director) => {
@@ -91,41 +97,25 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           .catch((): MovieListItem[] => [])
       : Promise.resolve<MovieListItem[]>([]),
   ]);
-  const posterUrl = movie.poster_path
-    ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-    : null;
 
-  const peopleRows = movie.directors.length > 0 ? [{ label: "کارگردان", people: movie.directors }] : [];
+  const overviewPeople: OverviewPerson[] = [
+    ...movie.directors.map((person): OverviewPerson => ({ person, credits: ["directed_by"] })),
+    ...movie.cast.map((person): OverviewPerson => ({ person, credits: ["acted_in"] })),
+  ];
 
   return (
+    <div className="relative isolate">
+      <AmbientGlow posterPath={movie.poster_path} />
     <main className="mx-auto max-w-7xl px-6 py-14">
       <JsonLd data={movieJsonLd(movie, `/movies/${slug}`)} />
-      <Link href="/" className="text-sm text-muted hover:text-gold">
+      <Link href="/" className="text-sm text-white/60 hover:text-gold">
         بازگشت به فهرست
       </Link>
 
       <div className="mt-6 flex flex-col gap-8 sm:flex-row">
-        {/* Deliberately bigger than any related-entity card (max ~227px wide
-            at the lg:grid-cols-5 breakpoint of a max-w-7xl page) so the
-            movie's own poster always reads as the primary image on the page. */}
-        <div className="relative h-[330px] w-[220px] sm:h-[480px] sm:w-80 shrink-0 sm:mx-0 mx-auto">
-          <WatchLaterButton entityId={movie.id} variant="ribbon" />
-        <div className="h-full w-full overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)]">
-          {posterUrl ? (
-            <Image
-              src={posterUrl}
-              alt={displayTitle(movie)}
-              width={320}
-              height={480}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm text-muted">
-              بدون پوستر
-            </div>
-          )}
-        </div>
-        </div>
+        {/* Deliberately bigger than any related-entity card so the title's
+            own poster always reads as the primary image on the page. */}
+        <DetailPoster entityId={movie.id} posterPath={movie.poster_path} alt={displayTitle(movie)} />
 
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
@@ -138,15 +128,15 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
                   <MonoLabel size="text-[10px]" className="text-gold">
                     MOVIE
                   </MonoLabel>
-                  <span className="text-xs text-muted">فیلم</span>
+                  <span className="text-xs text-white/60">فیلم</span>
                 </div>
               </div>
 
-              <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
+              <h1 className="text-[30px] font-black leading-[1.35] text-ink [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[56px] lg:leading-[1.2]">
                 {movie.title_fa ?? movie.title}.
               </h1>
               {movie.title_fa && (
-                <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
+                <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-white/70 [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[44px]">
                   {movie.title}.
                 </p>
               )}
@@ -158,19 +148,19 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Chip tone="border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
+            <Chip tone={`${GLASS} font-bold tracking-[0.08em] text-ink`}>
               <span className="num">{toFaDigits(movie.year ?? "-")}</span>
             </Chip>
             {movie.runtime != null && (
-              <Chip tone="border-border bg-surface-2 text-ink">
+              <Chip tone={`${GLASS} text-ink`}>
                 <span className="num">{toFaDigits(movie.runtime)}</span> دقیقه
               </Chip>
             )}
             {countryNameFa(movie.country) && (
-              <Chip tone="border-border bg-surface-2 text-ink">{countryNameFa(movie.country)}</Chip>
+              <Chip tone={`${GLASS} text-ink`}>{countryNameFa(movie.country)}</Chip>
             )}
             {movie.genres.map((g) => (
-              <Chip key={g.id} href={entityHref("genre", g.slug)} tone={GENRE_CHIP}>
+              <Chip key={g.id} href={entityHref("genre", g.slug)} tone={HERO_GENRE_CHIP}>
                 {genreLabel(g.title)}
               </Chip>
             ))}
@@ -196,10 +186,10 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           {movie.overview && (
             <div className="mt-6">
               <div className="flex items-center gap-2">
-                <MonoLabel size="text-[10px]" className="text-dim">
+                <MonoLabel size="text-[10px]" className="text-white/55">
                   SUMMARY
                 </MonoLabel>
-                <span className="text-xs text-muted">خلاصه</span>
+                <span className="text-xs text-white/60">خلاصه</span>
               </div>
               <p className="mt-2 text-[17px] leading-[2] text-ink/90 lg:text-[17px]">{movie.overview}</p>
             </div>
@@ -210,10 +200,24 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
       <div className="mt-16">
         <EntityGraphWithSidebar
           entityType="movie"
-          peopleRows={peopleRows}
-          cast={movie.cast}
-          genres={movie.genres}
-          year={movie.year}
+          overview={
+            <EntityOverviewGraph
+              self={{
+                id: movie.id,
+                slug: movie.slug,
+                title: movie.title,
+                title_fa: movie.title_fa ?? null,
+                entity_type: "movie",
+                year: movie.year ?? null,
+                score: movie.computed_score ?? null,
+                image_url: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
+                role: "center",
+              }}
+              initial={ego}
+              people={overviewPeople}
+              genres={movie.genres}
+            />
+          }
           rankingHighlights={rankingHighlights}
           entityId={movie.id}
           aboveGraph={
@@ -253,5 +257,6 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         </Link>
       </footer>
     </main>
+    </div>
   );
 }

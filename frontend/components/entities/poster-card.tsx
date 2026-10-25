@@ -61,14 +61,17 @@ export default function PosterCard({
   const title = displayTitle(entity);
 
   return (
-    <div className={`flex shrink-0 flex-col gap-2 ${fluid ? "w-full min-w-0" : "w-[168px] sm:w-full"}`}>
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface-2">
+    <div className={`group flex shrink-0 flex-col gap-2 ${fluid ? "w-full min-w-0" : "w-[168px] sm:w-full"}`}>
+      {/* Hover: the poster lifts, picks up a gold rim and glow, and the art
+          zooms in a touch -- reads as "this is clickable" on every grid. */}
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-surface-2 transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-gold/50 group-hover:shadow-[0_18px_40px_-16px_rgba(232,179,74,0.45)] motion-reduce:transform-none">
         <Link href={href} className="absolute inset-0" aria-label={title}>
           {posterUrl ? (
-            <Image src={posterUrl} alt={title} fill sizes="(max-width: 768px) 168px, 220px" className="object-cover" />
+            <Image src={posterUrl} alt={title} fill sizes="(max-width: 768px) 168px, 220px" className="object-cover transition-transform duration-500 ease-out group-hover:scale-105 motion-reduce:transform-none" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-muted">بدون پوستر</div>
           )}
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </Link>
 
         {rank != null && (
@@ -139,7 +142,7 @@ export default function PosterCard({
         )}
       </div>
 
-      <Link href={href} className="min-w-0 text-sm font-bold text-ink transition hover:text-gold">
+      <Link href={href} className="min-w-0 text-sm font-bold text-ink transition group-hover:text-gold">
         <CardTitle entity={entity} className="truncate" />
       </Link>
 

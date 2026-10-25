@@ -150,8 +150,10 @@ export default function ShareMenu({ url, title, text, getImage, size = 44, shape
         style={variant === "icon" ? { width: size, height: size } : undefined}
         className={
           variant === "icon"
-            ? `relative flex shrink-0 items-center justify-center border border-border transition hover:border-teal/40 hover:text-teal ${
-                shape === "square" ? "rounded-xl bg-surface text-ink" : "rounded-full bg-surface/60 text-muted"
+            ? `relative flex shrink-0 items-center justify-center border transition hover:border-teal/40 hover:text-teal ${
+                shape === "square"
+                  ? "rounded-xl border-white/10 bg-[#0A0F18]/55 text-ink backdrop-blur-md"
+                  : "rounded-full border-border bg-surface/60 text-muted"
               }`
             : "btn-primary inline-flex items-center gap-2 text-sm hover:opacity-90"
         }

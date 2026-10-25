@@ -20,7 +20,7 @@ export default function BattleJumpButton({ label = "نبرد با فیلم مش�
           block: "start",
         });
       }}
-      className="flex h-11 shrink-0 items-center gap-2 rounded-xl border border-violet-strong/60 px-4 text-sm font-bold text-violet-light transition hover:border-violet-light"
+      className="flex h-11 shrink-0 items-center gap-2 rounded-xl border border-violet-strong/60 bg-violet/15 px-4 backdrop-blur-md text-sm font-bold text-violet-light transition hover:border-violet-light hover:bg-violet/25"
     >
       <SwordsIcon size={18} />
       {label}

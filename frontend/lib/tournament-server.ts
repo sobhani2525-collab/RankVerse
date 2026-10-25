@@ -41,3 +41,18 @@ export async function getBattleRelated(slug: string): Promise<BattleRelatedData 
     return null;
   }
 }
+
+/** Public battles a movie / series is an entry of (its page's "related battles"); [] on any failure. */
+export async function getBattlesWithEntity(entityId: string, limit = 4): Promise<TournamentSummary[]> {
+  try {
+    const res = await fetch(`${API_BASE}/battles/with-entity/${encodeURIComponent(entityId)}?limit=${limit}`, {
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+    const json: Envelope<TournamentSummary[]> = await res.json();
+    return json.error ? [] : json.data ?? [];
+  } catch {
+    return [];
+  }
+}

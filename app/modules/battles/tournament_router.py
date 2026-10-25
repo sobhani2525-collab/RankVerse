@@ -264,6 +264,32 @@ async def filter_genres(user: User = Depends(get_current_user), db: AsyncSession
     return envelope(data=await list_genres(db))
 
 
+@router.get("/with-entity/{entity_id}")
+async def battles_with_entity(
+    entity_id: uuid.UUID,
+    limit: int = Query(4, ge=1, le=12),
+    user: User | None = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """Public battles one movie / series is an entry of (the title page's "related battles"):
+    live ones first, then the newest."""
+    battles = (
+        await db.execute(
+            select(Battle)
+            .join(BattleParticipant, BattleParticipant.battle_id == Battle.id)
+            .where(
+                BattleParticipant.entity_id == entity_id,
+                Battle.visibility == "public",
+                Battle.status.in_(("active", "completed")),
+                Battle.is_hidden_from_discovery.is_(False),
+            )
+            .order_by((Battle.status == "active").desc(), Battle.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().unique().all()
+    return envelope(data=await views.battle_list_items(db, list(battles), user.id if user else None))
+
+
 @router.post("/internal/advance-due", dependencies=[Depends(verify_internal_api_key)])
 async def advance_due(db: AsyncSession = Depends(get_db)):
     """For an external cron: advance every battle whose round deadline has passed."""

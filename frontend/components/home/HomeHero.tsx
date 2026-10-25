@@ -1,4 +1,5 @@
 import HeroConstellation from "./HeroConstellation";
+import { SkyLegend } from "@/components/graph/EgoSky";
 import HeroExploreButton from "./HeroExploreButton";
 import { HomeTitle } from "@/lib/home-data";
 import type { EgoGraph } from "@/lib/api";
@@ -97,25 +98,7 @@ export default function HomeHero({
 
         <div className="relative mx-auto w-full max-w-[560px]">
           <HeroConstellation graphs={graphs} />
-          <div className="relative z-10 mx-auto -mt-2 w-fit max-w-full rounded-2xl border border-white/10 bg-[#0A0F18]/70 px-4 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.7)] backdrop-blur-md">
-            <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] text-ink-dim">
-              <li className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 rounded-full bg-gold shadow-[0_0_8px_rgba(232,179,74,0.8)]" /> مرکز
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 rounded-full bg-violet shadow-[0_0_8px_rgba(145,99,245,0.8)]" /> فیلم / سریال
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 rounded-full bg-teal shadow-[0_0_8px_rgba(79,184,166,0.8)]" /> هنرمند
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 rounded-full border-2 border-teal" /> ژانر
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="inline-block h-0.5 w-5 rounded bg-gold" /> نقش در اثر
-              </li>
-            </ul>
-          </div>
+          <SkyLegend />
         </div>
       </div>
     </section>

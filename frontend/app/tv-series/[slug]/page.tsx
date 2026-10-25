@@ -3,26 +3,26 @@ import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
 import EntityExtras from "@/components/entities/entity-extras";
 import { tvJsonLd, tvMetadata } from "@/lib/seo";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailFavoriteButton from "@/components/entities/detail-favorite-button";
 import DetailShareButton from "@/components/entities/detail-share-button";
 import BattleJumpButton from "@/components/entities/battle-jump-button";
 import AddToListMenu from "@/components/entities/add-to-list-menu";
-import WatchLaterButton from "@/components/entities/watch-later-button";
+import { AmbientGlow, DetailPoster } from "@/components/entities/detail-hero-art";
 import TrailerPlayer from "@/components/entities/trailer-player";
 import WatchedButton from "@/components/entities/watched-button";
 import WatchLinks from "@/components/entities/watch-links";
 import EntityScoreRow from "@/components/EntityScoreRow";
-import { MonoLabel, Chip, SectionHeading } from "@/components/list-detail/ui";
+import { MonoLabel, Chip, SectionHeading, GLASS } from "@/components/list-detail/ui";
 import { countryNameFa } from "@/lib/country";
-import { GENRE_CHIP, entityHref } from "@/lib/list-constellation";
+import { entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
 import DirectorWorks from "@/components/DirectorWorks";
 import EntityBattle from "@/components/EntityBattle";
 import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
-import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
+import EntityOverviewGraph, { OverviewPerson } from "@/components/EntityOverviewGraph";
+import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, getEgoGraph, EgoGraph, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
@@ -59,15 +59,19 @@ const ONGOING_STATUSES = new Set(["Returning Series", "In Production", "Planned"
  * role. Someone who is both lands in a single "سازنده و کارگردان" row
  * instead of being listed twice.
  */
-function creditRows(creators: PersonSummary[], directors: PersonSummary[]) {
+// Creators first (marked as directors too when they are), then directors, then cast.
+function overviewCredits(creators: PersonSummary[], directors: PersonSummary[], cast: PersonSummary[]): OverviewPerson[] {
   const directorIds = new Set(directors.map((d) => d.id));
-  const creatorIds = new Set(creators.map((c) => c.id));
   return [
-    { label: "سازنده", people: creators.filter((c) => !directorIds.has(c.id)) },
-    { label: "سازنده و کارگردان", people: creators.filter((c) => directorIds.has(c.id)) },
-    { label: "کارگردان", people: directors.filter((d) => !creatorIds.has(d.id)) },
-  ].filter((row) => row.people.length > 0);
+    ...creators.map((person): OverviewPerson => ({ person, credits: directorIds.has(person.id) ? ["directed_by", "creator"] : ["creator"] })),
+    ...directors.map((person): OverviewPerson => ({ person, credits: ["directed_by"] })),
+    ...cast.map((person): OverviewPerson => ({ person, credits: ["acted_in"] })),
+  ];
 }
+
+// Genre chips over the hero's poster glow: the usual teal outline on a dark
+// glass fill, so they don't vanish over a teal or blue poster.
+const HERO_GENRE_CHIP = "border-teal/50 bg-[#0A0F18]/55 text-teal backdrop-blur-md hover:border-teal";
 
 export default async function TvSeriesDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -75,6 +79,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   // soon as their input is known instead of one after another: rankings
   // only need the URL slug, related/creator only need the show.
   const rankingsPromise = getTvSeriesRankings(slug).catch((): RankingHighlight[] => []);
+  const egoPromise = getEgoGraph(slug).catch((): EgoGraph | null => null);
   let tv;
   try {
     tv = await loadTv(slug);
@@ -94,9 +99,10 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
   const mainCreator = tv.creators[0] ?? tv.directors[0] ?? null;
   const tvId = tv.id;
   let battlePool: MovieListItem[] = [];
-  const [related, rankingHighlights, creatorWorks] = await Promise.all([
+  const [related, rankingHighlights, ego, creatorWorks] = await Promise.all([
     getRelatedEntities(tvId).catch((): RelatedEntity[] => []),
     rankingsPromise,
+    egoPromise,
     mainCreator
       ? getPersonBySlug(mainCreator.slug)
           .then((creator) => {
@@ -111,42 +117,25 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           .catch((): MovieListItem[] => [])
       : Promise.resolve<MovieListItem[]>([]),
   ]);
-  const posterUrl = tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null;
 
   const startYear = tv.first_air_date ? tv.first_air_date.slice(0, 4) : null;
   const isOngoing = tv.status ? ONGOING_STATUSES.has(tv.status) : false;
   const endYear = !isOngoing && tv.last_air_date ? tv.last_air_date.slice(0, 4) : null;
-  const peopleRows = creditRows(tv.creators, tv.directors);
+  const overviewPeople = overviewCredits(tv.creators, tv.directors, tv.cast);
 
   return (
+    <div className="relative isolate">
+      <AmbientGlow posterPath={tv.poster_path} />
     <main className="mx-auto max-w-7xl px-6 py-14">
       <JsonLd data={tvJsonLd(tv, `/tv-series/${slug}`)} />
-      <Link href="/" className="text-sm text-muted hover:text-gold">
+      <Link href="/" className="text-sm text-white/60 hover:text-gold">
         بازگشت به فهرست
       </Link>
 
       <div className="mt-6 flex flex-col gap-8 sm:flex-row">
-        {/* Deliberately bigger than any related-entity card (max ~227px wide
-            at the lg:grid-cols-5 breakpoint of a max-w-7xl page) so the
-            show's own poster always reads as the primary image on the page. */}
-        <div className="relative h-[330px] w-[220px] sm:h-[480px] sm:w-80 shrink-0 sm:mx-0 mx-auto">
-          <WatchLaterButton entityId={tv.id} variant="ribbon" />
-        <div className="h-full w-full overflow-hidden rounded-xl bg-surface2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)]">
-          {posterUrl ? (
-            <Image
-              src={posterUrl}
-              alt={displayTitle(tv)}
-              width={320}
-              height={480}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm text-muted">
-              بدون پوستر
-            </div>
-          )}
-        </div>
-        </div>
+        {/* Deliberately bigger than any related-entity card so the title's
+            own poster always reads as the primary image on the page. */}
+        <DetailPoster entityId={tv.id} posterPath={tv.poster_path} alt={displayTitle(tv)} />
 
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">
@@ -159,15 +148,15 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
                   <MonoLabel size="text-[10px]" className="text-gold">
                     SERIES
                   </MonoLabel>
-                  <span className="text-xs text-muted">سریال</span>
+                  <span className="text-xs text-white/60">سریال</span>
                 </div>
               </div>
 
-              <h1 className="text-[30px] font-black leading-[1.35] text-ink lg:text-[56px] lg:leading-[1.2]">
+              <h1 className="text-[30px] font-black leading-[1.35] text-ink [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[56px] lg:leading-[1.2]">
                 {tv.title_fa ?? tv.title}.
               </h1>
               {tv.title_fa && (
-                <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-dim lg:text-[44px]">
+                <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-white/70 [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[44px]">
                   {tv.title}.
                 </p>
               )}
@@ -180,12 +169,12 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {tv.number_of_seasons != null && (
-              <Chip tone="border-border bg-surface-2 text-ink">
+              <Chip tone={`${GLASS} text-ink`}>
                 <span className="num">{toFaDigits(tv.number_of_seasons)}</span> فصل
               </Chip>
             )}
             {startYear && (
-              <Chip tone="border-border bg-surface-2 font-bold tracking-[0.08em] text-ink">
+              <Chip tone={`${GLASS} font-bold tracking-[0.08em] text-ink`}>
                 {isOngoing ? (
                   <>
                     <span className="num">{toFaDigits(startYear)}</span>–در حال پخش
@@ -200,10 +189,10 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
               </Chip>
             )}
             {countryNameFa(tv.country) && (
-              <Chip tone="border-border bg-surface-2 text-ink">{countryNameFa(tv.country)}</Chip>
+              <Chip tone={`${GLASS} text-ink`}>{countryNameFa(tv.country)}</Chip>
             )}
             {tv.genres.map((g) => (
-              <Chip key={g.id} href={entityHref("genre", g.slug)} tone={GENRE_CHIP}>
+              <Chip key={g.id} href={entityHref("genre", g.slug)} tone={HERO_GENRE_CHIP}>
                 {genreLabel(g.title)}
               </Chip>
             ))}
@@ -229,10 +218,10 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           {tv.overview && (
             <div className="mt-6">
               <div className="flex items-center gap-2">
-                <MonoLabel size="text-[10px]" className="text-dim">
+                <MonoLabel size="text-[10px]" className="text-white/55">
                   SUMMARY
                 </MonoLabel>
-                <span className="text-xs text-muted">خلاصه</span>
+                <span className="text-xs text-white/60">خلاصه</span>
               </div>
               <p className="mt-2 text-[17px] leading-[2] text-ink/90 lg:text-[17px]">{tv.overview}</p>
             </div>
@@ -240,12 +229,12 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
           {tv.networks.length > 0 && (
             <div className="mt-6 flex flex-col items-start gap-2">
-              <MonoLabel size="text-[10px]" className="text-dim">
+              <MonoLabel size="text-[10px]" className="text-white/55">
                 NETWORKS · شبکه پخش
               </MonoLabel>
               <div className="flex flex-wrap gap-1.5">
                 {tv.networks.map((n) => (
-                  <Chip key={n.id} tone="border-border bg-surface-2 text-ink">
+                  <Chip key={n.id} tone={`${GLASS} text-ink`}>
                     {n.title}
                   </Chip>
                 ))}
@@ -258,10 +247,24 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
       <div className="mt-16">
         <EntityGraphWithSidebar
           entityType="tv_series"
-          peopleRows={peopleRows}
-          cast={tv.cast}
-          genres={tv.genres}
-          year={startYear ? Number(startYear) : null}
+          overview={
+            <EntityOverviewGraph
+              self={{
+                id: tv.id,
+                slug: tv.slug,
+                title: tv.title,
+                title_fa: tv.title_fa ?? null,
+                entity_type: "tv_series",
+                year: startYear ? Number(startYear) : null,
+                score: tv.computed_score ?? null,
+                image_url: tv.poster_path ? `https://image.tmdb.org/t/p/w342${tv.poster_path}` : null,
+                role: "center",
+              }}
+              initial={ego}
+              people={overviewPeople}
+              genres={tv.genres}
+            />
+          }
           rankingHighlights={rankingHighlights}
           entityId={tv.id}
           aboveGraph={
@@ -301,5 +304,6 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
         </Link>
       </footer>
     </main>
+    </div>
   );
 }
