@@ -125,6 +125,31 @@ function labelOf(n: EgoNode, max = 14): string {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+/**
+ * A gentle arc from A to B instead of a straight ruler line: the control
+ * point sits off the midpoint, bowed away from the centre of the sky so the
+ * links swirl around the core like orbits. Edges that run through the centre
+ * all bend the same way, which keeps the whole figure turning one direction.
+ */
+function arcPath(ax: number, ay: number, bx: number, by: number): string {
+  const mx = (ax + bx) / 2;
+  const my = (ay + by) / 2;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.hypot(dx, dy) || 1;
+  // unit normal, flipped to point away from (50, 50)
+  let nx = -dy / len;
+  let ny = dx / len;
+  const ox = mx - 50;
+  const oy = my - 50;
+  if (Math.hypot(ox, oy) > 2 && nx * ox + ny * oy < 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  const bend = len * 0.22;
+  return `M${ax} ${ay} Q${round2(mx + nx * bend)} ${round2(my + ny * bend)} ${bx} ${by}`;
+}
+
 // Latin names need an LTR base direction or the ellipsis lands on the wrong end.
 const isLatin = (t: string) => !/[؀-ۿ]/.test(t);
 
@@ -266,12 +291,11 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
             const lit = focus !== null && (e.a === focus || e.b === focus);
             const dim = focus !== null && !lit;
             return (
-              <line
+              <path
                 key={i}
-                x1={A.x}
-                y1={A.y}
-                x2={B.x}
-                y2={B.y}
+                d={arcPath(A.x, A.y, B.x, B.y)}
+                fill="none"
+                strokeLinecap="round"
                 pathLength={1}
                 className="rv-draw transition-[stroke-opacity] duration-700"
                 stroke={e.kind === "credit" ? "#E8B34A" : "#4FB8A6"}

@@ -58,6 +58,16 @@ const KIND_STYLE: Record<Kind, { dot: string; ring: string; text: string; stroke
   year: { dot: "bg-muted", ring: "border-border", text: "text-muted", stroke: "#8A93A6" },
 };
 
+// Spokes leave the centre in a slight swirl (every one bends the same way),
+// like the arms of a galaxy, instead of straight ruler lines.
+function spokePath(x: number, y: number): string {
+  const dx = x - 50;
+  const dy = y - 50;
+  const cx = 50 + dx / 2 - dy * 0.2;
+  const cy = 50 + dy / 2 + dx * 0.2;
+  return `M50 50 Q${Math.round(cx * 100) / 100} ${Math.round(cy * 100) / 100} ${x} ${y}`;
+}
+
 const MAX_SATELLITES = 12; // loaded per focus
 const DEFAULT_SATELLITES = 8; // shown until "نمایش بیشتر"
 const DECADES_WITH_RANKINGS = new Set([1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]);
@@ -391,12 +401,11 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
             <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
               <circle cx="50" cy="50" r="37" fill="none" stroke="#F2F0E8" strokeOpacity="0.05" strokeWidth="0.2" strokeDasharray="0.5 1.5" />
               {placed.map(({ s, x, y }, i) => (
-                <line
+                <path
                   key={`${focus.slug}-${s.key}`}
-                  x1="50"
-                  y1="50"
-                  x2={x}
-                  y2={y}
+                  d={spokePath(x, y)}
+                  fill="none"
+                  strokeLinecap="round"
                   pathLength={1}
                   stroke={KIND_STYLE[s.kind].stroke}
                   strokeOpacity={loadingKey === `${s.kind}:${s.slug}` ? 0.9 : 0.35}
