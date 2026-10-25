@@ -33,7 +33,7 @@ test.describe("signed-in actions", () => {
     await page.getByPlaceholder(/مثلاً/).fill(title);
     // requireAuth needs the client-side session; retry the submit until it is ready.
     await expect(async () => {
-      await page.getByRole("button", { name: "ادامه و افزودن آیتم‌ها" }).click();
+      await page.getByRole("button", { name: "مرحلهٔ بعد" }).click();
       await page.waitForURL(/\/lists\/new\/.+/, { timeout: 3_000 });
     }).toPass({ timeout: 20_000 });
 

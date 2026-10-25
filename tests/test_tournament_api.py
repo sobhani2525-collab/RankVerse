@@ -345,6 +345,10 @@ async def test_battles_with_entity_lists_the_public_battles_it_is_in(client, db_
     first, _ = await _pool(client, auth_headers, entities[:4])
     second, _ = await _pool(client, auth_headers, [entities[0], entities[4], entities[5], entities[6]])
     await _pool(client, auth_headers, entities[4:])  # without entities[0]
+    # One test transaction gives every battle the same now(); age the first so "newest" is defined.
+    older = (await db_session.execute(select(Battle).where(Battle.slug == first))).scalar_one()
+    older.created_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    await db_session.flush()
 
     r = (await client.get(f"{URL}/with-entity/{entities[0].id}")).json()["data"]
     assert [b["slug"] for b in r] == [second, first]  # newest first
