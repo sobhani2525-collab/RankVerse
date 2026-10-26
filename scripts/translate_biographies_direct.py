@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import asyncio
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -34,12 +35,17 @@ from app.modules.sync.translation import (
 
 CHUNK = 50
 REQUEST_TIMEOUT = 180.0
+# Set when the gateway says the (free) allowance is used up: every worker stops
+# at once and the run ends, instead of retrying hundreds of doomed requests.
+QUOTA_EXHAUSTED = threading.Event()
 
 
 def translate_one(client, model: str, item: dict, thinking_off: bool = False, attempts: int = 3) -> str | None:
     extra = {"thinking": {"type": "disabled"}} if thinking_off else {}
     reason = ""
     for attempt in range(attempts):
+        if QUOTA_EXHAUSTED.is_set():
+            return None
         if attempt:
             time.sleep(5 * attempt)
         try:
@@ -50,7 +56,12 @@ def translate_one(client, model: str, item: dict, thinking_off: bool = False, at
                 messages=[{"role": "user", "content": f"Person: {item['title']}\n\nBiography:\n{item['source']}"}],
                 **extra,
             )
-        except Exception as exc:  # network / rate limit / gateway hiccup: retry
+        except anthropic.RateLimitError as exc:
+            if not QUOTA_EXHAUSTED.is_set():
+                print(f"  quota exhausted, stopping: {str(exc)[:300]}", flush=True)
+            QUOTA_EXHAUSTED.set()
+            return None
+        except Exception as exc:  # network / gateway hiccup: retry
             reason = f"error: {str(exc)[:200]}"
             continue
         text = "".join(b.text for b in message.content if b.type == "text").strip()
@@ -96,6 +107,8 @@ async def main() -> None:
     loop = asyncio.get_running_loop()
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         for start in range(0, len(items), CHUNK):
+            if QUOTA_EXHAUSTED.is_set():
+                break
             chunk = items[start : start + CHUNK]
             results = await asyncio.gather(
                 *(loop.run_in_executor(pool, translate_one, client, model, i, args.no_thinking) for i in chunk)
@@ -110,6 +123,9 @@ async def main() -> None:
                         skipped += 1
                 await db.commit()
             print(f"{start + len(chunk)}/{len(items)}: applied {applied}, skipped {skipped}, failed {failed}", flush=True)
+
+    if QUOTA_EXHAUSTED.is_set():
+        print("stopped: the API allowance is used up. Re-run the same command after it resets; finished work is saved.", flush=True)
 
 
 if __name__ == "__main__":
