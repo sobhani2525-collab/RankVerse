@@ -11,7 +11,7 @@ import { detailPathFor } from "@/lib/entity-routes";
 /**
  * The "orbit" drawing of one ego graph: centre in the middle, its titles on
  * an inner ring, people and genres on an outer one, curved links between
- * them, an idle tour that lights one star at a time, and a hover card that
+ * them (the rest dim only while a star is hovered), and a hover card that
  * links to each node's page. Shared by the home hero (HeroConstellation)
  * and the movie / series page's OVERVIEW graph (EntityOverviewGraph); what
  * a click on a star does is up to the caller.
@@ -181,37 +181,16 @@ export default function EgoSky({
   actionLabel?: string;
 }) {
   const [active, setActive] = useState<number | null>(null);
-  // Idle tour: while nobody hovers, the sky walks through the stars one by
-  // one, lighting a star and its links -- showing "these are connected".
-  const [tour, setTour] = useState<number | null>(null);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const placed = useMemo(() => (graph ? layout(graph) : null), [graph]);
   const nodes = placed?.nodes ?? [];
   const edges = placed?.edges ?? [];
-  const focus = active ?? tour;
+  // Only a hovered / focused star dims the rest; at rest every star stays lit.
+  const focus = active;
 
   // A new graph means new indexes; drop whatever was lit on the old one.
   useEffect(() => setActive(null), [graph]);
-
-  useEffect(() => {
-    if (active !== null || nodes.length === 0) {
-      setTour(null);
-      return;
-    }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let step = 0;
-    const tick = () => {
-      setTour(step % nodes.length);
-      step++;
-    };
-    const first = setTimeout(tick, 2000);
-    const id = setInterval(tick, 5000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(id);
-    };
-  }, [active, nodes.length]);
 
   const connected = useMemo(() => {
     if (focus === null) return null;
