@@ -7,6 +7,7 @@ import MediaPlayer from "@/components/MediaPlayer";
 import EntityDescription from "@/components/EntityDescription";
 import RelatedList from "@/components/RelatedList";
 import RelatedEntities from "@/components/RelatedEntities";
+import AwardsSection from "@/components/AwardsSection";
 import PersonCard from "@/components/PersonCard";
 import { MonoLabel, SectionHeading } from "@/components/list-detail/ui";
 import EntityLists from "@/components/EntityLists";
@@ -99,6 +100,12 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
           {/* Movie/tv-series credits use the same poster-card grid as the
               movie page; tracks/albums aren't "فیلم و سریال" so they keep
               the compact ranked-row layout. */}
+          {(data.awards?.length ?? 0) > 0 && (
+            <div className="mt-14">
+              <AwardsSection awards={data.awards} tone="text-gold" />
+            </div>
+          )}
+
           <RelatedList title="کارگردانی‌ها" en="DIRECTED" items={data.directed} display="cards" />
           <RelatedList title="ساخته‌ها" en="CREATED" items={data.created} display="cards" />
           <RelatedList title="بازیگری‌ها" en="ACTED IN" items={data.acted_in} display="cards" />

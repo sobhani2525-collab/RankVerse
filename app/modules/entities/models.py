@@ -114,3 +114,28 @@ class EntityComment(Base):
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EntityAward(Base):
+    """
+    One award result (won / nominated) for a title or a person. For a person's
+    award, for_entity_id is the title it was won for; for a title's award it
+    stays null. See entities/awards.py for the known award keys.
+    """
+    __tablename__ = "entity_awards"
+    __table_args__ = (
+        UniqueConstraint("entity_id", "award", "category", "year", "for_entity_id", name="uq_entity_awards_result",
+                         postgresql_nulls_not_distinct=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    award: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
+    category: Mapped[str] = mapped_column(String(200), nullable=False)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(10), nullable=False)  # won | nominated
+    for_entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=True
+    )

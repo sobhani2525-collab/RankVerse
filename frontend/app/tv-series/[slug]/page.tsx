@@ -18,6 +18,7 @@ import { MonoLabel, Chip, SectionHeading, GLASS } from "@/components/list-detail
 import { countryNameFa } from "@/lib/country";
 import { entityHref } from "@/lib/list-constellation";
 import RelatedEntities from "@/components/RelatedEntities";
+import AwardsSection from "@/components/AwardsSection";
 import DirectorWorks from "@/components/DirectorWorks";
 import EntityBattle from "@/components/EntityBattle";
 import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
@@ -279,6 +280,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           }
           belowGraph={
             <>
+              <AwardsSection awards={tv.awards} />
               {mainCreator && (
                 <DirectorWorks directorName={mainCreator.title_fa ?? mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
               )}

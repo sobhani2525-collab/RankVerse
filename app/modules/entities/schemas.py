@@ -65,6 +65,18 @@ class ImdbInfo(BaseModel):
     imdb_votes: int | None = None
 
 
+class AwardItem(BaseModel):
+    award: str
+    award_name: str
+    award_name_fa: str
+    category: str
+    category_fa: str | None = None
+    year: int
+    status: str  # won | nominated
+    for_title: str | None = None  # a person's award: the title it was for
+    for_slug: str | None = None
+
+
 class MovieDetail(MovieListItem, ImdbInfo):
     overview: str | None = None
     runtime: int | None = None
@@ -76,6 +88,7 @@ class MovieDetail(MovieListItem, ImdbInfo):
     aparat_trailer: str | None = None  # Aparat video hash, set by an admin
     watch_links: list[WatchLinkPublic] = []
     genres: list[GenreSummary] = []
+    awards: list[AwardItem] = []
 
 
 class TVSeriesDetail(MovieListItem, ImdbInfo):
@@ -96,6 +109,7 @@ class TVSeriesDetail(MovieListItem, ImdbInfo):
     watch_links: list[WatchLinkPublic] = []
     genres: list[GenreSummary] = []
     networks: list[GenreSummary] = []
+    awards: list[AwardItem] = []
 
 
 class MovieListResponse(BaseModel):
@@ -127,6 +141,7 @@ class PersonDetail(BaseModel):
     tracks: list[MovieListItem] = []
     albums: list[MovieListItem] = []
     related_people: list[PersonListItem] = []
+    awards: list[AwardItem] = []
 
 
 class GenreDetail(GenreSummary):

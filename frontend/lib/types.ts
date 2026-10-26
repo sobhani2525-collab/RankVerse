@@ -80,6 +80,18 @@ export interface WatchLink {
   is_affiliate: boolean;
 }
 
+export interface Award {
+  award: string;
+  award_name: string;
+  award_name_fa: string;
+  category: string;
+  category_fa?: string | null;
+  year: number;
+  status: "won" | "nominated";
+  for_title?: string | null; // a person's award: the title it was for
+  for_slug?: string | null;
+}
+
 export interface MovieDetail extends MovieListItem, ImdbInfo {
   id:string;
   overview: string | null;
@@ -92,6 +104,7 @@ export interface MovieDetail extends MovieListItem, ImdbInfo {
   aparat_trailer?: string | null; // Aparat video hash, set by an admin
   watch_links?: WatchLink[];
   genres: GenreSummary[];
+  awards?: Award[];
 }
 
 export interface TvSeriesDetail extends MovieListItem, ImdbInfo {
@@ -111,6 +124,7 @@ export interface TvSeriesDetail extends MovieListItem, ImdbInfo {
   watch_links?: WatchLink[];
   genres: GenreSummary[];
   networks: GenreSummary[];
+  awards?: Award[];
 }
 
 export interface PersonDetail {
@@ -127,6 +141,7 @@ export interface PersonDetail {
   tracks: MovieListItem[];
   albums: MovieListItem[];
   related_people: PersonListItem[];
+  awards?: Award[];
 }
 
 export interface GenreDetail {

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.cache import cached
 from app.core.exceptions import ForbiddenError, NotFoundError
+from app.modules.entities.awards import awards_for
 from app.modules.entities.repository import EntityRepository
 from app.modules.watch.service import public_links_for
 from app.modules.entities.schemas import (
@@ -212,6 +213,7 @@ class EntityService:
             aparat_trailer=entity.attributes.get("aparat_trailer"),
             watch_links=await public_links_for(self.db, entity.id),
             genres=genres,
+            awards=await awards_for(self.db, entity.id),
         )
 
     async def get_tv_series_detail(self, slug: str) -> TVSeriesDetail:
@@ -286,6 +288,7 @@ class EntityService:
             watch_links=await public_links_for(self.db, entity.id),
             genres=genres,
             networks=networks,
+            awards=await awards_for(self.db, entity.id),
         )
 
     async def get_person_detail(self, slug: str) -> PersonDetail:
@@ -336,6 +339,7 @@ class EntityService:
             slug=entity.slug,
             title=entity.title,
             title_fa=entity.attributes.get("title_fa"),
+            awards=await awards_for(self.db, entity.id),
             biography=entity.attributes.get("biography"),
             birth_year=entity.attributes.get("birth_year"),
             media=_extract_media(entity.attributes),
