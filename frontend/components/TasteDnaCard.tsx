@@ -75,11 +75,12 @@ function GenreRow({ d, perspective }: { d: TasteDimension; perspective: Perspect
   const examples = v <= 1 ? (d.examples ?? []) : [];
 
   return (
-    <div title={`بر پایهٔ ${toFaDigits(d.sample_size)} امتیاز، ♥ و رأی نبرد`}>
+    <div title={`بر پایهٔ ${toFaDigits(d.sample_size)} امتیاز، ♥ و رأی نبرد`} className="sm:col-span-3 sm:grid sm:grid-cols-subgrid">
       {/* Mobile: name + verdict on one line, the bar full width under them.
-          sm+: name, bar, verdict in one row. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap">
-        <bdi className="min-w-0 flex-1 truncate text-sm font-semibold text-ink sm:w-24 sm:flex-none sm:shrink-0">{genreLabel(d.dimension_key)}</bdi>
+          sm+: name, bar, verdict on the list's shared columns, so the name
+          column is only as wide as the longest genre and bars hug it. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:col-span-3 sm:grid sm:grid-cols-subgrid">
+        <bdi className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{genreLabel(d.dimension_key)}</bdi>
         <div className="order-last h-1.5 min-w-0 basis-full overflow-hidden rounded-full bg-surface2 sm:order-none sm:flex-1 sm:basis-auto">
           {/* Fills from the reading start (right), like ProgressBar. */}
           <div className={`ms-0 h-full rounded-full bg-gradient-to-l ${style.bar}`} style={{ width: `${width}%` }} />
@@ -90,7 +91,7 @@ function GenreRow({ d, perspective }: { d: TasteDimension; perspective: Perspect
         </span>
       </div>
       {(sentence || examples.length > 0) && (
-        <p className="mt-2 text-xs leading-6 text-dim sm:mt-1 sm:pr-[6.75rem] sm:text-[11px] sm:leading-5">
+        <p className="mt-2 text-xs leading-6 text-dim sm:col-span-2 sm:col-start-2 sm:mt-1 sm:text-[11px] sm:leading-5">
           {sentence}
           {examples.length > 0 && (
             <>
@@ -180,7 +181,7 @@ export default function TasteDnaCard({
           <p className="mb-4 text-xs text-muted">
             {perspective === "self" ? "ژانرهای سلیقه‌ات، از بیشترین به کمترین" : "ژانرهای سلیقه‌اش، از بیشترین به کمترین"}
           </p>
-          <div className="flex flex-col gap-5 sm:gap-3.5">
+          <div className="flex flex-col gap-5 sm:grid sm:grid-cols-[max-content_minmax(0,1fr)_7.5rem] sm:gap-x-3 sm:gap-y-3.5">
             {rows.map((d) => (
               <GenreRow key={d.dimension_key} d={d} perspective={perspective} />
             ))}
