@@ -286,6 +286,8 @@ export interface ListSummary {
   // First few items (position order) -- only populated by /lists
   // (discoverLists); see app/modules/lists/service.py's discover().
   preview_items: EntityMini[];
+  /** Total items (preview_items holds only the first 5). */
+  item_count?: number;
 }
 
 export interface ListDetail extends ListSummary {

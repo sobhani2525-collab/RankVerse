@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getListBySlug, updateList, deleteList } from "@/lib/api";
-import { encodeListSlug, listHref } from "@/lib/list-url";
+import { draftListHref, listHref } from "@/lib/list-url";
+import { MIN_ITEMS_TO_PUBLISH as MIN_ITEMS } from "@/lib/constants";
 import { toFaDigits } from "@/lib/format-number";
 import type { ListDetail } from "@/lib/types";
 import { ListViewerProvider, useListViewer } from "@/components/list-detail/ListViewerContext";
@@ -13,11 +14,6 @@ import { ListBattleProvider } from "@/components/list-detail/ListBattleContext";
 import ListManageArea from "@/components/list-detail/ListManageArea";
 import ListStepper from "@/components/ListStepper";
 import ListEditPanel from "@/components/ListEditPanel";
-
-const draftHref = (slug: string) => `/lists/new/${encodeListSlug(slug)}`;
-
-// Mirrors MIN_ITEMS_TO_PUBLISH in app/modules/lists/service.py (the server enforces it).
-const MIN_ITEMS = 5;
 
 /** Publish/discard footer; reads the live item count, which updates as items are added. */
 function PublishBar({
@@ -187,7 +183,7 @@ export default function DraftListEditor({ slug }: { slug: string }) {
               <ListEditPanel
                 slug={detail.slug}
                 detail={detail}
-                hrefFor={draftHref}
+                hrefFor={draftListHref}
                 allowDelete={false}
                 onSaved={reloadDetail}
                 onCancel={() => setEditing(false)}

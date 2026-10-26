@@ -183,6 +183,10 @@ class ListSummary(BaseModel):
     # sites (list_by_user, related, for-entity) don't eager-load items/owner,
     # so this stays empty and owner_username stays None there.
     preview_items: list[EntityMini] = Field(default_factory=list)
+    # Total items -- filled alongside preview_items (same eager-loaded
+    # `items`), so the owner's profile can flag drafts that still need
+    # MIN_ITEMS_TO_PUBLISH before they can be published.
+    item_count: int = 0
 
 
 class RelatedListSummary(ListSummary):

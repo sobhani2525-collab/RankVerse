@@ -503,6 +503,7 @@ class ListService:
         summary.owner_avatar_key = lst.owner.avatar_key if lst.owner else None
         summary.owner_display_name = lst.owner.display_name if lst.owner else None
         summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:5]]
+        summary.item_count = len(lst.items)
         return summary
 
     # --- Items ---

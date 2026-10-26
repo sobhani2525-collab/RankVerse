@@ -18,3 +18,8 @@ export function encodeListSlug(slug: string): string {
 export function listHref(slug: string): string {
   return `/lists/${encodeListSlug(slug)}`;
 }
+
+/** The owner-only editor for an unpublished (private) draft. */
+export function draftListHref(slug: string): string {
+  return `/lists/new/${encodeListSlug(slug)}`;
+}

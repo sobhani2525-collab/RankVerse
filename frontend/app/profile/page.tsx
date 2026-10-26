@@ -20,6 +20,7 @@ import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import ProfileStats from "@/components/profile/profile-stats";
 import ExpandableSection from "@/components/profile/expandable-section";
 import ProfileEditor from "@/components/profile/profile-editor";
+import IncompleteListCard, { isIncompleteList } from "@/components/profile/incomplete-list-card";
 import AccountSettings from "@/components/profile/account-settings";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { StarIcon, ListIcon, SwordsIcon, MessageCircleIcon } from "@/components/list-detail/icons";
@@ -205,6 +206,9 @@ export default function ProfilePage() {
 
   // Its own section after Taste DNA (it's a to-watch list, not part of the
   // taste reading); #watch-later deep links land here.
+  const incompleteLists = (lists ?? []).filter(isIncompleteList);
+  const completeLists = (lists ?? []).filter((list) => !isIncompleteList(list));
+
   const watchLaterSection = (
     <ExpandableSection
       id="watch-later"
@@ -316,6 +320,21 @@ export default function ProfilePage() {
 
       {watchLaterSection}
 
+      {/* --- Unfinished lists (owner-only: this page is always the viewer's own) --- */}
+      {incompleteLists.length > 0 && (
+        <ExpandableSection
+          id="my-incomplete-lists"
+          en="UNFINISHED LISTS"
+          fa="فهرست‌های نیمه‌کاره"
+          preview={LIST_PREVIEW}
+          gridClassName="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+        >
+          {incompleteLists.map((list) => (
+            <IncompleteListCard key={list.id} list={list} />
+          ))}
+        </ExpandableSection>
+      )}
+
       {/* --- Lists --- */}
       <ExpandableSection
         id="my-lists"
@@ -335,15 +354,19 @@ export default function ProfilePage() {
             <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center text-sm text-muted">{listsError}</div>
           ) : (
             <div className="rounded-2xl border border-border-soft bg-surface/60 px-5 py-8 text-center">
-              <p className="text-sm text-muted">هنوز هیچ فهرستی نساخته‌اید.</p>
-              <Link href="/lists/new" className="mt-4 inline-block text-sm text-gold hover:underline">
-                ساخت اولین فهرست
-              </Link>
+              <p className="text-sm text-muted">
+                {incompleteLists.length > 0 ? "هنوز هیچ فهرستی را کامل منتشر نکرده‌اید." : "هنوز هیچ فهرستی نساخته‌اید."}
+              </p>
+              {incompleteLists.length === 0 && (
+                <Link href="/lists/new" className="mt-4 inline-block text-sm text-gold hover:underline">
+                  ساخت اولین فهرست
+                </Link>
+              )}
             </div>
           )
         }
       >
-        {(lists ?? []).map((list) => (
+        {completeLists.map((list) => (
           <ListTicketCard key={list.id} list={listSummaryToTicketCard(list)} />
         ))}
       </ExpandableSection>

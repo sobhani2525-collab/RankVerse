@@ -2,6 +2,9 @@
 // to badge/tint an entity by its type (ListCard's per-type count badges,
 // EntityCard type chips, etc). Kept here as a single source of truth so
 // the mapping stays consistent across components.
+// Mirrors MIN_ITEMS_TO_PUBLISH in app/modules/lists/service.py (the server enforces it).
+export const MIN_ITEMS_TO_PUBLISH = 5;
+
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
   movie: "فیلم",
   tv_series: "سریال",

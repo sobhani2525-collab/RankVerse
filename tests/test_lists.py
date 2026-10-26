@@ -274,6 +274,35 @@ async def test_related_lists_carry_a_reason_and_skip_unrelated(client, auth_head
     assert related[0]["slug"] == sharing_items
 
 
+async def test_my_lists_report_item_count_so_drafts_can_be_flagged(client, auth_headers, db_session):
+    """The owner's profile marks a list "incomplete" from visibility +
+    item_count (vs. MIN_ITEMS_TO_PUBLISH), so /users/me/lists must carry
+    the full count, not just the 5-item preview."""
+    from app.modules.entities.repository import EntityRepository
+
+    res = await client.post(
+        "/api/v1/lists", headers=auth_headers, json={"title": "Half Done", "visibility": "private"}
+    )
+    slug = res.json()["data"]["slug"]
+    repo = EntityRepository(db_session)
+    for i in range(3):
+        movie = await repo.create_entity(
+            entity_type="movie", external_id=None, external_source=None,
+            title=f"Half Movie {i}", slug=f"half-movie-{i}", attributes={},
+        )
+        await db_session.commit()
+        added = await client.post(
+            f"/api/v1/lists/{slug}/items", headers=auth_headers, json={"entity_id": str(movie.id)}
+        )
+        assert added.status_code == 200
+
+    mine = await client.get("/api/v1/users/me/lists", headers=auth_headers)
+    assert mine.status_code == 200
+    draft = next(l for l in mine.json()["data"] if l["slug"] == slug)
+    assert draft["visibility"] == "private"
+    assert draft["item_count"] == 3
+
+
 async def _list_with(client, auth_headers, title, entities):
     created = await client.post("/api/v1/lists", headers=auth_headers, json={"title": title})
     slug = created.json()["data"]["slug"]
