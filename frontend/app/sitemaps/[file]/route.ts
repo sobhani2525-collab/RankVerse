@@ -1,5 +1,6 @@
-import { getEntitySitemapPage, getListsSitemap, SitemapEntityType } from "@/lib/api";
+import { getBattlesSitemap, getEntitySitemapPage, getListsSitemap, SitemapEntityType } from "@/lib/api";
 import { listHref } from "@/lib/list-url";
+import { tournamentHref } from "@/lib/tournament";
 import {
   SITEMAP_CHUNK,
   SITEMAP_ENTITY_ROUTE,
@@ -43,6 +44,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
           lastmod: l.updated_at,
           changefreq: "weekly",
           priority: "0.7",
+        })),
+      ),
+    );
+  }
+
+  if (file === "battles.xml") {
+    const battles = await getBattlesSitemap().catch(() => []);
+    return xmlResponse(
+      urlset(
+        battles.map((b) => ({
+          loc: absoluteUrl(tournamentHref(b.slug)),
+          lastmod: b.updated_at,
+          changefreq: "daily",
+          priority: "0.5",
         })),
       ),
     );

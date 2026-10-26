@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, get_read_db
 from app.core.exceptions import NotFoundError
 from app.core.schemas import Meta, envelope
 from app.modules.auth.dependencies import ensure_email_verified, get_current_user, get_current_user_optional
@@ -32,6 +32,8 @@ from .tournament_related import related_for_pool
 from .tournament_models import Battle, BattleFollow, BattleMatch, BattleParticipant, BattlePick, BattleVote
 
 router = APIRouter(prefix="/battles", tags=["tournament-battles"])
+# Outside the /battles prefix so it sits beside /sitemap/lists and /sitemap/entities.
+sitemap_router = APIRouter(tags=["tournament-battles"])
 
 EntityType = Literal["movie", "tv_series"]
 
@@ -315,6 +317,21 @@ async def battles_with_entity(
         )
     ).scalars().unique().all()
     return envelope(data=await views.battle_list_items(db, list(battles), user.id if user else None))
+
+
+@sitemap_router.get("/sitemap/battles")
+async def battles_sitemap(db: AsyncSession = Depends(get_read_db)):
+    """Public pool battles for sitemap.xml: the same set the /battles page lists."""
+    rows = await db.execute(
+        select(Battle.slug, Battle.updated_at)
+        .where(
+            Battle.mode == "pool", Battle.visibility == "public", Battle.status.in_(("active", "completed")),
+            Battle.is_hidden_from_discovery.is_(False),
+        )
+        .order_by(Battle.updated_at.desc())
+        .limit(50000)
+    )
+    return envelope(data=[{"slug": slug, "updated_at": updated_at} for slug, updated_at in rows.all()])
 
 
 @router.post("/internal/advance-due", dependencies=[Depends(verify_internal_api_key)])

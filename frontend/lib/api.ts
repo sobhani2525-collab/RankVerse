@@ -560,6 +560,11 @@ export async function getListsSitemap(): Promise<{ slug: string; updated_at: str
   return fetchEnvelope<{ slug: string; updated_at: string | null }[]>(`/sitemap/lists`, 3600);
 }
 
+/** Public pool battles for sitemap.xml. */
+export async function getBattlesSitemap(): Promise<{ slug: string; updated_at: string | null }[]> {
+  return fetchEnvelope<{ slug: string; updated_at: string | null }[]>(`/sitemap/battles`, 3600);
+}
+
 export type SitemapEntityType = "movie" | "tv_series" | "person" | "genre";
 
 export async function getEntitySitemapCounts(): Promise<Record<SitemapEntityType, number>> {

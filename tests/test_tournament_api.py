@@ -428,3 +428,19 @@ async def test_public_list_searches_title_with_persian_folding_and_digits(client
     assert await found("فیلم های دهه ۹۰") == [slugs["بهترین فيلم‌های دهه 90"]]
     assert await found("جنایی") == [slugs["سریال‌های جنایی"]]
     assert await found("100%") == []
+
+
+async def test_sitemap_lists_only_public_discoverable_pools(client, db_session, auth_headers):
+    entities = await _entities(db_session, 4)
+    public, _ = await _pool(client, auth_headers, entities)
+    unlisted, _ = await _pool(client, auth_headers, entities, visibility="unlisted")
+    hidden, _ = await _pool(client, auth_headers, entities)
+    (await db_session.execute(select(Battle).where(Battle.slug == hidden))).scalar_one().is_hidden_from_discovery = True
+    await db_session.flush()
+    draft = (await client.post(URL, json={"title": "پیش‌نویس", "entity_type": "movie", "bracket_size": 4}, headers=auth_headers)).json()["data"]["slug"]
+
+    rows = (await client.get("/api/v1/sitemap/battles")).json()["data"]
+    slugs = [r["slug"] for r in rows]
+    assert public in slugs
+    assert not {unlisted, hidden, draft} & set(slugs)
+    assert all(r["updated_at"] for r in rows)

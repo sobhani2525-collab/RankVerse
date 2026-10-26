@@ -3,9 +3,9 @@ import { SITEMAP_CHUNK, SITEMAP_ENTITY_TYPES, sitemapIndex, xmlResponse } from "
 
 export const revalidate = 3600;
 
-/** Sitemap index: static pages, lists, then one file per SITEMAP_CHUNK entities of each type. */
+/** Sitemap index: static pages, lists, battles, then one file per SITEMAP_CHUNK entities of each type. */
 export async function GET() {
-  const files = ["static.xml", "lists.xml"];
+  const files = ["static.xml", "lists.xml", "battles.xml"];
   try {
     const counts = await getEntitySitemapCounts();
     for (const type of SITEMAP_ENTITY_TYPES) {
