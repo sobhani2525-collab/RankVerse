@@ -1,19 +1,12 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { castBattleVote } from "@/lib/api";
 import type { MovieListItem } from "@/lib/types";
-import { displayTitle } from "@/lib/title";
-import { toFaDigits } from "@/lib/format-number";
-import { entityHref, entityPosterUrl } from "@/lib/list-constellation";
+import { absoluteUrl } from "@/lib/site";
 import { SectionHeading } from "@/components/list-detail/ui";
-import { PickMark, useBattlePick } from "@/components/battle/PickMark";
-import CardTitle from "@/components/entities/card-title";
-
-type Side = "left" | "right";
+import WinnerStaysBattle, { WinnerStaysItem } from "@/components/battle/WinnerStaysBattle";
 
 interface Domain {
   key: string;
@@ -55,32 +48,56 @@ function buildDomains(directed: MovieListItem[], created: MovieListItem[], acted
 }
 
 /**
- * The person page's BATTLE section, "winner stays" like the list page's:
- * the run starts from the person's weakest titles and the winner of each
- * pair faces the next-weakest until one final winner is left. A person
- * with many credits battles within one randomly picked field (acting,
- * directing...) per run. Each tap is cast as a normal /battles vote.
+ * The person page's BATTLE section, drawn with the same "winner stays" piece
+ * as /battles/*: the run starts from the person's weakest titles and the
+ * winner of each pair faces the next-weakest until one final winner is left.
+ * A person with many credits battles within one randomly picked field
+ * (acting, directing...) per run. Each tap is cast as a normal /battles vote.
  */
 export default function PersonBattle({
   directed,
   created,
   actedIn,
+  personName,
 }: {
   directed: MovieListItem[];
   created: MovieListItem[];
   actedIn: MovieListItem[];
+  personName: string;
 }) {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { openLoginModal } = useAuthGate();
+  const pathname = usePathname();
   const domains = useMemo(() => buildDomains(directed, created, actedIn), [directed, created, actedIn]);
   // Picked after mount so server and client markup agree.
   const [pick, setPick] = useState<{ index: number; runId: number } | null>(null);
+  const [runDone, setRunDone] = useState(false);
+  const markDone = useCallback(() => setRunDone(true), []);
 
   useEffect(() => {
     setPick(domains.length ? { index: Math.floor(Math.random() * domains.length), runId: 0 } : null);
   }, [domains]);
 
-  if (!pick || !domains[pick.index]) return null;
+  const domain = pick ? domains[pick.index] : undefined;
+  const items: WinnerStaysItem[] = useMemo(
+    () =>
+      (domain?.items ?? []).map((i) => ({
+        id: i.id,
+        slug: i.slug,
+        title: i.title,
+        title_fa: i.title_fa,
+        entity_type: i.entity_type,
+        poster_path: i.poster_path,
+        image_url: i.media?.image_url ?? null,
+        year: i.year,
+      })),
+    [domain]
+  );
+
+  if (!pick || !domain) return null;
 
   function again() {
+    setRunDone(false);
     setPick((p) => {
       if (!p) return p;
       let index = Math.floor(Math.random() * domains.length);
@@ -89,203 +106,29 @@ export default function PersonBattle({
     });
   }
 
-  const domain = domains[pick.index];
   return (
-    <section aria-labelledby="person-battle-heading" className="flex scroll-mt-24 flex-col gap-4">
-      <BattleRun key={`${pick.runId}:${domain.key}`} domain={domain} onAgain={again} />
-    </section>
-  );
-}
-
-export function BattleRun({ domain, onAgain }: { domain: Domain; onAgain: () => void }) {
-  const { getToken } = useAuth();
-  const { requireAuth } = useAuthGate();
-  const items = domain.items;
-  const [step, setStep] = useState(0);
-  const [champion, setChampion] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [voted, setVoted] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-
-  const total = items.length - 1;
-  const done = step >= total;
-  const challenger = Math.min(step + 1, items.length - 1);
-  const championItem = items[champion];
-  const challengerItem = items[challenger];
-
-  const pickAnim = useBattlePick<Side>();
-
-  function choose(winner: Side) {
-    if (done || pickAnim.busy) return;
-    const token = getToken();
-    const request = token
-      ? castBattleVote(token, {
-          category: championItem.entity_type,
-          left_item: championItem.id,
-          right_item: challengerItem.id,
-          winner,
-        }).catch((err) => setError(err instanceof Error ? err.message : "خطا در ثبت رأی"))
-      : null;
-    pickAnim.start(winner, request, () => {
-      if (winner === "left") {
-        setStreak((n) => n + 1);
-      } else {
-        setChampion(challenger);
-        setStreak(1);
-      }
-      setVoted((n) => n + 1);
-      setStep((s) => s + 1);
-    });
-  }
-
-  const heading = (
-    <div id="person-battle-heading" className="flex flex-col gap-1.5">
-      <SectionHeading en="BATTLE" fa={done ? "نبرد تمام شد" : "کدام بهتر است؟"} tone="text-violet-light" />
-      <p className="text-xs text-dim">
-        {domain.label} · {domain.note ?? "از ضعیف‌ترین"}
-        {!done && (
-          <>
-            {" "}— جفت <span className="num">{toFaDigits(step + 1)}</span> از <span className="num">{toFaDigits(total)}</span>
-          </>
-        )}
-      </p>
-    </div>
-  );
-
-  const progressBar = (
-    <div className="relative h-[3px] w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
-      <div
-        className="absolute inset-y-0 start-0 rounded-full bg-violet-light transition-[width] duration-300 ease-out motion-reduce:transition-none"
-        style={{ width: `${(Math.min(step, total) / total) * 100}%` }}
+    <section aria-labelledby="person-battle-heading" className="flex scroll-mt-24 flex-col gap-5">
+      <div id="person-battle-heading">
+        <SectionHeading en="BATTLE" fa={runDone ? "برندهٔ نبرد" : "کدام بهتر است؟"} tone="text-violet-light" />
+      </div>
+      <WinnerStaysBattle
+        key={`${pick.runId}:${domain.key}`}
+        items={items}
+        category={items[0].entity_type}
+        signedIn={!authLoading && isAuthenticated}
+        reason={`${personName} · ${domain.label} · ${domain.note ?? "از ضعیف‌ترین"}`}
+        share={{ url: absoluteUrl(pathname), topic: personName, battleName: personName }}
+        onDone={markDone}
+        onNext={again}
       />
-    </div>
-  );
-
-  const againButton = (
-    <button
-      type="button"
-      onClick={onAgain}
-      className="flex min-h-[44px] items-center self-start rounded-[10px] border border-violet-strong/60 px-4 text-sm font-bold text-violet-light transition hover:border-violet-light"
-    >
-      نبرد جدید
-    </button>
-  );
-
-  const poster = (item: MovieListItem, size: string) => {
-    const url = entityPosterUrl(item, size);
-    return url ? (
-      <Image src={url} alt="" fill sizes="(max-width: 1024px) 45vw, 185px" className="object-cover" />
-    ) : (
-      <span dir="ltr" className="absolute inset-0 flex items-end bg-gradient-to-br from-surface-2 to-bg p-2.5 text-left font-mono text-xs text-muted">
-        {item.title}
-      </span>
-    );
-  };
-
-  if (done) {
-    return (
-      <>
-        {heading}
-        {progressBar}
-        <div className="flex items-center gap-4 battle-swap" aria-live="polite">
-          <div className="relative aspect-[2/3] w-20 shrink-0 overflow-hidden rounded-xl border-[1.5px] border-gold bg-surface-2 shadow-[0_0_0_4px_rgba(232,179,74,0.18)]">
-            {poster(championItem, "w342")}
-          </div>
-          <div className="flex flex-col gap-1 text-[13px] leading-[1.8]">
-            <p className="font-bold text-ink">برنده نهایی {domain.label}</p>
-            <p className="text-ink-dim">
-              🏆 <span className="font-bold text-gold">{displayTitle(championItem)}</span>
-              {streak > 0 && (
-                <>
-                  {" "}· <span className="num">{toFaDigits(streak)}</span> برد پیاپی
-                </>
-              )}
-            </p>
-            {voted > 0 && !error && <p className="text-muted">رأی‌هایت در رتبه‌بندی عمومی ثبت شد.</p>}
-          </div>
+      {!authLoading && !isAuthenticated && !runDone && (
+        <div className="flex flex-col items-center gap-2 text-center">
+          <button type="button" onClick={openLoginModal} className="btn-primary text-sm hover:opacity-90">
+            ورود
+          </button>
+          <p className="text-xs text-muted">برای ثبت انتخاب‌هایت در رتبه‌بندی باید وارد شوی.</p>
         </div>
-        {error && <p className="text-xs text-gold">{error}</p>}
-        {againButton}
-      </>
-    );
-  }
-
-  const sides: [Side, MovieListItem][] = [
-    ["left", championItem],
-    ["right", challengerItem],
-  ];
-
-  return (
-    <>
-      {heading}
-
-      {/* RTL grid: the champion (the vote's left_item) sits on the right. */}
-      <div className="relative grid grid-cols-2 gap-2.5">
-        {sides.map(([side, item]) => {
-          const isChampion = side === "left";
-          return (
-            <button
-              key={isChampion ? `champion-${champion}` : `challenger-${step}`}
-              type="button"
-              onClick={() => requireAuth(() => choose(side))}
-              disabled={pickAnim.busy}
-              aria-label={`انتخاب ${displayTitle(item)}`}
-              className={`relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-surface-2 transition ${
-                isChampion
-                  ? `border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.18)] hover:shadow-[0_0_0_4px_rgba(232,179,74,0.32)] ${champion !== 0 ? "battle-swap" : ""}`
-                  : "battle-swap border border-border hover:border-violet-light"
-              }`}
-            >
-              {poster(item, "w500")}
-              {pickAnim.picked === side && <PickMark phase={pickAnim.phase} />}
-              {isChampion && streak > 0 && (
-                <span className="absolute start-2 top-2 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-bold text-gold">
-                  <span className="num">{toFaDigits(streak)}</span> برد
-                </span>
-              )}
-            </button>
-          );
-        })}
-        <span
-          className="pointer-events-none absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[1.5px] border-violet-light bg-bg font-mono text-xs text-violet-light shadow-[0_0_0_6px_rgba(11,15,26,0.9)]"
-          aria-hidden="true"
-        >
-          VS
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5">
-        {sides.map(([side, item]) => {
-          const href = entityHref(item.entity_type, item.slug);
-          return (
-            <div key={side === "left" ? `champion-${champion}` : `challenger-${step}`} className="flex flex-col gap-0.5">
-              {href ? (
-                <Link href={href} className="min-w-0 text-[15px] font-extrabold leading-snug text-ink hover:text-gold">
-                  <CardTitle entity={item} subClassName="text-xs text-muted" />
-                </Link>
-              ) : (
-                <span className="min-w-0 text-[15px] font-extrabold leading-snug text-ink">
-                  <CardTitle entity={item} subClassName="text-xs text-muted" />
-                </span>
-              )}
-              {item.year ? <span className="num text-xs text-dim">{toFaDigits(item.year)}</span> : null}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex items-center gap-4">
-        <div className="flex-1">{progressBar}</div>
-        <button
-          type="button"
-          onClick={() => setStep((s) => s + 1)}
-          className="flex min-h-[44px] shrink-0 items-center text-[13px] text-dim transition hover:text-ink"
-        >
-          رد کردن
-        </button>
-      </div>
-
-      {error && <p className="text-xs text-gold">{error}</p>}
-    </>
+      )}
+    </section>
   );
 }

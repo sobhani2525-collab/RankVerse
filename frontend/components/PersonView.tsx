@@ -120,7 +120,7 @@ export default async function PersonView({ data }: { data: PersonDetail }) {
 
         {/* Same side column as the list page: battle, lists, comments. */}
         <aside className="flex shrink-0 flex-col gap-10 lg:mt-14 lg:w-[380px] lg:gap-7">
-          <PersonBattle directed={data.directed} created={data.created} actedIn={data.acted_in} />
+          <PersonBattle directed={data.directed} created={data.created} actedIn={data.acted_in} personName={data.title_fa ?? data.title} />
           <EntityLists entityId={data.id} variant="sidebar" />
           <EntityComments entityId={data.id} />
         </aside>

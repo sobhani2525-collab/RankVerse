@@ -24,6 +24,8 @@ export interface WinnerStaysItem {
   title_fa: string | null;
   entity_type: string;
   poster_path: string | null;
+  /** A non-TMDb poster (media.image_url); wins over poster_path when set. */
+  image_url?: string | null;
   year: number | null;
 }
 
@@ -404,10 +406,19 @@ async function storyCredit(item: WinnerStaysItem): Promise<{ label: string; name
   }
 }
 
-export function BattlePoster({ item, sizes, zoom }: { item: Pick<WinnerStaysItem, "poster_path">; sizes: string; zoom?: boolean }) {
-  return item.poster_path ? (
+export function BattlePoster({
+  item,
+  sizes,
+  zoom,
+}: {
+  item: Pick<WinnerStaysItem, "poster_path" | "image_url">;
+  sizes: string;
+  zoom?: boolean;
+}) {
+  const src = item.image_url ?? (item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null);
+  return src ? (
     <Image
-      src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+      src={src}
       alt=""
       fill
       sizes={sizes}
