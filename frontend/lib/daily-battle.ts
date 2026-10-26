@@ -58,13 +58,15 @@ export function formatCountdown(totalSeconds: number): string {
 /** "شنبه ۱۱ مهر ۱۴۰۵" for a YYYY-MM-DD Tehran date. */
 export function formatJalaliDate(isoDate: string): string {
   try {
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian-nu-latn", {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
       timeZone: "Asia/Tehran",
-    }).format(new Date(`${isoDate}T12:00:00+03:30`));
+    }).formatToParts(new Date(`${isoDate}T12:00:00+03:30`));
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+    return `${get("weekday")}، ${get("day")} ${get("month")} ${get("year")}`;
   } catch {
     return toFaDigits(isoDate);
   }

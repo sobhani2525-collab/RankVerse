@@ -46,6 +46,8 @@ interface Focus {
   label: string;
   subLabel?: string | null;
   caption: string;
+  // Year + director for a title; role + birth year for a person.
+  meta?: string;
   posterUrl: string | null;
   satellites: Satellite[];
 }
@@ -110,6 +112,12 @@ function focusFromTitle(t: {
     label: t.label,
     subLabel: t.subLabel,
     caption: t.kind === "tv_series" ? "سریال" : "فیلم",
+    meta: [
+      t.year ? toFaDigits(t.year) : null,
+      [...(t.creators ?? []).slice(0, 1), ...t.directors.slice(0, 2)].map((p) => p.title_fa ?? p.title).join("، ") || null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
     posterUrl: t.posterUrl,
     satellites: unique.slice(0, MAX_SATELLITES),
   };
@@ -151,7 +159,14 @@ async function loadFocus(kind: Exclude<Kind, "year">, slug: string): Promise<Foc
       .filter(({ m }) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
       .slice(0, MAX_SATELLITES)
       .map(({ m, relation }) => titleSatellite(m, relation));
-    return { kind, slug, label: p.title_fa ?? p.title, caption: "هنرمند", posterUrl: p.media.image_url, satellites: sats };
+    const roles = [
+      [p.directed.length, "کارگردان"],
+      [p.created.length, "سازنده"],
+      [p.acted_in.length, "بازیگر"],
+    ] as const;
+    const top = roles.reduce((a, b) => (b[0] > a[0] ? b : a));
+    const meta = [top[0] > 0 ? top[1] : null, p.birth_year ? `متولد ${toFaDigits(p.birth_year)}` : null].filter(Boolean).join(" · ");
+    return { kind, slug, label: p.title_fa ?? p.title, caption: "هنرمند", meta, posterUrl: p.media.image_url, satellites: sats };
   }
 
   const g = await getGenreBySlug(slug);
@@ -424,7 +439,10 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
             )}
 
             {/* Centre node */}
-            <div className="absolute left-1/2 top-1/2 z-10 flex w-[34%] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center">
+            <CardShell
+              href={focusHref}
+              className="absolute left-1/2 top-1/2 z-10 flex w-[34%] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center"
+            >
               <div className={`relative h-20 w-20 overflow-hidden rounded-full border-2 bg-surface2 shadow-[0_0_60px_-10px_rgba(232,179,74,0.5)] sm:h-28 sm:w-28 ${KIND_STYLE[focus.kind].ring}`}>
                 {focus.posterUrl ? (
                   <Image src={focus.posterUrl} alt="" fill sizes="112px" className="object-cover" />
@@ -441,7 +459,8 @@ export default function KnowledgeGraphExplorer({ seed }: { seed: HomeTitle }) {
                 </p>
               )}
               <p className={`text-[10px] ${KIND_STYLE[focus.kind].text}`}>{focus.caption}</p>
-            </div>
+              {focus.meta && <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-muted sm:text-xs">{focus.meta}</p>}
+            </CardShell>
 
             {placed.map(({ s, x, y }) => {
               const style = KIND_STYLE[s.kind];

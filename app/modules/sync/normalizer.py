@@ -110,8 +110,15 @@ def person_backfill_attrs(raw: dict) -> dict:
         **person_attributes(raw.get("profile_path")),
         **person_biography_attrs(raw),
         **person_name_attrs(raw),
+        "birth_year": _birth_year(raw.get("birthday")),
     }
     return {k: v for k, v in attrs.items() if v is not None}
+
+
+def _birth_year(birthday: str | None) -> int | None:
+    """Year from TMDb's 'YYYY-MM-DD' birthday, None when missing or malformed."""
+    head = (birthday or "")[:4]
+    return int(head) if head.isdigit() else None
 
 
 def _credit(c: dict, **extra) -> dict:

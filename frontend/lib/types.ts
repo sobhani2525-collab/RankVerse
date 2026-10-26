@@ -119,6 +119,7 @@ export interface PersonDetail {
   title: string;
   title_fa?: string | null;
   biography: string | null;
+  birth_year?: number | null;
   media: MediaInfo;
   directed: MovieListItem[];
   created: MovieListItem[];

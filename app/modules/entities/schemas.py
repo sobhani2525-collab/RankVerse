@@ -119,6 +119,7 @@ class PersonDetail(BaseModel):
     title: str
     title_fa: str | None = None
     biography: str | None = None
+    birth_year: int | None = None
     media: MediaInfo = MediaInfo()
     directed: list[MovieListItem] = []
     created: list[MovieListItem] = []

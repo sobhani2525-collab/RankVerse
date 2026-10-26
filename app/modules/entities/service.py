@@ -337,6 +337,7 @@ class EntityService:
             title=entity.title,
             title_fa=entity.attributes.get("title_fa"),
             biography=entity.attributes.get("biography"),
+            birth_year=entity.attributes.get("birth_year"),
             media=_extract_media(entity.attributes),
             directed=sorted(
                 (_movie_list_item(e.from_entity) for e in directed_edges), key=_by_score_desc
