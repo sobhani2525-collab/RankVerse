@@ -201,8 +201,9 @@ export default function WinnerStaysBattle({
       <div className="mx-auto max-w-xl">
         <div className="rv-rise mt-6 flex flex-col items-center gap-5 text-center">
           {doneView === "winner" && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative w-52 sm:w-60">
+            <div className="flex w-full max-w-[18rem] flex-col items-center gap-4">
+              {/* the poster and the buttons below share one width */}
+              <div className="relative w-full">
                 <span className="absolute -top-3 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-gold px-4 py-1 text-xs font-extrabold text-bg shadow-[0_8px_24px_-6px_rgba(232,179,74,0.7)]">
                   <TrophyIcon className="h-3.5 w-3.5" />
                   برنده
@@ -210,7 +211,7 @@ export default function WinnerStaysBattle({
                 {(() => {
                   const poster = (
                     <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl border-2 border-gold bg-surface2 shadow-[0_0_0_6px_rgba(232,179,74,0.16),0_28px_70px_-18px_rgba(232,179,74,0.5)]">
-                      <BattlePoster item={championItem} sizes="(max-width: 640px) 208px, 240px" />
+                      <BattlePoster item={championItem} sizes="288px" />
                     </div>
                   );
                   return href ? (
@@ -243,7 +244,7 @@ export default function WinnerStaysBattle({
           {voted > 0 && getToken() && !error && <p className="text-sm text-teal">رأی‌هایت در رتبه‌بندی ثبت شد.</p>}
           {error && <p className="text-xs text-gold">{error}</p>}
 
-          <div className="flex w-full max-w-sm flex-col gap-3">
+          <div className="flex w-full max-w-[18rem] flex-col gap-3">
             <button
               type="button"
               onClick={onNext}
