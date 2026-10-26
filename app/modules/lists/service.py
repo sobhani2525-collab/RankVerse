@@ -83,7 +83,7 @@ _COUNTRY_FA = {
 }
 # Genre entity title (lower-cased) -> Persian name for the "why" line.
 _GENRE_FA = {
-    "action": "اکشن", "adventure": "ماجراجویی", "animation": "انیمیشن", "comedy": "کمدی", "crime": "جنایی",
+    "action": "اکشن", "adventure": "ماجراجویی", "animation": "انیمیشن", "biography": "بیوگرافی", "comedy": "کمدی", "crime": "جنایی",
     "documentary": "مستند", "drama": "درام", "family": "خانوادگی", "fantasy": "فانتزی", "history": "تاریخی",
     "horror": "ترسناک", "music": "موسیقی", "mystery": "معمایی", "romance": "عاشقانه",
     "science fiction": "علمی‌تخیلی", "thriller": "هیجانی", "war": "جنگی", "western": "وسترن",

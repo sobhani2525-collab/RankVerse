@@ -9,6 +9,7 @@ Run with: pytest tests/test_catalog_import_helpers.py
 import gzip
 import uuid
 
+from app.modules.sync.imdb_genres import load_genres
 from app.modules.sync.imdb_ratings import load_ratings, rating_above
 from app.modules.sync.normalizer import normalize_movie, normalize_tv_series
 from app.modules.sync.service import _merge_preserved_attributes
@@ -182,3 +183,19 @@ def test_rating_above_falls_back_to_tmdb_score_without_imdb_rating():
     assert accept(normalize_movie({**RAW_MOVIE, "vote_average": 6.2})) is True
     assert accept(normalize_movie({**RAW_MOVIE, "imdb_id": None, "vote_average": 4.5})) is False
     assert accept(normalize_movie({**RAW_MOVIE, "imdb_id": None})) is False
+
+
+def test_load_genres_keeps_only_imdb_only_genres_of_wanted_titles(tmp_path):
+    path = tmp_path / "title.basics.tsv.gz"
+    rows = [
+        "tconst\ttitleType\tprimaryTitle\toriginalTitle\tisAdult\tstartYear\tendYear\truntimeMinutes\tgenres",
+        # A bare double quote in a title must not swallow the next rows.
+        'tt0108052\tmovie\tSchindler\'s "List\tSchindler\'s List\t0\t1993\t\\N\t195\tBiography,Drama,History',
+        "tt0137523\tmovie\tFight Club\tFight Club\t0\t1999\t\\N\t139\tDrama",
+        "tt0000001\tshort\tCarmencita\tCarmencita\t0\t1894\t\\N\t1\tBiography",
+        "tt0903747\ttvSeries\tBreaking Bad\tBreaking Bad\t0\t2008\t2013\t45\t\\N",
+    ]
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        f.write("\n".join(rows) + "\n")
+
+    assert load_genres(path, {"tt0108052", "tt0137523", "tt0903747"}) == {"tt0108052": {"Biography"}}

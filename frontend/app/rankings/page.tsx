@@ -15,7 +15,7 @@ import {
 export const revalidate = 1800;
 
 const GENRES = [
-  "action", "adventure", "animation", "comedy", "crime", "documentary", "drama", "family",
+  "action", "adventure", "animation", "biography", "comedy", "crime", "documentary", "drama", "family",
   "fantasy", "history", "horror", "music", "mystery", "romance", "science-fiction", "thriller", "war", "western",
 ];
 

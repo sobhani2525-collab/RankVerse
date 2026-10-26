@@ -11,6 +11,7 @@ const GENRE_LABELS: Record<string, string> = {
   action: "اکشن",
   adventure: "ماجراجویی",
   animation: "انیمیشن",
+  biography: "بیوگرافی",
   comedy: "کمدی",
   crime: "جنایی",
   documentary: "مستند",

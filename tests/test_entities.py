@@ -134,6 +134,34 @@ async def test_replace_relationships_with_empty_list_removes_all(db_session):
     assert related == []
 
 
+async def test_replace_relationships_keeps_edges_of_other_sources(db_session):
+    repo = EntityRepository(db_session)
+    series = await repo.create_entity(
+        entity_type="tv_series", external_id=None, external_source=None,
+        title="Mixed Source Series", slug="mixed-source-series", attributes={},
+    )
+    drama = await repo.create_entity(
+        entity_type="genre", external_id=None, external_source=None,
+        title="Drama", slug="drama-mixed", attributes={},
+    )
+    biography = await repo.create_entity(
+        entity_type="genre", external_id=None, external_source=None,
+        title="Biography", slug="biography-mixed", attributes={},
+    )
+    await db_session.commit()
+
+    await repo.create_relationship(series.id, drama.id, "has_genre")
+    await repo.create_relationship(series.id, biography.id, "has_genre", source="imdb_dataset")
+    await db_session.commit()
+
+    # A TMDb re-sync that no longer lists Drama retracts only its own edge.
+    await repo.replace_relationships(series.id, "has_genre", [])
+    await db_session.commit()
+
+    related = await repo.get_related(series.id, relation_type="has_genre")
+    assert {r.to_entity_id for r in related} == {biography.id}
+
+
 async def test_list_movies_endpoint_returns_seeded_movie(client, db_session):
     repo = EntityRepository(db_session)
     await repo.create_entity(

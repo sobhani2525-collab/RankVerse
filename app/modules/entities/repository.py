@@ -745,10 +745,15 @@ class EntityRepository:
 
         edge_metadata_by_target, when given, sets each kept edge's metadata
         (refreshed on existing edges too, not only on newly created ones).
+
+        Only edges with this same `source` are ever deleted, so edges another
+        source owns (e.g. the IMDb-dataset Biography genre, see
+        sync.imdb_genres) survive a TMDb re-sync.
         """
         stale_stmt = delete(RelationshipEdge).where(
             RelationshipEdge.from_entity_id == from_entity_id,
             RelationshipEdge.relation_type == relation_type,
+            RelationshipEdge.source == source,
         )
         if to_entity_ids:
             stale_stmt = stale_stmt.where(RelationshipEdge.to_entity_id.notin_(to_entity_ids))

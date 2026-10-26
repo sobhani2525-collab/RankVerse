@@ -16,6 +16,7 @@ from app.modules.lists.similar import _GENERIC, normalize
 # Persian words in list titles -> the (lower-cased) English genre entity title.
 GENRE_WORDS_FA: dict[str, str] = {
     "اکشن": "action", "ماجراجویی": "adventure", "انیمیشن": "animation", "انیمه": "animation",
+    "بیوگرافی": "biography", "زندگی‌نامه": "biography", "زندگینامه": "biography",
     "کمدی": "comedy", "طنز": "comedy", "جنایی": "crime", "مستند": "documentary", "درام": "drama",
     "خانوادگی": "family", "فانتزی": "fantasy", "تاریخی": "history", "ترسناک": "horror", "وحشت": "horror",
     "موسیقی": "music", "موزیکال": "music", "معمایی": "mystery", "رازآلود": "mystery",
@@ -24,6 +25,7 @@ GENRE_WORDS_FA: dict[str, str] = {
 }
 GENRE_WORDS_EN: dict[str, str] = {
     "action": "action", "adventure": "adventure", "animation": "animation", "comedy": "comedy",
+    "biography": "biography", "biopic": "biography", "biopics": "biography",
     "crime": "crime", "documentary": "documentary", "drama": "drama", "family": "family",
     "fantasy": "fantasy", "history": "history", "horror": "horror", "music": "music", "musical": "music",
     "mystery": "mystery", "romance": "romance", "thriller": "thriller", "war": "war", "western": "western",

@@ -36,6 +36,7 @@ GENRE_FA: dict[str, str] = {
     "action": "اکشن",
     "adventure": "ماجراجویی",
     "animation": "انیمیشن",
+    "biography": "بیوگرافی",
     "comedy": "کمدی",
     "crime": "جنایی",
     "documentary": "مستند",

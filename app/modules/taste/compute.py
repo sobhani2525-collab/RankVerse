@@ -584,6 +584,7 @@ ARCHETYPE_MAP: dict[str, str] = {
     "horror": "طالب دلهره",
     "documentary": "حقیقت‌جو",
     "animation": "شکارچی شگفتی",
+    "biography": "راوی زندگی‌ها",
     "fantasy": "جهان‌ساز",
     "thriller": "شکارچی تعلیق",
     "romance": "دنباله‌رو دل",
