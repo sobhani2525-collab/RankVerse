@@ -26,6 +26,7 @@ engine = create_async_engine(
     max_overflow=settings.db_max_overflow,
     pool_timeout=settings.db_pool_timeout,
     pool_recycle=settings.db_pool_recycle,
+    connect_args={"server_settings": {"statement_timeout": str(settings.db_statement_timeout_ms)}},
 )
 
 AsyncSessionLocal = async_sessionmaker(

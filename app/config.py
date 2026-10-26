@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     db_pool_size: int = 10
     db_max_overflow: int = 10
     db_pool_timeout: int = 15  # seconds to wait for a free connection
+    db_statement_timeout_ms: int = 20000  # cancel a runaway query instead of holding its connection
     db_pool_recycle: int = 300  # drop connections the pooler may have closed
 
     jwt_secret: str
