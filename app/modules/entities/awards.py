@@ -17,6 +17,7 @@ AWARDS: dict[str, tuple[str, str]] = {
     "venice": ("Venice Film Festival", "جشنواره ونیز"),
     "berlin": ("Berlin Film Festival", "جشنواره برلین"),
     "emmy": ("Primetime Emmy Awards", "امی"),
+    "fajr": ("Fajr Film Festival", "جشنواره فیلم فجر"),
 }
 
 CATEGORIES_FA: dict[str, str] = {
@@ -101,6 +102,7 @@ CATEGORIES_FA: dict[str, str] = {
     "Outstanding Music Composition for a Series (Original Dramatic Score)": "بهترین آهنگسازی سریال (موسیقی متن اصلی)",
     "Outstanding Cinematography for a Single-Camera Series": "بهترین فیلمبرداری سریال تک‌دوربینه",
     "Individual Performance in a Variety or Music Program": "بهترین اجرای فردی در برنامهٔ ورایتی یا موسیقی",
+    "Best Screenplay": "بهترین فیلمنامه",
     "Palme d'Or": "نخل طلا",
     "Golden Lion": "شیر طلایی",
     "Golden Bear": "خرس طلایی",
