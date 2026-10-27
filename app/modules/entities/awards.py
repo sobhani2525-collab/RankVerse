@@ -114,7 +114,7 @@ async def awards_for(db: AsyncSession, entity_id: uuid.UUID) -> list[AwardItem]:
     target = aliased(Entity)
     rows = (
         await db.execute(
-            select(EntityAward, target.title, target.slug)
+            select(EntityAward, target.title, target.slug, target.attributes["title_fa"].astext)
             .outerjoin(target, target.id == EntityAward.for_entity_id)
             .where(EntityAward.entity_id == entity_id)
         )
@@ -129,10 +129,10 @@ async def awards_for(db: AsyncSession, entity_id: uuid.UUID) -> list[AwardItem]:
             category_fa=CATEGORIES_FA.get(a.category),
             year=a.year,
             status=a.status,
-            for_title=title,
+            for_title=title_fa or title,
             for_slug=slug,
         )
-        for a, title, slug in rows
+        for a, title, slug, title_fa in rows
     ]
     items.sort(key=lambda i: (
         order.index(i.award) if i.award in order else len(order),
