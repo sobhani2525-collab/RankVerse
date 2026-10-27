@@ -42,4 +42,4 @@ async def test_a_failing_job_does_not_stop_the_others(monkeypatch):
 
 def test_real_jobs_are_registered():
     names = {name for name, _, _ in periodic.JOBS}
-    assert names == {"tournament rounds", "notification cleanup", "alerts maintenance"}
+    assert names == {"tournament rounds", "notification cleanup", "alerts maintenance", "daily auto list"}
