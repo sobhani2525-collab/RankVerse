@@ -289,6 +289,13 @@ class Settings(BaseSettings):
     # deadlines, notification and admin-alert cleanup.
     periodic_jobs_enabled: bool = True
 
+    # Daily auto-created list (app/modules/auto_lists): when enabled, the
+    # periodic loop creates `auto_lists_per_day` public list(s) per Tehran day
+    # under the account with this email, at a date-dependent hour.
+    auto_lists_enabled: bool = False
+    auto_lists_user_email: str = "cinemagozin@gmail.com"
+    auto_lists_per_day: int = 1
+
     # --- In-app notifications (app/modules/notifications) ---
     notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once
     notif_retention_days: int = 30  # read notifications older than this are purged by the cleanup job

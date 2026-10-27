@@ -44,11 +44,26 @@ async def alerts_maintenance() -> dict:
         return await AlertService(db).maintenance()
 
 
+async def create_daily_list() -> str | None:
+    """Create today's auto list under the site account when it is due (see
+    app/modules/auto_lists); a no-op unless AUTO_LISTS_ENABLED is set."""
+    from app.config import settings
+
+    if not settings.auto_lists_enabled:
+        return None
+    from app.modules.auto_lists.service import create_daily_list as run
+
+    async with AsyncSessionLocal() as db:
+        lst = await run(db)
+        return lst.slug if lst else None
+
+
 # (name, job, interval in seconds)
 JOBS: list[tuple[str, Callable[[], Awaitable[object]], int]] = [
     ("tournament rounds", advance_tournament_rounds, 5 * 60),
     ("notification cleanup", purge_old_notifications, 6 * 3600),
     ("alerts maintenance", alerts_maintenance, 6 * 3600),
+    ("daily auto list", create_daily_list, 20 * 60),
 ]
 
 
