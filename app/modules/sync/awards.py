@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -100,6 +101,7 @@ async def import_awards(db: AsyncSession, award: str) -> dict[str, int]:
             )
         ).all()
     }
+    title_ids = set(by_imdb.values())
     # people carry only a TMDb id (Wikidata P4985), no IMDb id
     by_tmdb = {
         tmdb: eid
@@ -120,8 +122,16 @@ async def import_awards(db: AsyncSession, award: str) -> dict[str, int]:
         if not eid:
             continue
         for_id = by_imdb.get(b["forImdb"]["value"]) if "forImdb" in b else None
-        category = b["catLabel"]["value"]
         year = int(b["year"]["value"])
+        if not 1927 <= year <= date.today().year + 1:
+            continue  # bad Wikidata dates (e.g. a 1909 Emmy)
+        if eid in title_ids:
+            # a title's own award has no "for work"; one pointing elsewhere is
+            # a person's statement attached to the wrong item
+            if for_id not in (None, eid):
+                continue
+            for_id = None
+        category = b["catLabel"]["value"]
         won = b["won"]["value"] in ("true", "1")
         key = (eid, category, year, for_id)
         # a result can be listed as both nominated and won; won takes precedence
