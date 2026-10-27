@@ -19,14 +19,18 @@ from app.modules.entities.models import Entity, EntityAward
 SPARQL_URL = "https://query.wikidata.org/sparql"
 USER_AGENT = "RankVerse/1.0 (https://github.com/sobhani2525-collab)"
 
-# award key -> (Wikidata item that confers the award's categories (P1027), label prefix; other labels are skipped)
-SOURCES: dict[str, tuple[str, str]] = {
-    "oscar": ("Q212329", "Academy Award for "),
+# award key -> (property linking a category to the award, Wikidata item it
+# points at, category label prefix; labels without the prefix are skipped)
+SOURCES: dict[str, tuple[str, str, str]] = {
+    "oscar": ("P1027", "Q212329", "Academy Award for "),
+    "golden_globe": ("P361", "Q1011547", "Golden Globe Award for "),
+    "bafta": ("P361", "Q732997", "BAFTA Award for "),
+    "emmy": ("P361", "Q1044427", "Primetime Emmy Award for "),
 }
 
 _CATEGORIES_QUERY = """
 SELECT ?cat ?catLabel WHERE {{
-  ?cat wdt:P1027 wd:{ceremony} .
+  ?cat wdt:{link} wd:{ceremony} .
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
 }}
 """
@@ -58,9 +62,9 @@ def _fetch(query: str) -> list[dict]:
     raise RuntimeError(f"Wikidata SPARQL endpoint kept failing: {last!r}")
 
 
-def _fetch_all(ceremony: str, prefix: str) -> list[dict]:
+def _fetch_all(link: str, ceremony: str, prefix: str) -> list[dict]:
     rows: list[dict] = []
-    for c in _fetch(_CATEGORIES_QUERY.format(ceremony=ceremony)):
+    for c in _fetch(_CATEGORIES_QUERY.format(link=link, ceremony=ceremony)):
         qid = c["cat"]["value"].rsplit("/", 1)[-1]
         label = c["catLabel"]["value"]
         if not label.startswith(prefix):
@@ -82,8 +86,8 @@ def _fetch_all(ceremony: str, prefix: str) -> list[dict]:
 
 
 async def import_awards(db: AsyncSession, award: str) -> dict[str, int]:
-    ceremony, prefix = SOURCES[award]
-    rows = await asyncio.to_thread(_fetch_all, ceremony, prefix)
+    link, ceremony, prefix = SOURCES[award]
+    rows = await asyncio.to_thread(_fetch_all, link, ceremony, prefix)
 
     by_imdb = {
         imdb: eid
