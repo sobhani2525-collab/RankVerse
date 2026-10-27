@@ -13,11 +13,14 @@ export default function AwardsSection({ awards, tone }: { awards?: Award[]; tone
 
   const groups = new Map<string, Award[]>();
   for (const a of awards) groups.set(a.award, [...(groups.get(a.award) ?? []), a]);
+  // One award fills the whole row (its results flow into two columns);
+  // several awards sit side by side as separate cards.
+  const single = groups.size === 1;
 
   return (
     <div>
       <SectionHeading en="AWARDS" fa="جوایز" tone={tone} />
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className={`mt-4 grid gap-4 ${single ? "" : "md:grid-cols-2"}`}>
         {[...groups.values()].map((items) => {
           const wins = items.filter((a) => a.status === "won").length;
           return (
@@ -28,7 +31,7 @@ export default function AwardsSection({ awards, tone }: { awards?: Award[]; tone
                   {toFaDigits(wins)} برد · {toFaDigits(items.length - wins)} نامزدی
                 </span>
               </h3>
-              <ul className="mt-3 space-y-2 text-base">
+              <ul className={`mt-3 grid gap-x-8 gap-y-2 text-base ${single ? "md:grid-cols-2" : ""}`}>
                 {items.map((a, i) => (
                   <li key={i} className={a.status === "won" ? "font-medium text-gold" : "text-ink/85"}>
                     <span>
