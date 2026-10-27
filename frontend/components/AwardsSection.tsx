@@ -28,7 +28,10 @@ export default function AwardsSection({ awards, tone }: { awards?: Award[]; tone
               <h3 className="flex items-baseline justify-between gap-2 text-base font-semibold">
                 <span>{items[0].award_name_fa}</span>
                 <span className="text-sm font-normal text-dim">
-                  {toFaDigits(wins)} برد · {toFaDigits(items.length - wins)} نامزدی
+                  {[
+                    wins > 0 && `${toFaDigits(wins)} برد`,
+                    items.length - wins > 0 && `${toFaDigits(items.length - wins)} نامزدی`,
+                  ].filter(Boolean).join(" · ")}
                 </span>
               </h3>
               <ul className={`mt-3 grid gap-x-8 gap-y-2 text-base ${single ? "md:grid-cols-2" : ""}`}>

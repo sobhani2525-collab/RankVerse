@@ -84,6 +84,26 @@ async def _same_genre_pool(
     )
 
 
+# Release-year gap beyond which a pick counts as another era.
+_ERA_SPAN_YEARS = 30
+
+
+def _prefer_same_era(entity, picks: list, entity_of) -> list:
+    """Drop picks released more than _ERA_SPAN_YEARS from `entity`, but only
+    when that leaves something: a sparse title keeps its cross-era picks
+    rather than an empty section. Picks without a year are kept."""
+    year = (entity.attributes or {}).get("year")
+    if not isinstance(year, int):
+        return picks
+
+    def near(pick) -> bool:
+        other = (entity_of(pick).attributes or {}).get("year")
+        return not isinstance(other, int) or abs(other - year) <= _ERA_SPAN_YEARS
+
+    kept = [p for p in picks if near(p)]
+    return kept or picks
+
+
 async def _related_entities(db: AsyncSession, entity_id: uuid.UUID, limit: int):
     repo = EntityRepository(db)
     entity = await repo.get_by_id(entity_id)
@@ -91,6 +111,9 @@ async def _related_entities(db: AsyncSession, entity_id: uuid.UUID, limit: int):
         raise HTTPException(status_code=404, detail="Entity not found")
 
     edges = await repo.get_related(entity_id, relation_type="similar_to", limit=limit)
+    # Era guard: a 2024 film "similar" to a 1930s classic only because they
+    # share genres reads as a bad pick, so same-era titles go first.
+    edges = _prefer_same_era(entity, edges, lambda edge: edge.to_entity)
 
     # Fallback: the similar_to graph (scripts/build_similarity_graph.py)
     # only links entities with >=2 shared connections, so a title with
@@ -103,7 +126,8 @@ async def _related_entities(db: AsyncSession, entity_id: uuid.UUID, limit: int):
     if len(edges) < limit:
         skip = {entity_id, *(edge.to_entity.id for edge in edges)}
         pool = await _same_genre_pool(repo, entity_id, entity.entity_type, limit, _is_persian(entity))
-        fallback_entities = [e for e in pool if e.id not in skip][: limit - len(edges)]
+        candidates = _prefer_same_era(entity, [e for e in pool if e.id not in skip], lambda e: e)
+        fallback_entities = candidates[: limit - len(edges)]
 
     # Every pick's "why" in one query rather than one per pick.
     shared = await repo.get_shared_connections_many(
