@@ -595,12 +595,14 @@ class ListService:
         person_items = sum(1 for e in list_entities if e.entity_type == "person")
         is_people_list = (
             entity_type == "person"
-            or (not entity_type and (
-                lst.entity_type == "person" or person_items * 2 > len(list_entities)
-            ))
+            or (not entity_type and person_items * 2 > len(list_entities))
         )
+        # An empty list made from a person's page is typed "person" only because
+        # of where it was started; until it has items, search titles as well.
+        empty_person_list = not list_entities and lst.entity_type == "person"
         types = ["person"] if is_people_list else (
-            [entity_type] if entity_type in WORK_TYPES else list(WORK_TYPES)
+            [entity_type] if entity_type in WORK_TYPES
+            else [*WORK_TYPES, *(["person"] if empty_person_list else [])]
         )
         list_nodes = _build_graph_items(
             list_entities,
@@ -719,8 +721,7 @@ class ListService:
         people_list = (
             entity_type == "person"
             or (not entity_type and (
-                lst.entity_type == "person"
-                or (list_nodes and person_nodes * 2 > len(list_nodes))
+                (list_nodes and person_nodes * 2 > len(list_nodes))
                 or (hints.wants_people and not list_nodes)
             ))
         )
