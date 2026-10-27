@@ -198,7 +198,7 @@ export default function WinnerStaysBattle({
   if (done) {
     const href = detailPathFor(championItem.entity_type, championItem.slug);
     return (
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto w-full max-w-xl">
         <div className="rv-rise mt-6 flex flex-col items-center gap-5 text-center">
           {doneView === "winner" && (
             <div className="flex w-full max-w-[18rem] flex-col items-center gap-4">
@@ -298,7 +298,7 @@ export default function WinnerStaysBattle({
   ];
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto w-full max-w-xl">
       {reasonLine}
 
       {/* RTL grid: the champion (the vote's left_item) sits on the right. */}
