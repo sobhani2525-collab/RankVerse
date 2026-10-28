@@ -11,6 +11,8 @@ from app.modules.users.schemas import (
     FavoritePublic, ProfileUpdate, RatingCreate, RatingPublic, UserProfilePublic, UserPublic, WatchedToggle,
 )
 from app.modules.users.service import UserService
+from app.modules.users.similar import similar_users, toggle_follow
+import uuid
 
 router = APIRouter(tags=["users"])
 
@@ -26,6 +28,28 @@ async def update_my_profile(
     await UserRepository(db).update_profile(current_user, fields)
     await db.commit()
     return envelope(data=UserPublic.model_validate(current_user).model_dump())
+
+
+@router.get("/users/similar")
+async def get_similar_users(
+    limit: int = 8,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_read_db),
+):
+    return envelope(data=await similar_users(db, current_user.id, max(1, min(limit, 20))))
+
+
+@router.post("/users/{user_id}/follow")
+async def follow_user(
+    user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    state = await toggle_follow(db, current_user.id, user_id)
+    if state is None:
+        raise NotFoundError("User not found")
+    await db.commit()
+    return envelope(data={"following": state})
 
 
 @router.get("/users/{username}")

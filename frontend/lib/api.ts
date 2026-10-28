@@ -1104,3 +1104,22 @@ export interface PairSuggestion {
 export async function getPairSuggestion(token: string): Promise<PairSuggestion | null> {
   return authFetch<PairSuggestion | null>("/battles/suggestion", token);
 }
+
+export interface SimilarUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_key: string | null;
+  match_percent: number;
+  common_count: number;
+  following: boolean;
+}
+
+export async function getSimilarUsers(token: string, limit = 8): Promise<SimilarUser[]> {
+  return authFetch<SimilarUser[]>(`/users/similar?limit=${limit}`, token);
+}
+
+/** Toggles the follow; resolves to the new state. */
+export async function toggleUserFollow(token: string, userId: string): Promise<{ following: boolean }> {
+  return authFetch<{ following: boolean }>(`/users/${userId}/follow`, token, { method: "POST" });
+}
