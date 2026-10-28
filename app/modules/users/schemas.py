@@ -10,6 +10,10 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8)
 
 
+class GoogleLogin(BaseModel):
+    credential: str = Field(min_length=20, max_length=4096)  # Google ID token (JWT)
+
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str

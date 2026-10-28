@@ -13,7 +13,7 @@ from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import (
-    UserCreate, UserLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest, ChangePasswordRequest, DeleteAccountRequest,
+    UserCreate, UserLogin, GoogleLogin, UserPublic, TokenPair, ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest, ChangePasswordRequest, DeleteAccountRequest,
 )
 from app.modules.users.service import UserService
 
@@ -54,6 +54,13 @@ async def login(payload: UserLogin, request: Request, db: AsyncSession = Depends
     await enforce("login-email", payload.email, LOGIN_EMAIL_LIMIT, TEN_MINUTES)
     service = UserService(db)
     tokens = await service.login(payload)
+    return envelope(data=tokens.model_dump())
+
+
+@router.post("/google")
+async def google_login(payload: GoogleLogin, request: Request, db: AsyncSession = Depends(get_db)):
+    await enforce("login-ip", client_ip(request), LOGIN_IP_LIMIT, TEN_MINUTES)
+    tokens = await UserService(db).login_with_google(payload.credential)
     return envelope(data=tokens.model_dump())
 
 

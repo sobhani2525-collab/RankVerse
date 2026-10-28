@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import {
   loginUser,
+  loginWithGoogle,
   registerUser,
   getMe,
   onAccessTokenRefreshed,
@@ -26,6 +27,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginGoogle: (credential: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
   /** Switches to a freshly issued token pair (after a password change ends every older session). */
@@ -105,6 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me);
   }
 
+  async function loginGoogle(credential: string) {
+    const tokens = await loginWithGoogle(credential);
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, tokens.access_token);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token);
+    setTokenEverywhere(tokens.access_token);
+    setUser(await getMe(tokens.access_token));
+  }
+
   async function register(email: string, username: string, password: string) {
     await registerUser({ email, username, password });
     await login(email, password);
@@ -135,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!token,
         loading,
         login,
+        loginGoogle,
         register,
         logout,
         adoptTokens,

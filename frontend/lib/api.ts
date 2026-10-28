@@ -245,6 +245,12 @@ export async function loginUser(payload: { email: string; password: string }) {
   );
 }
 
+export async function loginWithGoogle(credential: string) {
+  return postEnvelope<{ access_token: string; refresh_token: string }>("/auth/google", {
+    credential,
+  });
+}
+
 export async function getMe(token: string) {
   return authFetch<{
     id: string;

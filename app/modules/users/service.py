@@ -1,7 +1,9 @@
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 
+import httpx
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,6 +59,55 @@ class UserService:
             access_token=create_access_token(str(user.id), user.hashed_password),
             refresh_token=create_refresh_token(str(user.id), user.hashed_password),
         )
+
+    async def login_with_google(self, credential: str) -> TokenPair:
+        """Sign in (or sign up) with a Google ID token. The token is checked by
+        Google itself; an existing account with the same address is reused."""
+        if not settings.google_client_id:
+            raise ValidationError("ورود با گوگل فعال نیست")
+        try:
+            async with httpx.AsyncClient(timeout=8) as client:
+                resp = await client.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": credential})
+        except httpx.HTTPError:
+            raise ValidationError("ارتباط با گوگل برقرار نشد، دوباره تلاش کنید")
+        info = resp.json() if resp.status_code == 200 else {}
+        email = str(info.get("email", "")).strip().lower()
+        if (
+            info.get("aud") != settings.google_client_id
+            or info.get("iss") not in ("accounts.google.com", "https://accounts.google.com")
+            or str(info.get("email_verified")).lower() != "true"
+            or not email
+        ):
+            raise UnauthorizedError("Invalid Google credential")
+
+        user = await self.repo.get_by_email(email)
+        if user is None:
+            # Random password: the account has none to type; it can set one via "forgot password".
+            user = await self.repo.create(
+                email=email,
+                username=await self._free_username(email.split("@")[0]),
+                hashed_password=hash_password(uuid.uuid4().hex + uuid.uuid4().hex),
+            )
+            name = str(info.get("name") or "").strip()[:50]
+            user.display_name = name or None
+        if not user.is_active or user.deleted_at is not None:
+            raise UnauthorizedError("This account is unavailable")
+        await self.repo.mark_email_verified(user)
+        user.last_login_at = datetime.now(timezone.utc)
+        await self.db.commit()
+        return TokenPair(
+            access_token=create_access_token(str(user.id), user.hashed_password),
+            refresh_token=create_refresh_token(str(user.id), user.hashed_password),
+        )
+
+    async def _free_username(self, base: str) -> str:
+        base = re.sub(r"[^a-z0-9_.]", "", base.lower())[:40] or "user"
+        if len(base) < 3:
+            base = base + "_user"
+        candidate = base
+        while await self.repo.get_by_username(candidate) is not None:
+            candidate = f"{base}{uuid.uuid4().hex[:4]}"
+        return candidate
 
     async def request_password_reset(self, email: str) -> str | None:
         user = await self.repo.get_by_email(email)

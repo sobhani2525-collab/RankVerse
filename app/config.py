@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     db_statement_timeout_ms: int = 20000  # cancel a runaway query instead of holding its connection
     db_pool_recycle: int = 300  # drop connections the pooler may have closed
 
+    # Google Sign-In (OAuth client ID of type Web application); empty = the
+    # feature is off. The same ID goes to the frontend as NEXT_PUBLIC_GOOGLE_CLIENT_ID.
+    google_client_id: str = ""
+
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60

@@ -1,9 +1,44 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+type GoogleId = {
+  initialize: (cfg: { client_id: string; callback: (r: { credential: string }) => void }) => void;
+  renderButton: (el: HTMLElement, opts: Record<string, unknown>) => void;
+};
+
+function GoogleButton({ onCredential }: { onCredential: (credential: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cb = useRef(onCredential);
+  cb.current = onCredential;
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    const render = () => {
+      const gid = (window as unknown as { google?: { accounts: { id: GoogleId } } }).google?.accounts.id;
+      if (!gid || !ref.current) return;
+      gid.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (r) => cb.current(r.credential) });
+      gid.renderButton(ref.current, { theme: "filled_black", size: "large", text: "continue_with", width: 320 });
+    };
+    if ((window as unknown as { google?: unknown }).google) {
+      render();
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = render;
+    document.head.appendChild(s);
+  }, []);
+
+  if (!GOOGLE_CLIENT_ID) return null;
+  return <div ref={ref} className="flex justify-center" dir="ltr" />;
 }
 
 export default function LoginForm({
@@ -13,7 +48,7 @@ export default function LoginForm({
   onSuccess: () => void;
   submitLabel?: string;
 }) {
-  const { login } = useAuth();
+  const { login, loginGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +75,16 @@ export default function LoginForm({
       setError(err instanceof Error ? err.message : "ایمیل یا رمز عبور اشتباه است");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGoogle(credential: string) {
+    setError(null);
+    try {
+      await loginGoogle(credential);
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ورود با گوگل ناموفق بود");
     }
   }
 
@@ -81,6 +126,17 @@ export default function LoginForm({
       >
         {loading ? "در حال ورود..." : submitLabel}
       </button>
+
+      {GOOGLE_CLIENT_ID && (
+        <>
+          <div className="flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" />
+            یا
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <GoogleButton onCredential={handleGoogle} />
+        </>
+      )}
     </form>
   );
 }
