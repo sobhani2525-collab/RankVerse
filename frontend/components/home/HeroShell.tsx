@@ -53,12 +53,22 @@ function CenterCard({ center, className = "" }: { center: EgoNode | null; classN
   return (
     <div className={`flex-col gap-3 ${className}`}>
     <div className="flex items-center gap-4 rounded-3xl border border-[#2a2f5c] bg-[#141733] p-4">
-      <div className="relative h-[120px] w-[84px] shrink-0 overflow-hidden rounded-2xl bg-[#101330]">
+      {href ? (
+        <Link href={href} aria-label={nameOf(center)} className="shrink-0 focus-visible:outline-gold">
+                <div className="relative h-[120px] w-[84px] shrink-0 overflow-hidden rounded-2xl bg-[#101330]">
         {center.image_url && <Image src={center.image_url} alt="" fill sizes="84px" className="object-cover" />}
       </div>
+        </Link>
+      ) : (
+              <div className="relative h-[120px] w-[84px] shrink-0 overflow-hidden rounded-2xl bg-[#101330]">
+        {center.image_url && <Image src={center.image_url} alt="" fill sizes="84px" className="object-cover" />}
+      </div>
+      )}
       <div className="min-w-0 flex-1">
         <p className="text-xs text-[#a3a8cc]">مرکز کهکشان</p>
-        <p className="mt-1 truncate text-xl font-extrabold text-[#f5b94a]">{nameOf(center)}</p>
+        <p className="mt-1 truncate text-xl font-extrabold text-[#f5b94a]">
+          {href ? <Link href={href} className="hover:underline focus-visible:outline-gold">{nameOf(center)}</Link> : nameOf(center)}
+        </p>
         <p className="text-xs text-[#a3a8cc]">
           {TYPE_LABEL[center.entity_type]}
           {center.year ? ` · ${toFaDigits(center.year)}` : ""}
