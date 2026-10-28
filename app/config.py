@@ -294,7 +294,13 @@ class Settings(BaseSettings):
     # under the account with this email, at a date-dependent hour.
     auto_lists_enabled: bool = False
     auto_lists_user_email: str = "cinemagozin@gmail.com"
+    # Comma-separated emails; each day's lists/battles pick one of them at
+    # random. Empty = just auto_lists_user_email.
+    auto_lists_user_emails: str = ""
     auto_lists_per_day: int = 1
+    # Daily auto battles ("winner stays" pools, same accounts as the lists).
+    auto_battles_enabled: bool = False
+    auto_battles_per_day: int = 3
 
     # --- In-app notifications (app/modules/notifications) ---
     notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once

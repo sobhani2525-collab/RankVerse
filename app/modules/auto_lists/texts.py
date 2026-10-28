@@ -25,10 +25,11 @@ def fa_number(n: int) -> str:
     return str(n).translate(_FA_DIGITS)
 
 
-def publish_hour(day: date) -> int:
-    """Tehran hour (9..20) from which `day`'s list may be published; varies by
-    date so lists don't all appear at the same minute every day."""
-    return 9 + (day.toordinal() * 7) % 12
+def publish_hour(day: date, slot: int = 0) -> int:
+    """Tehran hour (9..20) from which `day`'s `slot`-th item (0-based) may be
+    published; varies by date and slot so items don't all appear at the same
+    minute every day."""
+    return 9 + (day.toordinal() * 7 + slot * 4) % 12
 
 
 # {g} genre, {p} person, {n} item count, {d} decade.
@@ -75,4 +76,45 @@ def render_decade_list(rng: random.Random, decade: int, genre: str, n: int) -> t
     return (
         rng.choice(_DECADE_TITLES).format(**values),
         rng.choice(_DECADE_DESCRIPTIONS).format(**values),
+    )
+
+
+# --- battles ("winner stays" pools) ---
+
+_ACTOR_BATTLE_TITLES = [
+    "کدوم فیلم {g} {p} بهتره؟",
+    "نبرد {g}" + ZWNJ + "های {p}",
+    "بهترین {g} {p} کدومه؟",
+    "{p}؛ نبرد بهترین {g}" + ZWNJ + "ها",
+]
+_ACTOR_BATTLE_DESCRIPTIONS = [
+    "{n} فیلم {g} با بازی {p} رو دو به دو روبروی هم گذاشتم. شما انتخاب کنید کدوم بهتره تا برنده مشخص بشه.",
+    "{p} تو ژانر {g} کارهای زیادی داره. اینجا {n} تاشون رو مقابل هم بذارید و ببینید کدوم می‌مونه.",
+    "کدوم {g} {p} رو بیشتر دوست دارید؟ {n} فیلم، یک برنده.",
+]
+_DECADE_BATTLE_TITLES = [
+    "کدوم {g} دهه {d} بهتره؟",
+    "نبرد {g}" + ZWNJ + "های دهه {d} میلادی",
+    "بهترین {g} دهه {d} رو انتخاب کنید",
+]
+_DECADE_BATTLE_DESCRIPTIONS = [
+    "{n} فیلم {g} از دهه {d} میلادی. دو به دو انتخاب کنید تا ببینیم کدوم می‌مونه.",
+    "دهه {d} برای ژانر {g} دهه خوبی بود. نظر شما برای بهترینش چیه؟",
+    "{n} فیلم {g} دهه {d}، هر بار دو تا؛ برنده می‌مونه و بقیه می‌رن.",
+]
+
+
+def render_actor_battle(rng: random.Random, person: str, genre: str, n: int) -> tuple[str, str]:
+    values = {"p": person, "g": genre, "n": fa_number(n)}
+    return (
+        rng.choice(_ACTOR_BATTLE_TITLES).format(**values),
+        rng.choice(_ACTOR_BATTLE_DESCRIPTIONS).format(**values),
+    )
+
+
+def render_decade_battle(rng: random.Random, decade: int, genre: str, n: int) -> tuple[str, str]:
+    values = {"d": decade_label(decade), "g": genre, "n": fa_number(n)}
+    return (
+        rng.choice(_DECADE_BATTLE_TITLES).format(**values),
+        rng.choice(_DECADE_BATTLE_DESCRIPTIONS).format(**values),
     )

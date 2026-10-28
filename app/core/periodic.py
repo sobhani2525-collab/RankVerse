@@ -58,12 +58,27 @@ async def create_daily_list() -> str | None:
         return lst.slug if lst else None
 
 
+async def create_daily_battle() -> str | None:
+    """Create the next due auto battle under a site account (see
+    app/modules/auto_lists/battles.py); a no-op unless AUTO_BATTLES_ENABLED."""
+    from app.config import settings
+
+    if not settings.auto_battles_enabled:
+        return None
+    from app.modules.auto_lists.battles import create_daily_battle as run
+
+    async with AsyncSessionLocal() as db:
+        battle = await run(db)
+        return battle.slug if battle else None
+
+
 # (name, job, interval in seconds)
 JOBS: list[tuple[str, Callable[[], Awaitable[object]], int]] = [
     ("tournament rounds", advance_tournament_rounds, 5 * 60),
     ("notification cleanup", purge_old_notifications, 6 * 3600),
     ("alerts maintenance", alerts_maintenance, 6 * 3600),
     ("daily auto list", create_daily_list, 20 * 60),
+    ("daily auto battle", create_daily_battle, 20 * 60),
 ]
 
 
