@@ -1082,3 +1082,25 @@ export async function getEgoGraph(slug: string): Promise<EgoGraph> {
 export async function getHeroGraphs(revalidateSeconds: number = RANKING_TTL): Promise<EgoGraph[]> {
   return fetchEnvelope<EgoGraph[]>("/graph/hero-pool", revalidateSeconds);
 }
+
+export interface PairSuggestionEntity {
+  id: string;
+  slug: string;
+  title: string;
+  title_fa: string | null;
+  entity_type: string;
+  poster_path: string | null;
+}
+
+export interface PairSuggestion {
+  category: string;
+  score: number;
+  left: PairSuggestionEntity;
+  right: PairSuggestionEntity;
+  rivals: PairSuggestionEntity[];
+}
+
+/** Two titles the user rated the same plus rivals from the graph; null when there is no such pair. */
+export async function getPairSuggestion(token: string): Promise<PairSuggestion | null> {
+  return authFetch<PairSuggestion | null>("/battles/suggestion", token);
+}

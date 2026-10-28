@@ -10,6 +10,7 @@ from app.config import settings
 from app.core import database as _database
 from app.core.cache import cached
 from app.core.database import get_db
+from app.core.schemas import envelope
 from app.modules.auth.dependencies import get_current_user, get_current_user_optional
 
 from .repository import BattleRepository
@@ -21,6 +22,7 @@ from .schemas import (
     ThemedBattleResponse,
     ThemedBattleTheme,
 )
+from .pair_suggestion import PairSuggestionService
 from .service import BattleService
 from .themed import CATEGORY, ThemedBattleService
 
@@ -130,6 +132,16 @@ async def get_themed_battle(
         theme=ThemedBattleTheme(kind=pool.theme.kind, value=pool.theme.value, personalized=pool.personalized),
         items=items,
     )
+
+
+@router.get("/suggestion")
+async def get_pair_suggestion(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Two titles the user rated the same + up to 3 rivals for the second; null data when there is none."""
+    data = await PairSuggestionService(db).suggest(current_user.id)
+    return envelope(data=data)
 
 
 @router.post("/vote",response_model=CastVoteResponse, status_code=201)
