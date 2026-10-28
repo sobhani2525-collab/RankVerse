@@ -361,6 +361,11 @@ function Results({ data, signedIn, onLogin }: { data: DailyBattleToday; signedIn
         <span className="num text-muted">{toFaDigits(results.total)}</span>
         <span className="text-muted"> رأی</span>
       </p>
+      {results.total > 1 && (
+        <p className="mt-1 text-center text-sm text-muted">
+          <span className="num">{toFaDigits(minePercent)}</span>٪ از رأی‌دهندگان هم‌نظر تو هستند
+        </p>
+      )}
       {results.total < LOW_VOTES && <p className="mt-1 text-center text-xs text-muted">تعداد رأی کم است؛ درصدها هنوز قطعی نیستند.</p>}
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">

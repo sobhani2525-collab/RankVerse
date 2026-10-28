@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import HomeHero from "@/components/home/HomeHero";
-import BattleArena from "@/components/home/BattleArena";
+import HomeBattleRows from "@/components/home/HomeBattleRows";
 import DailyBattle from "@/components/home/DailyBattle";
 import FeaturedList from "@/components/home/FeaturedList";
 import PersonalUniverse from "@/components/home/PersonalUniverse";
@@ -132,7 +132,7 @@ export default async function HomePage() {
     <main>
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} listTotal={listTotal} battleTotal={battleTotal} artistTotal={artistTotal} />
       <DailyBattle />
-      <BattleArena />
+      <section className="mx-auto max-w-5xl px-6 pb-16" aria-label="نبردها"><HomeBattleRows /></section>
       {featuredList && <FeaturedList list={featuredList} />}
       {otherFeatured.length > 0 && (
         <section className="mx-auto -mt-16 max-w-7xl px-6 pb-16">
