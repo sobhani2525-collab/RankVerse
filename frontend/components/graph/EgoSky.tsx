@@ -174,6 +174,7 @@ export default function EgoSky({
   onSelect,
   actionLabel = "کاوش در گراف",
   mobileTall = false,
+  bold = false,
 }: {
   graph: EgoGraph | null;
   /** A click (or tap) on a star. The hover card still links to the node's own page. */
@@ -182,6 +183,8 @@ export default function EgoSky({
   actionLabel?: string;
   /** On phones, draw taller (360:440) with 12px labels instead of a square. */
   mobileTall?: boolean;
+  /** Brighter, heavier labels (the home hero). */
+  bold?: boolean;
 }) {
   const [phone, setPhone] = useState(false);
   useEffect(() => {
@@ -316,11 +319,11 @@ export default function EgoSky({
                   x={n.x}
                   y={round2(n.y + (isGenre ? n.r : n.r * 1.9) + 2.6)}
                   fontSize={tall ? (isCenter ? 4.2 : 3.7) : isCenter ? 2.9 : 2.3}
-                  fontWeight={isCenter ? 700 : 400}
+                  fontWeight={isCenter || bold ? 700 : 400}
                   textAnchor="middle"
                   direction={isLatin(nameOf(n.node)) ? "ltr" : "rtl"}
-                  fill={focus === i ? "#E8B34A" : isCenter ? "#F2F0E8" : "#B9C0CF"}
-                  fillOpacity={focus === i || isCenter ? 1 : n.node.role === "work" ? 0.8 : 0.6}
+                  fill={focus === i ? "#E8B34A" : isCenter || bold ? "#f1f2fa" : "#B9C0CF"}
+                  fillOpacity={focus === i || isCenter || bold ? 1 : n.node.role === "work" ? 0.8 : 0.6}
                   style={{ fontFamily: "var(--font-vazirmatn)" }}
                 >
                   {labelOf(n.node, tall ? (isCenter ? 16 : 9) : isCenter ? 22 : 14)}
@@ -416,9 +419,9 @@ function InfoCard({ node, topPct, onEnter, onLeave }: { node: PlacedNode; topPct
 }
 
 /** The colour key under a sky: what each kind of star and link means. */
-export function SkyLegend() {
+export function SkyLegend({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="relative z-10 mx-auto -mt-2 w-fit max-w-full rounded-2xl border border-white/10 bg-[#0A0F18]/70 px-4 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.7)] backdrop-blur-md">
+    <div className={`relative z-10 mx-auto w-fit max-w-full border border-white/10 backdrop-blur-md ${compact ? "mt-2 rounded-full bg-[#101330]/80 px-5 py-2.5" : "-mt-2 rounded-2xl bg-[#0A0F18]/70 px-4 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.7)]"}`}>
       <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] text-ink-dim">
         <li className="flex items-center gap-2">
           <span className="inline-block h-3 w-3 rounded-full bg-gold shadow-[0_0_8px_rgba(232,179,74,0.8)]" /> مرکز
@@ -432,9 +435,11 @@ export function SkyLegend() {
         <li className="flex items-center gap-2">
           <span className="inline-block h-3 w-3 rounded-full border-2 border-teal" /> ژانر
         </li>
-        <li className="flex items-center gap-2">
-          <span className="inline-block h-0.5 w-5 rounded bg-gold" /> نقش در اثر
-        </li>
+        {!compact && (
+          <li className="flex items-center gap-2">
+            <span className="inline-block h-0.5 w-5 rounded bg-gold" /> نقش در اثر
+          </li>
+        )}
       </ul>
     </div>
   );

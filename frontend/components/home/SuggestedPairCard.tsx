@@ -82,14 +82,14 @@ export default function SuggestedPairCard() {
   }
 
   return (
-    <section className="mt-4 rounded-3xl border border-dashed border-border p-5" aria-label="پیشنهاد ساخت نبرد">
-      <p className="text-xs font-semibold text-violet-soft">پیشنهاد ساخت نبرد، از سلیقهٔ تو</p>
+    <section className="rounded-3xl border border-dashed border-[#a99bff]/50 p-5" aria-label="پیشنهاد ساخت نبرد">
+      <p className="text-xs font-bold text-[#a99bff]">پیشنهاد ساخت نبرد، از سلیقهٔ تو</p>
       <div className="mt-4 flex flex-wrap items-center gap-5">
         <div className="relative flex items-center gap-3">
           {[data.left, second].map((e) => (
-            <div key={e.id} className="w-[88px] text-center">
+            <div key={e.id} className="w-[110px] text-center">
               <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-surface2">
-                {poster(e) && <Image src={poster(e)!} alt="" fill sizes="88px" loading="lazy" className="object-cover" />}
+                {poster(e) && <Image src={poster(e)!} alt="" fill sizes="110px" loading="lazy" className="object-cover" />}
               </div>
               <p className="mt-1 line-clamp-2 text-xs font-medium text-ink">{displayTitle(e)}</p>
             </div>
@@ -109,7 +109,7 @@ export default function SuggestedPairCard() {
                     onClick={() => setRival(r)}
                     aria-pressed={rival?.id === r.id}
                     aria-label={`حریف: ${displayTitle(r)}`}
-                    className={`relative h-[66px] w-11 overflow-hidden rounded-lg bg-surface2 focus-visible:outline-gold ${rival?.id === r.id ? "ring-2 ring-violet-soft" : "opacity-70"}`}
+                    className={`relative h-[93px] w-[65px] overflow-hidden rounded-lg bg-surface2 focus-visible:outline-gold ${rival?.id === r.id ? "ring-2 ring-violet-soft" : "opacity-70"}`}
                   >
                     {poster(r) && <Image src={poster(r)!} alt="" fill sizes="44px" loading="lazy" className="object-cover" />}
                   </button>
@@ -122,7 +122,7 @@ export default function SuggestedPairCard() {
       {error && <p role="alert" className="mt-3 text-xs text-gold">{error}</p>}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {canPublish ? (
-          <button type="button" onClick={publish} disabled={publishing} className="btn-primary min-h-11 rounded-xl px-5 text-sm disabled:opacity-60">
+          <button type="button" onClick={publish} disabled={publishing} className="min-h-11 rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c] disabled:opacity-60">
             {publishing ? "در حال انتشار…" : "منتشر کن"}
           </button>
         ) : (

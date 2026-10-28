@@ -127,11 +127,19 @@ export default async function HomePage() {
   }
 
   return (
-    <main>
+    <main className="bg-[#0b0d1c]">
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} listTotal={listTotal} battleTotal={battleTotal} artistTotal={artistTotal} />
       <TasteBand />
-      <DailyBattle />
-      <section className="mx-auto max-w-5xl px-6 pb-16" aria-label="نبردها"><HomeBattleRows /><SuggestedPairCard /></section>
+      <section className="mx-auto max-w-7xl px-6 py-14" aria-label="نبردها">
+        <h2 className="mb-6 text-2xl font-extrabold text-ink">نبردها</h2>
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <DailyBattle embedded />
+          <div>
+            <HomeBattleRows />
+            <SuggestedPairCard />
+          </div>
+        </div>
+      </section>
       <SimilarTasters />
       <HomeLists featured={featuredList} initialPicked={otherFeatured} />
       <BackToTop />

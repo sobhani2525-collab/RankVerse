@@ -36,21 +36,25 @@ export default function TasteBand() {
   const genres = [...new Set((picks ?? []).flatMap((p) => p.reason_genres ?? []))].slice(0, 5);
 
   return (
-    <section className="border-b border-border/60 bg-[#101330]" aria-label="به سلیقه‌ات می‌خورد">
-      <div className="mx-auto grid max-w-7xl gap-5 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]">
+    <section className="mx-auto max-w-7xl px-6 py-6" aria-label="به سلیقه‌ات می‌خورد">
+      <div className="grid gap-6 rounded-3xl border border-[#2a2f5c] bg-[#101330] p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,3.4fr)]">
         <div>
-          <p className="text-xs text-teal">برای تو · FOR YOU</p>
-          <h2 className="mt-1 text-lg font-bold text-ink">به سلیقه‌ات می‌خورد</h2>
+          <p className="text-xs text-[#5fd8bf]">برای تو · FOR YOU</p>
+          <h2 className="mt-1 text-xl font-extrabold text-ink">به سلیقه‌ات می‌خورد</h2>
+          <p className="mt-3 text-xs text-[#a3a8cc]">ژانرهای مورد علاقه تو</p>
           {genres.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               {genres.map((g) => (
-                <span key={g} className="rounded-xl border border-teal/40 px-3 py-1 text-xs text-teal">{genreLabel(g)}</span>
+                <span key={g} className="rounded-full border border-[#5fd8bf]/50 px-3 py-1 text-xs text-[#5fd8bf]">{genreLabel(g)}</span>
               ))}
             </div>
           )}
-          <Link href="/profile" className="mt-4 inline-block min-h-11 text-sm font-bold text-violet-soft hover:underline">
-            DNA سلیقه ←
-          </Link>
+          <div className="mt-4 rounded-2xl border border-dashed border-[#a99bff]/40 p-3">
+            <p className="text-xs text-[#a3a8cc]">امتیاز بیشتر، پیشنهاد دقیق‌تر</p>
+            <Link href="/profile" className="mt-2 inline-flex min-h-11 items-center text-sm font-extrabold text-[#a99bff] hover:underline">
+              DNA سلیقه ←
+            </Link>
+          </div>
         </div>
         <ScrollRow as="ul" arrowClassName="lg:hidden" className="no-scrollbar flex snap-x snap-mandatory scroll-px-1 gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5 lg:overflow-visible">
           {picks === null

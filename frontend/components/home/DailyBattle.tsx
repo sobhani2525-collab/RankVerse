@@ -38,7 +38,7 @@ type Status = "loading" | "ready" | "error" | "none";
  * client with no-store (the home page is ISR, this must never be stale). Results
  * only appear after the visitor has voted -- the server enforces that too.
  */
-export default function DailyBattle({ large = false }: { large?: boolean }) {
+export default function DailyBattle({ large = false, embedded = false }: { large?: boolean; embedded?: boolean }) {
   const { isAuthenticated, loading: authLoading, getToken } = useAuth();
   const { openLoginModal } = useAuthGate();
   const signedIn = !authLoading && isAuthenticated;
@@ -114,15 +114,33 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
   if (status === "none") return null; // no battle today: the section stays quiet
 
   return (
-    <section className="relative border-y border-border/60 bg-[#080B14]/70 max-sm:border-0 max-sm:bg-transparent" aria-label="نبرد امروز">
-      <BattleSpotlight />
-      <div className={`relative mx-auto px-6 ${large ? "max-w-4xl py-14" : "max-w-5xl py-20"}`}>
-        <SectionHeading
-          center
-          kicker="Battle of the day"
-          title="نبرد امروز"
-          lead={data ? formatJalaliDate(data.battle_date) : undefined}
-        />
+    <section
+      className={
+        embedded
+          ? "relative rounded-3xl border border-[#2a2f5c] bg-[#141733] max-sm:border-0 max-sm:bg-transparent"
+          : "relative border-y border-border/60 bg-[#080B14]/70 max-sm:border-0 max-sm:bg-transparent"
+      }
+      aria-label="نبرد امروز"
+    >
+      {!embedded && <BattleSpotlight />}
+      <div className={embedded ? "relative p-6 max-sm:p-0" : `relative mx-auto px-6 ${large ? "max-w-4xl py-14" : "max-w-5xl py-20"}`}>
+        {embedded ? (
+          <div className="mb-6 flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-extrabold text-ink">
+                نبرد امروز{data && <span className="text-sm font-normal text-[#a3a8cc]"> · {toFaDigits(formatJalaliDate(data.battle_date))}</span>}
+              </h3>
+            </div>
+            <span className="shrink-0 rounded-full bg-teal/15 px-3 py-1 text-xs font-bold text-teal">روزانه</span>
+          </div>
+        ) : (
+          <SectionHeading
+            center
+            kicker="Battle of the day"
+            title="نبرد امروز"
+            lead={data ? formatJalaliDate(data.battle_date) : undefined}
+          />
+        )}
 
         {status === "loading" && (
           <div className={`mx-auto grid grid-cols-2 gap-4 sm:gap-10 max-w-xl`} aria-busy="true">
@@ -251,7 +269,7 @@ function DailyBody({
       {voted ? (
         <Results data={data} signedIn={signedIn} onLogin={onLogin} />
       ) : (
-        <p className="mt-6 text-center text-sm text-muted">یکی را انتخاب کن تا نتیجهٔ زنده را ببینی.</p>
+        <p className="mt-6 text-center text-sm text-[#a3a8cc]">روی پوستر فیلم مورد علاقه‌ات بزن؛ رأی تو روی امتیاز نهایی هر دو فیلم اثر می‌گذارد.</p>
       )}
 
       {error && <p role="alert" className="mt-3 text-center text-xs text-gold">{error}</p>}

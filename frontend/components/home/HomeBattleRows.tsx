@@ -73,7 +73,7 @@ function PairRow({ kind, battle }: { kind: Kind; battle: TournamentSummary }) {
   }
 
   return (
-    <article className="flex items-center gap-4 rounded-3xl border border-border bg-surface/70 p-4">
+    <article className="mb-4 flex items-center gap-4 rounded-3xl border border-[#2a2f5c] bg-[#141733] p-4">
       <div className="relative flex shrink-0 items-center gap-3">
         {([["a", a], ["b", b]] as [PairSide, TournamentEntity][]).map(([side, e]) => (
           <button
@@ -93,11 +93,17 @@ function PairRow({ kind, battle }: { kind: Kind; battle: TournamentSummary }) {
         <span aria-hidden="true" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-violet-soft">VS</span>
       </div>
       <div className="min-w-0 flex-1">
-        <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] text-gold">{KIND_LABEL[kind]}</span>
-        <Link href={`/battles/${battle.slug}`} className="mt-2 block truncate text-base font-bold text-ink hover:text-gold">
+        <p className="flex items-center gap-2 text-xs text-[#a3a8cc]">
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${kind === "featured" ? "bg-[#f5b94a]/15 text-[#f5b94a]" : "bg-[#ff9a7a]/15 text-[#ff9a7a]"}`}>{KIND_LABEL[kind]}</span>
+          برنده می‌ماند
+        </p>
+        <Link href={`/battles/${battle.slug}`} className="mt-2 block text-base font-extrabold leading-7 text-ink hover:text-[#f5b94a]">
           {battle.title}
         </Link>
-        <p className="num mt-1 text-xs text-muted">{toFaDigits(state.votes)} رأی</p>
+        <p className="mt-1 text-xs text-[#a3a8cc]">
+          {battle.creator?.username ? `${battle.creator.username} · ` : ""}
+          <span className="num">{toFaDigits(state.votes)}</span> رأی
+        </p>
       </div>
     </article>
   );

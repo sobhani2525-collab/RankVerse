@@ -15,7 +15,7 @@ import { useHeroFullscreen } from "./HeroShell";
 export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
   const router = useRouter();
   const { isAuthenticated, getToken } = useAuth();
-  const { fullscreen, toggle } = useHeroFullscreen();
+  const { fullscreen, toggle, setCenter } = useHeroFullscreen();
   const [graph, setGraph] = useState<EgoGraph | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -59,7 +59,7 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
   }
 
   const center = centerNodeOf(graph);
-  const centerHref = center ? detailPathFor(center.entity_type, center.slug) : null;
+  useEffect(() => setCenter(center), [center, setCenter]);
 
   return (
     <>
@@ -68,12 +68,19 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
           type="button"
           onClick={toggle}
           aria-pressed={fullscreen}
-          className="min-h-11 rounded-xl border border-border bg-surface/60 px-4 text-sm font-semibold text-ink transition hover:border-violet-soft focus-visible:outline-gold"
+          className="min-h-11 rounded-full border border-[#2a2f5c] bg-[#101330]/80 px-4 text-sm font-bold text-ink transition hover:border-[#a99bff] focus-visible:outline-gold"
         >
           {fullscreen ? "✕ بستن" : "⤢ تمام‌صفحه"}
         </button>
-        <button type="button" onClick={startFromTaste} className="btn-primary min-h-11 rounded-xl px-5 text-sm">
-          {isAuthenticated ? "شروع از سلیقهٔ من" : "ورود و شروع از سلیقه‌ام"}
+        <p className="order-last basis-full text-center text-sm text-[#c4c8e6] sm:order-none sm:basis-auto sm:flex-1" aria-live="polite">
+          {center && (
+            <>
+              امروز کهکشانت را با محوریت <strong className="font-bold text-[#f5b94a]">{nameOf(center)}</strong> کشف کن
+            </>
+          )}
+        </p>
+        <button type="button" onClick={startFromTaste} className="min-h-11 rounded-full bg-[#cbbfff] px-5 text-sm font-extrabold text-[#1a1640] hover:bg-[#d9d0ff] focus-visible:outline-gold">
+          {isAuthenticated ? "شروع از سلیقهٔ من" : "شروع از سلیقهٔ من"}
         </button>
       </div>
 
@@ -82,6 +89,7 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
           graph={graph}
           actionLabel="مرکز کن"
           mobileTall
+          bold
           onSelect={(node) => {
             const action = actionForNode(node, graph?.center_id ?? "");
             if (action.type === "recenter") void recenter(action.slug);
@@ -95,31 +103,6 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
         </p>
       )}
 
-      {center && (
-        <div className="relative z-10 mt-4 flex items-center gap-4 rounded-3xl border border-border bg-surface/70 p-4">
-          <div className="relative h-[104px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-surface2">
-            {center.image_url && <Image src={center.image_url} alt="" fill sizes="72px" className="object-cover" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted">مرکز کهکشان</p>
-            <p className="mt-1 truncate text-lg font-bold text-gold">{nameOf(center)}</p>
-            <p className="text-xs text-muted">
-              {TYPE_LABEL[center.entity_type]}
-              {center.year ? ` · ${toFaDigits(center.year)}` : ""}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {centerHref && (
-                <Link href={centerHref} className="inline-flex min-h-11 items-center rounded-xl bg-violet/20 px-4 text-sm font-semibold text-violet-soft hover:bg-violet/30">
-                  ★ امتیاز بده
-                </Link>
-              )}
-              <Link href="/battles/new" className="inline-flex min-h-11 items-center rounded-xl bg-surface2 px-4 text-sm font-semibold text-ink hover:bg-surface2/70">
-                نبرد بساز
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
