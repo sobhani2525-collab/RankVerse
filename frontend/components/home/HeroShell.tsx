@@ -74,7 +74,7 @@ function CenterCard({ center, className = "" }: { center: EgoNode | null; classN
           {center.year ? ` · ${toFaDigits(center.year)}` : ""}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {href && center.entity_type !== "person" && (
+          {href && (center.entity_type === "movie" || center.entity_type === "tv_series") && (
             <Link href={href} className="inline-flex min-h-11 items-center rounded-xl bg-[#a99bff]/20 px-4 text-sm font-bold text-[#c9c0ff] hover:bg-[#a99bff]/30">
               ★ امتیاز بده
             </Link>

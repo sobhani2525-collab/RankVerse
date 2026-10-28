@@ -22,7 +22,7 @@ from sqlalchemy.orm import joinedload
 from app.config import settings
 from app.core.database import ReadSessionLocal
 from app.core.exceptions import NotFoundError
-from app.modules.entities.models import Entity, RelationshipEdge
+from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.entities.repository import EntityRepository, _apply_origin
 from app.modules.entities.service import _extract_media
 
@@ -33,6 +33,7 @@ WORK_TYPES = ("movie", "tv_series")
 MAX_WORKS = 3
 MAX_PEOPLE = 4
 MAX_GENRES = 2
+MAX_GENRE_WORKS = 4  # a genre centre shows its best-ranked titles
 
 
 def _node(entity: Entity, role: str, credits: set | None = None) -> dict:
@@ -93,9 +94,9 @@ async def build_ego_graph(db: AsyncSession, slug: str) -> dict:
         await db.execute(
             select(Entity)
             .options(joinedload(Entity.ranking))
-            .where(Entity.slug == slug, Entity.entity_type.in_(("person", *WORK_TYPES)))
+            .where(Entity.slug == slug, Entity.entity_type.in_(("person", "genre", *WORK_TYPES)))
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if center is None:
         raise NotFoundError(f"Entity '{slug}' not found")
 
@@ -137,6 +138,36 @@ async def build_ego_graph(db: AsyncSession, slug: str) -> dict:
             people = [by_id[pid] for pid in chosen]
             wanted = {(w.id, p.id) for w in works for p in people}
             credit_pairs |= {(wid, person.id) for wid, person, _ in rows} & wanted
+    elif center.entity_type == "genre":
+        top = (
+            await db.execute(
+                select(Entity)
+                .join(RelationshipEdge, RelationshipEdge.from_entity_id == Entity.id)
+                .join(EntityRanking, EntityRanking.entity_id == Entity.id)
+                .options(joinedload(Entity.ranking))
+                .where(
+                    RelationshipEdge.to_entity_id == center.id,
+                    RelationshipEdge.relation_type == "has_genre",
+                    Entity.entity_type.in_(WORK_TYPES),
+                )
+                .order_by(EntityRanking.computed_score.desc(), Entity.id)
+                .limit(MAX_GENRE_WORKS)
+            )
+        ).unique().scalars().all()
+        works = list(top)
+        if works:
+            rows = await _people_of(db, [w.id for w in works])
+            rows.sort(key=lambda r: 0 if r[2] in ("directed_by", "creator") else 1)
+            titles_of: dict = defaultdict(set)
+            by_id: dict = {}
+            for wid, person, rel in rows:
+                roles[person.id].add(rel)
+                titles_of[person.id].add(wid)
+                by_id[person.id] = person
+            ranked = sorted(titles_of, key=lambda pid: (-len(titles_of[pid]), str(pid)))
+            people = [by_id[pid] for pid in ranked[:MAX_PEOPLE]]
+            wanted = {(w.id, p.id) for w in works for p in people}
+            credit_pairs |= {(wid, person.id) for wid, person, _ in rows} & wanted
     else:
         rows = await _people_of(db, [center.id])
         # Directors/creators before cast.
@@ -170,6 +201,9 @@ async def build_ego_graph(db: AsyncSession, slug: str) -> dict:
     for work_id, person_id in credit_pairs:
         if str(work_id) in nodes and str(person_id) in nodes:
             link(work_id, person_id, "credit")
+    if center.entity_type == "genre":
+        for w in works:
+            link(w.id, center.id, "genre")
 
     # Genres of the titles on the board (the centre counts when it is one).
     titled = list(works) + ([center] if center.entity_type in WORK_TYPES else [])
@@ -186,7 +220,7 @@ async def build_ego_graph(db: AsyncSession, slug: str) -> dict:
         ).all()
         g_count = Counter(g.id for _, g in g_rows)
         g_by_id = {g.id: g for _, g in g_rows}
-        top = sorted(g_count, key=lambda gid: (-g_count[gid], g_by_id[gid].title))[:MAX_GENRES]
+        top = sorted((g for g in g_count if g != center.id), key=lambda gid: (-g_count[gid], g_by_id[gid].title))[:MAX_GENRES]
         top_set = set(top)
         for gid in top:
             g = g_by_id[gid]

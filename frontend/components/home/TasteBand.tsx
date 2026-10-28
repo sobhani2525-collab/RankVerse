@@ -49,12 +49,12 @@ export default function TasteBand() {
               ))}
             </div>
           )}
-          <div className="mt-4 rounded-2xl border border-dashed border-[#a99bff]/40 p-3">
-            <p className="text-xs text-[#a3a8cc]">امتیاز بیشتر، پیشنهاد دقیق‌تر</p>
-            <Link href="/profile" className="mt-2 inline-flex min-h-11 items-center text-sm font-extrabold text-[#a99bff] hover:underline">
-              DNA سلیقه ←
-            </Link>
-          </div>
+          <Link
+            href="/profile"
+            className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-5 text-sm font-extrabold text-[#0b0d1c] focus-visible:outline-gold"
+          >
+            پروفایل سینمایی
+          </Link>
         </div>
         <ScrollRow as="ul" arrowClassName="lg:hidden" className="no-scrollbar flex snap-x snap-mandatory scroll-px-1 gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5 lg:overflow-visible">
           {picks === null

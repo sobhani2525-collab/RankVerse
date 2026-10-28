@@ -11,8 +11,8 @@ describe("actionForNode", () => {
     expect(actionForNode(node("a", "movie"), "c")).toEqual({ type: "recenter", slug: "a" });
     expect(actionForNode(node("b", "tv_series"), "c")).toEqual({ type: "recenter", slug: "b" });
   });
-  it("navigates for genres", () => {
-    expect(actionForNode(node("g", "genre"), "c")).toEqual({ type: "navigate", href: "/genre/g" });
+  it("recentres on a genre", () => {
+    expect(actionForNode(node("g", "genre"), "c")).toEqual({ type: "recenter", slug: "g" });
   });
   it("ignores the current centre", () => {
     expect(actionForNode(node("c", "movie"), "c")).toEqual({ type: "none" });
