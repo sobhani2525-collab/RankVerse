@@ -24,7 +24,16 @@ function GoogleButton({ onCredential }: { onCredential: (credential: string) => 
       const gid = (window as unknown as { google?: { accounts: { id: GoogleId } } }).google?.accounts.id;
       if (!gid || !ref.current) return;
       gid.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (r) => cb.current(r.credential) });
-      gid.renderButton(ref.current, { theme: "filled_black", size: "large", text: "continue_with", width: 320 });
+      const width = Math.min(400, Math.max(200, Math.round(ref.current.parentElement?.clientWidth ?? 320)));
+      gid.renderButton(ref.current, {
+        theme: "outline",
+        size: "large",
+        shape: "rectangular",
+        text: "continue_with",
+        logo_alignment: "center",
+        locale: "fa",
+        width,
+      });
     };
     if ((window as unknown as { google?: unknown }).google) {
       render();
@@ -38,7 +47,7 @@ function GoogleButton({ onCredential }: { onCredential: (credential: string) => 
   }, []);
 
   if (!GOOGLE_CLIENT_ID) return null;
-  return <div ref={ref} className="flex justify-center" dir="ltr" />;
+  return <div ref={ref} className="flex min-h-[44px] justify-center overflow-hidden rounded-lg" dir="ltr" />;
 }
 
 export default function LoginForm({
