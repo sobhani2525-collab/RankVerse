@@ -51,7 +51,8 @@ function CenterCard({ center, className = "" }: { center: EgoNode | null; classN
   if (!center) return null;
   const href = detailPathFor(center.entity_type, center.slug);
   return (
-    <div className={`items-center gap-4 rounded-3xl border border-[#2a2f5c] bg-[#141733] p-4 ${className}`}>
+    <div className={`flex-col gap-3 ${className}`}>
+    <div className="flex items-center gap-4 rounded-3xl border border-[#2a2f5c] bg-[#141733] p-4">
       <div className="relative h-[120px] w-[84px] shrink-0 overflow-hidden rounded-2xl bg-[#101330]">
         {center.image_url && <Image src={center.image_url} alt="" fill sizes="84px" className="object-cover" />}
       </div>
@@ -73,6 +74,10 @@ function CenterCard({ center, className = "" }: { center: EgoNode | null; classN
           </Link>
         </div>
       </div>
+    </div>
+    <p className="text-center text-sm text-[#c4c8e6]" aria-live="polite">
+      امروز کهکشانت را با محوریت <strong className="font-bold text-[#f5b94a]">{nameOf(center)}</strong> کشف کن
+    </p>
     </div>
   );
 }
