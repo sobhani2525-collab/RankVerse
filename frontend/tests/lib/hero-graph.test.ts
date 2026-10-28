@@ -6,12 +6,12 @@ const node = (id: string, entity_type: string, slug = id): EgoNode =>
   ({ id, slug, title: id, title_fa: null, entity_type, year: null, score: null, image_url: null, role: "work" }) as EgoNode;
 
 describe("actionForNode", () => {
-  it("recentres on a film or series", () => {
+  it("recentres on a film, series or artist", () => {
+    expect(actionForNode(node("p", "person"), "c")).toEqual({ type: "recenter", slug: "p" });
     expect(actionForNode(node("a", "movie"), "c")).toEqual({ type: "recenter", slug: "a" });
     expect(actionForNode(node("b", "tv_series"), "c")).toEqual({ type: "recenter", slug: "b" });
   });
-  it("navigates for artists and genres", () => {
-    expect(actionForNode(node("p", "person"), "c")).toEqual({ type: "navigate", href: "/person/p" });
+  it("navigates for genres", () => {
     expect(actionForNode(node("g", "genre"), "c")).toEqual({ type: "navigate", href: "/genre/g" });
   });
   it("ignores the current centre", () => {
