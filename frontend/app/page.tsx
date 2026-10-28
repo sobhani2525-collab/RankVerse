@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import ListTicketCard from "@/components/lists/list-ticket-card";
 import HomeHero from "@/components/home/HomeHero";
 import HomeBattleRows from "@/components/home/HomeBattleRows";
 import TasteBand from "@/components/home/TasteBand";
 import SimilarTasters from "@/components/home/SimilarTasters";
 import SuggestedPairCard from "@/components/home/SuggestedPairCard";
 import DailyBattle from "@/components/home/DailyBattle";
-import FeaturedList from "@/components/home/FeaturedList";
-import PersonalUniverse from "@/components/home/PersonalUniverse";
-import ListCreatorPromo from "@/components/home/ListCreatorPromo";
+import HomeLists from "@/components/home/HomeLists";
 import BackToTop from "@/components/BackToTop";
 import {
   getRankingsPage, getHeroGraphs, getListsTotal, getBattlesTotal, getPeoplePage, getMovieBySlug, discoverLists, getListBySlugCached, getFeaturedLists, LISTS_CACHE_TAG, RANKING_TTL,
 } from "@/lib/api";
-import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import { toHomeTitle } from "@/lib/home-data";
 import { rethrowOutsideBuild } from "@/lib/isr";
 import { ListDetail, ListSummary, MovieDetail, MovieListItem } from "@/lib/types";
@@ -45,7 +40,7 @@ async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[] }
   return { details };
 }
 
-const OTHER_FEATURED = 3;
+const OTHER_FEATURED = 5;
 
 function shuffled<T>(items: T[]): T[] {
   const out = [...items];
@@ -138,24 +133,7 @@ export default async function HomePage() {
       <DailyBattle />
       <section className="mx-auto max-w-5xl px-6 pb-16" aria-label="نبردها"><HomeBattleRows /><SuggestedPairCard /></section>
       <SimilarTasters />
-      {featuredList && <FeaturedList list={featuredList} />}
-      {otherFeatured.length > 0 && (
-        <section className="mx-auto -mt-16 max-w-7xl px-6 pb-16">
-          <h3 className="mb-5 text-lg font-bold text-ink">سایر فهرست‌های برگزیده</h3>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {otherFeatured.map((list) => (
-              <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} plainPosters />
-            ))}
-          </div>
-          <div className="mt-8 text-center">
-            <Link href="/lists" className="text-sm text-teal hover:underline">
-              مشاهدهٔ همهٔ فهرست‌ها ←
-            </Link>
-          </div>
-        </section>
-      )}
-      <ListCreatorPromo />
-      <PersonalUniverse startHref={`/movies/${leader.slug}`} />
+      <HomeLists featured={featuredList} initialPicked={otherFeatured} />
       <BackToTop />
     </main>
   );
