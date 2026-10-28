@@ -1,6 +1,6 @@
 import HeroConstellation from "./HeroConstellation";
 import { SkyLegend } from "@/components/graph/EgoSky";
-import HeroExploreButton from "./HeroExploreButton";
+import HeroShell from "./HeroShell";
 import { HomeTitle } from "@/lib/home-data";
 import type { EgoGraph } from "@/lib/api";
 import CountUp from "./CountUp";
@@ -41,7 +41,8 @@ export default function HomeHero({
       {/* Atmosphere: drifting stars and faint nebulae, no data meaning. */}
       <HeroStarfield />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-6 px-6 pb-10 pt-14 lg:min-h-[640px] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10 lg:py-16">
+      <HeroShell
+        text={
         <div className="relative z-10">
           <p className="kicker text-teal/80">Your cinema. Your universe.</p>
           <div className="mt-4">
@@ -66,7 +67,6 @@ export default function HomeHero({
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">
-            <HeroExploreButton className="btn-primary btn-glow text-sm" />
             <Link
               href="#battle-arena"
               className="inline-flex items-center gap-2 rounded-xl border border-violet-soft/40 px-5 py-3 text-sm font-semibold text-ink transition hover:border-violet-soft hover:bg-violet/10"
@@ -95,12 +95,14 @@ export default function HomeHero({
             </dl>
           )}
         </div>
-
-        <div className="relative mx-auto w-full max-w-[560px]">
-          <HeroConstellation graphs={graphs} />
-          <SkyLegend />
-        </div>
-      </div>
+        }
+        graph={
+          <>
+            <HeroConstellation graphs={graphs} />
+            <SkyLegend />
+          </>
+        }
+      />
     </section>
   );
 }

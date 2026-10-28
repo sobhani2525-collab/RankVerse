@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import HomeHero from "@/components/home/HomeHero";
-import KnowledgeGraphExplorer from "@/components/home/KnowledgeGraphExplorer";
 import BattleArena from "@/components/home/BattleArena";
 import DailyBattle from "@/components/home/DailyBattle";
 import FeaturedList from "@/components/home/FeaturedList";
@@ -133,7 +132,6 @@ export default async function HomePage() {
     <main>
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} listTotal={listTotal} battleTotal={battleTotal} artistTotal={artistTotal} />
       <DailyBattle />
-      {leader.hasDetail && <KnowledgeGraphExplorer seed={leader} />}
       <BattleArena />
       {featuredList && <FeaturedList list={featuredList} />}
       {otherFeatured.length > 0 && (
