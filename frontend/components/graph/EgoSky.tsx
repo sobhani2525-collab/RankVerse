@@ -173,13 +173,29 @@ export default function EgoSky({
   graph,
   onSelect,
   actionLabel = "کاوش در گراف",
+  mobileTall = false,
 }: {
   graph: EgoGraph | null;
   /** A click (or tap) on a star. The hover card still links to the node's own page. */
   onSelect: (node: EgoNode) => void;
   /** Spoken after each star's name, e.g. "کاوش در گراف". */
   actionLabel?: string;
+  /** On phones, draw taller (360:440) with 12px labels instead of a square. */
+  mobileTall?: boolean;
 }) {
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    if (!mobileTall) return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const sync = () => setPhone(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [mobileTall]);
+  const tall = mobileTall && phone;
+  const vbY = tall ? -11 : 0;
+  const vbH = tall ? 122 : 100;
+  const pctY = (y: number) => round2(((y - vbY) / vbH) * 100);
   const [active, setActive] = useState<number | null>(null);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -215,7 +231,7 @@ export default function EgoSky({
 
   return (
     <div
-      className="relative aspect-square w-full"
+      className={`relative w-full ${tall ? "aspect-[360/440]" : "aspect-square"}`}
       onMouseLeave={hideSoon}
       // Faint background stars -- decorative, not data (CSS rather than
       // sub-pixel SVG circles, which rasterise as streaks in Chromium).
@@ -224,7 +240,7 @@ export default function EgoSky({
           "radial-gradient(1px 1px at 12% 18%, rgba(242,240,232,.35), transparent), radial-gradient(1px 1px at 82% 12%, rgba(242,240,232,.25), transparent), radial-gradient(1px 1px at 68% 84%, rgba(242,240,232,.3), transparent), radial-gradient(1px 1px at 24% 72%, rgba(242,240,232,.25), transparent), radial-gradient(1px 1px at 91% 58%, rgba(242,240,232,.3), transparent), radial-gradient(1px 1px at 40% 8%, rgba(242,240,232,.2), transparent), radial-gradient(1px 1px at 6% 46%, rgba(242,240,232,.25), transparent), radial-gradient(1px 1px at 55% 96%, rgba(242,240,232,.2), transparent)",
       }}
     >
-      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
+      <svg viewBox={`0 ${vbY} 100 ${vbH}`} className="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
         <defs>
           <radialGradient id="rv-core" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="#FFF7E0" />
@@ -299,7 +315,7 @@ export default function EgoSky({
                 <text
                   x={n.x}
                   y={round2(n.y + (isGenre ? n.r : n.r * 1.9) + 2.6)}
-                  fontSize={isCenter ? 2.9 : 2.3}
+                  fontSize={tall ? (isCenter ? 4.2 : 3.7) : isCenter ? 2.9 : 2.3}
                   fontWeight={isCenter ? 700 : 400}
                   textAnchor="middle"
                   direction={isLatin(nameOf(n.node)) ? "ltr" : "rtl"}
@@ -307,13 +323,13 @@ export default function EgoSky({
                   fillOpacity={focus === i || isCenter ? 1 : n.node.role === "work" ? 0.8 : 0.6}
                   style={{ fontFamily: "var(--font-vazirmatn)" }}
                 >
-                  {labelOf(n.node, isCenter ? 22 : 14)}
+                  {labelOf(n.node, tall ? (isCenter ? 16 : 9) : isCenter ? 22 : 14)}
                 </text>
                 {roleOf(n.node) && (
                   <text
                     x={n.x}
                     y={round2(n.y + n.r * 1.9 + (isCenter ? 5.6 : 4.9))}
-                    fontSize={1.8}
+                    fontSize={tall ? 2.9 : 1.8}
                     textAnchor="middle"
                     fill="#8A93A6"
                     fillOpacity={0.85}
@@ -335,7 +351,7 @@ export default function EgoSky({
           type="button"
           aria-label={`${nameOf(n.node)} — ${TYPE_LABEL[n.node.entity_type] ?? ""} — ${actionLabel}`}
           className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full focus-visible:outline-gold"
-          style={{ left: `${n.x}%`, top: `${n.y}%`, width: "9%", height: "9%", minWidth: 36, minHeight: 36 }}
+          style={{ left: `${n.x}%`, top: `${pctY(n.y)}%`, width: "9%", height: tall ? "7.4%" : "9%", minWidth: 36, minHeight: 36 }}
           onClick={() => {
             // Touch has no hover, so the tap also opens the card (with its page link).
             show(i);
@@ -348,12 +364,12 @@ export default function EgoSky({
         />
       ))}
 
-      {activeNode && <InfoCard node={activeNode} onEnter={() => show(active!)} onLeave={hideSoon} />}
+      {activeNode && <InfoCard node={activeNode} topPct={pctY(activeNode.y)} onEnter={() => show(active!)} onLeave={hideSoon} />}
     </div>
   );
 }
 
-function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () => void; onLeave: () => void }) {
+function InfoCard({ node, topPct, onEnter, onLeave }: { node: PlacedNode; topPct: number; onEnter: () => void; onLeave: () => void }) {
   const t = node.node;
   const href = detailPathFor(t.entity_type, t.slug) ?? `/movies/${t.slug}`;
   const toLeft = node.x > 50;
@@ -370,7 +386,7 @@ function InfoCard({ node, onEnter, onLeave }: { node: PlacedNode; onEnter: () =>
       onMouseLeave={onLeave}
       className="rv-rise absolute z-20 block w-64 rounded-2xl border border-white/10 bg-[#0A0F18]/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-md transition hover:border-gold/40 max-md:!inset-x-0 max-md:!bottom-0 max-md:!top-auto max-md:!w-auto max-md:!translate-y-0"
       style={{
-        top: `${node.y}%`,
+        top: `${topPct}%`,
         transform: `translateY(${shiftY})`,
         ...(toLeft ? { right: `calc(${100 - node.x}% + 22px)` } : { left: `calc(${node.x}% + 22px)` }),
       }}

@@ -81,6 +81,7 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
         <EgoSky
           graph={graph}
           actionLabel="مرکز کن"
+          mobileTall
           onSelect={(node) => {
             const action = actionForNode(node, graph?.center_id ?? "");
             if (action.type === "recenter") void recenter(action.slug);

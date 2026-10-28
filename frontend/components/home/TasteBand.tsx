@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import ScrollRow from "@/components/ScrollRow";
 import { useAuth } from "@/lib/auth-context";
 import { getMyPredictedPicks } from "@/lib/api";
 import { PredictedPick } from "@/lib/types";
@@ -51,7 +52,7 @@ export default function TasteBand() {
             DNA سلیقه ←
           </Link>
         </div>
-        <ul className="flex snap-x gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5 lg:overflow-visible">
+        <ScrollRow as="ul" arrowClassName="lg:hidden" className="no-scrollbar flex snap-x snap-mandatory scroll-px-1 gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5 lg:overflow-visible">
           {picks === null
             ? Array.from({ length: SHOWN }, (_, i) => <li key={i} className="aspect-[2/3] w-[120px] shrink-0 animate-pulse rounded-2xl bg-surface2/60 lg:w-auto" />)
             : picks.map(({ entity }) => (
@@ -66,7 +67,7 @@ export default function TasteBand() {
                   </Link>
                 </li>
               ))}
-        </ul>
+        </ScrollRow>
       </div>
     </section>
   );

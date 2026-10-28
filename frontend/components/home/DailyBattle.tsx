@@ -114,7 +114,7 @@ export default function DailyBattle({ large = false }: { large?: boolean }) {
   if (status === "none") return null; // no battle today: the section stays quiet
 
   return (
-    <section className={`relative border-y border-border/60 bg-[#080B14]/70`} aria-label="نبرد امروز">
+    <section className="relative border-y border-border/60 bg-[#080B14]/70 max-sm:border-0 max-sm:bg-transparent" aria-label="نبرد امروز">
       <BattleSpotlight />
       <div className={`relative mx-auto px-6 ${large ? "max-w-4xl py-14" : "max-w-5xl py-20"}`}>
         <SectionHeading

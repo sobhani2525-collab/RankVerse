@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import ScrollRow from "@/components/ScrollRow";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { discoverLists, getFeaturedLists } from "@/lib/api";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
@@ -66,19 +67,25 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
           {[0, 1, 2].map((i) => <div key={i} className="h-72 animate-pulse rounded-3xl bg-surface2/50" />)}
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <ScrollRow
+          as="div"
+          arrowClassName="md:hidden"
+          className="no-scrollbar flex snap-x snap-mandatory scroll-px-1 gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:gap-6 md:overflow-visible lg:grid-cols-3"
+        >
           {cards.map((list) => (
-            <ListTicketCard key={list.id} list={{ ...listSummaryToTicketCard(list), featured: false }} plainPosters />
+            <div key={list.id} className="w-[82%] shrink-0 snap-start md:w-auto">
+              <ListTicketCard list={{ ...listSummaryToTicketCard(list), featured: false }} plainPosters />
+            </div>
           ))}
           <Link
             href="/lists/new"
-            className="flex min-h-72 flex-col justify-center gap-3 rounded-3xl border border-dashed border-violet-soft/50 p-6 hover:bg-violet/5"
+            className="flex w-[82%] shrink-0 snap-start min-h-72 md:w-auto flex-col justify-center gap-3 rounded-3xl border border-dashed border-violet-soft/50 p-6 hover:bg-violet/5"
           >
             <span className="text-xs text-violet-soft">فهرست جدید</span>
             <span className="text-lg font-bold text-ink">فهرست خودت را بساز؛ کمتر از دو دقیقه</span>
             <span className="mt-2 inline-flex min-h-11 w-fit items-center rounded-xl bg-white px-4 text-sm font-bold text-bg">+ فهرست جدید</span>
           </Link>
-        </div>
+        </ScrollRow>
       )}
 
       <div className="mt-8 text-center">
@@ -97,7 +104,7 @@ function FeaturedCard({ list }: { list: ListDetail }) {
         {list.owner_username && <>ساختهٔ {list.owner_username} · </>}
         <span className="num">{toFaDigits(list.items.length)}</span> عنوان · <span className="num">{toFaDigits(list.like_count)}</span> پسند
       </p>
-      <ul className="mt-5 flex snap-x gap-3 overflow-x-auto pb-2">
+      <ScrollRow as="ul" className="no-scrollbar mt-5 flex snap-x snap-mandatory scroll-px-1 gap-3 overflow-x-auto pb-2">
         {list.items.slice(0, 7).map((item, i) => {
           const src = entityPosterUrl(item.entity);
           return (
@@ -111,7 +118,7 @@ function FeaturedCard({ list }: { list: ListDetail }) {
             </li>
           );
         })}
-      </ul>
+      </ScrollRow>
       <Link href={listHref(list.slug)} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-gradient-to-l from-violet-soft to-teal px-5 text-sm font-bold text-bg">
         مشاهدهٔ فهرست کامل
       </Link>
