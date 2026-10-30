@@ -147,8 +147,8 @@ function ListCard({ list }: { list: ListSummary }) {
             );
           })}
         </div>
-        {hook && <p className="mt-5 line-clamp-1 text-xs leading-6 text-[#5fd8bf]">{hook}</p>}
-        <h3 className="mt-3 line-clamp-2 text-base font-extrabold leading-8 text-ink">{list.title}</h3>
+        <h3 className="mt-5 line-clamp-2 text-base font-extrabold leading-8 text-ink">{list.title}</h3>
+        {hook && <p className="mt-2 line-clamp-1 text-xs leading-6 text-[#5fd8bf]">{hook}</p>}
         <p className="mt-3 text-xs leading-6 text-[#a3a8cc]">
           {list.owner_username && <span dir="ltr">@{list.owner_username}</span>}
           {typeof list.item_count === "number" && <> · <span className="num">{toFaDigits(list.item_count)}</span> عنوان</>}
