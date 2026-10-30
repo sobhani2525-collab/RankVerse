@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getMyPredictedPicks } from "@/lib/api";
 import { PredictedPick } from "@/lib/types";
 import { genreLabel } from "@/lib/genre-labels";
-import { displayTitle } from "@/lib/title";
+import CardTitle from "@/components/entities/card-title";
 import { detailPathFor } from "@/lib/entity-routes";
 
 const SHOWN = 5;
@@ -67,7 +67,7 @@ export default function TasteBand() {
                         <Image src={`https://image.tmdb.org/t/p/w342${entity.poster_path}`} alt="" fill sizes="(max-width: 1024px) 120px, 200px" loading="lazy" className="object-cover" />
                       )}
                     </div>
-                    <p className="mt-2 line-clamp-1 text-xs text-ink-dim">{displayTitle(entity)}</p>
+                    <p className="mt-2 text-xs text-ink-dim"><CardTitle entity={entity} className="truncate text-ink-dim" subClassName="text-[11px] text-muted" /></p>
                   </Link>
                 </li>
               ))}
