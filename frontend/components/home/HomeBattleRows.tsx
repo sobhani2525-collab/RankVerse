@@ -7,8 +7,9 @@ import { TournamentEntity, TournamentSummary, tournamentApi } from "@/lib/tourna
 import { RunState, Slot, pickInRun, pickPayload, startRun } from "@/lib/home-battles";
 import { toFaDigits } from "@/lib/format-number";
 import { displayTitle } from "@/lib/title";
+import CardTitle from "@/components/entities/card-title";
 import { PickMark, useBattlePick } from "@/components/battle/PickMark";
-import { BattlePoster, VsBadge } from "@/components/battle/WinnerStaysBattle";
+import { BattlePoster } from "@/components/battle/WinnerStaysBattle";
 
 type Kind = "featured" | "fresh";
 const KIND_LABEL: Record<Kind, string> = { featured: "برگزیده", fresh: "تازه" };
@@ -109,26 +110,40 @@ function PairRow({ kind, battle }: { kind: Kind; battle: TournamentSummary }) {
           </div>
         </div>
       ) : (
-        <div className="relative grid shrink-0 grid-cols-2 gap-5">
-          {([0, 1] as Slot[]).map((side) => {
-            const e = run.slots[side];
-            const chosen = picked === String(side);
-            const cls = `group relative block aspect-[2/3] ${posterSize} overflow-hidden rounded-2xl bg-surface2 text-right transition focus-visible:outline-gold disabled:cursor-default ${
-              chosen ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.32)]" : picked ? "border border-border opacity-50" : "border border-border hover:border-violet-light"
-            }`;
-            const poster = <BattlePoster item={{ poster_path: null, image_url: posterOf(e) }} sizes="132px" zoom={!picked} />;
-            return isPool ? (
-              <button key={side} type="button" onClick={() => vote(side)} disabled={busy} aria-pressed={chosen} aria-label={`رأی به ${displayTitle(e)}`} className={cls}>
-                {poster}
-                {chosen && <PickMark phase={phase} />}
-              </button>
-            ) : (
-              <Link key={side} href={`/battles/${battle.slug}`} aria-label={displayTitle(e)} className={cls}>
-                {poster}
-              </Link>
-            );
-          })}
-          <VsBadge />
+        <div className="shrink-0">
+          <div className="relative grid grid-cols-2 gap-5">
+            {([0, 1] as Slot[]).map((side) => {
+              const e = run.slots[side];
+              const chosen = picked === String(side);
+              const cls = `group relative block aspect-[2/3] ${posterSize} overflow-hidden rounded-2xl bg-surface2 text-right transition focus-visible:outline-gold disabled:cursor-default ${
+                chosen ? "border-[1.5px] border-gold shadow-[0_0_0_4px_rgba(232,179,74,0.32)]" : picked ? "border border-border opacity-50" : "border border-border hover:border-violet-light"
+              }`;
+              const poster = <BattlePoster item={{ poster_path: null, image_url: posterOf(e) }} sizes="132px" zoom={!picked} />;
+              return isPool ? (
+                <button key={side} type="button" onClick={() => vote(side)} disabled={busy} aria-pressed={chosen} aria-label={`رأی به ${displayTitle(e)}`} className={cls}>
+                  {poster}
+                  {chosen && <PickMark phase={phase} small />}
+                </button>
+              ) : (
+                <Link key={side} href={`/battles/${battle.slug}`} aria-label={displayTitle(e)} className={cls}>
+                  {poster}
+                </Link>
+              );
+            })}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-violet-light bg-[#05070D] font-mono text-[9px] font-bold tracking-wider text-violet-light shadow-[0_0_0_3px_rgba(5,7,13,0.9)]"
+            >
+              VS
+            </span>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-5">
+            {([0, 1] as Slot[]).map((side) => (
+              <p key={side} className={`${posterSize} text-xs font-medium text-ink`}>
+                <CardTitle entity={run.slots[side]} className="line-clamp-1" subClassName="text-[10px] text-muted" />
+              </p>
+            ))}
+          </div>
         </div>
       )}
       <div className="min-w-0 flex-1">
@@ -145,8 +160,13 @@ function PairRow({ kind, battle }: { kind: Kind; battle: TournamentSummary }) {
           </p>
         ) : null}
         <p className="mt-1 text-xs text-[#a3a8cc]">
-          {battle.creator?.username ? `${battle.creator.username} · ` : ""}
-          <span className="num">{toFaDigits(votes)}</span> رأی
+          {battle.creator?.username}
+          {battle.creator?.username && votes > 0 ? " · " : ""}
+          {votes > 0 && (
+            <>
+              <span className="num">{toFaDigits(votes)}</span> رأی
+            </>
+          )}
         </p>
         {run.done && (
           <Link href={`/battles/${battle.slug}?view=results${run.winner ? `&mine=${encodeURIComponent(run.winner.id)}` : ""}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-[#a99bff] hover:underline">

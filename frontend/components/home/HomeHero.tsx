@@ -46,10 +46,8 @@ export default function HomeHero({
         text={
           <div className="relative z-10">
             <p dir="ltr" className="text-end text-xs font-medium uppercase tracking-[0.12em] text-teal">Your cinema. Your universe.</p>
-            <h1 className="font-display mt-4 text-5xl font-extrabold leading-[1.15] text-ink sm:text-6xl lg:text-7xl">
-              سینمای تو.
-              <br />
-              <span className="text-[#a99bff]">کهکشان تو.</span>
+            <h1 className="font-display mt-4 text-2xl font-extrabold leading-[1.3] text-ink min-[420px]:text-3xl sm:text-4xl lg:text-3xl xl:text-4xl">
+              سینمای تو. <span className="text-[#a99bff]">کهکشان تو.</span>
             </h1>
             <p className="mt-6 max-w-md text-base leading-8 text-[#c4c8e6] sm:text-lg">
               روی هر گره بزن تا مرکز کهکشان شود. امتیاز بده، در نبردها رأی بده و فهرست خودت را بساز.
