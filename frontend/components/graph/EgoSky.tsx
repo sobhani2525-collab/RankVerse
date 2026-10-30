@@ -7,6 +7,7 @@ import { EgoGraph, EgoNode } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
 import { toFaDigits } from "@/lib/format-number";
 import { detailPathFor } from "@/lib/entity-routes";
+import { labelLines } from "@/lib/graph-label";
 
 /**
  * The "orbit" drawing of one ego graph: centre in the middle, its titles on
@@ -125,11 +126,6 @@ function layout(graph: EgoGraph): { nodes: PlacedNode[]; edges: Edge[] } {
 // Persian name when there is one, the original otherwise.
 export function nameOf(n: EgoNode): string {
   return n.entity_type === "genre" ? genreLabel(n.title) : n.title_fa ?? n.title;
-}
-
-function labelOf(n: EgoNode, max = 14): string {
-  const t = nameOf(n);
-  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
 /**
@@ -293,6 +289,11 @@ export default function EgoSky({
             const dim = connected !== null && !connected.has(i);
             const isGenre = n.node.role === "genre";
             const isCenter = i === 0;
+            const fontSize = tall ? (isCenter ? 4.2 : 3.7) : isCenter ? 2.9 : 2.3;
+            const lines = labelLines(nameOf(n.node), {
+              full: n.node.role === "person" || isCenter,
+              maxLine: tall ? (isCenter ? 14 : 11) : isCenter ? 20 : 15,
+            });
             return (
               <g key={n.node.id} className="transition-opacity duration-700" opacity={dim ? 0.3 : 1}>
                 {!isGenre && (
@@ -319,7 +320,7 @@ export default function EgoSky({
                 <text
                   x={n.x}
                   y={round2(n.y + (isGenre ? n.r : n.r * 1.9) + 2.6)}
-                  fontSize={tall ? (isCenter ? 4.2 : 3.7) : isCenter ? 2.9 : 2.3}
+                  fontSize={fontSize}
                   fontWeight={isCenter || bold ? 700 : 400}
                   textAnchor="middle"
                   direction={isLatin(nameOf(n.node)) ? "ltr" : "rtl"}
@@ -327,12 +328,16 @@ export default function EgoSky({
                   fillOpacity={focus === i || isCenter || bold ? 1 : n.node.role === "work" ? 0.8 : 0.6}
                   style={{ fontFamily: "var(--font-vazirmatn)" }}
                 >
-                  {labelOf(n.node, tall ? (isCenter ? 16 : 9) : isCenter ? 22 : 14)}
+                  {lines.map((line, k) => (
+                    <tspan key={k} x={n.x} dy={k === 0 ? 0 : round2(fontSize * 1.3)}>
+                      {line}
+                    </tspan>
+                  ))}
                 </text>
                 {roleOf(n.node) && (
                   <text
                     x={n.x}
-                    y={round2(n.y + n.r * 1.9 + (isCenter ? 5.6 : 4.9))}
+                    y={round2(n.y + n.r * 1.9 + (isCenter ? 5.6 : 4.9) + (lines.length - 1) * fontSize * 1.3)}
                     fontSize={tall ? 2.9 : 1.8}
                     textAnchor="middle"
                     fill="#8A93A6"

@@ -53,7 +53,7 @@ export default function TasteBand() {
             href="/profile"
             className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-5 text-sm font-extrabold text-[#0b0d1c] focus-visible:outline-gold"
           >
-            پروفایل سینمایی
+            دیدن پروفایل سینمایی
           </Link>
         </div>
         <ScrollRow as="ul" arrowClassName="lg:hidden" className="no-scrollbar flex snap-x snap-mandatory scroll-px-1 gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-5 lg:overflow-visible">

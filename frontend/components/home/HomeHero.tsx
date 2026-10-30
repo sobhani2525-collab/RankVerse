@@ -1,6 +1,7 @@
 import HeroConstellation from "./HeroConstellation";
 import { SkyLegend } from "@/components/graph/EgoSky";
 import HeroShell from "./HeroShell";
+import HeroStarfield from "./HeroStarfield";
 import { HomeTitle } from "@/lib/home-data";
 import type { EgoGraph } from "@/lib/api";
 import CountUp from "./CountUp";
@@ -34,6 +35,8 @@ export default function HomeHero({
   return (
     // overflow-x-clip (not overflow-hidden) so popovers can hang below the hero instead of being cut off.
     <section className="relative overflow-x-clip bg-[#0b0d1c]">
+      {/* Atmosphere: drifting stars and a breathing nebula, no data meaning. */}
+      <HeroStarfield />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
