@@ -230,7 +230,8 @@ export default function EgoSky({
     clearTimer.current = setTimeout(() => setActive(null), 180);
   }
 
-  const activeNode = active !== null ? nodes[active] : null;
+  // On phones (the tall hero) a tap just acts on the node; no hover card.
+  const activeNode = !tall && active !== null ? nodes[active] : null;
 
   return (
     <div
@@ -357,12 +358,12 @@ export default function EgoSky({
           style={{ left: `${n.x}%`, top: `${pctY(n.y)}%`, width: "9%", height: tall ? "7.4%" : "9%", minWidth: 36, minHeight: 36 }}
           onClick={() => {
             // Touch has no hover, so the tap also opens the card (with its page link).
-            show(i);
+            if (!tall) show(i);
             onSelect(n.node);
           }}
-          onMouseEnter={() => show(i)}
+          onMouseEnter={() => !tall && show(i)}
           onMouseLeave={hideSoon}
-          onFocus={() => show(i)}
+          onFocus={() => !tall && show(i)}
           onBlur={hideSoon}
         />
       ))}
