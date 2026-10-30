@@ -148,15 +148,14 @@ function ListCard({ list }: { list: ListSummary }) {
           })}
         </div>
         <h3 className="mt-5 line-clamp-2 text-base font-extrabold leading-8 text-ink">{list.title}</h3>
-        {hook && <p className="mt-2 line-clamp-1 text-xs leading-6 text-[#5fd8bf]">{hook}</p>}
-        <p className="mt-3 text-xs leading-6 text-[#a3a8cc]">
+        {hook && <p className="mt-0.5 line-clamp-1 text-xs leading-6 text-[#5fd8bf]">{hook}</p>}
+      </Link>
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#2a2f5c] pt-4 text-xs text-[#a3a8cc]">
+        <p className="min-w-0 truncate">
           {list.owner_username && <span dir="ltr">@{list.owner_username}</span>}
           {typeof list.item_count === "number" && <> · <span className="num">{toFaDigits(list.item_count)}</span> عنوان</>}
         </p>
-      </Link>
-      <div className="mt-auto flex items-center justify-between border-t border-dashed border-[#2a2f5c] pt-4 text-xs text-[#a3a8cc]">
-        <Link href={listHref(list.slug)} className="inline-flex min-h-11 items-center font-bold text-ink">+ گزینه اضافه کن</Link>
-        <span className="num">♡ {toFaDigits(list.like_count)}</span>
+        <span className="num shrink-0">♡ {toFaDigits(list.like_count)}</span>
       </div>
     </article>
   );

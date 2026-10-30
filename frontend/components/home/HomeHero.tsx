@@ -5,6 +5,7 @@ import HeroStarfield from "./HeroStarfield";
 import { HomeTitle } from "@/lib/home-data";
 import type { EgoGraph } from "@/lib/api";
 import CountUp from "./CountUp";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export default function HomeHero({
@@ -25,13 +26,13 @@ export default function HomeHero({
 }) {
   const stats = (
     [
-      ["فیلم", movieTotal, "film"],
-      ["سریال", tvTotal, "tv"],
-      ["هنرمند", artistTotal, "person"],
-      ["فهرست", listTotal, "list"],
-      ["نبرد", battleTotal, "battle"],
-    ] as [string, number | null | undefined, StatIconName][]
-  ).filter((s): s is [string, number, StatIconName] => typeof s[1] === "number");
+      ["فیلم", movieTotal, "film", "/rankings"],
+      ["سریال", tvTotal, "tv", "/rankings?type=tv_series"],
+      ["هنرمند", artistTotal, "person", "/people"],
+      ["فهرست", listTotal, "list", "/lists"],
+      ["نبرد", battleTotal, "battle", "/battles"],
+    ] as [string, number | null | undefined, StatIconName, string][]
+  ).filter((s): s is [string, number, StatIconName, string] => typeof s[1] === "number");
   return (
     // overflow-x-clip (not overflow-hidden) so popovers can hang below the hero instead of being cut off.
     <section className="relative overflow-x-clip bg-[#0b0d1c]">
@@ -54,13 +55,19 @@ export default function HomeHero({
             </p>
             {stats.length > 0 && (
               <dl className="mt-6 grid grid-cols-5 divide-x divide-x-reverse divide-white/15 rounded-2xl border border-white/10 bg-white/[0.06] py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md">
-                {stats.map(([label, value, icon]) => (
-                  <div key={label} className="flex min-w-0 flex-col items-center px-1 text-center">
-                    <StatIcon name={icon} />
-                    <dd className="num mt-2 text-sm font-extrabold text-ink sm:text-xl">
-                      <CountUp value={value} />
-                    </dd>
-                    <dt className="text-[11px] text-[#a3a8cc]">{label}</dt>
+                {stats.map(([label, value, icon, href]) => (
+                  <div key={label} className="min-w-0">
+                    <Link
+                      href={href}
+                      aria-label={`${label}؛ مشاهدهٔ همه`}
+                      className="group flex min-h-11 flex-col items-center rounded-xl px-1 py-1 text-center transition hover:bg-white/[0.08] focus-visible:outline-gold"
+                    >
+                      <StatIcon name={icon} />
+                      <dd className="num mt-2 text-sm font-extrabold text-ink sm:text-xl">
+                        <CountUp value={value} />
+                      </dd>
+                      <dt className="text-[11px] text-[#a3a8cc] transition group-hover:text-ink">{label}</dt>
+                    </Link>
                   </div>
                 ))}
               </dl>
