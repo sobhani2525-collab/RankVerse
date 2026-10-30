@@ -100,17 +100,17 @@ function PairRow({ kind, battle }: { kind: Kind; battle: TournamentSummary }) {
     });
   }
 
-  const posterSize = "w-[104px] sm:w-[132px]";
+  const posterSize = "w-[128px] md:w-[116px] xl:w-[132px]";
   return (
-    <article className="flex items-center gap-5 rounded-3xl border border-[#2a2f5c] bg-[#141733] p-5">
+    <article className="flex flex-col gap-5 rounded-3xl border border-[#2a2f5c] bg-[#141733] p-5 md:flex-row md:items-center">
       {run.done && run.winner ? (
-        <div className={`relative shrink-0 ${posterSize}`}>
+        <div className={`relative mx-auto shrink-0 md:mx-0 ${posterSize}`}>
           <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border-[1.5px] border-gold bg-surface2 shadow-[0_0_0_4px_rgba(232,179,74,0.32)]">
             <BattlePoster item={{ poster_path: null, image_url: posterOf(run.winner) }} sizes="132px" />
           </div>
         </div>
       ) : (
-        <div className="shrink-0">
+        <div className="order-last mx-auto shrink-0 md:order-none md:mx-0">
           <div className="relative grid grid-cols-2 gap-5">
             {([0, 1] as Slot[]).map((side) => {
               const e = run.slots[side];
@@ -139,8 +139,8 @@ function PairRow({ kind, battle }: { kind: Kind; battle: TournamentSummary }) {
           </div>
           <div className="mt-2 grid grid-cols-2 gap-5">
             {([0, 1] as Slot[]).map((side) => (
-              <p key={side} className={`${posterSize} text-xs font-medium text-ink`}>
-                <CardTitle entity={run.slots[side]} className="line-clamp-1" subClassName="text-[10px] text-muted" />
+              <p key={side} className={`${posterSize} text-center text-xs font-medium text-ink`}>
+                <CardTitle entity={run.slots[side]} className="line-clamp-1" subClassName="text-[10px] text-muted" center />
               </p>
             ))}
           </div>
