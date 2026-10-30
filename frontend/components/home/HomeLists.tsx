@@ -133,7 +133,7 @@ function ListCard({ list }: { list: ListSummary }) {
   const hook = list.description?.split(/[.!؟?\n]/)[0]?.trim();
   return (
     <article className="flex h-full flex-col rounded-3xl border border-[#2a2f5c] bg-[#141733] p-4">
-      <Link href={listHref(list.slug)} className="block">
+      <Link href={listHref(list.slug)} className="mb-5 block">
         <div className="grid grid-cols-3 gap-2">
           {posters.map((e) => {
             const src = entityPosterUrl(e);
@@ -147,14 +147,14 @@ function ListCard({ list }: { list: ListSummary }) {
             );
           })}
         </div>
-        {hook && <p className="mt-3 line-clamp-1 text-xs text-[#5fd8bf]">{hook}</p>}
-        <h3 className="mt-1 line-clamp-2 text-base font-extrabold leading-7 text-ink">{list.title}</h3>
-        <p className="mt-2 text-xs text-[#a3a8cc]">
+        {hook && <p className="mt-5 line-clamp-1 text-xs leading-6 text-[#5fd8bf]">{hook}</p>}
+        <h3 className="mt-3 line-clamp-2 text-base font-extrabold leading-8 text-ink">{list.title}</h3>
+        <p className="mt-3 text-xs leading-6 text-[#a3a8cc]">
           {list.owner_username && <span dir="ltr">@{list.owner_username}</span>}
           {typeof list.item_count === "number" && <> · <span className="num">{toFaDigits(list.item_count)}</span> عنوان</>}
         </p>
       </Link>
-      <div className="mt-auto flex items-center justify-between border-t border-dashed border-[#2a2f5c] pt-3 text-xs text-[#a3a8cc]">
+      <div className="mt-auto flex items-center justify-between border-t border-dashed border-[#2a2f5c] pt-4 text-xs text-[#a3a8cc]">
         <Link href={listHref(list.slug)} className="inline-flex min-h-11 items-center font-bold text-ink">+ گزینه اضافه کن</Link>
         <span className="num">♡ {toFaDigits(list.like_count)}</span>
       </div>
