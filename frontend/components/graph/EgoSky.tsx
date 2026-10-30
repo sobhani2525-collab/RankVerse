@@ -31,6 +31,11 @@ interface Edge {
   kind: "credit" | "genre";
 }
 
+// The colour-key pill sits under the sky, so the lower half is squeezed a little: no star or
+// name ends up next to it.
+const LOWER_HALF_SCALE = 0.8;
+const lowerHalf = (y: number) => (y > 50 ? 50 + (y - 50) * LOWER_HALF_SCALE : y);
+
 // Every computed coordinate goes through this so the markup is stable.
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
@@ -116,7 +121,7 @@ function layout(graph: EgoGraph): { nodes: PlacedNode[]; edges: Edge[] } {
     return {
       node,
       x: round2(Math.min(92, Math.max(8, 50 + radius * Math.cos(a)))),
-      y: round2(Math.min(92, Math.max(8, 50 + radius * Math.sin(a)))),
+      y: round2(lowerHalf(Math.min(92, Math.max(8, 50 + radius * Math.sin(a))))),
       r,
     };
   });
