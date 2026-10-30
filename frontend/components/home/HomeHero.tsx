@@ -52,14 +52,11 @@ export default function HomeHero({
               روی هر گره بزن تا مرکز کهکشان شود. امتیاز بده، در نبردها رأی بده و فهرست خودت را بساز.
             </p>
             {stats.length > 0 && (
-              <dl className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              <dl className="mt-6 grid grid-cols-5 divide-x divide-x-reverse divide-white/15 rounded-2xl border border-white/10 bg-white/[0.06] py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md">
                 {stats.map(([label, value, icon]) => (
-                  <div
-                    key={label}
-                    className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.06] px-2 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md"
-                  >
+                  <div key={label} className="flex min-w-0 flex-col items-center px-1 text-center">
                     <StatIcon name={icon} />
-                    <dd className="num mt-2 text-lg font-extrabold text-ink sm:text-xl">
+                    <dd className="num mt-2 text-sm font-extrabold text-ink sm:text-xl">
                       <CountUp value={value} />
                     </dd>
                     <dt className="text-[11px] text-[#a3a8cc]">{label}</dt>
