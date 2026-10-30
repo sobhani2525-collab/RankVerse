@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { PairSuggestion, PairSuggestionEntity, getPairSuggestion } from "@/lib/api";
 import { tournamentApi, tournamentHref } from "@/lib/tournament";
 import { displayTitle } from "@/lib/title";
@@ -16,6 +17,7 @@ const poster = (e: PairSuggestionEntity) => (e.poster_path ? `https://image.tmdb
 export default function SuggestedPairCard() {
   const router = useRouter();
   const { isAuthenticated, loading: authLoading, getToken } = useAuth();
+  const { openLoginModal } = useAuthGate();
   const [data, setData] = useState<PairSuggestion | null>(null);
   const [rival, setRival] = useState<PairSuggestionEntity | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "none" | "error">("loading");
@@ -42,6 +44,21 @@ export default function SuggestedPairCard() {
     void load();
   }, [authLoading, isAuthenticated, load]);
 
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <section className="flex flex-col justify-center rounded-3xl border border-dashed border-[#a99bff]/50 p-6" aria-label="پیشنهاد ساخت نبرد">
+        <p className="text-xs font-bold text-[#a99bff]">پیشنهاد ساخت نبرد، از سلیقهٔ تو</p>
+        <p className="mt-3 text-base font-extrabold leading-8 text-ink">فیلم‌هایی را که امتیاز برابر داده‌ای رو در رو کن.</p>
+        <p className="mt-1 text-sm leading-7 text-[#a3a8cc]">با ورود و امتیازدادن، نبردهای پیشنهادی از روی سلیقهٔ خودت ساخته می‌شود.</p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => openLoginModal()} className="min-h-11 rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c]">
+            ورود و ساخت نبرد
+          </button>
+          <Link href="/battles/new" className="text-xs text-[#a3a8cc] hover:text-ink">ساخت نبرد از صفر ←</Link>
+        </div>
+      </section>
+    );
+  }
   if (state === "none") return null;
   if (state === "loading") return <div className="mt-4 h-56 animate-pulse rounded-3xl bg-surface2/50" aria-busy="true" />;
   if (state === "error" || !data) {
@@ -117,21 +134,21 @@ export default function SuggestedPairCard() {
               </div>
             </div>
           )}
+          {error && <p role="alert" className="mt-3 text-xs text-gold">{error}</p>}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {canPublish ? (
+              <button type="button" onClick={publish} disabled={publishing} className="min-h-11 rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c] disabled:opacity-60">
+                {publishing ? "در حال انتشار…" : "منتشر کن"}
+              </button>
+            ) : (
+              <Link href="/battles/new" className="inline-flex min-h-11 items-center rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c]">ساخت نبرد</Link>
+            )}
+            <button type="button" onClick={() => void load()} className="min-h-11 rounded-xl border border-[#2a2f5c] bg-[#1d2147] px-4 text-sm font-bold text-ink">
+              جفت دیگر
+            </button>
+          </div>
+          <Link href="/battles/new" className="mt-3 inline-block text-xs text-[#a3a8cc] hover:text-ink">ساخت نبرد از صفر ←</Link>
         </div>
-      </div>
-      {error && <p role="alert" className="mt-3 text-xs text-gold">{error}</p>}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        {canPublish ? (
-          <button type="button" onClick={publish} disabled={publishing} className="min-h-11 rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c] disabled:opacity-60">
-            {publishing ? "در حال انتشار…" : "منتشر کن"}
-          </button>
-        ) : (
-          <Link href="/battles/new" className="btn-primary inline-flex min-h-11 items-center rounded-xl px-5 text-sm">ساخت نبرد</Link>
-        )}
-        <button type="button" onClick={() => void load()} className="min-h-11 rounded-xl border border-border bg-surface2 px-4 text-sm font-semibold text-ink">
-          جفت دیگر
-        </button>
-        <Link href="/battles/new" className="text-xs text-muted hover:text-ink">ساخت نبرد از صفر ←</Link>
       </div>
     </section>
   );
