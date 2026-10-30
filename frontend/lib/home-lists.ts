@@ -11,7 +11,7 @@ export const LIST_TABS: { key: ListTab; label: string }[] = [
 /** Query for each tab; "picked" has its own endpoint (admin-featured lists), so it has no discover query. */
 export function discoverQueryFor(tab: ListTab): { sort: "newest" | "popular"; page_size: number } | null {
   if (tab === "picked") return null;
-  return { sort: tab === "fresh" ? "newest" : "popular", page_size: 5 };
+  return { sort: tab === "fresh" ? "newest" : "popular", page_size: 7 };
 }
 
 /** The tab's cards without the weekly featured list, which already has its own big card. */

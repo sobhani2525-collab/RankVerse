@@ -24,7 +24,7 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
     let cancelled = false;
     setFailed(false);
     const query = discoverQueryFor(tab);
-    (query ? discoverLists(query, 0) : getFeaturedLists(6, 0))
+    (query ? discoverLists(query, 0) : getFeaturedLists(7, 0))
       .then((items) => !cancelled && setCache((c) => ({ ...c, [tab]: items })))
       .catch(() => !cancelled && setFailed(true));
     return () => {
@@ -33,7 +33,7 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
   }, [tab, cache]);
 
   const items = cache[tab];
-  const cards = items ? withoutFeatured(items, featured?.slug ?? null, 4) : null;
+  const cards = items ? withoutFeatured(items, featured?.slug ?? null, 5) : null;
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-14" aria-label="فهرست‌ها">

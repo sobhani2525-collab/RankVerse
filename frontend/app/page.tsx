@@ -40,7 +40,7 @@ async function fetchDetails(slugs: string[]): Promise<{ details: MovieDetail[] }
   return { details };
 }
 
-const OTHER_FEATURED = 5;
+const OTHER_FEATURED = 6;
 
 function shuffled<T>(items: T[]): T[] {
   const out = [...items];
