@@ -54,7 +54,6 @@ export default function SuggestedPairCard() {
           <button type="button" onClick={() => openLoginModal()} className="min-h-11 rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c]">
             ورود و ساخت نبرد
           </button>
-          <Link href="/battles/new" className="text-xs text-[#a3a8cc] hover:text-ink">ساخت نبرد از صفر ←</Link>
         </div>
       </section>
     );
@@ -147,7 +146,6 @@ export default function SuggestedPairCard() {
               جفت دیگر
             </button>
           </div>
-          <Link href="/battles/new" className="mt-3 inline-block text-xs text-[#a3a8cc] hover:text-ink">ساخت نبرد از صفر ←</Link>
         </div>
       </div>
     </section>
