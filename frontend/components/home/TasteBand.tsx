@@ -37,7 +37,7 @@ export default function TasteBand() {
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-6" aria-label="به سلیقه‌ات می‌خورد">
-      <div className="grid gap-6 rounded-3xl border border-[#2a2f5c] bg-[#101330] p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,3.4fr)]">
+      <div className="grid grid-cols-1 gap-6 rounded-3xl border border-[#2a2f5c] bg-[#101330] p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,3.4fr)]">
         <div>
           <p className="text-xs text-[#5fd8bf]">برای تو · FOR YOU</p>
           <h2 className="mt-1 text-xl font-extrabold text-ink">به سلیقه‌ات می‌خورد</h2>

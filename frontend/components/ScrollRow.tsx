@@ -39,7 +39,7 @@ export default function ScrollRow({ as: Tag = "div", className = "", arrowClassN
   };
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <Tag ref={ref} onScroll={update} className={className}>
         {children}
       </Tag>

@@ -96,7 +96,7 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
 
 function FeaturedCard({ list }: { list: ListDetail }) {
   return (
-    <article className="grid items-center gap-6 rounded-3xl border border-[#2a2f5c] bg-gradient-to-l from-[#1a1d45] to-[#101330] p-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,5fr)]">
+    <article className="grid min-w-0 grid-cols-1 items-center gap-6 rounded-3xl border border-[#2a2f5c] bg-gradient-to-l from-[#1a1d45] to-[#101330] p-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,5fr)]">
       <div>
         <p className="text-xs font-bold text-[#f5b94a]">فهرست برگزیدهٔ این هفته</p>
         <h3 className="mt-2 text-2xl font-extrabold leading-9 text-ink">{list.title}</h3>
