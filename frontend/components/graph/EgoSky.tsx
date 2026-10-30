@@ -427,7 +427,7 @@ function InfoCard({ node, topPct, onEnter, onLeave }: { node: PlacedNode; topPct
 /** The colour key under a sky: what each kind of star and link means. */
 export function SkyLegend({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`relative z-10 mx-auto w-fit max-w-full border border-white/10 backdrop-blur-md ${compact ? "mt-2 rounded-full bg-[#101330]/80 px-5 py-2.5" : "-mt-2 rounded-2xl bg-[#0A0F18]/70 px-4 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.7)]"}`}>
+    <div className={`relative z-10 mx-auto w-fit max-w-full border border-white/10 backdrop-blur-md ${compact ? "-mt-6 rounded-full bg-[#101330]/80 px-5 py-2.5" : "-mt-2 rounded-2xl bg-[#0A0F18]/70 px-4 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.7)]"}`}>
       <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] text-ink-dim">
         <li className="flex items-center gap-2">
           <span className="inline-block h-3 w-3 rounded-full bg-gold shadow-[0_0_8px_rgba(232,179,74,0.8)]" /> مرکز
