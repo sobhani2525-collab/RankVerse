@@ -89,6 +89,19 @@ def translate_one(client, model: str, item: dict, thinking_off: bool = False, at
     return None
 
 
+async def with_db_retry(what: str, work, attempts: int = 4):
+    """Run work(db) in a fresh session; retry when the connection to the remote DB drops."""
+    for attempt in range(1, attempts + 1):
+        try:
+            async with AsyncSessionLocal() as db:
+                return await work(db)
+        except Exception as exc:
+            print(f"  database error during {what} ({attempt}/{attempts}): {str(exc)[:150]}", flush=True)
+            if attempt == attempts:
+                raise
+            await asyncio.sleep(10 * attempt)
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--limit", type=int, default=None)
@@ -106,8 +119,7 @@ async def main() -> None:
     client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT, max_retries=0, **kwargs)
 
     print("loading the list from the database (can take a minute)...", flush=True)
-    async with AsyncSessionLocal() as db:
-        items = await people_needing_translation(db)
+    items = await with_db_retry("load list", lambda db: people_needing_translation(db))
     if args.limit is not None:
         items = items[: args.limit]
     if not items:
@@ -128,15 +140,27 @@ async def main() -> None:
             results = await asyncio.gather(
                 *(loop.run_in_executor(pool, translate_one, client, model, i, args.no_thinking) for i in chunk)
             )
-            async with AsyncSessionLocal() as db:
+            async def save(db, chunk=chunk, results=results):
+                outcomes = []
                 for item, translated in zip(chunk, results):
                     if translated is None:
-                        failed += 1
+                        outcomes.append("failed")
                     elif await apply_biography_translation(db, item["id"], source_hash(item["source"]), translated):
-                        applied += 1
+                        outcomes.append("applied")
                     else:
-                        skipped += 1
+                        outcomes.append("skipped")
                 await db.commit()
+                return outcomes
+
+            try:
+                outcomes = await with_db_retry("save results", save)
+            except Exception:
+                # Could not reach the DB: these translations are lost (and paid
+                # for), but the next run redoes them -- keep going.
+                outcomes = ["failed"] * len(chunk)
+            applied += outcomes.count("applied")
+            skipped += outcomes.count("skipped")
+            failed += outcomes.count("failed")
             print(f"{start + len(chunk)}/{len(items)}: applied {applied}, skipped {skipped}, failed {failed}", flush=True)
 
     if QUOTA_EXHAUSTED.is_set():
