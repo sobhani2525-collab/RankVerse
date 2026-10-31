@@ -36,6 +36,7 @@ from app.modules.sync.translation import (
 
 CHUNK = 50
 REQUEST_TIMEOUT = 180.0
+MAX_RATE_WAITS = 8
 QUOTA_EXHAUSTED = threading.Event()
 
 
@@ -44,11 +45,13 @@ def translate_one(client, model: str, item: dict, thinking_off: bool = False, at
     year = f" ({item['year']})" if item.get("year") else ""
     extra = {"thinking": {"type": "disabled"}} if thinking_off else {}
     reason = ""
-    for attempt in range(attempts):
+    attempt = rate_waits = 0
+    while attempt < attempts:
         if QUOTA_EXHAUSTED.is_set():
             return None
         if attempt:
             time.sleep(5 * attempt)
+        attempt += 1
         try:
             message = client.messages.create(
                 model=model,
@@ -58,10 +61,17 @@ def translate_one(client, model: str, item: dict, thinking_off: bool = False, at
                 **extra,
             )
         except anthropic.RateLimitError as exc:
-            if not QUOTA_EXHAUSTED.is_set():
-                print(f"  quota exhausted, stopping: {str(exc)[:300]}", flush=True)
-            QUOTA_EXHAUSTED.set()
-            return None
+            # A per-minute limit (e.g. AvalAI tiers) clears by waiting; only a
+            # used-up allowance, or a limit that never clears, ends the run.
+            rate_waits += 1
+            if "allowance" in str(exc).lower() or rate_waits > MAX_RATE_WAITS:
+                if not QUOTA_EXHAUSTED.is_set():
+                    print(f"  quota exhausted, stopping: {str(exc)[:300]}", flush=True)
+                QUOTA_EXHAUSTED.set()
+                return None
+            attempt -= 1  # a rate-limit wait is not a failed attempt
+            time.sleep(min(15 * rate_waits, 60))
+            continue
         except Exception as exc:  # network / gateway hiccup: retry
             reason = f"error: {str(exc)[:200]}"
             continue
