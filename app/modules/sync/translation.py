@@ -97,10 +97,21 @@ def english_source(attributes: dict) -> str | None:
 
 
 async def titles_needing_translation(db: AsyncSession) -> list[dict]:
+    # Only the few attribute keys the selection needs, and only rows not
+    # already Persian from TMDb / an admin: pulling every title's full
+    # attributes over a remote connection hit the statement timeout.
+    await db.execute(text("SET LOCAL statement_timeout = '300s'"))
     rows = await db.execute(
         text(
-            "SELECT id, entity_type, title, attributes FROM entities "
+            "SELECT id, entity_type, title, jsonb_build_object("
+            "'overview', attributes->'overview', 'overview_en', attributes->'overview_en', "
+            "'overview_source', attributes->'overview_source', "
+            "'overview_translation_v', attributes->'overview_translation_v', "
+            "'original_language', attributes->'original_language', "
+            "'external_vote_count', attributes->'external_vote_count', 'year', attributes->'year') "
+            "FROM entities "
             "WHERE entity_type IN ('movie', 'tv_series') "
+            "AND COALESCE(attributes->>'overview_source', '') NOT IN ('tmdb_fa', 'manual') "
             "ORDER BY (attributes->>'external_vote_count')::int DESC NULLS LAST"
         )
     )
