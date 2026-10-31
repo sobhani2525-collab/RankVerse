@@ -71,10 +71,13 @@ def translate_one(client, model: str, item: dict, thinking_off: bool = False, at
                 QUOTA_EXHAUSTED.set()
                 return None
             attempt -= 1  # a rate-limit wait is not a failed attempt
-            time.sleep(min(15 * rate_waits, 60))
+            wait = min(15 * rate_waits, 60)
+            print(f"  rate limited ({rate_waits}/{MAX_RATE_WAITS}), waiting {wait}s: {str(exc)[:120]}", flush=True)
+            time.sleep(wait)
             continue
         except Exception as exc:  # network / gateway hiccup: retry
             reason = f"error: {str(exc)[:200]}"
+            print(f"  retrying after {reason}", flush=True)
             continue
         text = strip_prompt_echo("".join(b.text for b in message.content if b.type == "text").strip())
         if message.stop_reason != "end_turn":
