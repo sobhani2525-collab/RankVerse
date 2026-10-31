@@ -91,6 +91,7 @@ async def main() -> None:
     # (translate_one then retries it, and finally skips it for the next run).
     client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT, max_retries=0, **kwargs)
 
+    print("loading the list from the database (can take a minute)...", flush=True)
     async with AsyncSessionLocal() as db:
         items = await people_needing_translation(db)
     if args.limit is not None:

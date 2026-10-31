@@ -90,6 +90,7 @@ async def main() -> None:
         kwargs["api_key"] = settings.anthropic_api_key
     client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT, max_retries=0, **kwargs)
 
+    print("loading the list from the database (can take a minute)...", flush=True)
     async with AsyncSessionLocal() as db:
         items = await titles_needing_translation(db)
     if args.limit is not None:
