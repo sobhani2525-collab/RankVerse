@@ -112,17 +112,8 @@ export default function EntityOverviewGraph({
   return (
     <div>
       <SectionHeading en="OVERVIEW" fa={`نمای کلی ${typeFa}`} tone="text-gold" />
-      <div className="relative mt-4 overflow-hidden rounded-3xl border border-white/10 bg-[#070A12]/60 shadow-[0_24px_60px_-30px_rgba(0,0,0,0.9)]">
-        {/* soft nebula behind the sky */}
-        <div
-          aria-hidden="true"
-          className="rv-nebula pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(40% 45% at 35% 45%, rgba(145,99,245,0.16), transparent 70%), radial-gradient(35% 40% at 70% 60%, rgba(79,184,166,0.10), transparent 70%), radial-gradient(25% 25% at 50% 50%, rgba(232,179,74,0.10), transparent 70%)",
-          }}
-        />
-        <div className="relative p-4 sm:p-6">
+      <div className="relative mt-4">
+        <div className="relative">
           {!atHome && (
             <button
               type="button"
@@ -132,10 +123,10 @@ export default function EntityOverviewGraph({
               بازگشت به {nameOf(self)}
             </button>
           )}
-          <div className={`relative mx-auto w-full max-w-[560px] transition-opacity duration-300 ${loading ? "opacity-50" : ""}`}>
-            <EgoSky graph={graph} onSelect={explore} actionLabel="چرخاندن مدار دور آن" />
+          <div className={`relative mx-auto w-full max-w-[760px] transition-opacity duration-300 ${loading ? "opacity-50" : ""}`}>
+            <EgoSky graph={graph} onSelect={explore} actionLabel="چرخاندن مدار دور آن" mobileTall bold />
           </div>
-          <SkyLegend />
+          <SkyLegend compact />
         </div>
       </div>
     </div>
