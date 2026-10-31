@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { detailPathFor } from "@/lib/entity-routes";
 import { useAuth } from "@/lib/auth-context";
 import { TournamentEntity, TournamentSummary, tournamentApi } from "@/lib/tournament";
 import { RunState, Slot, pickInRun, pickPayload, startRun } from "@/lib/home-battles";
@@ -140,7 +141,9 @@ function PairRow({ kind, battle }: { kind: Kind; battle: TournamentSummary }) {
           <div className="mt-2 grid grid-cols-2 gap-5">
             {([0, 1] as Slot[]).map((side) => (
               <p key={side} className={`${posterSize} text-center text-xs font-medium text-ink`}>
-                <CardTitle entity={run.slots[side]} className="line-clamp-1" subClassName="text-[10px] text-muted" center />
+                <Link href={detailPathFor(run.slots[side].entity_type, run.slots[side].slug) ?? `/battles/${battle.slug}`} className="block min-h-11 hover:text-[#f5b94a] focus-visible:outline-gold">
+                  <CardTitle entity={run.slots[side]} className="line-clamp-1" subClassName="text-[10px] text-muted" center />
+                </Link>
               </p>
             ))}
           </div>
