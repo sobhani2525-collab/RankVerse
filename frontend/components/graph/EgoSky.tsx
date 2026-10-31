@@ -176,6 +176,7 @@ export default function EgoSky({
   actionLabel = "کاوش در گراف",
   mobileTall = false,
   bold = false,
+  fontScale = 1,
 }: {
   graph: EgoGraph | null;
   /** A click (or tap) on a star. The hover card still links to the node's own page. */
@@ -186,6 +187,8 @@ export default function EgoSky({
   mobileTall?: boolean;
   /** Brighter, heavier labels (the home hero). */
   bold?: boolean;
+  /** Multiplier on the label sizes. */
+  fontScale?: number;
 }) {
   const [phone, setPhone] = useState(false);
   useEffect(() => {
@@ -294,7 +297,7 @@ export default function EgoSky({
             const dim = connected !== null && !connected.has(i);
             const isGenre = n.node.role === "genre";
             const isCenter = i === 0;
-            const fontSize = tall ? (isCenter ? 4.2 : 3.7) : isCenter ? 2.9 : 2.3;
+            const fontSize = (tall ? (isCenter ? 4.2 : 3.7) : isCenter ? 2.9 : 2.3) * fontScale;
             const lines = labelLines(nameOf(n.node), {
               full: n.node.role === "person" || isCenter,
               maxLine: tall ? (isCenter ? 14 : 11) : isCenter ? 20 : 15,
@@ -343,7 +346,7 @@ export default function EgoSky({
                   <text
                     x={n.x}
                     y={round2(n.y + n.r * 1.9 + (isCenter ? 5.6 : 4.9) + (lines.length - 1) * fontSize * 1.3)}
-                    fontSize={tall ? 2.9 : 1.8}
+                    fontSize={(tall ? 2.9 : 1.8) * fontScale}
                     textAnchor="middle"
                     fill="#8A93A6"
                     fillOpacity={0.85}

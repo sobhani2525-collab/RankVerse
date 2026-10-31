@@ -124,7 +124,7 @@ export default function EntityOverviewGraph({
             </button>
           )}
           <div className={`relative mx-auto w-full max-w-[760px] transition-opacity duration-300 ${loading ? "opacity-50" : ""}`}>
-            <EgoSky graph={graph} onSelect={explore} actionLabel="چرخاندن مدار دور آن" mobileTall bold />
+            <EgoSky graph={graph} onSelect={explore} actionLabel="چرخاندن مدار دور آن" mobileTall bold fontScale={0.85} />
           </div>
           <SkyLegend compact />
         </div>
