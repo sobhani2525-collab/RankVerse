@@ -35,7 +35,7 @@ from app.modules.sync.translation import (
     titles_needing_translation,
 )
 
-CHUNK = 50
+CHUNK = 10
 REQUEST_TIMEOUT = 180.0
 MAX_RATE_WAITS = 8
 QUOTA_EXHAUSTED = threading.Event()

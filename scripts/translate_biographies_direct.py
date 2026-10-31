@@ -34,7 +34,7 @@ from app.modules.sync.translation import (
     strip_prompt_echo,
 )
 
-CHUNK = 50
+CHUNK = 10
 REQUEST_TIMEOUT = 180.0
 MAX_RATE_WAITS = 8
 # Set when the gateway says the (free) allowance is used up: every worker stops
