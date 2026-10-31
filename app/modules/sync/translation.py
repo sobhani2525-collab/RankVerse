@@ -45,7 +45,7 @@ Quality rules for the Persian:
 - Use only real, idiomatic Persian words. If you are unsure that a word or collocation exists and sounds natural, choose a simpler common one -- never invent a word.
 - Prefer plain, common vocabulary over heavy or bookish words; keep sentences short enough to read easily.
 
-Reply with the Persian translation only: no preamble, notes, quotes, or the original text."""
+Reply with the Persian translation only: no preamble, notes, quotes, or the original text. Do not repeat the title/name line or any label such as "Film:", "Person:", "Synopsis:" or "Biography:"."""
 
 
 # Original languages of the many obscure Chinese, Korean, Japanese, Indian,
@@ -165,11 +165,20 @@ def make_client() -> anthropic.Anthropic:
     return anthropic.Anthropic()
 
 
+# Some models echo the request header ("فیلم: Title (2017)" + a "خلاصه داستان:"
+# label) before the translation; strip it, and the same for biographies.
+_ECHO_HEADER = re.compile(r"^(?:فیلم|سریال|شخص|Film|TV series|Person)\s*[:：][^\n]*\n+[^\n:：]{1,30}[:：]\s*\n+")
+
+
+def strip_prompt_echo(translated: str) -> str:
+    return _ECHO_HEADER.sub("", translated, count=1).strip()
+
+
 def translation_from_message(message) -> str | None:
     """The Persian text of a finished request, or None if it isn't usable."""
     if message.stop_reason != "end_turn":
         return None
-    translated = "".join(b.text for b in message.content if b.type == "text").strip()
+    translated = strip_prompt_echo("".join(b.text for b in message.content if b.type == "text").strip())
     return translated if is_persian(translated) else None
 
 
@@ -222,7 +231,7 @@ Quality rules for the Persian:
 - Use only real, idiomatic Persian words. If you are unsure that a word or collocation exists and sounds natural, choose a simpler common one -- never invent a word.
 - Prefer plain, common vocabulary over heavy or bookish words; keep sentences short enough to read easily.
 
-Reply with the Persian translation only: no preamble, notes, quotes, or the original text."""
+Reply with the Persian translation only: no preamble, notes, quotes, or the original text. Do not repeat the title/name line or any label such as "Film:", "Person:", "Synopsis:" or "Biography:"."""
 
 
 def biography_source_text(attributes: dict) -> str | None:

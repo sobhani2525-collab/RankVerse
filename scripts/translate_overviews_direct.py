@@ -31,6 +31,7 @@ from app.modules.sync.translation import (
     apply_translation,
     is_persian,
     source_hash,
+    strip_prompt_echo,
     titles_needing_translation,
 )
 
@@ -75,7 +76,7 @@ def translate_one(client, model: str, item: dict, thinking_off: bool = False, at
         except Exception as exc:  # network / gateway hiccup: retry
             reason = f"error: {str(exc)[:200]}"
             continue
-        text = "".join(b.text for b in message.content if b.type == "text").strip()
+        text = strip_prompt_echo("".join(b.text for b in message.content if b.type == "text").strip())
         if message.stop_reason != "end_turn":
             reason = f"stop_reason={message.stop_reason}, {len(text)} chars"
         elif not is_persian(text):
