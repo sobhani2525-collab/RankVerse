@@ -28,7 +28,8 @@ PERSIAN_CHARS = re.compile(r"[؀-ۿ]")
 # translations stale. A "machine" overview written under an older version
 # (or before versions existed: none stored) is queued for translation again.
 # v2: personal and character names stay in Latin script.
-TRANSLATION_VERSION = 2
+# v3: quality rules (no literal translation, agreement, no invented words).
+TRANSLATION_VERSION = 3
 
 SYSTEM_PROMPT = """You translate film and TV synopses from English into Persian (Farsi) for an Iranian movie website.
 
@@ -37,6 +38,12 @@ Write natural, fluent Persian the way a professional Iranian film magazine would
 Keep the names of people (actors, directors, real persons) and of fictional characters exactly as in the English text, in Latin script -- never transliterate them into Persian script (e.g. "Michael Corleone" stays "Michael Corleone"). Well-known place names may be written in Persian (e.g. "New York" -> "نیویورک"). Titles of works and brand names that are well known in Iran by a Persian name use that name.
 
 Use Persian punctuation (، ؛ ؟ « ») and the zero-width non-joiner where standard Persian orthography calls for it (e.g. می‌شود).
+
+Quality rules for the Persian:
+- Never translate literally. Re-express each sentence the way a native writer would: "begins to realize" -> "کم‌کم پی می‌برد", "his entire existence" -> "تمام زندگی‌اش", "long-running" -> "طولانی‌مدت" or "پربیننده", "a vast, unseen audience" -> "مخاطبانی عظیم و نامرئی".
+- Check agreement: singular with singular, plural with plural (never "یک تماشاگران"); keep the verb tense of the source.
+- Use only real, idiomatic Persian words. If you are unsure that a word or collocation exists and sounds natural, choose a simpler common one -- never invent a word.
+- Prefer plain, common vocabulary over heavy or bookish words; keep sentences short enough to read easily.
 
 Reply with the Persian translation only: no preamble, notes, quotes, or the original text."""
 
@@ -208,6 +215,12 @@ Write natural, fluent Persian the way a professional Iranian film magazine would
 Keep the names of people (including the subject) and of fictional characters exactly as in the English text, in Latin script -- never transliterate them into Persian script. Well-known place names may be written in Persian (e.g. "Los Angeles" -> "لس‌آنجلس"). Titles of films and series that are well known in Iran by a Persian name use that name; otherwise keep the English title in Latin script.
 
 Use Persian punctuation (، ؛ ؟ « ») and the zero-width non-joiner where standard Persian orthography calls for it (e.g. می‌شود).
+
+Quality rules for the Persian:
+- Never translate literally. Re-express each sentence the way a native writer would: "begins to realize" -> "کم‌کم پی می‌برد", "his entire existence" -> "تمام زندگی‌اش", "long-running" -> "طولانی‌مدت" or "پربیننده", "a vast, unseen audience" -> "مخاطبانی عظیم و نامرئی".
+- Check agreement: singular with singular, plural with plural (never "یک تماشاگران"); keep the verb tense of the source.
+- Use only real, idiomatic Persian words. If you are unsure that a word or collocation exists and sounds natural, choose a simpler common one -- never invent a word.
+- Prefer plain, common vocabulary over heavy or bookish words; keep sentences short enough to read easily.
 
 Reply with the Persian translation only: no preamble, notes, quotes, or the original text."""
 
