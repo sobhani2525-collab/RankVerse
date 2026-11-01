@@ -41,6 +41,24 @@ async def seeded(db_session, monkeypatch):
             RelationshipEdge(from_entity_id=movie.id, to_entity_id=genre.id, relation_type="has_genre"),
             RelationshipEdge(from_entity_id=movie.id, to_entity_id=actor.id, relation_type="acted_in"),
         ])
+    for i in range(30):
+        series = Entity(entity_type="tv_series", title=f"Show {i}", slug=f"show-{i}", attributes={"year": 1990 + i % 10})
+        db_session.add(series)
+        await db_session.flush()
+        genre = genres[("Crime", "Drama", "Comedy")[i % 3]]
+        db_session.add_all([
+            EntityRanking(entity_id=series.id, computed_score=8.5 - i * 0.05, total_votes=10),
+            RelationshipEdge(from_entity_id=series.id, to_entity_id=genre.id, relation_type="has_genre"),
+            RelationshipEdge(from_entity_id=series.id, to_entity_id=actor.id, relation_type="acted_in"),
+        ])
+    for i in range(10):
+        person = Entity(entity_type="person", title=f"Person {i}", slug=f"person-{i}", attributes={})
+        db_session.add(person)
+        await db_session.flush()
+        for role, origin in (("actor", "persian"), ("actor", "foreign"), ("director", "persian"), ("director", "foreign")):
+            db_session.add(PersonStats(
+                person_id=person.id, role=role, origin=origin, works=5, scored=5, avg_score=7.0, shrunk=7.0 - i * 0.1,
+            ))
     await db_session.commit()
     monkeypatch.setattr(settings, "auto_lists_enabled", True)
     monkeypatch.setattr(settings, "auto_battles_enabled", True)
@@ -53,16 +71,16 @@ async def test_lists_are_created_up_to_the_daily_quota(db_session, seeded):
     made = [await auto_lists.create_daily_list(db_session, LATE) for _ in range(5)]
     assert sum(x is not None for x in made) == 3
     lists = (await db_session.execute(select(UserList).where(UserList.curation_note.like("auto:2026-10-28:%")))).scalars().all()
-    assert {lst.curation_note for lst in lists} == {f"auto:2026-10-28:{k}" for k in range(3)}
+    assert {lst.curation_note.split("|")[0] for lst in lists} == {f"auto:2026-10-28:{k}" for k in range(3)}
     owners = {u.id for u in (await db_session.execute(select(User))).scalars()}
     for lst in lists:
         assert lst.visibility == "public" and lst.user_id in owners
-        assert len(lst.tags) == 2 and lst.description
+        assert 2 <= len(lst.tags) <= 3 and lst.description
         count = (await db_session.execute(
             select(func.count()).select_from(UserListItem).where(UserListItem.list_id == lst.id)
         )).scalar_one()
         assert auto_lists.MIN_ITEMS <= count <= auto_lists.MAX_ITEMS
-    assert len({tuple(lst.tags) for lst in lists}) == 3  # no theme twice
+    assert len({lst.curation_note.split("|")[1] for lst in lists}) == 3  # no theme twice
 
 
 async def test_battles_are_created_up_to_the_daily_quota(db_session, seeded):
@@ -96,3 +114,40 @@ async def test_unknown_emails_are_skipped(db_session, seeded, monkeypatch):
     lst = await auto_lists.create_daily_list(db_session, LATE)
     owner = (await db_session.execute(select(User).where(User.id == lst.user_id))).scalar_one()
     assert owner.email == "a@example.com"
+
+
+async def test_lists_cover_series_mixed_and_people_over_many_days(db_session, seeded, monkeypatch):
+    monkeypatch.setattr(settings, "auto_lists_per_day", 3)
+    seen = set()
+    for day in range(1, 29):
+        now = datetime(2026, 11, day, 19, 0, tzinfo=timezone.utc)
+        for _ in range(3):
+            await auto_lists.create_daily_list(db_session, now)
+    lists = (await db_session.execute(select(UserList).where(UserList.curation_note.like("auto:%")))).scalars().all()
+    for lst in lists:
+        seen.add(lst.entity_type)
+        types = set((await db_session.execute(
+            select(UserListItem.entity_type).where(UserListItem.list_id == lst.id)
+        )).scalars())
+        if lst.entity_type is None:
+            assert types == {"movie", "tv_series"}  # a mixed list really mixes both
+        else:
+            assert types == {lst.entity_type}
+    assert {"movie", "tv_series", "person", None} <= seen
+    assert len({lst.curation_note.split("|")[1] for lst in lists}) == len(lists)  # no theme twice
+
+
+async def test_battles_cover_movies_and_series(db_session, seeded, monkeypatch):
+    monkeypatch.setattr(settings, "auto_battles_per_day", 3)
+    for day in range(1, 15):
+        now = datetime(2026, 11, day, 19, 0, tzinfo=timezone.utc)
+        for _ in range(3):
+            await auto_battles.create_daily_battle(db_session, now)
+    battles = (await db_session.execute(select(Battle))).scalars().all()
+    assert {b.entity_type for b in battles} == {"movie", "tv_series"}
+    for battle in battles:
+        types = set((await db_session.execute(
+            select(Entity.entity_type).join(BattleParticipant, BattleParticipant.entity_id == Entity.id)
+            .where(BattleParticipant.battle_id == battle.id)
+        )).scalars())
+        assert types == {battle.entity_type}  # same type throughout, as the battle engine requires

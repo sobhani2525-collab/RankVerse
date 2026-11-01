@@ -4,10 +4,11 @@ from datetime import date, datetime, timezone
 
 from app.config import settings
 from app.modules.auto_lists.battles import pick_size
+from app.modules.auto_lists.themes import Theme
 from app.modules.auto_lists.service import configured_emails, tehran_day_start
 from app.modules.auto_lists.texts import (
     GENRE_FA, fa_number, publish_hour, render_actor_battle, render_actor_list,
-    render_decade_battle, render_decade_list,
+    render_battle, render_decade_battle, render_decade_list, render_list,
 )
 
 
@@ -77,3 +78,49 @@ def test_configured_emails_dedupes_and_falls_back(monkeypatch):
     monkeypatch.setattr(settings, "auto_lists_user_emails", "")
     monkeypatch.setattr(settings, "auto_lists_user_email", "Site@x.com")
     assert configured_emails() == ["site@x.com"]
+
+
+def _theme(kind, work, **kw):
+    base = dict(
+        kind=kind, work=work, key="k", genre_fa="جنایی", person_fa=None, decade=None, role=None,
+        origin=None, tags=[], items=[object()] * 8,
+    )
+    base.update(kw)
+    return Theme(**base)
+
+
+def test_wording_for_every_kind_is_clean_and_names_the_right_thing():
+    themes = [
+        _theme("actor", "tv_series", person_fa="آل پاچینو"),
+        _theme("actor", "mixed", person_fa="آل پاچینو"),
+        _theme("decade", "tv_series", decade=1990),
+        _theme("decade", "mixed", decade=1990),
+        _theme("people", "person", role="actor"),
+        _theme("people", "person", role="director"),
+        _theme("people", "person", role="creator"),
+        *[_theme("people", "person", genre_fa=None, role=r, origin=o)
+          for r in ("actor", "director") for o in ("persian", "foreign")],
+    ]
+    for theme in themes:
+        for seed in range(40):
+            title, desc = render_list(random.Random(seed), theme)
+            assert title and desc
+            for text in (title, desc):
+                assert "{" not in text and "}" not in text
+    for seed in range(40):
+        title, _ = render_list(random.Random(seed), _theme("actor", "tv_series", person_fa="آل پاچینو"))
+        assert "سریال" in title
+        title, _ = render_list(random.Random(seed), _theme("actor", "mixed", person_fa="آل پاچینو"))
+        assert "سریال" in title and "فیلم" in title
+
+
+def test_battle_wording_names_series_and_fits_the_title_limit():
+    for seed in range(60):
+        for theme in (_theme("actor", "tv_series", person_fa="محمدرضا گلزار", genre_fa="علمی‌تخیلی"),
+                      _theme("decade", "tv_series", decade=1990, genre_fa="علمی‌تخیلی")):
+            title, desc = render_battle(random.Random(seed), theme, 16)
+            assert 3 <= len(title) <= 100
+            assert "سریال" in title + desc
+            assert "{" not in title + desc
+        title, _ = render_battle(random.Random(seed), _theme("decade", "movie", decade=1990), 8)
+        assert "سریال" not in title

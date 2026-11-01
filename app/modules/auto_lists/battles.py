@@ -1,8 +1,8 @@
 """Creates the daily "winner stays" pool battles, each under one of the site's
 own accounts picked at random (see service.py for the shared design).
 
-A battle takes 4, 8 or 16 movies of one theme: a random sample of the theme's
-best-ranked movies, so the same actor/decade gives different line-ups over time.
+A battle takes 4, 8 or 16 movies (or series) of one theme: a random sample of the
+theme's best-ranked titles, so the same actor/decade gives different line-ups over time.
 Each battle carries `curation_note = "auto:<tehran day>:<slot>|<theme key>"`
 (admin panel only); the key stops a theme from being used twice.
 """
@@ -15,8 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.modules.auto_lists.service import MARKER_PREFIX, owners, pick_owner, configured_emails
-from app.modules.auto_lists.texts import publish_hour, render_actor_battle, render_decade_battle
-from app.modules.auto_lists.themes import find_theme
+from app.modules.auto_lists.texts import publish_hour, render_battle
+from app.modules.auto_lists.themes import BATTLE_WORKS, find_theme
 from app.modules.battles import tournament_manage as manage
 from app.modules.battles.tournament_models import Battle
 from app.modules.daily_battle.tehran import TEHRAN_TZ, tehran_today, utcnow
@@ -77,9 +77,11 @@ async def create_daily_battle(db: AsyncSession, now: datetime | None = None) -> 
     rng = random.Random(f"{day.isoformat()}:{slot}:battle-theme")
     for _ in range(_ATTEMPTS):
         # Up to 32 best-ranked candidates; at least 4 are needed for the smallest battle.
-        theme = await find_theme(db, rng, min_items=4, pool_size=32, is_used=is_used)
+        theme = await find_theme(
+            db, rng, min_items=4, pool_size=32, is_used=is_used, works=BATTLE_WORKS
+        )
         if theme:
-            size = pick_size(rng, len(theme.movies))
+            size = pick_size(rng, len(theme.items))
             if size:
                 break
             theme = None
@@ -89,15 +91,12 @@ async def create_daily_battle(db: AsyncSession, now: datetime | None = None) -> 
         return None
 
     # Best-ranked 2x the size, then a random sample: varied but still strong line-ups.
-    entrants = rng.sample(theme.movies[: size * 2], size)
-    if theme.kind == "actor":
-        title, description = render_actor_battle(rng, theme.person_fa, theme.genre_fa, size)
-    else:
-        title, description = render_decade_battle(rng, theme.decade, theme.genre_fa, size)
+    entrants = rng.sample(theme.items[: size * 2], size)
+    title, description = render_battle(rng, theme, size)
 
     battle = await manage.create_draft(
         db, owner.id, title=title, description=description, cover_url=None,
-        entity_type="movie", bracket_size=size, now=now, mode="pool",
+        entity_type=theme.work, bracket_size=size, now=now, mode="pool",
     )
     await manage.set_entries(db, battle, [m.id for m in entrants])
     battle.curation_note = f"{MARKER_PREFIX}{day.isoformat()}:{slot}|{theme.key}"
