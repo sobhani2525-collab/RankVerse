@@ -51,7 +51,7 @@ export default function HomeBattleRows({ children }: { children?: React.ReactNod
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {rows.map(({ kind, battle }) => (
-        <div key={battle.slug} className="relative">
+        <div key={battle.slug} className="relative flex [&>a]:h-full [&>a]:w-full">
           <span className={`absolute left-3 top-3 z-20 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${KIND_STYLE[kind]}`}>{KIND_LABEL[kind]}</span>
           <TournamentCard battle={battle} />
         </div>
