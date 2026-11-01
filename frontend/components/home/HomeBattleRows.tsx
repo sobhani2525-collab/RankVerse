@@ -13,6 +13,8 @@ const KIND_STYLE: Record<Kind, string> = {
   suggested: "bg-[#a99bff] text-[#0b0d1c]",
 };
 
+const pickRandom = <T,>(items: T[]): T | undefined => items[Math.floor(Math.random() * items.length)];
+
 /** «برگزیده» and «تازه» battles, as the same battle cards the profile page shows. */
 export default function HomeBattleRows({ children }: { children?: React.ReactNode }) {
   const { getToken, loading: authLoading } = useAuth();
@@ -27,10 +29,10 @@ export default function HomeBattleRows({ children }: { children?: React.ReactNod
       .then(([featured, fresh, popular]) => {
         if (cancelled) return;
         const usable = (b: TournamentSummary) => (b.preview?.length ?? 0) >= 2;
-        const f = featured.find(usable);
+        const f = pickRandom(featured.filter(usable));
         const n = fresh.find((b) => usable(b) && b.slug !== f?.slug);
-        // «پیشنهادی»: the most-played battle not already shown above
-        const g = popular.find((b) => usable(b) && b.slug !== f?.slug && b.slug !== n?.slug);
+        // «پیشنهادی»: a random battle from the most-played ones, not already shown above
+        const g = pickRandom(popular.filter((b) => usable(b) && b.slug !== f?.slug && b.slug !== n?.slug));
         setRows([
           ...(f ? [{ kind: "featured" as Kind, battle: f }] : []),
           ...(n ? [{ kind: "fresh" as Kind, battle: n }] : []),

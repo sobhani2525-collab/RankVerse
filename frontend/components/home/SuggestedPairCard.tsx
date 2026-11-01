@@ -103,7 +103,7 @@ export default function SuggestedPairCard() {
   return (
     <section className="rounded-3xl border border-dashed border-[#a99bff]/50 p-5" aria-label="پیشنهاد ساخت نبرد">
       <p className="text-xs font-bold text-[#a99bff]">پیشنهاد ساخت نبرد، از سلیقهٔ تو</p>
-      <div className="mt-4 flex flex-wrap items-center gap-5">
+      <div className="mt-4 flex flex-col items-center gap-5">
         <div className="relative flex items-center gap-3">
           {[data.left, second].map((e) => (
             <div key={e.id} className="w-[110px] text-center">
@@ -115,12 +115,12 @@ export default function SuggestedPairCard() {
           ))}
           <span aria-hidden="true" className="absolute left-1/2 top-[40%] -translate-x-1/2 rounded-full border border-violet-soft bg-bg px-2 py-1 text-[10px] font-bold text-violet-soft">VS</span>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="w-full min-w-0 text-center">
           <p className="text-sm text-ink">هر دو را {toFaDigits(data.score)} ستاره داده‌ای؛ کدام برتر است؟</p>
           {others.length > 0 && (
             <div className="mt-3">
               <p className="text-xs text-muted">حریف دیگر از گراف</p>
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex justify-center gap-2">
                 {data.rivals.map((r) => (
                   <button
                     key={r.id}
@@ -137,7 +137,7 @@ export default function SuggestedPairCard() {
             </div>
           )}
           {error && <p role="alert" className="mt-3 text-xs text-gold">{error}</p>}
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
             {canPublish ? (
               <button type="button" onClick={publish} disabled={publishing} className="min-h-11 rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c] disabled:opacity-60">
                 {publishing ? "در حال انتشار…" : "منتشر کن"}
