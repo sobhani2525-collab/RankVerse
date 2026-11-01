@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import SectionHeading from "./SectionHeading";
-import { Poster, VsBadge } from "./BattleArena";
+import { Poster } from "./BattleArena";
+import { SwordsIcon } from "@/components/list-detail/icons";
 import ShareMenu from "@/components/share/ShareMenu";
 import { PickMark } from "@/components/battle/PickMark";
 import { useAuth } from "@/lib/auth-context";
@@ -162,6 +163,7 @@ export default function DailyBattle({ large = false, embedded = false }: { large
           <DailyBody
             data={data}
             large={large}
+            compact={embedded}
             signedIn={signedIn}
             voting={voting}
             votingSide={votingSide}
@@ -179,6 +181,7 @@ export default function DailyBattle({ large = false, embedded = false }: { large
 function DailyBody({
   data,
   large,
+  compact,
   signedIn,
   voting,
   votingSide,
@@ -189,6 +192,7 @@ function DailyBody({
 }: {
   data: DailyBattleToday;
   large: boolean;
+  compact: boolean;
   signedIn: boolean;
   voting: boolean;
   votingSide: DailySide | null;
@@ -199,22 +203,26 @@ function DailyBody({
 }) {
   const { my_choice: mine, results } = data;
   const voted = mine !== null && results !== null;
+  const [open, setOpen] = useState(false);
+  // a fresh vote shows its result right away
+  const wasVoted = useRef(voted);
+  useEffect(() => {
+    if (voted && !wasVoted.current) setOpen(true);
+    wasVoted.current = voted;
+  }, [voted]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
   const sides: [DailySide, DailyFilm][] = [
     ["left", data.left],
     ["right", data.right],
   ];
 
   return (
-    <div className={`mx-auto max-w-xl`}>
-      {/* Why this pair: sits straight above the VS badge's column. */}
-      <div className="mb-6 flex flex-col items-center gap-1 text-center">
-        <span className="text-[11px] tracking-wide text-muted">چرا این دو؟</span>
-        <p className="flex items-center gap-2 rounded-full border border-violet-light/30 bg-violet/10 px-4 py-1.5 text-[13px] font-medium text-violet-light">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
-          {pairingOf(data.theme)}
-        </p>
-      </div>
-
+    <div className={`mx-auto max-w-xl ${compact ? "lg:max-w-[22rem]" : ""}`}>
       {/* RTL grid: left_item sits on the right, like the battle arena. The VS
           badge sits in the posters-only grid so it centers on the posters,
           not on poster + title. */}
@@ -253,7 +261,11 @@ function DailyBody({
             </div>
           );
         })}
-        <VsBadge />
+        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/70 bg-bg/80 text-gold shadow-[0_0_0_4px_rgba(11,15,26,0.45),0_0_18px_rgba(232,179,74,0.45)] backdrop-blur-sm">
+            <SwordsIcon className="h-6 w-6" />
+          </span>
+        </span>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-4 sm:gap-10">
         {sides.map(([side, film]) => (
@@ -266,21 +278,60 @@ function DailyBody({
         ))}
       </div>
 
-      {voted ? (
-        <Results data={data} signedIn={signedIn} onLogin={onLogin} />
+      {voted && results ? (
+        <div className="mt-5">
+          <div className="flex h-2 overflow-hidden rounded-full bg-surface2" role="img" aria-label="نتیجهٔ جمعی">
+            <span className="bg-violet-light" style={{ width: `${percents(results).left}%` }} />
+            <span className="bg-teal" style={{ width: `${percents(results).right}%` }} />
+          </div>
+          <div className="num mt-1.5 flex justify-between text-xs font-bold text-ink-dim">
+            <span>{toFaDigits(percents(results).left)}٪</span>
+            <span className="font-normal text-muted">{toFaDigits(results.total)} رأی</span>
+            <span>{toFaDigits(percents(results).right)}٪</span>
+          </div>
+        </div>
       ) : (
-        <p className="mt-6 text-center text-sm text-[#a3a8cc]">روی پوستر فیلم مورد علاقه‌ات بزن؛ رأی تو روی امتیاز نهایی هر دو فیلم اثر می‌گذارد.</p>
+        <p className="mt-5 text-center text-sm text-[#a3a8cc]">روی پوستر فیلم مورد علاقه‌ات بزن؛ رأی تو روی امتیاز نهایی هر دو فیلم اثر می‌گذارد.</p>
       )}
+      <p className="mt-4 flex items-center justify-center gap-2 rounded-full border border-violet-light/30 bg-violet/10 px-4 py-1.5 text-center text-[13px] font-medium text-violet-light">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
+        {pairingOf(data.theme)}
+      </p>
+      <p className="mt-4 text-center text-xs text-muted">
+        نبرد بعدی تا <span className="num text-ink-dim" aria-live="off">{formatCountdown(secondsLeft)}</span>
+      </p>
+      <div className="mt-4 text-center">
+        <button type="button" onClick={() => setOpen(true)} className="min-h-11 rounded-xl border border-[#2a2f5c] bg-[#1d2147] px-5 text-sm font-bold text-ink hover:border-[#a99bff] focus-visible:outline-gold">
+          {voted ? "نتیجهٔ کامل و اشتراک" : "توضیحات بیشتر"}
+        </button>
+      </div>
 
       {error && <p role="alert" className="mt-3 text-center text-xs text-gold">{error}</p>}
 
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted">
-        <span>
-          نبرد بعدی تا <span className="num text-ink-dim" aria-live="off">{formatCountdown(secondsLeft)}</span>
-        </span>
-      </div>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-label="نبرد امروز" onClick={(e) => e.stopPropagation()} className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-[#2a2f5c] bg-[#141733] p-6">
+            <button type="button" onClick={() => setOpen(false)} aria-label="بستن" className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-ink-dim hover:text-ink focus-visible:outline-gold">✕</button>
+            <div className="mb-5 pt-2 flex flex-col items-center gap-1 text-center">
+              <span className="text-[11px] tracking-wide text-muted">چرا این دو؟</span>
+              <p className="flex items-center gap-2 rounded-full border border-violet-light/30 bg-violet/10 px-4 py-1.5 text-[13px] font-medium text-violet-light">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light" aria-hidden="true" />
+                {pairingOf(data.theme)}
+              </p>
+            </div>
 
-      {data.previous && data.previous.total > 0 && <Previous previous={data.previous} />}
+            {voted ? <Results data={data} signedIn={signedIn} onLogin={onLogin} /> : null}
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted">
+              <span>
+                نبرد بعدی تا <span className="num text-ink-dim" aria-live="off">{formatCountdown(secondsLeft)}</span>
+              </span>
+            </div>
+
+            {data.previous && data.previous.total > 0 && <Previous previous={data.previous} />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

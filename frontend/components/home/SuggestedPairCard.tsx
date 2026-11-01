@@ -46,7 +46,7 @@ export default function SuggestedPairCard() {
 
   if (!authLoading && !isAuthenticated) {
     return (
-      <section className="flex flex-col justify-center rounded-3xl border border-dashed border-[#a99bff]/50 p-6" aria-label="پیشنهاد ساخت نبرد">
+      <section className="flex flex-col justify-center rounded-3xl border border-dashed border-[#a99bff]/50 p-5" aria-label="پیشنهاد ساخت نبرد">
         <p className="text-xs font-bold text-[#a99bff]">پیشنهاد ساخت نبرد، از سلیقهٔ تو</p>
         <p className="mt-3 text-base font-extrabold leading-8 text-ink">فیلم‌های مورد علاقت را به چالش بکش</p>
         <p className="mt-1 text-sm leading-7 text-[#a3a8cc]">با ورود و امتیازدادن، نبردهای پیشنهادی از روی سلیقهٔ خودت ساخته می‌شود.</p>
@@ -54,6 +54,9 @@ export default function SuggestedPairCard() {
           <button type="button" onClick={() => openLoginModal()} className="min-h-11 rounded-xl bg-gradient-to-l from-[#a99bff] to-[#5fd8bf] px-6 text-sm font-extrabold text-[#0b0d1c]">
             ورود و ساخت نبرد
           </button>
+          <Link href="/battles" className="inline-flex min-h-11 items-center rounded-xl border border-[#2a2f5c] bg-[#1d2147] px-5 text-sm font-bold text-ink hover:border-[#a99bff] focus-visible:outline-gold">
+            همه نبردها
+          </Link>
         </div>
       </section>
     );

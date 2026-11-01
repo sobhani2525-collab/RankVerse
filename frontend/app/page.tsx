@@ -132,11 +132,12 @@ export default async function HomePage() {
       <TasteBand />
       <section className="mx-auto max-w-7xl px-6 py-14" aria-label="نبردها">
         <h2 className="mb-6 text-2xl font-extrabold text-ink">نبردها</h2>
-        <div className="grid items-stretch gap-6 lg:grid-cols-2">
+        <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <DailyBattle embedded />
           <div className="flex h-full flex-col justify-between gap-6">
-            <HomeBattleRows />
-            <SuggestedPairCard />
+            <HomeBattleRows>
+              <SuggestedPairCard />
+            </HomeBattleRows>
           </div>
         </div>
       </section>

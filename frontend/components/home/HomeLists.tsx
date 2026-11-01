@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import ListTicketCard from "@/components/lists/list-ticket-card";
+import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import ScrollRow from "@/components/ScrollRow";
 import { discoverLists, getFeaturedLists } from "@/lib/api";
 import { entityPosterUrl } from "@/lib/list-constellation";
@@ -71,8 +73,8 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
           className="no-scrollbar flex snap-x snap-mandatory scroll-px-1 gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:gap-6 md:overflow-visible lg:grid-cols-3"
         >
           {cards.map((list) => (
-            <div key={list.id} className="w-[82%] shrink-0 snap-start md:w-auto">
-              <ListCard list={list} />
+            <div key={list.id} className="flex w-[82%] shrink-0 snap-start md:w-auto">
+              <ListTicketCard list={listSummaryToTicketCard(list)} />
             </div>
           ))}
           <Link
@@ -124,39 +126,6 @@ function FeaturedCard({ list }: { list: ListDetail }) {
           );
         })}
       </ScrollRow>
-    </article>
-  );
-}
-
-function ListCard({ list }: { list: ListSummary }) {
-  const posters = list.preview_items.slice(0, 3);
-  const hook = list.description?.split(/[.!؟?\n]/)[0]?.trim();
-  return (
-    <article className="flex h-full flex-col rounded-3xl border border-[#2a2f5c] bg-[#141733] p-4">
-      <Link href={listHref(list.slug)} className="mb-5 block">
-        <div className="grid grid-cols-3 gap-2">
-          {posters.map((e) => {
-            const src = entityPosterUrl(e);
-            return (
-              <div key={e.id} className="relative aspect-[2/3] overflow-hidden rounded-xl bg-[#101330]">
-                {src && <Image src={src} alt="" fill sizes="100px" loading="lazy" className="object-cover" />}
-                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b0d1c]/90 to-transparent px-1.5 pb-1.5 pt-6 text-[11px] font-bold leading-4 text-ink line-clamp-2">
-                  {e.title_fa || e.title}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <h3 className="mt-5 line-clamp-2 text-base font-extrabold leading-8 text-ink">{list.title}</h3>
-        {hook && <p className="mt-0.5 line-clamp-1 text-xs leading-6 text-[#5fd8bf]">{hook}</p>}
-      </Link>
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#2a2f5c] pt-4 text-xs text-[#a3a8cc]">
-        <p className="min-w-0 truncate">
-          {list.owner_username && <span dir="ltr">@{list.owner_username}</span>}
-          {typeof list.item_count === "number" && <> · <span className="num">{toFaDigits(list.item_count)}</span> عنوان</>}
-        </p>
-        <span className="num shrink-0">♡ {toFaDigits(list.like_count)}</span>
-      </div>
     </article>
   );
 }

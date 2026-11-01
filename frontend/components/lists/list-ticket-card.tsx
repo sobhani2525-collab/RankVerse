@@ -47,7 +47,7 @@ export default function ListTicketCard({
   return (
     <Link
       href={`/lists/${list.slug}`}
-      className="group relative block overflow-hidden rounded-[20px] bg-[#151A30] shadow-[0_10px_28px_-6px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_-8px_rgba(0,0,0,.65),0_0_32px_rgba(232,179,74,.10),inset_0_1px_0_rgba(255,255,255,.07)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-[20px] bg-[#151A30] shadow-[0_10px_28px_-6px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_-8px_rgba(0,0,0,.65),0_0_32px_rgba(232,179,74,.10),inset_0_1px_0_rgba(255,255,255,.07)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       {list.featured && (
         <span className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-full border border-gold/40 bg-bg/85 px-2.5 py-1 text-[11px] font-bold text-gold backdrop-blur">
@@ -114,7 +114,7 @@ export default function ListTicketCard({
         <span className="absolute inset-x-[22px] top-1/2 -translate-y-px border-t-2 border-dashed border-[#2A3150]" />
       </div>
 
-      <div className="px-[22px] pb-5 pt-5">
+      <div className="flex flex-1 flex-col px-[22px] pb-5 pt-5">
         {typeLabel && (
           <div className="mb-2">
             <span className="inline-block rounded-full border border-[#E8B34A]/30 bg-[#E8B34A]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#E8B34A]">
@@ -127,7 +127,8 @@ export default function ListTicketCard({
           <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-[#8A93A6]">{list.description}</p>
         )}
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#1B2138] pt-3.5">
+        <div className="min-h-4 flex-1" />
+        <div className="flex items-center justify-between gap-3 border-t border-[#1B2138] pt-3.5">
           {list.username ? (
             <span className="flex min-w-0 items-center gap-2">
               {avatarByKey(list.avatarKey) ? (
