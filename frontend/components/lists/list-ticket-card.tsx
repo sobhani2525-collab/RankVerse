@@ -35,7 +35,7 @@ const NAME_SHADOW = { textShadow: "0 1px 3px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0
  *  so nothing inside is interactive. */
 export default function ListTicketCard({
   list,
-  plainPosters = false,
+  plainPosters = true,
 }: {
   list: TicketCardList;
   /** Posters only: no rank numbers or titles drawn over them. */
