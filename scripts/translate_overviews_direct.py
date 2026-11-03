@@ -23,6 +23,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import anthropic
+from sqlalchemy import text
 
 from app.config import settings
 from app.core.database import AsyncSessionLocal
@@ -140,6 +141,8 @@ async def main() -> None:
                 *(loop.run_in_executor(pool, translate_one, client, model, i, args.no_thinking) for i in chunk)
             )
             async def save(db, chunk=chunk, results=results):
+                # the remote DB can take longer than the app's 20s default to write
+                await db.execute(text("SET LOCAL statement_timeout = '180s'"))
                 outcomes = []
                 for item, translated in zip(chunk, results):
                     if translated is None:
