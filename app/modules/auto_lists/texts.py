@@ -147,7 +147,7 @@ _W_DECADE_TITLES = [
 ]
 _W_DECADE_DESCRIPTIONS = [
     "{n} عنوان {g} از دهه {d} میلادی که هنوز هم دیدنیه. اگه چیزی رو جا انداختم اضافه‌اش کنید.",
-    "دهه {d} برای ژانر {g} دهه خوبی بود. این‌ها انتخاب‌های من از اون دوره‌ست.",
+    "دهه {d} برای {wpl} {g} دهه خوبی بود. این‌ها انتخاب‌های من از اون دوره‌ست.",
     "فهرستی از بهترین {wpl} {g} دهه {d} میلادی. ترتیبش رو با رأی دادن عوض کنید.",
 ]
 _W_ACTOR_BATTLE_TITLES = [
@@ -157,7 +157,7 @@ _W_ACTOR_BATTLE_TITLES = [
 ]
 _W_ACTOR_BATTLE_DESCRIPTIONS = [
     "{n} {w} {g} با بازی {p} رو دو به دو روبروی هم گذاشتم. شما انتخاب کنید کدوم بهتره تا برنده مشخص بشه.",
-    "{p} تو ژانر {g} کارهای زیادی داره. اینجا {n} تاشون رو مقابل هم بذارید و ببینید کدوم می" + ZWNJ + "مونه.",
+    "{p} تو {wpl} {g} کارهای زیادی داره. اینجا {n} تاشون رو مقابل هم بذارید و ببینید کدوم می" + ZWNJ + "مونه.",
     "کدوم {w} {g} با بازی {p} رو بیشتر دوست دارید؟ {n} عنوان، یک برنده.",
 ]
 _W_DECADE_BATTLE_TITLES = [
@@ -167,7 +167,7 @@ _W_DECADE_BATTLE_TITLES = [
 ]
 _W_DECADE_BATTLE_DESCRIPTIONS = [
     "{n} {w} {g} از دهه {d} میلادی. دو به دو انتخاب کنید تا ببینیم کدوم می" + ZWNJ + "مونه.",
-    "دهه {d} برای ژانر {g} دهه خوبی بود. نظر شما برای بهترینش چیه؟",
+    "دهه {d} برای {wpl} {g} دهه خوبی بود. نظر شما برای بهترینش چیه؟",
     "{n} {w} {g} دهه {d}، هر بار دو تا؛ برنده می" + ZWNJ + "مونه و بقیه می" + ZWNJ + "رن.",
 ]
 
@@ -185,6 +185,21 @@ _PEOPLE_GENRE_TITLES = {
     "creator": [
         "بهترین سازنده" + ZWNJ + "های سریال" + ZWNJ + "های {g}",
         "{n} سازندهٔ برتر سریال" + ZWNJ + "های {g}",
+    ],
+}
+_PEOPLE_GENRE_TITLES_IR = {
+    "actor": [
+        "بهترین بازیگران ایرانی ژانر {g}",
+        "{n} بازیگر ایرانی که توی {g} می" + ZWNJ + "درخشن",
+        "بازیگرهای ایرانی که {g} رو با اسمشون می" + ZWNJ + "شناسیم",
+    ],
+    "director": [
+        "بهترین کارگردان" + ZWNJ + "های ایرانی ژانر {g}",
+        "{n} کارگردان ایرانی برتر ژانر {g}",
+    ],
+    "creator": [
+        "بهترین سازنده" + ZWNJ + "های ایرانی سریال" + ZWNJ + "های {g}",
+        "{n} سازندهٔ ایرانی که سریال" + ZWNJ + "های {g} ساختن",
     ],
 }
 _PEOPLE_ORIGIN_TITLES = {
@@ -215,8 +230,11 @@ _PEOPLE_DESCRIPTIONS = [
 
 def _theme_values(theme, n: int) -> dict:
     w, wpl = NOUNS.get(theme.work, NOUNS["movie"])
+    genre = theme.genre_fa or ""
+    if getattr(theme, "persian", False) and theme.kind != "people":
+        genre += " ایرانی"  # "فیلم‌های جنایی ایرانی"
     return {
-        "w": w, "wpl": wpl, "n": fa_number(n), "g": theme.genre_fa or "",
+        "w": w, "wpl": wpl, "n": fa_number(n), "g": genre,
         "p": theme.person_fa or "", "d": decade_label(theme.decade) if theme.decade else "",
         "r": _ROLE_NOUN.get(theme.role or "", ""),
     }
@@ -226,13 +244,13 @@ def render_list(rng: random.Random, theme) -> tuple[str, str]:
     """Title and description of a list for `theme` (see themes.Theme)."""
     n = len(theme.items)
     if theme.kind == "people":
-        titles = (
-            _PEOPLE_GENRE_TITLES[theme.role] if theme.genre_fa
-            else _PEOPLE_ORIGIN_TITLES[(theme.role, theme.origin)]
-        )
+        if theme.genre_fa:
+            titles = (_PEOPLE_GENRE_TITLES_IR if getattr(theme, "persian", False) else _PEOPLE_GENRE_TITLES)[theme.role]
+        else:
+            titles = _PEOPLE_ORIGIN_TITLES[(theme.role, theme.origin)]
         v = _theme_values(theme, n)
         return rng.choice(titles).format(**v), rng.choice(_PEOPLE_DESCRIPTIONS).format(**v)
-    if theme.work == "movie":  # the original movie wording
+    if theme.work == "movie" and not getattr(theme, "persian", False):  # the original movie wording
         if theme.kind == "actor":
             return render_actor_list(rng, theme.person_fa, theme.genre_fa, n)
         return render_decade_list(rng, theme.decade, theme.genre_fa, n)
@@ -244,7 +262,7 @@ def render_list(rng: random.Random, theme) -> tuple[str, str]:
 
 def render_battle(rng: random.Random, theme, n: int) -> tuple[str, str]:
     """Title and description of a battle of `n` entrants for `theme`."""
-    if theme.work == "movie":  # the original movie wording
+    if theme.work == "movie" and not getattr(theme, "persian", False):  # the original movie wording
         if theme.kind == "actor":
             return render_actor_battle(rng, theme.person_fa, theme.genre_fa, n)
         return render_decade_battle(rng, theme.decade, theme.genre_fa, n)

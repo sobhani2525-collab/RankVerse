@@ -20,6 +20,11 @@ LATE = datetime(2026, 10, 28, 19, 0, tzinfo=timezone.utc)  # 22:30 Tehran: every
 EARLY = datetime(2026, 10, 28, 0, 1, tzinfo=timezone.utc)  # 03:31 Tehran: nothing is due
 
 
+def IR(i: int) -> dict:
+    """Every other title is Iranian (original language Persian)."""
+    return {"original_language": "fa"} if i % 2 == 0 else {}
+
+
 @pytest.fixture
 async def seeded(db_session, monkeypatch):
     for email in EMAILS:
@@ -28,11 +33,13 @@ async def seeded(db_session, monkeypatch):
     for name in ("Crime", "Drama", "Comedy"):
         genres[name] = Entity(entity_type="genre", title=name, slug=f"genre-{name.lower()}", attributes={})
     actor = Entity(entity_type="person", title="Al", slug="al", attributes={"title_fa": "آل پاچینو"})
-    db_session.add_all([*genres.values(), actor])
+    ir_actor = Entity(entity_type="person", title="Pa", slug="pa", attributes={"title_fa": "پرویز پرستویی"})
+    db_session.add_all([*genres.values(), actor, ir_actor])
     await db_session.flush()
+    db_session.add(PersonStats(person_id=ir_actor.id, role="actor", origin="persian", works=20, scored=20, avg_score=7.0, shrunk=7.0))
     db_session.add(PersonStats(person_id=actor.id, role="actor", origin="all", works=30, scored=30, avg_score=7.0, shrunk=7.0))
     for i in range(36):
-        movie = Entity(entity_type="movie", title=f"Movie {i}", slug=f"movie-{i}", attributes={"year": 1990 + i % 10})
+        movie = Entity(entity_type="movie", title=f"Movie {i}", slug=f"movie-{i}", attributes={"year": 1990 + i % 10, **IR(i)})
         db_session.add(movie)
         await db_session.flush()
         genre = genres[("Crime", "Drama", "Comedy")[i % 3]]
@@ -41,8 +48,10 @@ async def seeded(db_session, monkeypatch):
             RelationshipEdge(from_entity_id=movie.id, to_entity_id=genre.id, relation_type="has_genre"),
             RelationshipEdge(from_entity_id=movie.id, to_entity_id=actor.id, relation_type="acted_in"),
         ])
+        if i % 2 == 0:
+            db_session.add(RelationshipEdge(from_entity_id=movie.id, to_entity_id=ir_actor.id, relation_type="acted_in"))
     for i in range(30):
-        series = Entity(entity_type="tv_series", title=f"Show {i}", slug=f"show-{i}", attributes={"year": 1990 + i % 10})
+        series = Entity(entity_type="tv_series", title=f"Show {i}", slug=f"show-{i}", attributes={"year": 1990 + i % 10, **IR(i)})
         db_session.add(series)
         await db_session.flush()
         genre = genres[("Crime", "Drama", "Comedy")[i % 3]]
@@ -51,6 +60,8 @@ async def seeded(db_session, monkeypatch):
             RelationshipEdge(from_entity_id=series.id, to_entity_id=genre.id, relation_type="has_genre"),
             RelationshipEdge(from_entity_id=series.id, to_entity_id=actor.id, relation_type="acted_in"),
         ])
+        if i % 2 == 0:
+            db_session.add(RelationshipEdge(from_entity_id=series.id, to_entity_id=ir_actor.id, relation_type="acted_in"))
     for i in range(10):
         person = Entity(entity_type="person", title=f"Person {i}", slug=f"person-{i}", attributes={})
         db_session.add(person)
@@ -151,3 +162,24 @@ async def test_battles_cover_movies_and_series(db_session, seeded, monkeypatch):
             .where(BattleParticipant.battle_id == battle.id)
         )).scalars())
         assert types == {battle.entity_type}  # same type throughout, as the battle engine requires
+
+
+async def test_persian_share_one_makes_only_iranian_lists_and_battles(db_session, seeded, monkeypatch):
+    monkeypatch.setattr(settings, "auto_persian_share", 1.0)
+    for day in range(1, 8):
+        now = datetime(2026, 11, day, 19, 0, tzinfo=timezone.utc)
+        for _ in range(3):
+            await auto_lists.create_daily_list(db_session, now)
+            await auto_battles.create_daily_battle(db_session, now)
+    lists = (await db_session.execute(select(UserList))).scalars().all()
+    battles = (await db_session.execute(select(Battle))).scalars().all()
+    assert lists and battles
+    work_ids = [
+        r for r in (await db_session.execute(
+            select(Entity.attributes["original_language"].as_string(), Entity.entity_type)
+            .join(UserListItem, UserListItem.entity_id == Entity.id)
+            .where(Entity.entity_type.in_(["movie", "tv_series"]))
+        )).all()
+    ]
+    assert work_ids and all(lang == "fa" for lang, _ in work_ids)
+    assert any("ایرانی" in (b.title or "") for b in battles)

@@ -132,7 +132,8 @@ async def create_daily_list(db: AsyncSession, now: datetime | None = None) -> Us
     for _ in range(_ATTEMPTS):
         wanted = rng.randint(MIN_ITEMS + 1, MAX_ITEMS)
         theme = await find_theme(
-            db, rng, min_items=MIN_ITEMS, pool_size=wanted, is_used=is_used, works=LIST_WORKS
+            db, rng, min_items=MIN_ITEMS, pool_size=wanted, is_used=is_used, works=LIST_WORKS,
+            persian_share=settings.auto_persian_share,
         )
         if theme:
             break

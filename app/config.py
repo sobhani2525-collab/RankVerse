@@ -305,6 +305,9 @@ class Settings(BaseSettings):
     # Daily auto battles ("winner stays" pools, same accounts as the lists).
     auto_battles_enabled: bool = False
     auto_battles_per_day: int = 3
+    # Chance (0..1) that an auto list/battle is limited to Iranian titles / people
+    # of Iranian titles (the catalog is mostly foreign, so this evens the mix).
+    auto_persian_share: float = 0.5
 
     # --- In-app notifications (app/modules/notifications) ---
     notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once
