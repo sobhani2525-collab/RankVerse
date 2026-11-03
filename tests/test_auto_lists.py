@@ -68,7 +68,7 @@ async def seeded(db_session, monkeypatch):
         await db_session.flush()
         for role, origin in (("actor", "persian"), ("actor", "foreign"), ("director", "persian"), ("director", "foreign")):
             db_session.add(PersonStats(
-                person_id=person.id, role=role, origin=origin, works=5, scored=5, avg_score=7.0, shrunk=7.0 - i * 0.1,
+                person_id=person.id, role=role, origin=origin, works=25 if i < 7 else 2, scored=5, avg_score=7.0, shrunk=7.0 - i * 0.1,  # the last three are little known
             ))
     await db_session.commit()
     monkeypatch.setattr(settings, "auto_lists_enabled", True)
@@ -183,3 +183,17 @@ async def test_persian_share_one_makes_only_iranian_lists_and_battles(db_session
     ]
     assert work_ids and all(lang == "fa" for lang, _ in work_ids)
     assert any("ایرانی" in (b.title or "") for b in battles)
+
+
+async def test_little_known_people_never_appear(db_session, seeded, monkeypatch):
+    monkeypatch.setattr(settings, "auto_persian_share", 0.5)
+    for day in range(1, 29):
+        now = datetime(2026, 11, day, 19, 0, tzinfo=timezone.utc)
+        for _ in range(3):
+            await auto_lists.create_daily_list(db_session, now)
+    titles = set((await db_session.execute(
+        select(Entity.title).join(UserListItem, UserListItem.entity_id == Entity.id)
+        .where(Entity.entity_type == "person")
+    )).scalars())
+    assert titles  # people lists were made
+    assert not titles & {"Person 7", "Person 8", "Person 9"}

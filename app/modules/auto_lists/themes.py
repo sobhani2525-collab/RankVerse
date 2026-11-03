@@ -24,10 +24,14 @@ from app.modules.entities.repository import _persian_work as persian_work  # the
 
 DECADES = (1970, 1980, 1990, 2000, 2010, 2020)
 # Actors with at least this many credited works are candidates.
-MIN_ACTOR_WORKS = 12
+MIN_ACTOR_WORKS = 20
 # ...and Iranian actors, who have fewer credits on record.
-MIN_PERSIAN_ACTOR_WORKS = 6
+MIN_PERSIAN_ACTOR_WORKS = 10
 ACTOR_POOL = 200
+# Only well-known people appear in auto lists: a minimum number of credited
+# works per role (Iranian credits are fewer on record, so the bar is lower).
+MIN_FAME_WORKS = {"actor": 20, "director": 10, "creator": 5}
+MIN_FAME_WORKS_IR = {"actor": 10, "director": 6, "creator": 3}
 # A person needs this many scored credits in the genre to be ranked in it.
 MIN_GENRE_CREDITS = 3
 
@@ -137,10 +141,16 @@ async def people_in_genre(
         .having(func.count(EntityRanking.computed_score) >= MIN_GENRE_CREDITS)
         .subquery()
     )
+    fame = (MIN_FAME_WORKS_IR if persian else MIN_FAME_WORKS)[role]
     stmt = (
         select(Entity)
         .join(credits, credits.c.person_id == Entity.id)
-        .where(Entity.entity_type == "person")
+        .join(PersonStats, PersonStats.person_id == Entity.id)
+        .where(
+            Entity.entity_type == "person",
+            PersonStats.role == role, PersonStats.origin == ("persian" if persian else "all"),
+            PersonStats.works >= fame,
+        )
         .order_by(shrunk_score(credits.c.scored, credits.c.avg_score).desc(), Entity.title)
         .limit(limit)
     )
@@ -156,6 +166,7 @@ async def people_by_origin(db: AsyncSession, role: str, origin: str, limit: int)
         .where(
             PersonStats.role == role, PersonStats.origin == origin,
             PersonStats.scored >= MIN_GENRE_CREDITS, PersonStats.shrunk.is_not(None),
+            PersonStats.works >= (MIN_FAME_WORKS_IR if origin == "persian" else MIN_FAME_WORKS)[role],
         )
         .order_by(PersonStats.shrunk.desc(), Entity.title)
         .limit(limit)
