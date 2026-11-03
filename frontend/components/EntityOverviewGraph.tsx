@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import EgoSky, { SkyLegend, nameOf } from "@/components/graph/EgoSky";
 import { CenterCard } from "@/components/home/HeroShell";
-import { centerNodeOf } from "@/lib/hero-graph";
+import { centerNodeOf, keepCredits } from "@/lib/hero-graph";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { EgoGraph, EgoNode, getEgoGraph } from "@/lib/api";
 import { GenreSummary, PersonSummary } from "@/lib/types";
@@ -98,7 +98,7 @@ export default function EntityOverviewGraph({
     setLoading(node.id);
     try {
       const next = await getEgoGraph(node.slug);
-      setTrail((t) => [...t, next]);
+      setTrail((t) => [...t, keepCredits(next, node)]);
     } catch {
       // The orbit stays where it was; the star's hover card still links to its page.
     } finally {
@@ -128,7 +128,7 @@ export default function EntityOverviewGraph({
             <EgoSky graph={graph} onSelect={explore} actionLabel="چرخاندن مدار دور آن" mobileTall bold fontScale={0.85} />
           </div>
           <SkyLegend compact />
-          <CenterCard center={centerNodeOf(graph)} className="mx-auto mt-4 flex max-w-[560px]" />
+          <CenterCard center={centerNodeOf(graph)} tagline={false} className="mx-auto mt-4 flex max-w-[560px]" />
         </div>
       </div>
     </div>

@@ -14,3 +14,9 @@ export function actionForNode(node: EgoNode, centerId: string): NodeAction {
 export function centerNodeOf(graph: EgoGraph | null): EgoNode | null {
   return graph?.nodes.find((n) => n.id === graph.center_id) ?? null;
 }
+
+/** A re-centred graph's own centre carries no credits; keep the ones the clicked star had so its card can name the role. */
+export function keepCredits(graph: EgoGraph, clicked: EgoNode): EgoGraph {
+  if (!clicked.credits?.length) return graph;
+  return { ...graph, nodes: graph.nodes.map((n) => (n.id === graph.center_id && !n.credits?.length ? { ...n, credits: clicked.credits } : n)) };
+}

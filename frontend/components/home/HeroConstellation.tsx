@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EgoGraph, getEgoGraph, getHeroGraphs } from "@/lib/api";
+import { EgoGraph, EgoNode, getEgoGraph, getHeroGraphs } from "@/lib/api";
 import EgoSky from "@/components/graph/EgoSky";
-import { actionForNode, centerNodeOf } from "@/lib/hero-graph";
+import { actionForNode, centerNodeOf, keepCredits } from "@/lib/hero-graph";
 import { useHeroFullscreen } from "./HeroShell";
 
 export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
@@ -29,10 +29,10 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
     };
   }, [graphs]);
 
-  const recenter = useCallback(async (slug: string) => {
+  const recenter = useCallback(async (slug: string, clicked: EgoNode) => {
     setBusy(true);
     try {
-      setGraph(await getEgoGraph(slug));
+      setGraph(keepCredits(await getEgoGraph(slug), clicked));
       setFailed(false);
     } catch {
       setFailed(true);
@@ -54,7 +54,7 @@ export default function HeroConstellation({ graphs }: { graphs: EgoGraph[] }) {
           bold
           onSelect={(node) => {
             const action = actionForNode(node, graph?.center_id ?? "");
-            if (action.type === "recenter") void recenter(action.slug);
+            if (action.type === "recenter") void recenter(action.slug, node);
             else if (action.type === "navigate") router.push(action.href);
           }}
         />

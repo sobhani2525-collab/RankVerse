@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { GRAPH_SECTION_ID } from "@/lib/graph-focus";
 import type { EgoNode } from "@/lib/api";
-import { nameOf, TYPE_LABEL } from "@/components/graph/EgoSky";
+import { nameOf, roleOf, TYPE_LABEL } from "@/components/graph/EgoSky";
 import { detailPathFor } from "@/lib/entity-routes";
 import { toFaDigits } from "@/lib/format-number";
 
@@ -47,7 +47,7 @@ export default function HeroShell({ text, graph }: { text: ReactNode; graph: Rea
 }
 
 /** «مرکز کهکشان»: the poster, name and actions of whatever sits at the graph's centre. */
-export function CenterCard({ center, className = "" }: { center: EgoNode | null; className?: string }) {
+export function CenterCard({ center, className = "", tagline = true }: { center: EgoNode | null; className?: string; tagline?: boolean }) {
   if (!center) return null;
   const href = detailPathFor(center.entity_type, center.slug);
   return (
@@ -70,7 +70,7 @@ export function CenterCard({ center, className = "" }: { center: EgoNode | null;
           {href ? <Link href={href} className="hover:underline focus-visible:outline-gold">{nameOf(center)}</Link> : nameOf(center)}
         </p>
         <p className="text-xs text-[#a3a8cc]">
-          {TYPE_LABEL[center.entity_type]}
+          {roleOf(center) ?? TYPE_LABEL[center.entity_type]}
           {center.year ? ` · ${toFaDigits(center.year)}` : ""}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -85,9 +85,9 @@ export function CenterCard({ center, className = "" }: { center: EgoNode | null;
         </div>
       </div>
     </div>
-    <p className="text-center text-sm text-[#c4c8e6]" aria-live="polite">
-      امروز کهکشانت را با محوریت <strong className="font-bold text-[#f5b94a]">{nameOf(center)}</strong> کشف کن
-    </p>
+    {tagline && (    <p className="text-center text-sm text-[#c4c8e6]" aria-live="polite">
+        امروز کهکشانت را با محوریت <strong className="font-bold text-[#f5b94a]">{nameOf(center)}</strong> کشف کن
+      </p>)}
     </div>
   );
 }
