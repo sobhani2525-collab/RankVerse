@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import EgoSky, { SkyLegend, nameOf } from "@/components/graph/EgoSky";
+import { CenterCard } from "@/components/home/HeroShell";
+import { centerNodeOf } from "@/lib/hero-graph";
 import { SectionHeading } from "@/components/list-detail/ui";
 import { EgoGraph, EgoNode, getEgoGraph } from "@/lib/api";
 import { GenreSummary, PersonSummary } from "@/lib/types";
@@ -87,8 +89,7 @@ export default function EntityOverviewGraph({
   const atHome = trail.length === 1;
 
   async function explore(node: EgoNode) {
-    // Genres have no orbit of their own; their hover card links to the genre page.
-    if (node.entity_type === "genre" || node.id === graph.center_id || loading) return;
+    if (node.id === graph.center_id || loading) return;
     const seen = trail.findIndex((g) => g.center_id === node.id);
     if (seen >= 0) {
       setTrail(trail.slice(0, seen + 1));
@@ -127,6 +128,7 @@ export default function EntityOverviewGraph({
             <EgoSky graph={graph} onSelect={explore} actionLabel="چرخاندن مدار دور آن" mobileTall bold fontScale={0.85} />
           </div>
           <SkyLegend compact />
+          <CenterCard center={centerNodeOf(graph)} className="mx-auto mt-4 flex max-w-[560px]" />
         </div>
       </div>
     </div>

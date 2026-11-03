@@ -47,7 +47,7 @@ export default function HeroShell({ text, graph }: { text: ReactNode; graph: Rea
 }
 
 /** «مرکز کهکشان»: the poster, name and actions of whatever sits at the graph's centre. */
-function CenterCard({ center, className = "" }: { center: EgoNode | null; className?: string }) {
+export function CenterCard({ center, className = "" }: { center: EgoNode | null; className?: string }) {
   if (!center) return null;
   const href = detailPathFor(center.entity_type, center.slug);
   return (

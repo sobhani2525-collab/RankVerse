@@ -18,6 +18,7 @@ import RelatedEntities from "@/components/RelatedEntities";
 import AwardsSection from "@/components/AwardsSection";
 import DirectorWorks from "@/components/DirectorWorks";
 import EntityBattle from "@/components/EntityBattle";
+import CrewSection from "@/components/CrewSection";
 import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import EntityOverviewGraph, { OverviewPerson } from "@/components/EntityOverviewGraph";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, getPersonBySlug, getEgoGraph, EgoGraph, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
@@ -233,6 +234,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           }
           belowGraph={
             <>
+              <CrewSection directors={movie.directors} cast={movie.cast} />
               <AwardsSection awards={movie.awards} />
               {mainDirector && (
                 <DirectorWorks directorName={mainDirector.title_fa ?? mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />

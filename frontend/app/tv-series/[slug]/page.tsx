@@ -21,6 +21,7 @@ import RelatedEntities from "@/components/RelatedEntities";
 import AwardsSection from "@/components/AwardsSection";
 import DirectorWorks from "@/components/DirectorWorks";
 import EntityBattle from "@/components/EntityBattle";
+import CrewSection from "@/components/CrewSection";
 import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import EntityOverviewGraph, { OverviewPerson } from "@/components/EntityOverviewGraph";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, getEgoGraph, EgoGraph, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
@@ -280,6 +281,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
           }
           belowGraph={
             <>
+              <CrewSection directors={tv.directors} cast={tv.cast} />
               <AwardsSection awards={tv.awards} />
               {mainCreator && (
                 <DirectorWorks directorName={mainCreator.title_fa ?? mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
