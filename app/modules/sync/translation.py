@@ -170,8 +170,15 @@ def make_client() -> anthropic.Anthropic:
 _ECHO_HEADER = re.compile(r"^(?:فیلم|سریال|شخص|Film|TV series|Person)\s*[:：][^\n]*\n+[^\n:：]{1,30}[:：]\s*\n+")
 
 
+# Header line only ("فیلم: Title (۲۰۲۴)" + blank line), optionally followed by an inline "خلاصه:" label.
+_ECHO_TITLE_LINE = re.compile(
+    r"^(?:فیلم|سریال|Film|TV series)\s*[:：][^\n]*[(（][\d۰-۹]{4}[)）]\s*\n+(?:(?:خلاصه(?: داستان)?|Synopsis)\s*[:：]\s*)?"
+)
+
+
 def strip_prompt_echo(translated: str) -> str:
-    return _ECHO_HEADER.sub("", translated, count=1).strip()
+    translated = _ECHO_HEADER.sub("", translated, count=1).strip()
+    return _ECHO_TITLE_LINE.sub("", translated, count=1).strip()
 
 
 def translation_from_message(message) -> str | None:
