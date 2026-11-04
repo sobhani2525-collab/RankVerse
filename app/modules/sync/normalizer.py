@@ -1,5 +1,7 @@
 from slugify import slugify
 
+from app.modules.sync.credits import strip_translator_credit
+
 
 def _persian_title(title_fa: str | None, title_en: str | None) -> str | None:
     """
@@ -187,7 +189,7 @@ def _overview_attrs(raw: dict, raw_fa: dict | None) -> dict:
     step -- "machine".
     """
     overview_en = raw.get("overview") or None
-    overview_fa = (raw_fa or {}).get("overview") or translated_overview(raw) or None
+    overview_fa = strip_translator_credit((raw_fa or {}).get("overview") or translated_overview(raw) or None)
     return {
         "overview": overview_fa or overview_en,
         "overview_en": overview_en,
