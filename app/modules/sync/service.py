@@ -51,6 +51,11 @@ def _merge_preserved_attributes(old: dict, new: dict) -> dict:
         merged["overview_source"] = "machine"
         if "overview_translation_v" in old:
             merged["overview_translation_v"] = old["overview_translation_v"]
+    # A machine Persian title (scripts/translate_titles_direct.py) stays until
+    # TMDb gets a real one.
+    if old.get("title_fa_source") == "machine" and old.get("title_fa") and not new.get("title_fa"):
+        merged["title_fa"] = old["title_fa"]
+        merged["title_fa_source"] = "machine"
     if old.get("imdb_id") and old.get("imdb_id") == new.get("imdb_id"):
         for key in IMDB_ATTRIBUTE_KEYS:
             if key in old:

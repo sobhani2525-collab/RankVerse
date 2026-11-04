@@ -106,6 +106,9 @@ class Settings(BaseSettings):
     biography_translation_model: str = ""
     # Room for a reasoning model's hidden thinking plus the Persian text.
     biography_translation_max_tokens: int = 16000
+    # scripts/translate_titles_direct.py: machine Persian titles are made only
+    # for movies/series with at least this many TMDb votes.
+    title_translation_min_votes: int = 1000
 
     # NOTE on the 1-5 rating scale (migrated from 1-10, see
     # alembic/versions/*_rescale_user_ratings_to_five_stars.py): every
