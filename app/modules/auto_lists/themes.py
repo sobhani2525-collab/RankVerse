@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.auto_lists.concepts import Concept, pick_concepts
 from app.modules.auto_lists.texts import GENRE_FA, decade_label
 from app.modules.entities.models import Entity, EntityRanking, PersonStats, RelationshipEdge
 from app.modules.entities.repository import PEOPLE_ROLE_TYPES, shrunk_score
@@ -48,7 +49,7 @@ BATTLE_WORKS = {"movie": 55, "tv_series": 45}
 
 @dataclass
 class Theme:
-    kind: str  # "actor" | "decade" | "people"
+    kind: str  # "actor" | "decade" | "people" | "concept"
     work: str  # "movie" | "tv_series" | "mixed" | "person"
     key: str  # stable identity, used to avoid repeating a theme
     genre_fa: str | None
@@ -59,6 +60,7 @@ class Theme:
     tags: list[str]
     items: list[Entity]  # best-ranked first
     persian: bool = False  # only Iranian titles / people of Iranian titles
+    concept: str | None = None  # key of a curated concept (kind == "concept")
 
     @property
     def entity_type(self) -> str | None:
@@ -224,21 +226,58 @@ async def _people_theme(
     return Theme("people", "person", key, None, None, None, role, origin, tags, items, persian)
 
 
+async def concept_titles(db: AsyncSession, concept: Concept, limit: int) -> list[Entity]:
+    """The titles of the concept's catalog that exist in our database (matched
+    by title and release year, +-1), best site score first."""
+    years: dict[str, list[int]] = {}
+    for name, year in concept.titles:
+        years.setdefault(name.lower(), []).append(year)
+    stmt = _ranked(
+        select(Entity).where(func.lower(Entity.title).in_(list(years))), [concept.work], 500
+    )
+    found: list[Entity] = []
+    for entity in (await db.execute(stmt)).scalars().all():
+        year = (entity.attributes or {}).get("year")
+        if isinstance(year, int) and not any(abs(year - y) <= 1 for y in years[entity.title.lower()]):
+            continue  # same title, other film (a remake, say)
+        found.append(entity)
+    return found[:limit]
+
+
+async def _concept_theme(
+    db: AsyncSession, rng: random.Random, work: str, min_items: int, pool_size: int, is_used: IsUsed
+) -> Theme | None:
+    for concept in pick_concepts(rng, work):
+        key = f"c:{concept.key}"
+        tags = list(concept.tags)
+        if await is_used(key, tags):
+            continue
+        items = await concept_titles(db, concept, pool_size)
+        if len(items) >= min_items:
+            return Theme("concept", work, key, None, None, None, None, None, tags, items, concept=concept.key)
+    return None
+
+
 async def find_theme(
     db: AsyncSession, rng: random.Random, *, min_items: int, pool_size: int, is_used: IsUsed,
-    works: dict[str, int] | None = None, persian_share: float = 0.0,
+    works: dict[str, int] | None = None, persian_share: float = 0.0, concept_share: float = 0.0,
 ) -> Theme | None:
     """One attempt: a random theme with at least `min_items` matching entities
     (up to `pool_size`, best first) that `is_used` hasn't already seen; None
     when this attempt found nothing usable. `works` weights the kinds of
     work (see LIST_WORKS / BATTLE_WORKS); `persian_share` is the chance that
-    the theme is limited to Iranian titles (or people of Iranian titles)."""
+    the theme is limited to Iranian titles (or people of Iranian titles);
+    `concept_share` is the chance of a curated concept (see concepts.py)."""
     genres = await _genres(db)
     if not genres:
         return None
     works = works or LIST_WORKS
     work = rng.choices(list(works), weights=list(works.values()))[0]
     persian = rng.random() < persian_share
+    if work in ("movie", "tv_series") and rng.random() < concept_share:
+        theme = await _concept_theme(db, rng, work, min_items, pool_size, is_used)
+        if theme:
+            return theme
 
     if work == "person":
         return await _people_theme(db, rng, genres, min_items, pool_size, is_used, persian)

@@ -79,7 +79,7 @@ async def create_daily_battle(db: AsyncSession, now: datetime | None = None) -> 
         # Up to 32 best-ranked candidates; at least 4 are needed for the smallest battle.
         theme = await find_theme(
             db, rng, min_items=4, pool_size=32, is_used=is_used, works=BATTLE_WORKS,
-            persian_share=settings.auto_persian_share,
+            persian_share=settings.auto_persian_share, concept_share=settings.auto_concept_share,
         )
         if theme:
             size = pick_size(rng, len(theme.items))

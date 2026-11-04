@@ -124,3 +124,16 @@ def test_battle_wording_names_series_and_fits_the_title_limit():
             assert "{" not in title + desc
         title, _ = render_battle(random.Random(seed), _theme("decade", "movie", decade=1990), 8)
         assert "سریال" not in title
+
+
+def test_concept_catalog_is_complete_and_renders_cleanly():
+    from app.modules.auto_lists.concepts import CONCEPTS
+    from app.modules.auto_lists.themes import Theme
+
+    assert len({c.key for c in CONCEPTS}) == len(CONCEPTS)
+    for c in CONCEPTS:
+        assert len(set(c.titles)) >= 16 and c.work in ("movie", "tv_series")
+        theme = Theme("concept", c.work, f"c:{c.key}", None, None, None, None, None, list(c.tags), [], concept=c.key)
+        for seed in range(10):
+            for text in (*render_list(random.Random(seed), theme), *render_battle(random.Random(seed), theme, 8)):
+                assert text and "{" not in text and "~" not in text

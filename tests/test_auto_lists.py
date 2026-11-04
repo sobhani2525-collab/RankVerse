@@ -197,3 +197,36 @@ async def test_little_known_people_never_appear(db_session, seeded, monkeypatch)
     )).scalars())
     assert titles  # people lists were made
     assert not titles & {"Person 7", "Person 8", "Person 9"}
+
+
+async def test_concept_lists_use_only_catalog_titles_found_in_the_database(db_session, seeded, monkeypatch):
+    from app.modules.auto_lists.concepts import CONCEPTS_BY_KEY
+
+    concept = CONCEPTS_BY_KEY["twist"]
+    present = concept.titles[:9]
+    for i, (name, year) in enumerate(present):
+        e = Entity(entity_type="movie", title=name, slug=f"twist-{i}", attributes={"year": year})
+        db_session.add(e)
+        await db_session.flush()
+        db_session.add(EntityRanking(entity_id=e.id, computed_score=9.5 - i * 0.1, total_votes=10))
+    # same title, different film (a remake): must not be picked
+    wrong = Entity(entity_type="movie", title=present[0][0], slug="twist-wrong", attributes={"year": present[0][1] + 30})
+    db_session.add(wrong)
+    await db_session.flush()
+    db_session.add(EntityRanking(entity_id=wrong.id, computed_score=9.9, total_votes=10))
+    wrong_id = wrong.id
+    await db_session.commit()
+    monkeypatch.setattr(settings, "auto_concept_share", 1.0)
+    monkeypatch.setattr(settings, "auto_persian_share", 0.0)
+    for day in range(1, 6):
+        now = datetime(2026, 11, day, 19, 0, tzinfo=timezone.utc)
+        for _ in range(3):
+            await auto_lists.create_daily_list(db_session, now)
+    lists = (await db_session.execute(
+        select(UserList).where(UserList.curation_note.like("%|c:twist"))
+    )).scalars().all()
+    assert len(lists) == 1  # a concept is used once
+    ids = set((await db_session.execute(
+        select(UserListItem.entity_id).where(UserListItem.list_id == lists[0].id)
+    )).scalars())
+    assert wrong_id not in ids and len(ids) == 9

@@ -243,6 +243,11 @@ def _theme_values(theme, n: int) -> dict:
 def render_list(rng: random.Random, theme) -> tuple[str, str]:
     """Title and description of a list for `theme` (see themes.Theme)."""
     n = len(theme.items)
+    if theme.kind == "concept":
+        from app.modules.auto_lists.concepts import CONCEPTS_BY_KEY
+
+        concept = CONCEPTS_BY_KEY[theme.concept]
+        return rng.choice(concept.list_titles), rng.choice(concept.descriptions)
     if theme.kind == "people":
         if theme.genre_fa:
             titles = (_PEOPLE_GENRE_TITLES_IR if getattr(theme, "persian", False) else _PEOPLE_GENRE_TITLES)[theme.role]
@@ -262,6 +267,11 @@ def render_list(rng: random.Random, theme) -> tuple[str, str]:
 
 def render_battle(rng: random.Random, theme, n: int) -> tuple[str, str]:
     """Title and description of a battle of `n` entrants for `theme`."""
+    if theme.kind == "concept":
+        from app.modules.auto_lists.concepts import CONCEPTS_BY_KEY
+
+        concept = CONCEPTS_BY_KEY[theme.concept]
+        return rng.choice(concept.battle_titles), rng.choice(concept.descriptions)
     if theme.work == "movie" and not getattr(theme, "persian", False):  # the original movie wording
         if theme.kind == "actor":
             return render_actor_battle(rng, theme.person_fa, theme.genre_fa, n)

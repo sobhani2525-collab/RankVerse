@@ -311,6 +311,8 @@ class Settings(BaseSettings):
     # Chance (0..1) that an auto list/battle is limited to Iranian titles / people
     # of Iranian titles (the catalog is mostly foreign, so this evens the mix).
     auto_persian_share: float = 0.5
+    # Chance (0..1) of a curated conceptual theme ("unexpected endings", "time travel"...).
+    auto_concept_share: float = 0.3
 
     # --- In-app notifications (app/modules/notifications) ---
     notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once
