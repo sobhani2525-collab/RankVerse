@@ -65,7 +65,10 @@ async def _same_genre_pool(
     answer is the same for every title with that genre set, so it is cached
     per (type, genre set) instead of recomputed per title."""
     genre_ids = await repo.genre_ids_of(entity_id)
-    if not genre_ids:
+    # A single genre (typically a broad one like Drama) links a title to the
+    # catalog's top scorers regardless of subject, so it is not a real
+    # similarity signal: show nothing rather than Shawshank for everything.
+    if len(genre_ids) < 2:
         return []
     size = limit + _POOL_HEADROOM
 
