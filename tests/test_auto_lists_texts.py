@@ -137,3 +137,15 @@ def test_concept_catalog_is_complete_and_renders_cleanly():
         for seed in range(10):
             for text in (*render_list(random.Random(seed), theme), *render_battle(random.Random(seed), theme, 8)):
                 assert text and "{" not in text and "~" not in text
+
+
+def test_duo_texts_name_both_people():
+    from app.modules.auto_lists.themes import Theme
+
+    for role in ("actor", "director"):
+        theme = Theme("duo", "movie", "duo:x", None, "آل پاچینو", None, role, None, [], [], person2_fa="رابرت دنیرو")
+        for seed in range(20):
+            for text in (*render_list(random.Random(seed), theme), *render_battle(random.Random(seed), theme, 8)):
+                assert "{" not in text and "~" not in text
+            title, desc = render_list(random.Random(seed), theme)
+            assert "آل پاچینو" in title + desc and "رابرت دنیرو" in title + desc

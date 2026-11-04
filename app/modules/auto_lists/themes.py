@@ -49,7 +49,7 @@ BATTLE_WORKS = {"movie": 55, "tv_series": 45}
 
 @dataclass
 class Theme:
-    kind: str  # "actor" | "decade" | "people" | "concept"
+    kind: str  # "actor" | "decade" | "people" | "concept" | "duo"
     work: str  # "movie" | "tv_series" | "mixed" | "person"
     key: str  # stable identity, used to avoid repeating a theme
     genre_fa: str | None
@@ -61,6 +61,7 @@ class Theme:
     items: list[Entity]  # best-ranked first
     persian: bool = False  # only Iranian titles / people of Iranian titles
     concept: str | None = None  # key of a curated concept (kind == "concept")
+    person2_fa: str | None = None  # duo themes: the partner (role: actor | director)
 
     @property
     def entity_type(self) -> str | None:
@@ -258,9 +259,67 @@ async def _concept_theme(
     return None
 
 
+async def _duo_theme(
+    db: AsyncSession, rng: random.Random, min_items: int, pool_size: int, is_used: IsUsed, persian: bool
+) -> Theme | None:
+    """A "cinema couple": a famous actor with a famous co-star (or a director)
+    and the best-ranked films they made together."""
+    actor = await pick_actor(db, rng, persian)
+    if actor is None:
+        return None
+    role = "actor" if rng.random() < 0.6 else "director"
+    relation = "acted_in" if role == "actor" else "directed_by"
+    mine, theirs = aliased(RelationshipEdge), aliased(RelationshipEdge)
+    shared = func.count()
+    partners_stmt = (
+        select(theirs.to_entity_id)
+        .join(mine, mine.from_entity_id == theirs.from_entity_id)
+        .where(
+            mine.to_entity_id == actor.id, mine.relation_type == "acted_in",
+            theirs.relation_type == relation, theirs.to_entity_id != actor.id,
+        )
+        .group_by(theirs.to_entity_id)
+        .having(shared >= min_items)
+        .order_by(shared.desc())
+        .limit(20)
+    )
+    partner_ids = list((await db.execute(partners_stmt)).scalars().all())
+    if not partner_ids:
+        return None
+    fame = (MIN_FAME_WORKS_IR if persian else MIN_FAME_WORKS)[role]
+    known = (
+        select(Entity)
+        .join(PersonStats, PersonStats.person_id == Entity.id)
+        .where(
+            Entity.id.in_(partner_ids), PersonStats.role == role,
+            PersonStats.origin == ("persian" if persian else "all"), PersonStats.works >= fame,
+            Entity.attributes["title_fa"].as_string().is_not(None),
+        )
+    )
+    partners = list((await db.execute(known)).scalars().all())
+    rng.shuffle(partners)
+    name = (actor.attributes or {}).get("title_fa")
+    for partner in partners:
+        key = "duo:" + ":".join(sorted([str(actor.id), str(partner.id)])) + (":ir" if persian else "")
+        name2 = (partner.attributes or {}).get("title_fa")
+        tags = ["زوج سینمایی", name, name2]
+        if await is_used(key, tags):
+            continue
+        acted = select(RelationshipEdge.from_entity_id).where(
+            RelationshipEdge.to_entity_id == actor.id, RelationshipEdge.relation_type == "acted_in")
+        together = select(RelationshipEdge.from_entity_id).where(
+            RelationshipEdge.to_entity_id == partner.id, RelationshipEdge.relation_type == relation)
+        stmt = select(Entity).where(Entity.id.in_(acted), Entity.id.in_(together))
+        items = list((await db.execute(_ranked(stmt, ["movie"], pool_size, persian))).scalars().all())
+        if len(items) >= min_items:
+            return Theme("duo", "movie", key, None, name, None, role, None, tags, items, persian, person2_fa=name2)
+    return None
+
+
 async def find_theme(
     db: AsyncSession, rng: random.Random, *, min_items: int, pool_size: int, is_used: IsUsed,
     works: dict[str, int] | None = None, persian_share: float = 0.0, concept_share: float = 0.0,
+    duo_share: float = 0.0,
 ) -> Theme | None:
     """One attempt: a random theme with at least `min_items` matching entities
     (up to `pool_size`, best first) that `is_used` hasn't already seen; None
@@ -274,6 +333,10 @@ async def find_theme(
     works = works or LIST_WORKS
     work = rng.choices(list(works), weights=list(works.values()))[0]
     persian = rng.random() < persian_share
+    if work == "movie" and rng.random() < duo_share:
+        theme = await _duo_theme(db, rng, min_items, pool_size, is_used, persian)
+        if theme:
+            return theme
     if work in ("movie", "tv_series") and rng.random() < concept_share:
         theme = await _concept_theme(db, rng, work, min_items, pool_size, is_used)
         if theme:

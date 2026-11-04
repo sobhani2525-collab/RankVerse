@@ -80,6 +80,7 @@ async def create_daily_battle(db: AsyncSession, now: datetime | None = None) -> 
         theme = await find_theme(
             db, rng, min_items=4, pool_size=32, is_used=is_used, works=BATTLE_WORKS,
             persian_share=settings.auto_persian_share, concept_share=settings.auto_concept_share,
+            duo_share=settings.auto_duo_share,
         )
         if theme:
             size = pick_size(rng, len(theme.items))

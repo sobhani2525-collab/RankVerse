@@ -240,6 +240,34 @@ def _theme_values(theme, n: int) -> dict:
     }
 
 
+_DUO_LIST_TITLES = {
+    "actor": [
+        "زوج سینمایی {a} و {b}؛ بهترین فیلم~های مشترک",
+        "بهترین فیلم~هایی که {a} و {b} کنار هم بازی کردن",
+        "{a} و {b} کنار هم؛ {n} فیلم برتر",
+    ],
+    "director": [
+        "{b} و {a}؛ همکاری~های ماندگار",
+        "بهترین فیلم~های {b} با بازی {a}",
+        "زوج سینمایی {b} و {a}؛ فیلم~های برتر",
+    ],
+}
+_DUO_BATTLE_TITLES = {
+    "actor": ["کدوم فیلم مشترک {a} و {b} بهتره؟", "نبرد فیلم~های مشترک {a} و {b}"],
+    "director": ["کدوم فیلم {b} با بازی {a} بهتره؟", "نبرد فیلم~های {b} و {a}"],
+}
+_DUO_DESCRIPTIONS = [
+    "{a} و {b} چند بار کنار هم کار کردن و هر بار چیزی ماندگار ساختن. این~ها {n} تا از بهترین~هاشونه.",
+    "بعضی از زوج~ها روی پرده جادو می~کنن. فیلم مورد علاقهٔ شما از {a} و {b} کدومه؟",
+    "{n} فیلم از همکاری {a} و {b}، به ترتیب امتیاز سایت.",
+]
+
+
+def _duo(theme, n: int, titles: dict) -> tuple[str, str]:
+    values = {"a": theme.person_fa, "b": theme.person2_fa, "n": fa_number(n)}
+    return titles, values
+
+
 def render_list(rng: random.Random, theme) -> tuple[str, str]:
     """Title and description of a list for `theme` (see themes.Theme)."""
     n = len(theme.items)
@@ -248,6 +276,12 @@ def render_list(rng: random.Random, theme) -> tuple[str, str]:
 
         concept = CONCEPTS_BY_KEY[theme.concept]
         return rng.choice(concept.list_titles), rng.choice(concept.descriptions)
+    if theme.kind == "duo":
+        _, v = _duo(theme, n, _DUO_LIST_TITLES)
+        return (
+            rng.choice(_DUO_LIST_TITLES[theme.role]).format(**v).replace("~", ZWNJ),
+            rng.choice(_DUO_DESCRIPTIONS).format(**v).replace("~", ZWNJ),
+        )
     if theme.kind == "people":
         if theme.genre_fa:
             titles = (_PEOPLE_GENRE_TITLES_IR if getattr(theme, "persian", False) else _PEOPLE_GENRE_TITLES)[theme.role]
@@ -272,6 +306,12 @@ def render_battle(rng: random.Random, theme, n: int) -> tuple[str, str]:
 
         concept = CONCEPTS_BY_KEY[theme.concept]
         return rng.choice(concept.battle_titles), rng.choice(concept.descriptions)
+    if theme.kind == "duo":
+        _, v = _duo(theme, n, _DUO_BATTLE_TITLES)
+        return (
+            rng.choice(_DUO_BATTLE_TITLES[theme.role]).format(**v).replace("~", ZWNJ),
+            rng.choice(_DUO_DESCRIPTIONS).format(**v).replace("~", ZWNJ),
+        )
     if theme.work == "movie" and not getattr(theme, "persian", False):  # the original movie wording
         if theme.kind == "actor":
             return render_actor_battle(rng, theme.person_fa, theme.genre_fa, n)

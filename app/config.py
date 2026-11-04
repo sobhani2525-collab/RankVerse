@@ -313,6 +313,8 @@ class Settings(BaseSettings):
     auto_persian_share: float = 0.5
     # Chance (0..1) of a curated conceptual theme ("unexpected endings", "time travel"...).
     auto_concept_share: float = 0.3
+    # Chance (0..1) of a "cinema couple" movie theme (two actors, or director + actor).
+    auto_duo_share: float = 0.2
 
     # --- In-app notifications (app/modules/notifications) ---
     notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once

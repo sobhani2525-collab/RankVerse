@@ -230,3 +230,27 @@ async def test_concept_lists_use_only_catalog_titles_found_in_the_database(db_se
         select(UserListItem.entity_id).where(UserListItem.list_id == lists[0].id)
     )).scalars())
     assert wrong_id not in ids and len(ids) == 9
+
+
+async def test_cinema_couple_lists_hold_only_films_of_both(db_session, seeded, monkeypatch):
+    ir = (await db_session.execute(select(Entity).where(Entity.slug == "pa"))).scalar_one()
+    db_session.add(PersonStats(person_id=ir.id, role="actor", origin="all", works=25, scored=25, avg_score=7.0, shrunk=7.0))
+    await db_session.commit()
+    monkeypatch.setattr(settings, "auto_duo_share", 1.0)
+    monkeypatch.setattr(settings, "auto_concept_share", 0.0)
+    monkeypatch.setattr(settings, "auto_persian_share", 0.0)
+    monkeypatch.setattr(settings, "auto_battles_per_day", 3)
+    for day in range(1, 8):
+        now = datetime(2026, 11, day, 19, 0, tzinfo=timezone.utc)
+        for _ in range(3):
+            await auto_lists.create_daily_list(db_session, now)
+            await auto_battles.create_daily_battle(db_session, now)
+    duo_lists = (await db_session.execute(select(UserList).where(UserList.curation_note.like("%|duo:%")))).scalars().all()
+    duo_battles = (await db_session.execute(select(Battle).where(Battle.curation_note.like("%|duo:%")))).scalars().all()
+    assert len(duo_lists) == 1 and len(duo_battles) == 1  # one pair in the seed: used once each
+    assert "زوج" in duo_lists[0].title or "و" in duo_lists[0].title
+    both = (await db_session.execute(
+        select(Entity.attributes["original_language"].as_string()).join(UserListItem, UserListItem.entity_id == Entity.id)
+        .where(UserListItem.list_id == duo_lists[0].id)
+    )).scalars().all()
+    assert both and all(lang == "fa" for lang in both)  # only films the Iranian actor is in (the even ones)
