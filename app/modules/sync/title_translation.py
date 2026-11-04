@@ -41,14 +41,16 @@ def clean_title(raw: str) -> str | None:
     return title
 
 
-async def titles_needing_translation(db: AsyncSession) -> list[dict]:
+async def titles_needing_translation(db: AsyncSession, redo: bool = False) -> list[dict]:
+    """Titles without a Persian title; redo=True also returns the machine ones (to replace them)."""
     await db.execute(text("SET LOCAL statement_timeout = '300s'"))
+    missing = "COALESCE(attributes->>'title_fa_source', '') = 'machine'" if redo else "COALESCE(attributes->>'title_fa', '') = ''"
     rows = await db.execute(
         text(
             "SELECT id, entity_type, title, attributes->>'year' "
             "FROM entities "
             "WHERE entity_type IN ('movie', 'tv_series') "
-            "AND COALESCE(attributes->>'title_fa', '') = '' "
+            f"AND {missing} "
             "AND (attributes->>'external_vote_count')::int >= :min_votes "
             "ORDER BY (attributes->>'external_vote_count')::int DESC"
         ),
@@ -58,11 +60,12 @@ async def titles_needing_translation(db: AsyncSession) -> list[dict]:
 
 
 async def apply_title_translation(db: AsyncSession, entity_id: uuid.UUID, title_fa: str) -> bool:
-    """Writes the title unless TMDb gained one since the list was built. Doesn't commit."""
+    """Writes the title unless TMDb gained one since the list was built (a machine title is replaceable). Doesn't commit."""
     result = await db.execute(
         text(
             "UPDATE entities SET attributes = attributes || CAST(:patch AS jsonb) "
-            "WHERE id = :id AND COALESCE(attributes->>'title_fa', '') = ''"
+            "WHERE id = :id AND (COALESCE(attributes->>'title_fa', '') = '' "
+            "OR COALESCE(attributes->>'title_fa_source', '') = 'machine')"
         ),
         {"id": entity_id, "patch": json.dumps({"title_fa": title_fa, "title_fa_source": "machine"}, ensure_ascii=False)},
     )

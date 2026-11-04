@@ -99,17 +99,20 @@ async def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--yes", action="store_true")
+    parser.add_argument("--model", default=None, help="model id (default: BIOGRAPHY_TRANSLATION_MODEL from .env)")
+    parser.add_argument("--dry-run", action="store_true", help="print old => new titles, save nothing")
+    parser.add_argument("--redo", action="store_true", help="also redo titles already made by a machine (replaces them)")
     parser.add_argument("--no-thinking", action="store_true", help="ask the gateway to disable reasoning (if supported)")
     args = parser.parse_args()
 
-    model = settings.biography_translation_model or settings.overview_translation_model
+    model = args.model or settings.biography_translation_model or settings.overview_translation_model
     kwargs = {"base_url": settings.anthropic_base_url} if settings.anthropic_base_url else {}
     if settings.anthropic_api_key:
         kwargs["api_key"] = settings.anthropic_api_key
     client = anthropic.Anthropic(timeout=REQUEST_TIMEOUT, max_retries=0, **kwargs)
 
     print("loading the list from the database (can take a minute)...", flush=True)
-    items = await with_db_retry("load list", lambda db: titles_needing_translation(db))
+    items = await with_db_retry("load list", lambda db: titles_needing_translation(db, args.redo))
     if args.limit is not None:
         items = items[: args.limit]
     if not items:
@@ -129,6 +132,11 @@ async def main() -> None:
             results = await asyncio.gather(
                 *(loop.run_in_executor(pool, translate_one, client, model, i, args.no_thinking) for i in chunk)
             )
+
+            if args.dry_run:
+                for item, title in zip(chunk, results):
+                    print(f"  {item['title']} ({item['year']}) => {title}", flush=True)
+                continue
 
             async def save(db, chunk=chunk, results=results):
                 # the remote DB can take longer than the app's 20s default to write
