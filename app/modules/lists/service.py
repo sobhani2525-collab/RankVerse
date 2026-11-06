@@ -504,8 +504,9 @@ class ListService:
         summary.owner_display_name = lst.owner.display_name if lst.owner else None
         summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:5]]
         summary.item_count = len(lst.items)
-        if not summary.entity_type and lst.items:
-            # Lists made without an explicit type (scripts, admin): use the majority item type.
+        if lst.items:
+            # The stored type can disagree with the contents (e.g. a "person" list
+            # holding movies), so the label always follows the majority item type.
             counts: dict[str, int] = {}
             for item in lst.items:
                 counts[item.entity.entity_type] = counts.get(item.entity.entity_type, 0) + 1
