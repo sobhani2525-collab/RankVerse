@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toFaDigits } from "@/lib/format-number";
-import { NewEntityForm } from "../entity-manager/NewEntityForm";
 
 interface OverviewRow {
   id: string;
@@ -157,28 +156,9 @@ export function AdminEntitiesManager() {
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const [creating, setCreating] = useState(false);
 
   return (
     <div className="mt-6 space-y-4">
-      <div>
-        <button type="button" onClick={() => setCreating((c) => !c)} className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-bg">
-          {creating ? "بستن فرم" : "+ ساخت موجودیت جدید"}
-        </button>
-      </div>
-
-      {creating && (
-        <NewEntityForm
-          onError={(text) => setNotice({ ok: false, text })}
-          onCreated={(e) => {
-            setNotice({ ok: true, text: `ساخته شد: «${e.title}» (${e.slug})` });
-            setCreating(false);
-            setQ(e.title);
-            setSource("");
-            setPage(1);
-          }}
-        />
-      )}
 
       <div className="flex flex-wrap gap-3">
         <input
