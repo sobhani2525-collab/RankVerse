@@ -259,7 +259,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
                 entity_type: "tv_series",
                 year: startYear ? Number(startYear) : null,
                 score: tv.computed_score ?? null,
-                image_url: tv.poster_path ? `https://image.tmdb.org/t/p/w342${tv.poster_path}` : null,
+                image_url: tv.media?.image_url ?? (tv.poster_path ? `https://image.tmdb.org/t/p/w342${tv.poster_path}` : null),
                 role: "center",
               }}
               initial={ego}

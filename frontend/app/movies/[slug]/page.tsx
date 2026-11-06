@@ -212,7 +212,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
                 entity_type: "movie",
                 year: movie.year ?? null,
                 score: movie.computed_score ?? null,
-                image_url: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
+                image_url: movie.media?.image_url ?? (movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null),
                 role: "center",
               }}
               initial={ego}
