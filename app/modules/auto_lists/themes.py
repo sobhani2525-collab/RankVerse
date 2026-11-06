@@ -319,7 +319,7 @@ async def _duo_theme(
 async def find_theme(
     db: AsyncSession, rng: random.Random, *, min_items: int, pool_size: int, is_used: IsUsed,
     works: dict[str, int] | None = None, persian_share: float = 0.0, concept_share: float = 0.0,
-    duo_share: float = 0.0,
+    duo_share: float = 0.0, curated_only: bool = False,
 ) -> Theme | None:
     """One attempt: a random theme with at least `min_items` matching entities
     (up to `pool_size`, best first) that `is_used` hasn't already seen; None
@@ -327,10 +327,27 @@ async def find_theme(
     work (see LIST_WORKS / BATTLE_WORKS); `persian_share` is the chance that
     the theme is limited to Iranian titles (or people of Iranian titles);
     `concept_share` is the chance of a curated concept (see concepts.py)."""
+    works = works or LIST_WORKS
+    if curated_only:
+        # Only curated concepts and cinema couples (movies; series have concepts only).
+        kinds = {k: w for k, w in works.items() if k in ("movie", "tv_series")}
+        work = rng.choices(list(kinds), weights=list(kinds.values()))[0]
+        persian = rng.random() < persian_share
+        if work == "movie":
+            order = ["duo", "concept"] if rng.random() < 0.5 else ["concept", "duo"]
+            for kind in order:
+                theme = (
+                    await _duo_theme(db, rng, min_items, pool_size, is_used, persian) if kind == "duo"
+                    else await _concept_theme(db, rng, work, min_items, pool_size, is_used)
+                )
+                if theme:
+                    return theme
+            return None
+        return await _concept_theme(db, rng, work, min_items, pool_size, is_used)
+
     genres = await _genres(db)
     if not genres:
         return None
-    works = works or LIST_WORKS
     work = rng.choices(list(works), weights=list(works.values()))[0]
     persian = rng.random() < persian_share
     if work == "movie" and rng.random() < duo_share:

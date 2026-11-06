@@ -76,6 +76,7 @@ async def seeded(db_session, monkeypatch):
     monkeypatch.setattr(settings, "auto_lists_user_emails", ",".join(EMAILS))
     monkeypatch.setattr(settings, "auto_lists_per_day", 3)
     monkeypatch.setattr(settings, "auto_battles_per_day", 3)
+    monkeypatch.setattr(settings, "auto_curated_only", False)  # the full mix; one test turns it on
 
 
 async def test_lists_are_created_up_to_the_daily_quota(db_session, seeded):
@@ -254,3 +255,20 @@ async def test_cinema_couple_lists_hold_only_films_of_both(db_session, seeded, m
         .where(UserListItem.list_id == duo_lists[0].id)
     )).scalars().all()
     assert both and all(lang == "fa" for lang in both)  # only films the Iranian actor is in (the even ones)
+
+
+async def test_curated_only_makes_nothing_but_concepts_and_couples(db_session, seeded, monkeypatch):
+    ir = (await db_session.execute(select(Entity).where(Entity.slug == "pa"))).scalar_one()
+    db_session.add(PersonStats(person_id=ir.id, role="actor", origin="all", works=25, scored=25, avg_score=7.0, shrunk=7.0))
+    await db_session.commit()
+    monkeypatch.setattr(settings, "auto_curated_only", True)
+    monkeypatch.setattr(settings, "auto_persian_share", 0.0)
+    for day in range(1, 6):
+        now = datetime(2026, 11, day, 19, 0, tzinfo=timezone.utc)
+        for _ in range(3):
+            await auto_lists.create_daily_list(db_session, now)
+            await auto_battles.create_daily_battle(db_session, now)
+    notes = [n for (n,) in (await db_session.execute(select(UserList.curation_note))).all()]
+    notes += [n for (n,) in (await db_session.execute(select(Battle.curation_note))).all()]
+    notes = [n for n in notes if n and n.startswith("auto:")]
+    assert notes and all(n.split("|")[1].startswith(("duo:", "c:")) for n in notes)

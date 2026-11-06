@@ -315,6 +315,8 @@ class Settings(BaseSettings):
     auto_concept_share: float = 0.3
     # Chance (0..1) of a "cinema couple" movie theme (two actors, or director + actor).
     auto_duo_share: float = 0.2
+    # Only curated concepts and cinema couples (ignores the shares above); false = the full mix.
+    auto_curated_only: bool = True
 
     # --- In-app notifications (app/modules/notifications) ---
     notif_like_cooldown_seconds: int = 60  # like/unlike/like again inside this window notifies once
