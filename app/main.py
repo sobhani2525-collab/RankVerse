@@ -2,6 +2,7 @@ import asyncio
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.config import settings
 
@@ -63,6 +64,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Compress JSON responses over 1 KB (lists/rankings are large and repetitive).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(SlowRequestMiddleware)
 app.add_exception_handler(RankVerseError, rankverse_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
