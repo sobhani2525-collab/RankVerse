@@ -127,7 +127,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="relative isolate">
-      <AmbientGlow posterPath={tv.poster_path} />
+      <AmbientGlow posterPath={tv.poster_path} imageUrl={tv.media?.image_url} />
     <main className="mx-auto max-w-7xl px-6 py-14">
       <JsonLd data={tvJsonLd(tv, `/tv-series/${slug}`)} />
       <Link href="/" className="text-sm text-white/60 hover:text-gold">
@@ -137,7 +137,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
       <div className="mt-6 flex flex-col gap-8 sm:flex-row">
         {/* Deliberately bigger than any related-entity card so the title's
             own poster always reads as the primary image on the page. */}
-        <DetailPoster entityId={tv.id} posterPath={tv.poster_path} alt={displayTitle(tv)} />
+        <DetailPoster entityId={tv.id} posterPath={tv.poster_path} imageUrl={tv.media?.image_url} alt={displayTitle(tv)} />
 
         <div className="flex-1">
           <div className="flex items-start justify-between gap-4">

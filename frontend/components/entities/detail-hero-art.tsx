@@ -10,8 +10,9 @@ import WatchLaterButton from "@/components/entities/watch-later-button";
  * <main> (not inside the max-w-7xl <main>), so it reaches both edges of the
  * window; decorative only.
  */
-export function AmbientGlow({ posterPath }: { posterPath: string | null }) {
-  if (!posterPath) return null;
+export function AmbientGlow({ posterPath, imageUrl }: { posterPath: string | null; imageUrl?: string | null }) {
+  const src = posterPath ? `https://image.tmdb.org/t/p/w185${posterPath}` : imageUrl;
+  if (!src) return null;
   return (
     <div
       aria-hidden="true"
@@ -23,7 +24,7 @@ export function AmbientGlow({ posterPath }: { posterPath: string | null }) {
       }}
     >
       <Image
-        src={`https://image.tmdb.org/t/p/w185${posterPath}`}
+        src={src}
         alt=""
         fill
         sizes="185px"
@@ -37,14 +38,26 @@ export function AmbientGlow({ posterPath }: { posterPath: string | null }) {
 }
 
 /** The hero's own poster: rounder corners, a soft rim, and a deep shadow so it floats off the glow. */
-export function DetailPoster({ entityId, posterPath, alt }: { entityId: string; posterPath: string | null; alt: string }) {
+export function DetailPoster({
+  entityId,
+  posterPath,
+  imageUrl,
+  alt,
+}: {
+  entityId: string;
+  posterPath: string | null;
+  /** Hand-added titles have no TMDb poster_path, only media.image_url. */
+  imageUrl?: string | null;
+  alt: string;
+}) {
+  const src = posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : imageUrl;
   return (
     <div className="relative mx-auto h-[330px] w-[220px] shrink-0 sm:mx-0 sm:h-[480px] sm:w-80">
       <WatchLaterButton entityId={entityId} variant="ribbon" />
       <div className="h-full w-full overflow-hidden rounded-2xl bg-surface2 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.85),0_10px_24px_-8px_rgba(0,0,0,0.5)] ring-1 ring-white/10">
-        {posterPath ? (
+        {src ? (
           <Image
-            src={`https://image.tmdb.org/t/p/w500${posterPath}`}
+            src={src}
             alt={alt}
             width={320}
             height={480}
