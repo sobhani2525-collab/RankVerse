@@ -45,8 +45,6 @@ export default function TournamentHub() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // the admin-curated strip on top, like the featured lists
-  const [featured, setFeatured] = useState<TournamentSummary[]>([]);
   const gridTop = useRef<HTMLDivElement>(null);
   const requestId = useRef(0);
 
@@ -91,13 +89,6 @@ export default function TournamentHub() {
     gridTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  useEffect(() => {
-    tournamentApi
-      .featured(getToken())
-      .then(setFeatured)
-      .catch(() => setFeatured([]));
-  }, [getToken]);
-
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 md:px-6 md:py-14">
       <SectionHeading
@@ -122,20 +113,6 @@ export default function TournamentHub() {
           </div>
         }
       />
-
-      {featured.length > 0 && (
-        <section className="mb-12" aria-labelledby="featured-battles-heading">
-          <h2 id="featured-battles-heading" className="mb-4 flex items-center gap-2 text-lg font-extrabold text-ink">
-            <span className="text-gold" aria-hidden="true">★</span>
-            نبردهای برگزیده
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.slice(0, 3).map((b) => (
-              <TournamentCard key={b.slug} battle={b} />
-            ))}
-          </div>
-        </section>
-      )}
 
       <div className="mb-6">
         <label htmlFor="battles-search" className="sr-only">

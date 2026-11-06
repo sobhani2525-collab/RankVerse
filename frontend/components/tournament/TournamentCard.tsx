@@ -96,11 +96,18 @@ export default function TournamentCard({ battle }: { battle: TournamentSummary }
           <span className="flex items-center gap-1 rounded-full border border-white/10 bg-bg/60 px-2.5 py-1 text-[11px] font-bold text-ink backdrop-blur-md">
             <span className="num text-gold">{toFaDigits(battle.bracket_size)}</span> رقیب
           </span>
-          {battle.is_official && (
-            <span className="rounded-full bg-gold px-2.5 py-1 text-[11px] font-extrabold text-bg shadow-[0_2px_10px_rgba(232,179,74,0.4)]">
-              رسمی
-            </span>
-          )}
+          <span className="flex items-center gap-1.5">
+            {battle.is_featured && (
+              <span className="flex items-center gap-1 rounded-full border border-gold/40 bg-bg/85 px-2.5 py-1 text-[11px] font-bold text-gold backdrop-blur">
+                <span aria-hidden>★</span> برگزیده
+              </span>
+            )}
+            {battle.is_official && (
+              <span className="rounded-full bg-gold px-2.5 py-1 text-[11px] font-extrabold text-bg shadow-[0_2px_10px_rgba(232,179,74,0.4)]">
+                رسمی
+              </span>
+            )}
+          </span>
         </div>
       </div>
 

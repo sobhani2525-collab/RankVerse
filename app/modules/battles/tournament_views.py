@@ -47,6 +47,7 @@ def battle_summary(battle: Battle, viewer_id: uuid.UUID | None) -> dict:
         "visibility": battle.visibility,
         "status": battle.status,
         "is_official": battle.is_official,
+        "is_featured": battle.is_featured,
         "round_duration_seconds": battle.round_duration_seconds,
         "current_round": battle.current_round,
         "total_rounds": bracket.total_rounds(battle.bracket_size),

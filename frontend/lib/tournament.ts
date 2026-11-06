@@ -46,6 +46,7 @@ export interface TournamentSummary {
   visibility: TournamentVisibility;
   status: TournamentStatus;
   is_official: boolean;
+  is_featured?: boolean;
   round_duration_seconds: number | null;
   current_round: number;
   total_rounds: number;
