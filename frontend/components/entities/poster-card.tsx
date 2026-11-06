@@ -21,6 +21,8 @@ export interface PosterCardEntity {
   title_fa?: string | null;
   entity_type: string;
   poster_path?: string | null;
+  /** Hand-added titles have no TMDb poster_path, only media.image_url. */
+  media?: { image_url?: string | null } | null;
   year?: number | null;
 }
 
@@ -57,7 +59,7 @@ export default function PosterCard({
   const showRemove = onRemove != null;
   const showFavorite = !showRemove && FAVORITABLE_ENTITY_TYPES.has(entity.entity_type);
   const href = entityHref(entity.entity_type, entity.slug) ?? `/${entity.entity_type}/${entity.slug}`;
-  const posterUrl = entity.poster_path ? `https://image.tmdb.org/t/p/w342${entity.poster_path}` : null;
+  const posterUrl = entity.poster_path ? `https://image.tmdb.org/t/p/w342${entity.poster_path}` : (entity.media?.image_url ?? null);
   const title = displayTitle(entity);
 
   return (
