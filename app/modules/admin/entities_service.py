@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.modules.admin.audit import AuditLogService
-from app.modules.admin.entities_schemas import AdminEntityOverviewRow
+from app.core.slug import persian_slugify
+from app.modules.admin.entities_schemas import AdminEntityCreate, AdminEntityOverviewRow
 from app.modules.admin.models import AdminAccount
 from app.modules.entities.detail_cache import invalidate_title_detail
 from app.modules.entities.models import Entity
@@ -101,6 +102,56 @@ class AdminEntityService:
             )
         ).scalars().all()
         return [_row(e) for e in rows], total
+
+    async def create(
+        self, admin: AdminAccount, payload: AdminEntityCreate, request: Request | None = None
+    ) -> AdminEntityOverviewRow:
+        title = payload.title.strip()
+        title_fa = (payload.title_fa or "").strip() or None
+        overview = (payload.overview or "").strip() or None
+        image_url = (payload.image_url or "").strip() or None
+        if not title:
+            raise ValidationError("Title is required")
+        if title_fa and not is_persian(title_fa):
+            raise ValidationError("Persian title must be written in Persian")
+        if overview and not is_persian(overview):
+            raise ValidationError("Overview must be written in Persian")
+        if image_url and not image_url.lower().startswith("https://"):
+            raise ValidationError("Image URL must start with https://")
+
+        is_person = payload.entity_type == "person"
+        base = persian_slugify(title_fa or title, max_length=80)
+        if payload.year and not is_person:
+            base = f"{base}-{payload.year}"
+        slug = base
+        n = 1
+        while (await self.db.execute(select(Entity.id).where(Entity.slug == slug))).first():
+            n += 1
+            slug = f"{base}-{n}"
+
+        attrs: dict = {}
+        if title_fa:
+            attrs["title_fa"] = title_fa
+        if overview:
+            attrs["biography" if is_person else "overview"] = overview
+            attrs["biography_source" if is_person else "overview_source"] = "manual"
+        if payload.year:
+            attrs["birth_year" if is_person else "year"] = payload.year
+        if image_url:
+            attrs["media"] = {"image_url": image_url}
+
+        entity = Entity(
+            entity_type=payload.entity_type, external_source="manual", external_id=uuid.uuid4().hex,
+            title=title, slug=slug, attributes=attrs,
+        )
+        self.db.add(entity)
+        await self.db.flush()
+        await AuditLogService(self.db).record(
+            admin, "entity.create", "entity", entity.id,
+            before=None, after={"entity_type": entity.entity_type, "title": title, "slug": slug}, request=request,
+        )
+        await self.db.commit()
+        return _row(entity)
 
     async def set_manual_overview(
         self, admin: AdminAccount, entity_id: uuid.UUID, overview: str, request: Request | None = None

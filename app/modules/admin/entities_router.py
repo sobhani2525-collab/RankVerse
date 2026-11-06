@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.schemas import Meta, envelope
 from app.modules.admin.dependencies import get_current_admin
-from app.modules.admin.entities_schemas import AdminEntityOverviewUpdate, AdminEntityTrailerUpdate
+from app.modules.admin.entities_schemas import AdminEntityCreate, AdminEntityOverviewUpdate, AdminEntityTrailerUpdate
 from app.modules.admin.entities_service import AdminEntityService
 from app.modules.admin.models import AdminAccount
 
@@ -28,6 +28,15 @@ async def list_entity_overviews(
         data=[r.model_dump(mode="json") for r in rows],
         meta=Meta(page=page, page_size=page_size, total=total),
     )
+
+
+@router.post("", status_code=201)
+async def create_entity(
+    payload: AdminEntityCreate, request: Request,
+    admin: AdminAccount = Depends(get_current_admin), db: AsyncSession = Depends(get_db),
+):
+    row = await AdminEntityService(db).create(admin, payload, request)
+    return envelope(data=row.model_dump(mode="json"))
 
 
 @router.put("/{entity_id}/overview")

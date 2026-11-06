@@ -38,6 +38,9 @@ type Ctx = { params: Promise<{ path?: string[] }> };
 export async function GET(request: NextRequest, { params }: Ctx) {
   return forward(request, (await params).path);
 }
+export async function POST(request: NextRequest, { params }: Ctx) {
+  return forward(request, (await params).path);
+}
 export async function PUT(request: NextRequest, { params }: Ctx) {
   return forward(request, (await params).path);
 }
