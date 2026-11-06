@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toFaDigits } from "@/lib/format-number";
+import { NewEntityForm } from "../entity-manager/NewEntityForm";
 
 interface OverviewRow {
   id: string;
@@ -34,8 +35,6 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const TYPE_LABELS: Record<string, string> = { movie: "فیلم", tv_series: "سریال" };
-
-const EMPTY_FORM = { entity_type: "movie", title: "", title_fa: "", year: "", overview: "", image_url: "" };
 
 const field ="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink focus:border-gold/50 focus:outline-none";
 
@@ -159,39 +158,6 @@ export function AdminEntitiesManager() {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const [creating, setCreating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-
-  async function create() {
-    setSaving(true);
-    try {
-      const res = await call<OverviewRow>("", {
-        method: "POST",
-        body: JSON.stringify({
-          entity_type: form.entity_type,
-          title: form.title,
-          title_fa: form.title_fa || null,
-          year: form.year ? Number(form.year) : null,
-          overview: form.overview || null,
-          image_url: form.image_url || null,
-        }),
-      });
-      setNotice({ ok: true, text: `موجودیت ساخته شد: «${res.data.title}» (${res.data.slug})` });
-      setForm(EMPTY_FORM);
-      setCreating(false);
-      setQ(res.data.title);
-      setSource("");
-      setPage(1);
-    } catch (err) {
-      setNotice({ ok: false, text: err instanceof Error ? err.message : "ساخته نشد" });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const isPerson = form.entity_type === "person";
-  const set = (k: keyof typeof EMPTY_FORM) => (e: { target: { value: string } }) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <div className="mt-6 space-y-4">
@@ -202,46 +168,16 @@ export function AdminEntitiesManager() {
       </div>
 
       {creating && (
-        <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs text-muted">
-              نوع
-              <select className={`${field} mt-1 w-full`} value={form.entity_type} onChange={set("entity_type")}>
-                <option value="movie">فیلم</option>
-                <option value="tv_series">سریال</option>
-                <option value="person">هنرمند (بازیگر / کارگردان)</option>
-              </select>
-            </label>
-            <label className="text-xs text-muted">
-              {isPerson ? "سال تولد" : "سال انتشار"} (اختیاری)
-              <input className={`${field} mt-1 w-full`} inputMode="numeric" maxLength={4} value={form.year} onChange={set("year")} />
-            </label>
-            <label className="text-xs text-muted">
-              نام لاتین / اصلی *
-              <input dir="ltr" className={`${field} mt-1 w-full`} maxLength={500} value={form.title} onChange={set("title")} />
-            </label>
-            <label className="text-xs text-muted">
-              نام فارسی
-              <input dir="rtl" className={`${field} mt-1 w-full`} maxLength={500} value={form.title_fa} onChange={set("title_fa")} />
-            </label>
-          </div>
-          <label className="block text-xs text-muted">
-            {isPerson ? "بیوگرافی فارسی" : "خلاصهٔ فارسی"}
-            <textarea dir="rtl" rows={5} maxLength={5000} className={`${field} mt-1 w-full leading-7`} value={form.overview} onChange={set("overview")} />
-          </label>
-          <label className="block text-xs text-muted">
-            لینک تصویر ({isPerson ? "عکس" : "پوستر"}، https — اختیاری)
-            <input dir="ltr" className={`${field} mt-1 w-full`} maxLength={1000} placeholder="https://…" value={form.image_url} onChange={set("image_url")} />
-          </label>
-          <button
-            type="button"
-            disabled={saving || !form.title.trim()}
-            onClick={create}
-            className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-bg disabled:opacity-50"
-          >
-            {saving ? "در حال ساخت…" : "ساخت موجودیت"}
-          </button>
-        </div>
+        <NewEntityForm
+          onError={(text) => setNotice({ ok: false, text })}
+          onCreated={(e) => {
+            setNotice({ ok: true, text: `ساخته شد: «${e.title}» (${e.slug})` });
+            setCreating(false);
+            setQ(e.title);
+            setSource("");
+            setPage(1);
+          }}
+        />
       )}
 
       <div className="flex flex-wrap gap-3">

@@ -16,7 +16,11 @@ from app.modules.admin.audit import AuditLogService
 from app.modules.admin.dependencies import get_current_admin
 from app.modules.admin.models import AdminAccount
 from app.modules.entities.detail_cache import invalidate_title_detail
-from app.modules.entities.models import Entity, RelationshipEdge
+from app.modules.entities.awards import AWARDS, CATEGORIES_FA
+from app.modules.entities.models import Entity, EntityAward, RelationshipEdge
+from sqlalchemy.exc import IntegrityError
+from app.modules.admin.entities_schemas import AwardInput
+from app.modules.admin.entities_service import build_award
 from app.modules.sync.translation import is_persian
 
 router = APIRouter(prefix="/admin/entity-manager", tags=["admin-entity-manager"])
@@ -82,6 +86,76 @@ async def entity_types(_a: AdminAccount = Depends(get_current_admin), db: AsyncS
         select(Entity.entity_type, func.count()).group_by(Entity.entity_type).order_by(func.count().desc())
     )).all()
     return envelope(data=[{"entity_type": t, "count": c} for t, c in rows])
+
+
+@router.get("/award-options")
+async def award_options(_a: AdminAccount = Depends(get_current_admin)):
+    return envelope(data={
+        "awards": [{"key": k, "name_fa": v[1], "name_en": v[0]} for k, v in AWARDS.items()],
+        "categories": [{"en": en, "fa": fa} for en, fa in CATEGORIES_FA.items()],
+    })
+
+
+@router.get("/awards/for/{entity_id}")
+async def list_awards(
+    entity_id: uuid.UUID, _a: AdminAccount = Depends(get_current_admin), db: AsyncSession = Depends(get_db)
+):
+    await _get(db, entity_id)
+    rows = (await db.execute(
+        select(EntityAward, Entity)
+        .outerjoin(Entity, Entity.id == EntityAward.for_entity_id)
+        .where(EntityAward.entity_id == entity_id)
+        .order_by(EntityAward.year.desc(), EntityAward.award, EntityAward.category)
+    )).all()
+    return envelope(data=[
+        {"id": str(a.id), "award": a.award, "category": a.category, "year": a.year, "status": a.status,
+         "for_title": t.title if t else None, "for_entity_id": str(a.for_entity_id) if a.for_entity_id else None}
+        for a, t in rows
+    ])
+
+
+@router.post("/awards/for/{entity_id}", status_code=201)
+async def add_award(
+    entity_id: uuid.UUID, payload: AwardInput, request: Request,
+    admin: AdminAccount = Depends(get_current_admin), db: AsyncSession = Depends(get_db),
+):
+    e = await _get(db, entity_id)
+    award = await build_award(db, e.id, payload, e.entity_type == "person")
+    db.add(award)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise ValidationError("This award result already exists")
+    await AuditLogService(db).record(
+        admin, "entity.award.add", "entity", e.id, before=None,
+        after={"award": award.award, "category": award.category, "year": award.year, "status": award.status},
+        request=request,
+    )
+    await db.commit()
+    invalidate_title_detail(e.entity_type, e.slug)
+    return envelope(data={"id": str(award.id)})
+
+
+@router.delete("/awards/{award_id}")
+async def delete_award(
+    award_id: uuid.UUID, request: Request,
+    admin: AdminAccount = Depends(get_current_admin), db: AsyncSession = Depends(get_db),
+):
+    award = await db.get(EntityAward, award_id)
+    if award is None:
+        raise NotFoundError("Award not found")
+    e = await db.get(Entity, award.entity_id)
+    await AuditLogService(db).record(
+        admin, "entity.award.delete", "entity", award.entity_id,
+        before={"award": award.award, "category": award.category, "year": award.year, "status": award.status},
+        after=None, request=request,
+    )
+    await db.delete(award)
+    await db.commit()
+    if e:
+        invalidate_title_detail(e.entity_type, e.slug)
+    return envelope(data={"deleted": True})
 
 
 @router.get("")

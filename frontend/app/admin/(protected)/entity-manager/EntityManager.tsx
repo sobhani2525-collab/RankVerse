@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { toFaDigits } from "@/lib/format-number";
+import { NewEntityForm } from "./NewEntityForm";
+import { AwardsPanel } from "./AwardsPanel";
 
 interface Row {
   id: string;
@@ -51,8 +53,6 @@ async function call<T>(base: "entity-manager" | "entities", path: string, init?:
   return json;
 }
 
-const EMPTY_NEW = { entity_type: "movie", title: "", title_fa: "", year: "", overview: "", image_url: "" };
-
 export function EntityManager() {
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -70,7 +70,6 @@ export function EntityManager() {
   const [busy, setBusy] = useState(false);
 
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState(EMPTY_NEW);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -160,37 +159,8 @@ export function EntityManager() {
     }
   }
 
-  async function create() {
-    setBusy(true);
-    try {
-      const res = await call<{ title: string; slug: string }>("entities", "", {
-        method: "POST",
-        body: JSON.stringify({
-          entity_type: form.entity_type,
-          title: form.title,
-          title_fa: form.title_fa || null,
-          year: form.year ? Number(form.year) : null,
-          overview: form.overview || null,
-          image_url: form.image_url || null,
-        }),
-      });
-      setNotice({ ok: true, text: `ساخته شد: «${res.data.title}» (${res.data.slug})` });
-      setForm(EMPTY_NEW);
-      setCreating(false);
-      setQ(res.data.title);
-      setType("");
-      setSource("");
-      setPage(1);
-    } catch (err) {
-      setNotice({ ok: false, text: err instanceof Error ? err.message : "ساخته نشد" });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const isPerson = (t: string) => t === "person";
-  const setF = (k: keyof typeof EMPTY_NEW) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const setE = (k: keyof typeof edit) => (e: { target: { value: string } }) => setEdit((f) => ({ ...f, [k]: e.target.value }));
 
   return (
@@ -216,41 +186,17 @@ export function EntityManager() {
       </div>
 
       {creating && (
-        <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs text-muted">
-              نوع
-              <select className={`${field} mt-1 w-full`} value={form.entity_type} onChange={setF("entity_type")}>
-                <option value="movie">فیلم</option>
-                <option value="tv_series">سریال</option>
-                <option value="person">هنرمند (بازیگر / کارگردان)</option>
-              </select>
-            </label>
-            <label className="text-xs text-muted">
-              {isPerson(form.entity_type) ? "سال تولد" : "سال انتشار"} (اختیاری)
-              <input className={`${field} mt-1 w-full`} inputMode="numeric" maxLength={4} value={form.year} onChange={setF("year")} />
-            </label>
-            <label className="text-xs text-muted">
-              نام لاتین / اصلی *
-              <input dir="ltr" className={`${field} mt-1 w-full`} maxLength={500} value={form.title} onChange={setF("title")} />
-            </label>
-            <label className="text-xs text-muted">
-              نام فارسی
-              <input dir="rtl" className={`${field} mt-1 w-full`} maxLength={500} value={form.title_fa} onChange={setF("title_fa")} />
-            </label>
-          </div>
-          <label className="block text-xs text-muted">
-            {isPerson(form.entity_type) ? "بیوگرافی فارسی" : "خلاصهٔ فارسی"}
-            <textarea dir="rtl" rows={4} maxLength={5000} className={`${field} mt-1 w-full leading-7`} value={form.overview} onChange={setF("overview")} />
-          </label>
-          <label className="block text-xs text-muted">
-            لینک تصویر (https — اختیاری)
-            <input dir="ltr" className={`${field} mt-1 w-full`} maxLength={1000} placeholder="https://…" value={form.image_url} onChange={setF("image_url")} />
-          </label>
-          <button type="button" disabled={busy || !form.title.trim()} onClick={create} className={btn}>
-            {busy ? "در حال ساخت…" : "ساخت موجودیت"}
-          </button>
-        </div>
+        <NewEntityForm
+          onError={(text) => setNotice({ ok: false, text })}
+          onCreated={(e) => {
+            setNotice({ ok: true, text: `ساخته شد: «${e.title}» (${e.slug})` });
+            setCreating(false);
+            setQ(e.title);
+            setType("");
+            setSource("");
+            setPage(1);
+          }}
+        />
       )}
 
       {notice && (
@@ -325,6 +271,9 @@ export function EntityManager() {
                       {isPerson(detail.entity_type) ? "بیوگرافی فارسی" : "خلاصهٔ فارسی"} — خالی‌کردن متن را حذف می‌کند
                       <textarea dir="rtl" rows={5} maxLength={5000} className={`${field} mt-1 w-full leading-7`} value={edit.text} onChange={setE("text")} />
                     </label>
+                    {(isPerson(detail.entity_type) || detail.entity_type === "movie" || detail.entity_type === "tv_series") && (
+                      <AwardsPanel entityId={detail.id} isPerson={isPerson(detail.entity_type)} />
+                    )}
                     <div className="flex flex-wrap gap-2">
                       <button type="button" disabled={busy || !edit.title.trim()} onClick={save} className={btn}>ذخیرهٔ تغییرات</button>
                       <button type="button" disabled={busy} onClick={() => setOpenId(null)} className={btnGhost}>بستن</button>

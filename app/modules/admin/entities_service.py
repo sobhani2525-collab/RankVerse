@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError, ValidationError
 from app.modules.admin.audit import AuditLogService
 from app.core.slug import persian_slugify
-from app.modules.admin.entities_schemas import AdminEntityCreate, AdminEntityOverviewRow
+from app.modules.admin.entities_schemas import AdminEntityCreate, AdminEntityOverviewRow, AwardInput
 from app.modules.admin.models import AdminAccount
 from app.modules.entities.detail_cache import invalidate_title_detail
-from app.modules.entities.models import Entity
+from app.modules.entities.awards import AWARDS
+from app.modules.entities.models import Entity, EntityAward, RelationshipEdge
 from app.modules.sync.translation import is_persian
 
 OVERVIEW_ENTITY_TYPES = ("movie", "tv_series")
@@ -32,6 +33,21 @@ def parse_aparat_hash(value: str) -> str | None:
         return value
     match = _APARAT_URL.search(value)
     return match.group(1) if match else None
+
+
+async def build_award(db: AsyncSession, entity_id: uuid.UUID, a: AwardInput, is_person: bool) -> EntityAward:
+    if a.award not in AWARDS:
+        raise ValidationError(f"Unknown award: {a.award}")
+    if a.for_entity_id:
+        if not is_person:
+            raise ValidationError("for_entity_id is only for a person's award")
+        target = await db.get(Entity, a.for_entity_id)
+        if target is None or target.entity_type not in OVERVIEW_ENTITY_TYPES:
+            raise ValidationError("The award's title was not found")
+    return EntityAward(
+        entity_id=entity_id, award=a.award, category=a.category.strip(), year=a.year,
+        status=a.status, for_entity_id=a.for_entity_id,
+    )
 
 
 def _row(entity: Entity) -> AdminEntityOverviewRow:
@@ -140,12 +156,51 @@ class AdminEntityService:
         if image_url:
             attrs["media"] = {"image_url": image_url}
 
+        genres: list[Entity] = []
+        if not is_person:
+            if payload.imdb_id:
+                attrs["imdb_id"] = payload.imdb_id
+            if payload.original_language:
+                attrs["original_language"] = payload.original_language
+            if payload.country:
+                attrs["country"] = payload.country.upper()
+            if payload.youtube_trailer_key:
+                attrs["trailer_key"] = payload.youtube_trailer_key
+            if payload.aparat_trailer_url and payload.aparat_trailer_url.strip():
+                video_hash = parse_aparat_hash(payload.aparat_trailer_url)
+                if video_hash is None:
+                    raise ValidationError("Not an Aparat video link")
+                attrs["aparat_trailer"] = video_hash
+            if payload.entity_type == "movie":
+                if payload.runtime:
+                    attrs["runtime"] = payload.runtime
+                if payload.release_date:
+                    attrs["release_date"] = payload.release_date
+            else:
+                if payload.release_date:
+                    attrs["first_air_date"] = payload.release_date
+                for key in ("last_air_date", "number_of_seasons", "number_of_episodes", "status"):
+                    if getattr(payload, key):
+                        attrs[key] = getattr(payload, key)
+            if payload.genre_ids:
+                genres = (await self.db.execute(
+                    select(Entity).where(Entity.id.in_(payload.genre_ids), Entity.entity_type == "genre")
+                )).scalars().all()
+                if len(genres) != len(set(payload.genre_ids)):
+                    raise ValidationError("Unknown genre")
+
         entity = Entity(
             entity_type=payload.entity_type, external_source="manual", external_id=uuid.uuid4().hex,
             title=title, slug=slug, attributes=attrs,
         )
         self.db.add(entity)
         await self.db.flush()
+        for genre in genres:
+            self.db.add(RelationshipEdge(
+                from_entity_id=entity.id, to_entity_id=genre.id, relation_type="has_genre", source="manual",
+            ))
+        for a in payload.awards:
+            self.db.add(await build_award(self.db, entity.id, a, is_person))
         await AuditLogService(self.db).record(
             admin, "entity.create", "entity", entity.id,
             before=None, after={"entity_type": entity.entity_type, "title": title, "slug": slug}, request=request,
