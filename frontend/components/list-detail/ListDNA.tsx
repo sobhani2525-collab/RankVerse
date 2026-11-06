@@ -29,9 +29,11 @@ function Stat({ value, label, tone = "text-ink" }: { value: React.ReactNode; lab
   );
 }
 
-function TypeStat({ counts }: { counts: Record<string, number> }) {
+function TypeStat({ counts, itemCount }: { counts: Record<string, number>; itemCount: number }) {
   const movies = counts.movie ?? 0;
   const series = counts.tv_series ?? 0;
+  // Single-type list: the count would just repeat the title count.
+  if (!(movies && series) && movies + series === itemCount) return null;
   if (movies && series) {
     return <Stat value={`${toFaDigits(movies)}+${toFaDigits(series)}`} label="فیلم + سریال" tone="text-gold" />;
   }
@@ -72,7 +74,7 @@ export default function ListDNA({
 
       <div className="grid grid-cols-3 gap-2 lg:gap-3">
         <Stat value={toFaDigits(itemCount)} label="عنوان" />
-        <TypeStat counts={dna.type_counts} />
+        <TypeStat counts={dna.type_counts} itemCount={itemCount} />
         <FollowerStat />
         {contributorCount > MIN_CONTRIBUTORS && <Stat value={toFaDigits(contributorCount)} label="مشارکت‌کننده" />}
       </div>
