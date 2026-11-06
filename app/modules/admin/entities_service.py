@@ -137,7 +137,7 @@ class AdminEntityService:
             raise ValidationError("Image URL must start with https://")
 
         is_person = payload.entity_type == "person"
-        base = persian_slugify(title_fa or title, max_length=80)
+        base = persian_slugify(title, max_length=80) or persian_slugify(title_fa or "", max_length=80)
         if payload.year and not is_person:
             base = f"{base}-{payload.year}"
         slug = base
