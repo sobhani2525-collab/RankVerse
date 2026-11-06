@@ -86,7 +86,7 @@ export function movieMetadata(movie: MovieDetail, path: string): Metadata {
       { label: "بازیگران", list: movie.cast },
     ]),
     path,
-    image: tmdb(movie.poster_path, "w780"),
+    image: tmdb(movie.poster_path, "w780") ?? movie.media?.image_url ?? null,
     ogType: "video.movie",
   });
 }
@@ -99,7 +99,7 @@ export function tvMetadata(tv: TvSeriesDetail, path: string): Metadata {
       { label: "بازیگران", list: tv.cast },
     ]),
     path,
-    image: tmdb(tv.poster_path, "w780"),
+    image: tmdb(tv.poster_path, "w780") ?? tv.media?.image_url ?? null,
     ogType: "video.tv_show",
   });
 }
@@ -158,7 +158,7 @@ function ratingBlock(d: { computed_score: number | null; total_votes: number }) 
 
 export function movieJsonLd(movie: MovieDetail, path: string) {
   const url = absoluteUrl(path);
-  const image = tmdb(movie.poster_path, "w780");
+  const image = tmdb(movie.poster_path, "w780") ?? movie.media?.image_url ?? null;
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -189,7 +189,7 @@ export function movieJsonLd(movie: MovieDetail, path: string) {
 
 export function tvJsonLd(tv: TvSeriesDetail, path: string) {
   const url = absoluteUrl(path);
-  const image = tmdb(tv.poster_path, "w780");
+  const image = tmdb(tv.poster_path, "w780") ?? tv.media?.image_url ?? null;
   return {
     "@context": "https://schema.org",
     "@graph": [
