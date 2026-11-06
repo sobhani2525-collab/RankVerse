@@ -11,6 +11,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "داشبورد", href: "/admin/dashboard" },
+  { label: "مدیریت همهٔ موجودیت‌ها", href: "/admin/entity-manager" },
   { label: "موجودیت‌ها و روابط", href: "/admin/entities", secondary: { label: "روابط", href: "/admin/relations" } },
   { label: "Ingestion و منابع داده", href: "/admin/ingestion" },
   { label: "الگوریتم‌ها", href: "/admin/algorithms" },
