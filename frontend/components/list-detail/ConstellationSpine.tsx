@@ -38,7 +38,6 @@ export default function ConstellationSpine({ addSlot }: { addSlot?: React.ReactN
   const { detail, justAddedEntityId } = useListViewer();
   const { items } = detail;
   const edges = detail.edges ?? [];
-  const backlinks = new Map((detail.backlinks ?? []).map((b) => [b.rank, b]));
   const ranked = detail.is_ranked || detail.list_type === "community_ordered";
 
   if (items.length === 0) {
@@ -81,7 +80,6 @@ export default function ConstellationSpine({ addSlot }: { addSlot?: React.ReactN
                 <div className="min-w-0 flex-1">
                   <ListNodeItem
                     item={item}
-                    backlink={backlinks.get(rank)}
                     battleIndex={battleOpponents(items, index).length > 0 ? index : null}
                     pending={item.id.startsWith("temp-")}
                     className={isNew ? "rv-card-in" : ""}

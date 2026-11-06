@@ -30,7 +30,8 @@ export default function HomeBattleRows({ children }: { children?: React.ReactNod
         if (cancelled) return;
         const usable = (b: TournamentSummary) => (b.preview?.length ?? 0) >= 2;
         const f = pickRandom(featured.filter(usable));
-        const n = fresh.find((b) => usable(b) && b.slug !== f?.slug);
+        // «تازه»: a random one of the newest few, so it varies per visit
+        const n = pickRandom(fresh.filter((b) => usable(b) && b.slug !== f?.slug).slice(0, 8));
         // «پیشنهادی»: a random battle from the most-played ones, not already shown above
         const g = pickRandom(popular.filter((b) => usable(b) && b.slug !== f?.slug && b.slug !== n?.slug));
         setRows([

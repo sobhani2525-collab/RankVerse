@@ -10,7 +10,7 @@ import { discoverLists, getFeaturedLists } from "@/lib/api";
 import { entityPosterUrl } from "@/lib/list-constellation";
 import { listHref } from "@/lib/list-url";
 import { toFaDigits } from "@/lib/format-number";
-import { LIST_TABS, ListTab, discoverQueryFor, withoutFeatured } from "@/lib/home-lists";
+import { LIST_TABS, ListTab, POOL_SIZE, discoverQueryFor, shuffle, withoutFeatured } from "@/lib/home-lists";
 import type { ListDetail, ListSummary } from "@/lib/types";
 
 type Cache = Partial<Record<ListTab, ListSummary[]>>;
@@ -21,13 +21,18 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
   const [cache, setCache] = useState<Cache>({ picked: initialPicked });
   const [failed, setFailed] = useState(false);
 
+  // The server-rendered «picked» cards are ISR-cached; reshuffle them per visit (client-only, after hydration).
+  useEffect(() => {
+    setCache((c) => (c.picked ? { ...c, picked: shuffle(c.picked) } : c));
+  }, []);
+
   useEffect(() => {
     if (cache[tab]) return;
     let cancelled = false;
     setFailed(false);
     const query = discoverQueryFor(tab);
-    (query ? discoverLists(query, 0) : getFeaturedLists(7, 0))
-      .then((items) => !cancelled && setCache((c) => ({ ...c, [tab]: items })))
+    (query ? discoverLists(query, 0) : getFeaturedLists(POOL_SIZE, 0))
+      .then((items) => !cancelled && setCache((c) => ({ ...c, [tab]: shuffle(items) })))
       .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;

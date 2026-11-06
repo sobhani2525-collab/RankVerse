@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { ListBacklink, ListItem } from "@/lib/types";
+import type { ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { genreLabel } from "@/lib/genre-labels";
@@ -31,13 +31,11 @@ function PosterFallback({ title }: { title: string }) {
 /** One list item on the constellation spine. */
 export default function ListNodeItem({
   item,
-  backlink,
   battleIndex,
   pending = false,
   className = "",
 }: {
   item: ListItem;
-  backlink?: ListBacklink;
   /** This item's index when it has someone to battle on this page, else null. */
   battleIndex: number | null;
   /** Added optimistically and not saved yet. */
@@ -147,22 +145,6 @@ export default function ListNodeItem({
             <span className="shrink-0 text-xs text-dim">چرا این‌جا</span>
             <p className="whitespace-pre-line text-[13px] leading-[1.8] text-ink-dim sm:text-sm sm:leading-[1.8]">{item.note}</p>
           </div>
-        )}
-
-        {backlink && (
-          <a
-            href={`#rank-${backlink.target_position}`}
-            className="flex min-h-[32px] items-center gap-1.5 text-xs text-violet-light hover:underline sm:gap-2 sm:text-[13px]"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M9 14 4 9l5-5" />
-              <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
-            </svg>
-            <span>
-              به #{toFaDigits(backlink.target_position)} هم وصل است ·{" "}
-              <span dir={backlink.person_name_fa ? "rtl" : "ltr"}>{backlink.person_name_fa ?? backlink.person_name}</span>
-            </span>
-          </a>
         )}
 
         <ItemVoteButtons
