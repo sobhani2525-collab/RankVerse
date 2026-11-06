@@ -6,7 +6,9 @@ imdb_id (see sync.normalizer), never the rating itself.
 
 The dataset is licensed for personal and non-commercial use only.
 """
+import asyncio
 import csv
+import tempfile
 import gzip
 import io
 import json
@@ -41,6 +43,19 @@ def load_ratings(path: Path, wanted: set[str] | None = None) -> dict[str, tuple[
             if wanted is None or row["tconst"] in wanted:
                 ratings[row["tconst"]] = (float(row["averageRating"]), int(row["numVotes"]))
     return ratings
+
+
+async def lookup_rating(imdb_id: str) -> tuple[float, int] | None:
+    """(rating, votes) for one title from the live dataset, or None when IMDb
+    has none yet or the download fails -- callers must not depend on it."""
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = await download_ratings(Path(tmp) / "title.ratings.tsv.gz")
+            ratings = await asyncio.to_thread(load_ratings, path, {imdb_id})
+    except Exception:
+        logger.warning("IMDb rating lookup failed for %s", imdb_id, exc_info=True)
+        return None
+    return ratings.get(imdb_id)
 
 
 def rating_above(ratings: dict[str, tuple[float, int]], floor: float):

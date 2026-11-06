@@ -13,6 +13,7 @@ from app.modules.admin.models import AdminAccount
 from app.modules.entities.detail_cache import invalidate_title_detail
 from app.modules.entities.awards import AWARDS
 from app.modules.entities.models import Entity, EntityAward, RelationshipEdge
+from app.modules.sync.imdb_ratings import lookup_rating
 from app.modules.sync.translation import is_persian
 
 OVERVIEW_ENTITY_TYPES = ("movie", "tv_series")
@@ -160,6 +161,9 @@ class AdminEntityService:
         if not is_person:
             if payload.imdb_id:
                 attrs["imdb_id"] = payload.imdb_id
+                rating = await lookup_rating(payload.imdb_id)
+                if rating:
+                    attrs["imdb_rating"], attrs["imdb_votes"] = rating
             if payload.original_language:
                 attrs["original_language"] = payload.original_language
             if payload.country:
