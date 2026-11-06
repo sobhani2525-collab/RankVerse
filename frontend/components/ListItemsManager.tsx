@@ -87,6 +87,7 @@ export default function ListItemsManager({
         wasVote === isLike
           ? await removeListItemVote(authToken, slug, itemId)
           : await voteListItem(authToken, slug, itemId, isLike);
+      // Order stays put until the page is reloaded.
       setItems((prev) => {
         const next = prev.map((i) =>
           i.id === itemId
@@ -99,7 +100,7 @@ export default function ListItemsManager({
               }
             : i
         );
-        return isCommunityOrdered ? [...next].sort(compareCommunityOrder) : next;
+        return next;
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "خطا در ثبت رای");

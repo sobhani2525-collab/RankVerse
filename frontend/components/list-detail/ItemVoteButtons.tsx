@@ -27,8 +27,7 @@ const DISLIKED = "border-[#F07178] bg-[rgba(240,113,120,0.14)] text-[#F07178]";
  * An item's button row: like, dislike (the list-item votes, same endpoints
  * as ListItemsManager) and whatever `trailing` holds (the battle link), all
  * equal widths. A vote flips immediately and rolls back if the request
- * fails. On a community-ordered list the page then refreshes so the spine
- * re-sorts by the new scores.
+ * fails. The list order is not refreshed on vote; it re-sorts on reload.
  */
 export default function ItemVoteButtons({
   itemId,
@@ -44,7 +43,7 @@ export default function ItemVoteButtons({
 }) {
   const { getToken } = useAuth();
   const { requireAuth } = useAuthGate();
-  const { slug, detail, refresh } = useListViewer();
+  const { slug, detail } = useListViewer();
   const viewerItem = detail.items.find((i) => i.id === itemId);
   const [local, setLocal] = useState<VoteState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -69,7 +68,7 @@ export default function ItemVoteButtons({
           ? await removeListItemVote(token, slug, itemId)
           : await voteListItem(token, slug, itemId, isLike);
       setLocal({ like_count: result.like_count, dislike_count: result.dislike_count, my_vote: result.my_vote });
-      if (detail.list_type === "community_ordered") refresh();
+      // No refresh: the order stays put until the page is reloaded.
     } catch {
       setLocal(prev);
       setError("رأی ثبت نشد. دوباره تلاش کن.");
