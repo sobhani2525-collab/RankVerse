@@ -118,7 +118,7 @@ export default function DailyBattle({ large = false, embedded = false }: { large
     <section
       className={
         embedded
-          ? "relative rounded-3xl border border-[#2a2f5c] bg-[#141733] max-sm:border-0 max-sm:bg-transparent"
+          ? "relative rounded-3xl border border-border bg-surface max-sm:border-0 max-sm:bg-transparent"
           : "relative border-y border-border/60 bg-[#080B14]/70 max-sm:border-0 max-sm:bg-transparent"
       }
       aria-label="نبرد امروز"
