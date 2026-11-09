@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { distinctFa } from "@/lib/title";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -107,9 +108,9 @@ function ResultCard({
             {first && <TrophyIcon className="mt-1 h-8 w-8 shrink-0 text-gold sm:h-9 sm:w-9" />}
             <span className="min-w-0">
               <span className={`block text-xl font-black leading-snug sm:text-2xl ${first ? "text-gold" : "text-ink"}`}>
-                {entity.title_fa || entity.title}
+                {distinctFa(entity) || entity.title}
               </span>
-              {entity.title_fa && (
+              {distinctFa(entity) && (
                 <span className="block text-right text-sm text-ink-dim" dir="ltr">
                   {entity.title}
                 </span>
@@ -174,7 +175,7 @@ function CommunityResults({ battle, mine }: { battle: TournamentDetail; mine: st
           </p>
           {myRow && (
             <p className="mb-4 rounded-xl border border-teal/40 bg-teal/[0.06] px-4 py-3 text-sm text-ink">
-              <span className="font-bold text-teal">{myRow.entity.title_fa || myRow.entity.title}</span>،{" "}
+              <span className="font-bold text-teal">{distinctFa(myRow.entity) || myRow.entity.title}</span>،{" "}
               {myRow.rank === 1 ? (
                 "برندهٔ جمع هم هست."
               ) : (
@@ -202,7 +203,7 @@ function CommunityResults({ battle, mine }: { battle: TournamentDetail; mine: st
                       entity={row.entity}
                       className={`relative flex h-full items-center px-3 transition hover:brightness-110 ${isMine ? "font-bold text-teal" : "text-ink"}`}
                     >
-                      <span className="truncate">{row.entity.title_fa || row.entity.title}</span>
+                      <span className="truncate">{distinctFa(row.entity) || row.entity.title}</span>
                       {isMine && <span className="ms-2 shrink-0 text-[11px] font-normal">· برنده نبرد تو</span>}
                     </EntityLink>
                   </div>

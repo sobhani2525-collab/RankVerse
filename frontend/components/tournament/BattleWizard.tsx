@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { distinctFa } from "@/lib/title";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
@@ -211,8 +212,8 @@ export default function BattleWizard() {
                       </button>
                     </div>
                     <div className="px-0.5 pt-2">
-                      <p className="line-clamp-1 text-sm font-bold text-ink">{e.title_fa || e.title}</p>
-                      {e.title_fa && (
+                      <p className="line-clamp-1 text-sm font-bold text-ink">{distinctFa(e) || e.title}</p>
+                      {distinctFa(e) && (
                         <p className="line-clamp-1 text-right text-xs text-ink-dim" dir="ltr">
                           {e.title}
                         </p>

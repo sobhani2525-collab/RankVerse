@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { castDailyVote, getDailyBattle } from "@/lib/api";
 import { DailyBattleToday, DailyFilm, DailySide } from "@/lib/types";
-import { displayTitle } from "@/lib/title";
+import { displayTitle, distinctFa } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { SITE_NAME, absoluteUrl } from "@/lib/site";
 import { renderStoryCard } from "@/lib/story-card";
@@ -365,8 +365,8 @@ function Results({ data, signedIn, onLogin }: { data: DailyBattleToday; signedIn
     if (!storyBlob.current) {
       const promise = renderStoryCard({
         posterPath: mineFilm.poster_path,
-        title: mineFilm.title_fa || mineFilm.title,
-        subtitle: mineFilm.title_fa ? mineFilm.title : null,
+        title: distinctFa(mineFilm) || mineFilm.title,
+        subtitle: distinctFa(mineFilm) ? mineFilm.title : null,
         themeLine: `انتخاب من در نبرد امروز · ${formatJalaliDate(data.battle_date)}`,
         heading: "نبرد روز",
         posterBadge: "انتخاب من",
@@ -395,7 +395,7 @@ function Results({ data, signedIn, onLogin }: { data: DailyBattleToday; signedIn
     }
   }
 
-  const name = mineFilm.title_fa || mineFilm.title;
+  const name = distinctFa(mineFilm) || mineFilm.title;
   const shareText =
     results.total > 1
       ? `امروز در «نبرد روز» به «${name}» رأی دادم؛ ${toFaDigits(minePercent)}٪ با من موافق‌اند. تو چه؟`

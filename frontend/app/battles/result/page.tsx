@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { getMovieBySlug } from "@/lib/api";
 import { RESULT_KINDS, reasonOf, topicOf, type BattleThemeKind } from "@/lib/battle-theme";
 import { posterUrlFor } from "@/lib/home-data";
-import { displayTitle } from "@/lib/title";
+import { displayTitle, distinctFa } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
@@ -117,10 +117,10 @@ export default async function BattleResultPage({ searchParams }: { searchParams:
 
       <h1 className="mt-8 text-2xl font-extrabold text-ink">
         <Link href={detailHref} className="transition hover:text-gold">
-          {movie.title_fa || movie.title}
+          {distinctFa(movie) || movie.title}
         </Link>
       </h1>
-      {movie.title_fa && (
+      {distinctFa(movie) && (
         <p dir="ltr" className="mt-1 text-sm text-muted">
           {movie.title}
         </p>

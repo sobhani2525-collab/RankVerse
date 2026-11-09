@@ -23,7 +23,7 @@ import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import EntityOverviewGraph, { OverviewPerson } from "@/components/EntityOverviewGraph";
 import { getMovieBySlug, getRelatedEntities, getMovieRankings, getPersonBySlug, getEgoGraph, EgoGraph, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
-import { displayTitle } from "@/lib/title";
+import { displayTitle, distinctFa } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { MovieListItem } from "@/lib/types";
 import EntityExtras from "@/components/entities/entity-extras";
@@ -135,9 +135,9 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
               </div>
 
               <h1 className="text-[30px] font-black leading-[1.35] text-ink [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[56px] lg:leading-[1.2]">
-                {movie.title_fa ?? movie.title}.
+                {distinctFa(movie) ?? movie.title}.
               </h1>
-              {movie.title_fa && (
+              {distinctFa(movie) && (
                 <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-white/70 [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[44px]">
                   {movie.title}.
                 </p>
@@ -208,7 +208,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
                 id: movie.id,
                 slug: movie.slug,
                 title: movie.title,
-                title_fa: movie.title_fa ?? null,
+                title_fa: distinctFa(movie) ?? null,
                 entity_type: "movie",
                 year: movie.year ?? null,
                 score: movie.computed_score ?? null,
@@ -237,7 +237,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
               <CrewSection directors={movie.directors} cast={movie.cast} />
               <AwardsSection awards={movie.awards} />
               {mainDirector && (
-                <DirectorWorks directorName={mainDirector.title_fa ?? mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />
+                <DirectorWorks directorName={distinctFa(mainDirector) ?? mainDirector.title} directorSlug={mainDirector.slug} items={directorWorks} />
               )}
               <RelatedEntities items={related} excludeIds={directorWorks.map((w) => w.id)} />
             </>
@@ -246,7 +246,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
             <EntityBattle
               current={movie}
               opponents={[...new Map(battlePool.map((m) => [m.id, m])).values()]}
-              label={mainDirector ? `آثار ${mainDirector.title_fa ?? mainDirector.title}` : "آثار"}
+              label={mainDirector ? `آثار ${distinctFa(mainDirector) ?? mainDirector.title}` : "آثار"}
             />
           }
         />

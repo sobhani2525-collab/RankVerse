@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { parseWatchCsv } from "@/lib/watch-links";
 import { Pagination } from "../_components/Pagination";
@@ -58,7 +59,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<Envelope<T>> {
   return json;
 }
 
-const nameOf = (x: { title: string; title_fa?: string | null }) => (x.title_fa ? `${x.title_fa} (${x.title})` : x.title);
+const nameOf = (x: { title: string; title_fa?: string | null }) => displayTitle(x);
 
 const pageHref = (type: string, slug: string) => (type === "tv_series" ? `/tv-series/${slug}` : `/movies/${slug}`);
 

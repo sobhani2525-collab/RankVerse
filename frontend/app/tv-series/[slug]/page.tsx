@@ -26,7 +26,7 @@ import EntityGraphWithSidebar from "@/components/EntityGraphWithSidebar";
 import EntityOverviewGraph, { OverviewPerson } from "@/components/EntityOverviewGraph";
 import { getTvSeriesBySlug, getRelatedEntities, getTvSeriesRankings, getPersonBySlug, getEgoGraph, EgoGraph, RelatedEntity, RankingHighlight, isNotFoundError } from "@/lib/api";
 import { genreLabel } from "@/lib/genre-labels";
-import { displayTitle } from "@/lib/title";
+import { displayTitle, distinctFa } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { MovieListItem, PersonSummary } from "@/lib/types";
 
@@ -155,9 +155,9 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
               </div>
 
               <h1 className="text-[30px] font-black leading-[1.35] text-ink [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[56px] lg:leading-[1.2]">
-                {tv.title_fa ?? tv.title}.
+                {distinctFa(tv) ?? tv.title}.
               </h1>
-              {tv.title_fa && (
+              {distinctFa(tv) && (
                 <p dir="ltr" className="block text-right text-2xl font-black leading-[1.2] text-white/70 [text-shadow:0_2px_20px_rgba(0,0,0,0.5)] lg:text-[44px]">
                   {tv.title}.
                 </p>
@@ -255,7 +255,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
                 id: tv.id,
                 slug: tv.slug,
                 title: tv.title,
-                title_fa: tv.title_fa ?? null,
+                title_fa: distinctFa(tv) ?? null,
                 entity_type: "tv_series",
                 year: startYear ? Number(startYear) : null,
                 score: tv.computed_score ?? null,
@@ -284,7 +284,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
               <CrewSection directors={tv.directors} cast={tv.cast} />
               <AwardsSection awards={tv.awards} />
               {mainCreator && (
-                <DirectorWorks directorName={mainCreator.title_fa ?? mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
+                <DirectorWorks directorName={distinctFa(mainCreator) ?? mainCreator.title} directorSlug={mainCreator.slug} items={creatorWorks} />
               )}
               <RelatedEntities items={related} excludeIds={creatorWorks.map((w) => w.id)} />
             </>
@@ -293,7 +293,7 @@ export default async function TvSeriesDetailPage({ params }: { params: Promise<{
             <EntityBattle
               current={tv}
               opponents={[...new Map(battlePool.map((m) => [m.id, m])).values()]}
-              label={mainCreator ? `آثار ${mainCreator.title_fa ?? mainCreator.title}` : "آثار"}
+              label={mainCreator ? `آثار ${distinctFa(mainCreator) ?? mainCreator.title}` : "آثار"}
             />
           }
         />

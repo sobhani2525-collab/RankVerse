@@ -1,6 +1,19 @@
+import re
+
 from slugify import slugify
 
 from app.modules.sync.credits import strip_translator_credit
+
+
+_PERSIAN_SCRIPT = re.compile(r"[؀-ۿ]")
+
+
+_DIGIT_MAP = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+
+
+def _same_ignoring_digit_script(a: str, b: str) -> bool:
+    """True when a and b differ only by Persian/Arabic-Indic vs Latin digits."""
+    return a.translate(_DIGIT_MAP).strip() == b.translate(_DIGIT_MAP).strip()
 
 
 def _persian_title(title_fa: str | None, title_en: str | None) -> str | None:
@@ -16,6 +29,14 @@ def _persian_title(title_fa: str | None, title_en: str | None) -> str | None:
     if not title_fa or not title_en:
         return None
     if title_fa.strip() == title_en.strip():
+        return None
+    # A title that is only digits/punctuation (e.g. "1917") needs no Persian
+    # twin: "۱۹۱۷" is the same title, not a translation.
+    if _same_ignoring_digit_script(title_fa, title_en):
+        return None
+    # TMDb falls back to the original-language title (Korean, Hindi, Polish...)
+    # when fa-IR is missing; only a title with Persian/Arabic script is real.
+    if not _PERSIAN_SCRIPT.search(title_fa):
         return None
     return title_fa
 

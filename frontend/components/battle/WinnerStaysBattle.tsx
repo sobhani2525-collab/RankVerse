@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { distinctFa } from "@/lib/title";
 import Image from "next/image";
 import Link from "next/link";
 import { detailPathFor } from "@/lib/entity-routes";
@@ -113,8 +114,8 @@ export default function WinnerStaysBattle({
         .then((credit) =>
           renderStoryCard({
             posterPath: championItem.poster_path,
-            title: championItem.title_fa || championItem.title,
-            subtitle: championItem.title_fa ? championItem.title : null,
+            title: distinctFa(championItem) || championItem.title,
+            subtitle: distinctFa(championItem) ? championItem.title : null,
             heading: series ? "نبرد سریال‌های برگزیده" : "نبرد فیلم‌های برگزیده",
             themeLine: storyName ? `انتخاب نهایی من در نبرد «${storyName}»` : storyFallback ?? "انتخاب نهایی من",
             year: championItem.year,
@@ -147,7 +148,7 @@ export default function WinnerStaysBattle({
     }
   }
 
-  const championName = championItem.title_fa || championItem.title;
+  const championName = distinctFa(championItem) || championItem.title;
   const shareUrl =
     typeof share.url === "function" ? share.url({ championSlug: championItem.slug, streak, count: items.length }) : share.url;
   const shareText = `${share.topic ? `قهرمان من در «${share.topic}»` : "قهرمان نبرد من"}: ${championName} 🏆 تو چه کسی را انتخاب می‌کنی؟`;
@@ -231,7 +232,7 @@ export default function WinnerStaysBattle({
                 ) : (
                   <span className="text-2xl font-black leading-tight text-ink sm:text-3xl">{championName}</span>
                 )}
-                {championItem.title_fa && (
+                {distinctFa(championItem) && (
                   <span className="text-base text-ink-dim sm:text-lg" dir="ltr">
                     {championItem.title}
                   </span>
@@ -312,7 +313,7 @@ export default function WinnerStaysBattle({
                 type="button"
                 onClick={() => pick(side)}
                 disabled={pickAnim.busy}
-                aria-label={`انتخاب ${item.title_fa || item.title}`}
+                aria-label={`انتخاب ${distinctFa(item) || item.title}`}
                 className="group relative block w-full text-right transition"
               >
                 <span
@@ -335,8 +336,8 @@ export default function WinnerStaysBattle({
                   outside the vote button so the title can link to its page */}
               <div className="h-[5.5rem] overflow-hidden px-1 pt-3">
                 <Link href={detailPathFor(item.entity_type, item.slug) ?? `/movies/${item.slug}`} className="group/title block">
-                  <span className="block line-clamp-1 text-base font-bold text-ink transition group-hover/title:text-gold">{item.title_fa || item.title}</span>
-                  {item.title_fa && (
+                  <span className="block line-clamp-1 text-base font-bold text-ink transition group-hover/title:text-gold">{distinctFa(item) || item.title}</span>
+                  {distinctFa(item) && (
                     <span className="block line-clamp-1 text-sm text-ink-dim" dir="ltr">
                       {item.title}
                     </span>
@@ -398,10 +399,10 @@ async function storyCredit(item: WinnerStaysItem): Promise<{ label: string; name
     if (item.entity_type === "tv_series") {
       const d = await getTvSeriesBySlug(item.slug);
       const p = d.creators[0] ?? d.directors[0];
-      return p ? { label: d.creators[0] ? "سازنده" : "کارگردان", name: p.title_fa || p.title } : null;
+      return p ? { label: d.creators[0] ? "سازنده" : "کارگردان", name: distinctFa(p) || p.title } : null;
     }
     const p = (await getMovieBySlug(item.slug)).directors[0];
-    return p ? { label: "کارگردان", name: p.title_fa || p.title } : null;
+    return p ? { label: "کارگردان", name: distinctFa(p) || p.title } : null;
   } catch {
     return null;
   }

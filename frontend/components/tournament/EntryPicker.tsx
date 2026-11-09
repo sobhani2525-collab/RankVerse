@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { searchEntities } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { displayTitle } from "@/lib/title";
+import { displayTitle, distinctFa } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
 import { CandidateEntity, GenreOption, TournamentEntity, TournamentEntityType, tournamentApi } from "@/lib/tournament";
 import Poster from "./Poster";
@@ -164,7 +164,7 @@ export default function EntryPicker({
           <option value="">همهٔ ژانرها</option>
           {genres.map((g) => (
             <option key={g.slug} value={g.slug}>
-              {g.title_fa || g.title}
+              {distinctFa(g) || g.title}
             </option>
           ))}
         </select>
@@ -230,7 +230,7 @@ export default function EntryPicker({
                   title={displayTitle(r)}
                 >
                   <Poster entity={r} size="w185" className="transition group-hover:border-gold" />
-                  {r.title_fa ? (
+                  {distinctFa(r) ? (
                     <>
                       <p className="mt-1 line-clamp-1 text-xs text-ink-dim">{r.title_fa}</p>
                       <p className="line-clamp-1 text-[10px] text-muted" dir="ltr">{r.title}</p>
