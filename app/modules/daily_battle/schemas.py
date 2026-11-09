@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class DailyFilm(BaseModel):
     id: uuid.UUID
     slug: str
+    entity_type: str = "movie"
     title: str
     title_fa: str | None = None
     poster_path: str | None = None

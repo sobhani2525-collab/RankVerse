@@ -543,6 +543,7 @@ export interface TasteProfile {
 export interface DailyFilm {
   id: string;
   slug: string;
+  entity_type?: string;
   title: string;
   title_fa: string | null;
   poster_path: string | null;

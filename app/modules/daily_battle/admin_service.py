@@ -21,7 +21,7 @@ from .schemas import (
     AdminDailyBattleUpdate,
     AdminThemeIn,
 )
-from .service import CATEGORY, DailyBattleService
+from .service import ALLOWED_TYPES, DailyBattleService
 
 logger = logging.getLogger(__name__)
 
@@ -84,14 +84,16 @@ class AdminDailyBattleService:
 
     async def _check_pair(self, left_id: uuid.UUID, right_id: uuid.UUID) -> None:
         if left_id == right_id:
-            raise ValidationError("دو فیلم باید متفاوت باشند")
+            raise ValidationError("دو عنوان باید متفاوت باشند")
         types = dict(
             (await self.db.execute(select(Entity.id, Entity.entity_type).where(Entity.id.in_((left_id, right_id))))).all()
         )
         if len(types) != 2:
-            raise NotFoundError("فیلم پیدا نشد")
-        if any(t != CATEGORY for t in types.values()):
-            raise ValidationError("نبرد روز فقط بین دو فیلم سینمایی است")
+            raise NotFoundError("عنوان پیدا نشد")
+        if any(t not in ALLOWED_TYPES for t in types.values()):
+            raise ValidationError("نبرد روز فقط بین فیلم‌ها یا سریال‌هاست")
+        if len(set(types.values())) != 1:
+            raise ValidationError("نبرد روز باید بین دو فیلم یا دو سریال باشد، نه ترکیب این دو")
 
     @staticmethod
     def _theme(theme: AdminThemeIn | None) -> tuple[str, str]:

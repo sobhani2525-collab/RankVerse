@@ -30,7 +30,9 @@ class Entity(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    ranking: Mapped["EntityRanking"] = relationship(back_populates="entity", uselist=False)
+    ranking: Mapped["EntityRanking"] = relationship(
+        back_populates="entity", uselist=False, passive_deletes=True
+    )  # the FK is ON DELETE CASCADE: let the DB delete the row, don't null its PK
 
 
 class RelationshipEdge(Base):

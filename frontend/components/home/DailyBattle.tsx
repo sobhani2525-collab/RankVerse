@@ -270,7 +270,7 @@ function DailyBody({
       <div className="mt-3 grid grid-cols-2 gap-4 sm:gap-10">
         {sides.map(([side, film]) => (
           <div key={side} className="text-center">
-            <Link href={`/movies/${film.slug}`} className="block min-w-0 text-sm font-medium text-ink transition hover:text-gold">
+            <Link href={`/${film.entity_type === "tv_series" ? "tv-series" : "movies"}/${film.slug}`} className="block min-w-0 text-sm font-medium text-ink transition hover:text-gold">
               <CardTitle entity={film} className="line-clamp-2" center />
             </Link>
             {film.year != null && <p className="num text-xs text-gold">{toFaDigits(film.year)}</p>}

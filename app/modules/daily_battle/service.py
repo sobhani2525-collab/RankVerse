@@ -31,7 +31,10 @@ from .schemas import (
 
 logger = logging.getLogger(__name__)
 
-CATEGORY = "movie"
+CATEGORY = "movie"  # auto-pick pool; admins may also schedule a tv_series pair
+SERIES_CATEGORY = "tv_series"
+SERIES_SHARE = 0.25  # share of days the auto-pick tries a series pair
+ALLOWED_TYPES = (CATEGORY, SERIES_CATEGORY)
 DEFAULT_ELO = 1200.0
 STREAK_LOOKBACK_DAYS = 60
 MAX_SEED_ATTEMPTS = 12  # seed movies tried per auto-pick (each costs a few queries)
@@ -45,6 +48,7 @@ def film_of(entity: Entity, score: float | None) -> DailyFilm:
     return DailyFilm(
         id=entity.id,
         slug=entity.slug,
+        entity_type=entity.entity_type,
         title=entity.title,
         title_fa=attrs.get("title_fa"),
         poster_path=attrs.get("poster_path"),
@@ -119,10 +123,16 @@ class DailyBattleService:
         """Seeded by the date so two servers picking at once agree. When the
         no-repeat rule leaves nothing, a repeat beats hiding the section."""
         recent = await self._recent_entity_ids(today)
-        pair = await self._search_pair(random.Random(today.toordinal()), recent)
-        if pair is None and recent:
-            pair = await self._search_pair(random.Random(today.toordinal()), set())
-        return pair
+        # Roughly one day in four tries series first; movies are the fallback.
+        order = [CATEGORY]
+        if random.Random(today.toordinal() * 7919).random() < SERIES_SHARE:
+            order.insert(0, SERIES_CATEGORY)
+        for excluded in ([recent, set()] if recent else [set()]):
+            for category in order:
+                pair = await self._search_pair(random.Random(today.toordinal()), excluded, category)
+                if pair is not None:
+                    return pair
+        return None
 
     async def _recent_entity_ids(self, today: date) -> set[uuid.UUID]:
         since = today - timedelta(days=settings.daily_battle_no_repeat_days)
@@ -131,12 +141,12 @@ class DailyBattleService:
         )
         return {entity_id for row in rows.all() for entity_id in row}
 
-    async def _candidates(self, excluded: set[uuid.UUID]) -> list[Entity]:
+    async def _candidates(self, excluded: set[uuid.UUID], category: str = CATEGORY) -> list[Entity]:
         stmt = (
             select(Entity)
             .join(EntityRanking, EntityRanking.entity_id == Entity.id)
             .where(
-                Entity.entity_type == CATEGORY,
+                Entity.entity_type == category,
                 Entity.attributes["poster_path"].astext.isnot(None),
                 Entity.attributes["title_fa"].astext.isnot(None),
                 Entity.attributes["title_fa"].astext != "",
@@ -146,24 +156,24 @@ class DailyBattleService:
         )
         return [e for e in (await self.db.execute(stmt)).scalars().all() if e.id not in excluded]
 
-    async def _elo_map(self, entity_ids: list[uuid.UUID]) -> dict[uuid.UUID, float]:
+    async def _elo_map(self, entity_ids: list[uuid.UUID], category: str = CATEGORY) -> dict[uuid.UUID, float]:
         rows = await self.db.execute(
             select(EntityEloScore.entity_id, EntityEloScore.elo_score).where(
-                EntityEloScore.entity_id.in_(entity_ids), EntityEloScore.category == CATEGORY
+                EntityEloScore.entity_id.in_(entity_ids), EntityEloScore.category == category
             )
         )
         return {entity_id: score for entity_id, score in rows.all()}
 
     async def _search_pair(
-        self, rng: random.Random, excluded: set[uuid.UUID]
+        self, rng: random.Random, excluded: set[uuid.UUID], category: str = CATEGORY
     ) -> tuple[Entity, Entity, str, str] | None:
-        candidates = await self._candidates(excluded)
+        candidates = await self._candidates(excluded, category)
         if len(candidates) < 2:
             return None
         order = list(candidates)
         rng.shuffle(order)
 
-        themed = ThemedBattleService(self.db, CATEGORY)
+        themed = ThemedBattleService(self.db, category)
         # (seed, theme, [(opponent, |elo gap|)]) for each seed theme that has at
         # least one eligible opponent.
         attempts = []
@@ -175,7 +185,7 @@ class DailyBattleService:
                 ]
                 if not members:
                     continue
-                elos = await self._elo_map([seed.id] + [m.id for m in members])
+                elos = await self._elo_map([seed.id] + [m.id for m in members], category)
                 seed_elo = elos.get(seed.id, DEFAULT_ELO)
                 gaps = sorted(
                     ((m, abs(elos.get(m.id, DEFAULT_ELO) - seed_elo)) for m in members),
@@ -374,10 +384,13 @@ class DailyBattleService:
         is already committed, so a failure here (e.g. the 429 daily cap) must
         not lose it."""
         try:
+            category = (
+                await self.db.execute(select(Entity.entity_type).where(Entity.id == battle.left_id))
+            ).scalar_one_or_none() or CATEGORY
             await BattleService(BattleRepository(self.db)).cast_vote(
                 user_id,
                 CastVoteRequest(
-                    category=CATEGORY, left_item=battle.left_id, right_item=battle.right_id,
+                    category=category, left_item=battle.left_id, right_item=battle.right_id,
                     winner=VoteOutcomeSchema(choice),
                 ),
             )

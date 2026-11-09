@@ -238,8 +238,8 @@ function MoviePicker({ label, value, onChange }: { label: string; value: SearchR
     }
     let cancelled = false;
     const t = setTimeout(() => {
-      searchEntities(q, "movie")
-        .then((r) => !cancelled && setResults(r.slice(0, 8)))
+      Promise.all([searchEntities(q, "movie"), searchEntities(q, "tv_series")])
+        .then(([m, s]) => !cancelled && setResults([...m.slice(0, 5), ...s.slice(0, 5)]))
         .catch(() => !cancelled && setResults([]));
     }, 250);
     return () => {
@@ -260,7 +260,7 @@ function MoviePicker({ label, value, onChange }: { label: string; value: SearchR
         </div>
       ) : (
         <>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی فیلم…" className={field} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی فیلم یا سریال…" className={field} />
           {results.length > 0 && (
             <ul className="max-h-56 overflow-y-auto rounded-lg border border-border bg-bg">
               {results.map((r) => (
@@ -274,7 +274,7 @@ function MoviePicker({ label, value, onChange }: { label: string; value: SearchR
                     }}
                     className="block w-full px-3 py-2 text-right text-sm text-ink hover:bg-surface2"
                   >
-                    {displayTitle(r)}
+                    {displayTitle(r)} <span className="text-xs text-dim">· {r.type === "tv_series" ? "سریال" : "فیلم"}</span>
                   </button>
                 </li>
               ))}
