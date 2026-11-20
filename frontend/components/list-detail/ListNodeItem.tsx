@@ -141,9 +141,9 @@ export default function ListNodeItem({
         )}
 
         {item.note && (
-          <div className="flex flex-col items-start gap-1 border-t border-border-soft pt-3 text-start sm:border-0 sm:pt-1">
-            <span className="shrink-0 text-xs text-dim">چرا در این فهرست است؟</span>
-            <p className="whitespace-pre-line text-[13px] leading-[1.8] text-ink-dim sm:text-sm sm:leading-[1.8]">{item.note}</p>
+          <div className="rounded-xl border border-violet-light/20 border-s-2 border-s-violet-light/70 bg-violet-light/[0.08] px-3 py-3 text-start sm:px-4">
+            <p className="text-sm font-bold text-violet-light">چرا در این فهرست است؟</p>
+            <p className="mt-1 whitespace-pre-line text-sm leading-[1.85] text-ink sm:text-base">{item.note}</p>
           </div>
         )}
 
