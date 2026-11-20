@@ -142,8 +142,14 @@ export default function ListNodeItem({
 
         {item.note && (
           <div className="rounded-xl border border-violet-light/20 border-s-2 border-s-violet-light/70 bg-violet-light/[0.08] px-3 py-3 text-start sm:px-4">
-            <p className="text-sm font-bold text-violet-light">چرا در این فهرست است؟</p>
-            <p className="mt-1 whitespace-pre-line text-sm leading-[1.85] text-ink sm:text-base">{item.note}</p>
+            <div className="flex items-start gap-2.5">
+              <span role="img" aria-label="دلیل انتخاب اثر" className="mt-1 shrink-0 text-violet-light">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18h6m-5 4h4M9 15c0-1-.5-1.7-1.4-2.6a6 6 0 1 1 8.8 0C15.5 13.3 15 14 15 15" />
+                </svg>
+              </span>
+              <p className="min-w-0 whitespace-pre-line text-sm leading-[1.85] text-ink sm:text-base">{item.note}</p>
+            </div>
           </div>
         )}
 
