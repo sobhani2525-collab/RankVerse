@@ -101,9 +101,11 @@ class EntityService:
         entity_type: str = "movie",
         origin: str = "all",
         exclude_genre_slugs: tuple[str, ...] = (),
+        runtime_under: int | None = None,
     ) -> tuple[list[MovieListItem], int]:
         entities, total = await self.repo.list_movies(
-            page, page_size, genre_slug, year_from, year_to, sort_by, entity_type, origin, exclude_genre_slugs
+            page, page_size, genre_slug, year_from, year_to, sort_by, entity_type, origin, exclude_genre_slugs,
+            runtime_under=runtime_under,
         )
         return [_movie_list_item(e) for e in entities], total
 

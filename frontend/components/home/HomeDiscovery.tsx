@@ -1,0 +1,57 @@
+import Link from "next/link";
+import { Suspense } from "react";
+import SearchBox from "@/components/SearchBox";
+import type { MovieListItem } from "@/lib/types";
+import TonightChoices from "./TonightChoices";
+
+const shortcuts = [
+  ["زیر ۹۰ دقیقه", "/rankings?runtime_under=90"],
+  ["ژانر خانوادگی", "/rankings?genre=family"],
+  ["فیلم‌های معمایی", "/rankings?genre=mystery"],
+  ["سریال‌ها", "/rankings?type=tv_series"],
+] as const;
+
+export default function HomeDiscovery({ movies }: { movies: Promise<MovieListItem[]> }) {
+  return (
+    <section className="relative z-30 bg-[#0b0d1c]">
+      <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 sm:pt-8">
+        <div className="grid gap-5 rounded-3xl border border-border bg-surface bg-[radial-gradient(ellipse_at_top_right,#a99bff24,transparent_58%)] p-4 sm:p-6 lg:gap-6 lg:p-8">
+          <div className="relative z-10 min-w-0">
+            <h1 className="font-display text-3xl leading-tight text-ink sm:text-4xl">فیلم بعدی‌ات را پیدا کن</h1>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <SearchBox scope="screen" className="min-w-0 flex-[1_1_14rem]" />
+              <Link href="#tonight" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-l from-violet-light to-teal px-4 text-sm font-extrabold text-bg hover:brightness-110 focus-visible:outline-gold">
+                امشب چی ببینم؟
+              </Link>
+            </div>
+            <nav aria-label="انتخاب سریع" className="mt-3 flex flex-wrap gap-2">
+              {shortcuts.map(([label, href]) => (
+                <Link key={href} href={href} className="inline-flex min-h-11 items-center rounded-full border border-border bg-surface2/70 px-3 text-sm text-ink-dim transition hover:border-violet-light/50 hover:text-ink focus-visible:outline-gold">
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+          <div id="tonight" className="min-w-0 scroll-mt-24 rounded-2xl border border-border bg-bg/60 p-3 sm:p-4">
+            <h2 className="font-display text-2xl leading-tight text-ink">پیشنهاد برای امشب</h2>
+            <Suspense fallback={<p className="mt-2 text-sm text-muted" role="status">در حال دریافت پیشنهادها…</p>}>
+              <TonightRecommendations movies={movies} />
+            </Suspense>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+async function TonightRecommendations({ movies }: { movies: Promise<MovieListItem[]> }) {
+  const fallback = (await movies).slice(0, 3).map((movie) => ({
+    id: movie.id,
+    title: movie.title,
+    title_fa: movie.title_fa,
+    href: `/movies/${movie.slug}`,
+    poster: movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : movie.media?.image_url,
+    year: movie.year,
+  }));
+  return <TonightChoices fallback={fallback} />;
+}

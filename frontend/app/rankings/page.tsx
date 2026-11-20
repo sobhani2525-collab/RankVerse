@@ -25,6 +25,7 @@ interface Filters {
   sort?: string;
   decade?: number;
   origin?: string;
+  runtimeUnder?: number;
 }
 
 function buildHref(type: RankingType, page: number, f: Filters = {}): string {
@@ -34,12 +35,13 @@ function buildHref(type: RankingType, page: number, f: Filters = {}): string {
   if (f.decade) qs.set("decade", String(f.decade));
   if (f.origin && f.origin !== "all") qs.set("origin", f.origin);
   if (f.sort && f.sort !== "score") qs.set("sort", f.sort);
+  if (type === "movie" && f.runtimeUnder) qs.set("runtime_under", String(f.runtimeUnder));
   if (page > 1) qs.set("page", String(page));
   const s = qs.toString();
   return s ? `/rankings?${s}` : "/rankings";
 }
 
-type RankingsSearchParams = { type?: string; page?: string; genre?: string; sort?: string; decade?: string; origin?: string };
+type RankingsSearchParams = { type?: string; page?: string; genre?: string; sort?: string; decade?: string; origin?: string; runtime_under?: string };
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RankingsSearchParams> }): Promise<Metadata> {
   const params = await searchParams;
@@ -50,7 +52,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const plural = type === "tv_series" ? "سریال‌ها" : "فیلم‌ها";
   // Genre/decade pages are real landing pages ("بهترین فیلم‌های ترسناک دهه ۹۰").
   // Re-sorted or origin-filtered views duplicate them, so they stay out of the index.
-  const duplicate = (params.sort !== undefined && params.sort !== "score") || (params.origin ?? "all") !== "all";
+  const duplicate = (params.sort !== undefined && params.sort !== "score") || (params.origin ?? "all") !== "all" || (type === "movie" && params.runtime_under === "90");
   const canonical = buildHref(type, page, { genre, decade });
 
   const parts = [`بهترین ${plural}`];
@@ -81,7 +83,8 @@ export default async function RankingsPageRoute({
   const sort = parseSort(params.sort);
   const decade = parseDecade(params.decade);
   const origin = parseOrigin(params.origin);
-  const filters: Filters = { genre, sort, decade, origin };
+  const runtimeUnder = type === "movie" && params.runtime_under === "90" ? 90 : undefined;
+  const filters: Filters = { genre, sort, decade, origin, runtimeUnder };
 
   let result: RankingsPage = { items: [], total: null };
   let loadError: string | null = null;
@@ -89,6 +92,7 @@ export default async function RankingsPageRoute({
     result = await getRankingsPage(type, { page, page_size: PAGE_SIZE, genre,
       sort,
       origin,
+      runtime_under: runtimeUnder,
       year_from: decade,
       year_to: decade ? decade + 9 : undefined,
     });
@@ -103,7 +107,12 @@ export default async function RankingsPageRoute({
     <main className="mx-auto max-w-7xl px-6 py-14">
       <NavTransitionProvider>
       <p className="kicker text-teal/80">The universe, ranked</p>
-      <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">رتبه‌بندی کامل</h1>
+      <h1 className="font-display mt-3 text-3xl text-ink sm:text-4xl">{runtimeUnder ? "فیلم‌های زیر ۹۰ دقیقه" : "رتبه‌بندی کامل"}</h1>
+      {runtimeUnder && (
+        <TransitionLink href={buildHref(type, 1, { ...filters, runtimeUnder: undefined })} className="mt-2 inline-flex min-h-11 items-center text-sm text-gold">
+          برداشتن فیلتر مدت
+        </TransitionLink>
+      )}
       <p className="mt-2 text-sm text-muted">بر اساس امتیاز ترکیبی CinemaGozin — رأی کاربران به‌همراه داده‌های بیرونی.</p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">

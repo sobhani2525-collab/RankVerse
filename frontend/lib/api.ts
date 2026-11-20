@@ -781,13 +781,20 @@ export interface SearchResult {
   title_fa: string | null;
   type: string;
   image_url: string | null;
+  year?: number | string | null;
 }
 
-export async function searchEntities(q: string, type?: string): Promise<SearchResult[]> {
+export async function searchEntities(
+  q: string,
+  type?: string,
+  options?: { scope?: "screen"; signal?: AbortSignal },
+): Promise<SearchResult[]> {
   if (!q.trim()) return [];
   const qs = new URLSearchParams({ q });
   if (type) qs.set("type", type);
-  const res = await fetch(`${API_BASE}/search?${qs.toString()}`, { cache: "no-store" });
+  if (options?.scope) qs.set("scope", options.scope);
+  if (options) qs.set("tolerant", "true");
+  const res = await fetch(`${API_BASE}/search?${qs.toString()}`, { cache: "no-store", signal: options?.signal });
   const json: Envelope<SearchResult[]> = await res.json();
   if (!res.ok || json.error) {
     throw new Error(json.error?.message || "Search failed");
@@ -1001,7 +1008,7 @@ export async function getPeoplePage(
 
 export async function getRankingsPage(
   entityType: "movie" | "tv_series",
-  params: { page?: number; page_size?: number; genre?: string; sort?: string; year_from?: number; year_to?: number; origin?: string } = {},
+  params: { page?: number; page_size?: number; genre?: string; sort?: string; year_from?: number; year_to?: number; origin?: string; runtime_under?: number } = {},
   options: { fresh?: boolean } = {}
 ): Promise<RankingsPage> {
   const qs = new URLSearchParams();
@@ -1012,6 +1019,7 @@ export async function getRankingsPage(
   if (params.origin) qs.set("origin", params.origin);
   if (params.year_from) qs.set("year_from", String(params.year_from));
   if (params.year_to) qs.set("year_to", String(params.year_to));
+  if (entityType === "movie" && params.runtime_under) qs.set("runtime_under", String(params.runtime_under));
   const path = `/rankings/${entityType === "tv_series" ? "tv-series" : "movies"}?${qs.toString()}`;
 
   const res = await fetchWithTimeout(

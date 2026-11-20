@@ -3,8 +3,13 @@ Tests for GET /users/me/predicted-picks (PredictedPicksService).
 
 Run with: TEST_DATABASE_URL=... pytest tests/test_predicted_picks.py
 """
+from uuid import UUID
+
+import pytest
+
 from app.modules.entities.models import EntityRanking
 from app.modules.entities.repository import EntityRepository
+from app.modules.taste.predicted_picks import favorite_genre_scores
 from app.modules.taste.repository import TasteRepository
 from app.modules.users.repository import UserRepository
 
@@ -21,10 +26,92 @@ async def _set_score(db_session, entity_id, computed_score: float):
     await db_session.flush()
 
 
+def test_repeated_specific_favorites_outweigh_generic_overlap():
+    ids = [UUID(int=i) for i in range(1, 5)]
+    signals = tuple((title, "movie", "drama") for title in ids) + (
+        (ids[0], "movie", "animation"),
+        (ids[1], "movie", "animation"),
+        (ids[2], "movie", "music"),
+        (ids[3], "movie", "music"),
+        (ids[3], "movie", "family"),
+        (ids[3], "movie", "family"),
+    )
+    scores = favorite_genre_scores(signals)
+    assert scores["animation"] == scores["music"] > scores["drama"]
+    assert scores["family"] == 65
+
+
+async def test_animation_and_music_favorites_beat_higher_ranked_generic_drama(
+    client, db_session, test_user, auth_headers,
+):
+    entities = EntityRepository(db_session)
+    users = UserRepository(db_session)
+    genres = {
+        slug: await _create_entity(entities, "genre", slug, slug)
+        for slug in ("animation", "music", "drama")
+    }
+    for index, taste in enumerate(("animation", "animation", "music", "music")):
+        title = await _create_entity(entities, "movie", f"Liked {index}", f"liked-affinity-{index}")
+        for slug in (taste, "drama"):
+            await entities.create_relationship(title.id, genres[slug].id, "has_genre")
+        await users.add_favorite(test_user.id, title.id)
+
+    for slug, kind, score, tags in (
+        ("animated-musical", "movie", 7.0, ("animation", "music")),
+        ("music-biopic", "movie", 7.5, ("music", "drama")),
+        ("animated-film", "movie", 7.0, ("animation",)),
+        ("popular-drama", "tv_series", 9.9, ("drama",)),
+    ):
+        title = await _create_entity(entities, kind, slug, slug)
+        for tag in tags:
+            await entities.create_relationship(title.id, genres[tag].id, "has_genre")
+        await _set_score(db_session, title.id, score)
+    await db_session.commit()
+
+    response = await client.get("/api/v1/users/me/predicted-picks", headers=auth_headers)
+    assert response.status_code == 200
+    recommendations = response.json()["data"]
+    assert recommendations[0]["entity"]["slug"] == "animated-musical"
+    assert {pick["entity"]["slug"] for pick in recommendations} == {
+        "animated-musical", "music-biopic", "animated-film",
+    }
+
+
 async def test_empty_state_with_no_qualifying_dimensions(client, db_session, test_user, auth_headers):
     res = await client.get("/api/v1/users/me/predicted-picks", headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["data"] == []
+
+
+@pytest.mark.parametrize("liked_type", ["movie", "tv_series"])
+async def test_a_like_immediately_suggests_other_titles_without_taste_dimensions(
+    client, db_session, test_user, auth_headers, liked_type,
+):
+    entities = EntityRepository(db_session)
+    users = UserRepository(db_session)
+    genre = await _create_entity(entities, "genre", "Mystery", "live-like-mystery")
+    liked = await _create_entity(entities, liked_type, "Liked Title", "live-liked-title")
+    similar = await _create_entity(entities, "movie", "Similar Title", "live-similar-title")
+    for title in (liked, similar):
+        await entities.create_relationship(title.id, genre.id, "has_genre")
+        await _set_score(db_session, title.id, 9.0)
+    await db_session.commit()
+
+    async def picks():
+        response = await client.get("/api/v1/users/me/predicted-picks", headers=auth_headers)
+        assert response.status_code == 200
+        return response.json()["data"]
+
+    assert await picks() == []
+    favorite = await users.add_favorite(test_user.id, liked.id)
+    await db_session.commit()
+    recommendations = await picks()
+    assert [pick["entity"]["slug"] for pick in recommendations] == [similar.slug]
+    assert recommendations[0]["reason_genres"] == [genre.slug]
+
+    await users.remove_favorite(favorite)
+    await db_session.commit()
+    assert await picks() == []
 
 
 async def test_predicted_picks_ranks_by_match_score_and_excludes_rated(

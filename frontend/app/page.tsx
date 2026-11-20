@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import HomeHero from "@/components/home/HomeHero";
+import HomeDiscovery from "@/components/home/HomeDiscovery";
+import { HomePicksProvider } from "@/components/home/HomePicks";
 import HomeBattleRows from "@/components/home/HomeBattleRows";
 import TasteBand from "@/components/home/TasteBand";
 import SimilarTasters from "@/components/home/SimilarTasters";
@@ -62,12 +65,26 @@ async function loadFeatured(): Promise<{ main: ListDetail | null; others: ListSu
   return { main: popular ? await getListBySlugCached(popular.slug) : null, others: [] };
 }
 
-export default async function HomePage() {
+export default function HomePage() {
+  const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
+  const suggestions = moviePage.then((page) => page.items, () => []);
+  return (
+    <main className="bg-[#0b0d1c]">
+      <HomePicksProvider>
+        <HomeDiscovery movies={suggestions} />
+        <Suspense fallback={<p className="mx-auto max-w-7xl px-6 py-10 text-muted" role="status">در حال دریافت محتوای سینماگزین…</p>}>
+          <HomeSections moviePage={moviePage} />
+        </Suspense>
+      </HomePicksProvider>
+    </main>
+  );
+}
+
+async function HomeSections({ moviePage }: { moviePage: ReturnType<typeof getRankingsPage> }) {
   // Independent reads, fetched together; each failure only hides its own
   // section (movies failing shows the error state below). The movie
   // details chain off the movie list alone, so they don't wait for the
   // other two reads.
-  const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
   const [movieRes, tvRes, extrasRes, featuredListRes, heroPoolRes, listTotalRes, peopleRes, battleTotalRes] = await Promise.allSettled([
     moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
@@ -108,8 +125,9 @@ export default async function HomePage() {
 
   if (loadError || !leader) {
     return (
-      <main>
+      <>
         <HomeHero titles={[]} graphs={[]} movieTotal={null} tvTotal={tvTotal} />
+        <TasteBand />
         <section className="mx-auto max-w-7xl px-6 py-14">
           {loadError ? (
             <div className="rounded-xl border border-gold/30 bg-gold/5 px-6 py-8 text-center text-muted">
@@ -122,12 +140,12 @@ export default async function HomePage() {
             </div>
           )}
         </section>
-      </main>
+      </>
     );
   }
 
   return (
-    <main className="bg-[#0b0d1c]">
+    <>
       <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} listTotal={listTotal} battleTotal={battleTotal} artistTotal={artistTotal} />
       <TasteBand />
       <section className="mx-auto max-w-7xl px-6 py-14" aria-label="نبردها">
@@ -144,6 +162,6 @@ export default async function HomePage() {
       <SimilarTasters />
       <HomeLists featured={featuredList} initialPicked={otherFeatured} />
       <BackToTop />
-    </main>
+    </>
   );
 }

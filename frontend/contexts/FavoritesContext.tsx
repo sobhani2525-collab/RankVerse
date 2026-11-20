@@ -13,6 +13,7 @@ export interface FavoritableEntity {
 interface FavoritesContextType {
   isFavorite: (entityId: string) => boolean;
   toggleFavorite: (entity: FavoritableEntity) => void;
+  screenFavoritesRevision: number;
 }
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
@@ -28,6 +29,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const { token, getToken } = useAuth();
   const { requireAuth } = useAuthGate();
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [screenFavoritesRevision, setScreenFavoritesRevision] = useState(0);
 
   useEffect(() => {
     if (!token) {
@@ -57,6 +59,9 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
 
     try {
       await apiToggleFavorite(authToken, entity.slug, entity.entity_type);
+      if (entity.entity_type === "movie" || entity.entity_type === "tv_series") {
+        setScreenFavoritesRevision((revision) => revision + 1);
+      }
     } catch {
       setFavoriteIds((prev) => {
         const next = new Set(prev);
@@ -72,7 +77,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <FavoritesContext.Provider value={{ isFavorite, toggleFavorite }}>
+    <FavoritesContext.Provider value={{ isFavorite, toggleFavorite, screenFavoritesRevision }}>
       {children}
     </FavoritesContext.Provider>
   );

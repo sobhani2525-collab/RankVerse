@@ -31,6 +31,7 @@ async def top_movies(
     year_to: int | None = Query(None, ge=1800, le=2100),
     sort: Literal["score", "votes", "year_desc", "year_asc"] = "score",
     origin: Literal["all", "persian", "foreign"] = "all",
+    runtime_under: int | None = Query(None, ge=2, le=600),
 ):
     async def load():
         # Own session: a stale entry is refreshed in the background, after
@@ -40,7 +41,7 @@ async def top_movies(
             # are fan-voted far above theatrical films; keep them out of the movie ranking.
             items, total = await EntityService(db).list_movies(
                 page, page_size, genre_slug=genre, year_from=year_from, year_to=year_to, sort_by=sort,
-                origin=origin, exclude_genre_slugs=RANKING_EXCLUDED_MOVIE_GENRES,
+                origin=origin, exclude_genre_slugs=RANKING_EXCLUDED_MOVIE_GENRES, runtime_under=runtime_under,
             )
         return envelope(
             data=[i.model_dump() for i in items],
@@ -48,7 +49,7 @@ async def top_movies(
         )
 
     return await cached(
-        ("rank-movies", page, page_size, genre, year_from, year_to, sort, origin),
+        ("rank-movies", page, page_size, genre, year_from, year_to, sort, origin, runtime_under),
         settings.cache_ttl_lists, load, stale_for=settings.cache_stale_seconds,
     )
 

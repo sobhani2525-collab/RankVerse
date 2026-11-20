@@ -1,12 +1,6 @@
 """
-Predicted picks: entities (movie or tv_series) a user hasn't rated yet,
-suggested because they share genres with the user's own qualifying Taste
-DNA dimensions AND already rank well platform-wide -- not just "more of
-the same genre" but "more of the same genre, and it's good". Those
-qualifying dimensions (see TasteDimensionComputer.compute_genre_dimensions)
-are themselves built from explicit ratings plus the weaker ♥ favorite and
-battle-win signals, so a pick can be driven by any of the three without
-this module needing to know which.
+Predicted picks: ranked movies and TV series a user has yet to rate or like.
+Genres come from Taste DNA and recurring patterns in live favorites.
 
 Unlike everything else in compute.py, this is never persisted: there's
 no user_predicted_picks table. It's a live query computed fresh on every
@@ -16,6 +10,7 @@ it's a separate endpoint from GET /users/me/taste-dna rather than a field
 on that response.
 """
 import uuid
+from collections import Counter
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +19,7 @@ from sqlalchemy.orm import aliased
 from app.config import settings
 from app.modules.entities.models import Entity, EntityRanking, RelationshipEdge
 from app.modules.taste.repository import TasteRepository
-from app.modules.users.models import UserRating
+from app.modules.users.models import UserFavorite, UserRating
 
 
 # Battles are movie-vs-movie or tv-vs-tv only (see BattleService._validate_matchup);
@@ -37,9 +32,25 @@ CANDIDATE_ENTITY_TYPES = ("movie", "tv_series")
 RANKING_SCORE_SCALE = 10
 
 GENRE_NEUTRAL_SCORE = 50.0
+BROAD_GENRES = {"drama", "comedy", "action", "adventure"}
+MAX_GENRE_AFFINITY = 95.0
+MAX_OVERLAP_BONUS = 12.0
+FORMAT_BONUS = 6.0
 
-# How many of the best-ranked unrated titles in the user's genres get scored.
+# Bound the number of relevance-ranked candidates sent to diversification.
 CANDIDATE_POOL_SIZE = 600
+
+FavoriteSignal = tuple[uuid.UUID, str, str | None]
+
+
+def favorite_genre_scores(favorites: tuple[FavoriteSignal, ...]) -> dict[str, float]:
+    """Each distinct liked title contributes once per genre."""
+    counts = Counter(slug for _, _, slug in set(favorites) if slug)
+    return {
+        slug: min(66.0, 52.0 + 5 * (count - 1)) if slug in BROAD_GENRES
+        else min(MAX_GENRE_AFFINITY, 65.0 + 9 * (count - 1))
+        for slug, count in counts.items()
+    }
 
 
 class PredictedPick:
@@ -56,7 +67,7 @@ class PredictedPick:
 # Points an already-picked title sharing a candidate's leading genre costs it,
 # so near-tied candidates spread across the user's genres instead of the same
 # few platform-wide favorites always filling every slot.
-SAME_GENRE_PENALTY = 4.0
+SAME_GENRE_PENALTY = 6.0
 
 
 class PredictedPicksService:
@@ -66,15 +77,45 @@ class PredictedPicksService:
         self.dimension_weight = settings.taste_predicted_picks_dimension_weight
         self.ranking_weight = settings.taste_predicted_picks_ranking_weight
 
-    
+    async def favorite_signals(self, user_id: uuid.UUID) -> tuple[FavoriteSignal, ...]:
+        """Read current likes, with a genre signal only for unrated titles."""
+        genre = aliased(Entity)
+        rated = (
+            select(UserRating.entity_id)
+            .where(UserRating.user_id == user_id, UserRating.entity_id == UserFavorite.entity_id)
+            .correlate(UserFavorite)
+            .exists()
+        )
+        stmt = (
+            select(UserFavorite.entity_id, Entity.entity_type, case((~rated, genre.slug)).label("genre"))
+            .select_from(UserFavorite)
+            .join(Entity, Entity.id == UserFavorite.entity_id)
+            .outerjoin(
+                RelationshipEdge,
+                (RelationshipEdge.from_entity_id == UserFavorite.entity_id)
+                & (RelationshipEdge.relation_type == "has_genre"),
+            )
+            .outerjoin(genre, genre.id == RelationshipEdge.to_entity_id)
+            .where(UserFavorite.user_id == user_id, Entity.entity_type.in_(CANDIDATE_ENTITY_TYPES))
+            .distinct()
+        )
+        rows = (await self.db.execute(stmt)).all()
+        return tuple(sorted(
+            ((entity_id, entity_type, slug) for entity_id, entity_type, slug in rows),
+            key=lambda signal: (signal[0], signal[1], signal[2] or ""),
+        ))
+
     async def get_predicted_picks(
-        self, user_id: uuid.UUID, limit: int = 3
+        self, user_id: uuid.UUID, limit: int = 3,
+        *, favorites: tuple[FavoriteSignal, ...] | None = None,
     ) -> list[PredictedPick]:
         dimensions = await self.taste_repo.list_dimensions(
             user_id, dimension_type="genre"
         )
-        if not dimensions or limit <= 0:
+        if limit <= 0:
             return []
+        if favorites is None:
+            favorites = await self.favorite_signals(user_id)
     
         # 50 is "average" on the genre score: below it the user prefers the
         # genre *less* than the rest, so it shouldn't pull picks toward it.
@@ -82,6 +123,12 @@ class PredictedPicksService:
         dimension_scores = {
             d.dimension_key: d.score for d in liked
         }
+        favorite_scores = favorite_genre_scores(favorites)
+        for slug, score in favorite_scores.items():
+            dimension_scores[slug] = max(dimension_scores.get(slug, 0), score)
+        if not dimension_scores:
+            return []
+        favorite_ids = {entity_id for entity_id, _, _ in favorites}
     
         GenreEntity = aliased(Entity)
     
@@ -89,46 +136,41 @@ class PredictedPicksService:
             UserRating.user_id == user_id
         )
     
-        # Map each matching genre to its Taste DNA score, then
-        # calculate the mean score per candidate inside PostgreSQL.
         genre_score = case(
             dimension_scores,
             value=GenreEntity.slug,
             else_=None,
         )
     
-        # Ranking is 40% of match_score, so only the best-ranked unrated titles
-        # in the user's genres can reach the top picks. Scoring just those
-        # keeps this from aggregating the whole catalog (it took ~7s).
-        in_user_genres = (
-            select(RelationshipEdge.id)
-            .join(GenreEntity, GenreEntity.id == RelationshipEdge.to_entity_id)
-            .where(
-                RelationshipEdge.from_entity_id == Entity.id,
-                RelationshipEdge.relation_type == "has_genre",
-                GenreEntity.slug.in_(list(dimension_scores)),
+        affinity = func.avg(genre_score)
+        if favorite_scores:
+            # Strong individual matches survive alongside broad secondary
+            # matches. Multiple specific tastes give a bounded extra boost.
+            specific_matches = func.count(GenreEntity.slug.distinct()).filter(
+                GenreEntity.slug.in_(favorite_scores.keys() - BROAD_GENRES)
             )
-            .exists()
-        )
-        candidate_ids = (
-            select(Entity.id)
-            .join(EntityRanking, EntityRanking.entity_id == Entity.id)
-            .where(
-                Entity.entity_type.in_(CANDIDATE_ENTITY_TYPES),
-                EntityRanking.computed_score.isnot(None),
-                ~Entity.id.in_(rated_entity_ids),
-                in_user_genres,
+            favorite_formats = {entity_id: kind for entity_id, kind, _ in favorites}
+            formats = Counter(favorite_formats.values())
+            total = sum(formats.values())
+            format_score = case(
+                {kind: FORMAT_BONUS * count / total for kind, count in formats.items()},
+                value=Entity.entity_type,
+                else_=0,
             )
-            .order_by(EntityRanking.computed_score.desc())
-            .limit(CANDIDATE_POOL_SIZE)
-        )
+            affinity = func.least(
+                100.0,
+                0.7 * func.max(genre_score) + 0.3 * affinity
+                + func.least(MAX_OVERLAP_BONUS, 8 * func.greatest(0, specific_matches - 1))
+                + format_score,
+            )
+        ranking = func.greatest(0.0, func.least(100.0, EntityRanking.computed_score * RANKING_SCORE_SCALE))
+        relevance = self.dimension_weight * affinity + self.ranking_weight * ranking
 
         stmt = (
             select(
                 Entity.id.label("entity_id"),
-                func.avg(genre_score).label("dimension_match"),
+                relevance.label("relevance"),
                 func.array_agg(GenreEntity.slug).label("genre_slugs"),
-                EntityRanking.computed_score.label("computed_score"),
             )
             .join(
                 RelationshipEdge,
@@ -147,38 +189,28 @@ class PredictedPicksService:
                 Entity.entity_type.in_(CANDIDATE_ENTITY_TYPES),
                 GenreEntity.slug.in_(list(dimension_scores)),
                 EntityRanking.computed_score.isnot(None),
-                Entity.id.in_(candidate_ids),
+                Entity.id.not_in(rated_entity_ids),
             )
             .group_by(Entity.id, EntityRanking.computed_score)
+            .order_by(relevance.desc(), Entity.id)
+            .limit(CANDIDATE_POOL_SIZE)
         )
+        if favorite_ids:
+            stmt = stmt.where(Entity.id.not_in(favorite_ids))
     
         rows = (await self.db.execute(stmt)).all()
     
-        # Preserve the existing Python scoring and rounding behavior.
         scored = []
         top_genres: dict[uuid.UUID, str] = {}
         reasons: dict[uuid.UUID, list[str]] = {}
         for row in rows:
-            dimension_match = float(row.dimension_match)
-            ranking_normalized = max(
-                0.0,
-                min(
-                    100.0,
-                    row.computed_score * RANKING_SCORE_SCALE,
-                ),
-            )
-            match_score = round(
-                self.dimension_weight * dimension_match
-                + self.ranking_weight * ranking_normalized,
-                1,
-            )
+            match_score = round(float(row.relevance), 1)
             scored.append((row.entity_id, match_score))
-            top_genres[row.entity_id] = max(
-                row.genre_slugs, key=lambda slug: dimension_scores.get(slug, 0)
-            )
             reasons[row.entity_id] = sorted(
-                set(row.genre_slugs), key=lambda slug: -dimension_scores.get(slug, 0)
+                set(row.genre_slugs),
+                key=lambda slug: (-dimension_scores[slug], slug in BROAD_GENRES, slug),
             )[:2]
+            top_genres[row.entity_id] = reasons[row.entity_id][0]
     
         scored.sort(key=lambda item: (-item[1], str(item[0])))
         top_scored = self._diversify(scored, top_genres, limit)
@@ -213,7 +245,7 @@ class PredictedPicksService:
                 remaining,
                 key=lambda item: (
                     item[1] - SAME_GENRE_PENALTY * genre_counts.get(top_genres[item[0]], 0),
-                    -item[1],
+                    item[1],
                     str(item[0]),
                 ),
             )

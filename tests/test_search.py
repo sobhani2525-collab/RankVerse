@@ -4,8 +4,9 @@ Tests for GET /search -- the global search endpoint used by SearchBox.tsx
 filter scopes it to one entity_type, e.g. adding to a movie-only list).
 Run with: TEST_DATABASE_URL=... pytest tests/test_search.py
 """
-from app.modules.entities.repository import EntityRepository
+from sqlalchemy import text
 
+from app.modules.entities.repository import EntityRepository
 
 async def _seed(db_session):
     repo = EntityRepository(db_session)
@@ -78,6 +79,30 @@ async def test_search_matches_persian_title_with_arabic_keyboard_variants(client
         results = res.json()["data"]
         assert [r["slug"] for r in results] == ["silent-search-test"]
         assert results[0]["title_fa"] == "سایلنت کوچک"
+
+
+async def test_screen_search_handles_spacing_typos_and_year(client, db_session):
+    await db_session.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+    repo = EntityRepository(db_session)
+    await repo.create_entity(
+        entity_type="movie", external_id=None, external_source=None,
+        title="Interstellar", slug="interstellar-search-test",
+        attributes={"title_fa": "می‌خواهم", "year": 2014},
+    )
+    await repo.create_entity(
+        entity_type="person", external_id=None, external_source=None,
+        title="Interstelar", slug="interstelar-person-search-test", attributes={},
+    )
+    await db_session.commit()
+
+    for query in ("ميخواهم", "می خواهم", "می‌خواهم", "Interstelar"):
+        response = await client.get(
+            "/api/v1/search", params={"q": query, "scope": "screen", "tolerant": "true"},
+        )
+        assert response.status_code == 200
+        assert [(r["slug"], r["year"]) for r in response.json()["data"]] == [
+            ("interstellar-search-test", 2014),
+        ]
 
 
 # --- Ranking within a match tier (pure, no DB) ---

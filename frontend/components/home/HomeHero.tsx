@@ -46,12 +46,11 @@ export default function HomeHero({
       <HeroShell
         text={
           <div className="relative z-10">
-            <p dir="ltr" className="text-end text-xs font-medium uppercase tracking-[0.12em] text-teal">Your cinema. Your universe.</p>
-            <h1 className="font-display mt-4 text-2xl font-extrabold leading-[1.3] text-ink min-[420px]:text-3xl sm:text-4xl lg:text-3xl xl:text-4xl">
-              سینمای تو. <span className="text-[#a99bff]">کهکشان تو.</span>
-            </h1>
+            <h2 className="font-display text-2xl font-extrabold leading-[1.3] text-ink sm:text-3xl">
+              فیلم‌های مرتبط را کشف کن
+            </h2>
             <p className="mt-6 max-w-md text-base leading-8 text-[#c4c8e6] sm:text-lg">
-              روی هر گره بزن تا مرکز کهکشان شود. امتیاز بده، در نبردها رأی بده و فهرست خودت را بساز.
+              در کهکشان سینماگزین، روی یک فیلم یا هنرمند بزن تا ارتباط‌هایش را ببینی.
             </p>
             {stats.length > 0 && (
               <dl className="mt-6 grid grid-cols-5 divide-x divide-x-reverse divide-white/15 rounded-2xl border border-white/10 bg-white/[0.06] py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md">

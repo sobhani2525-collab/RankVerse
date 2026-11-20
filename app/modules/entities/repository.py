@@ -2,7 +2,7 @@ import uuid
 
 from app.config import settings
 from app.core.cache import cached
-from sqlalchemy import and_, bindparam, delete, false, func, or_, select, update
+from sqlalchemy import Integer, and_, bindparam, case, cast, delete, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import aliased, contains_eager, joinedload, load_only, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -126,6 +126,7 @@ class EntityRepository:
         entity_type: str = "movie",
         origin: str = "all",
         exclude_genre_slugs: tuple[str, ...] = (),
+        runtime_under: int | None = None,
     ) -> tuple[list[Entity], int]:
         stmt = select(Entity).where(Entity.entity_type == entity_type)
 
@@ -161,6 +162,10 @@ class EntityRepository:
             stmt = stmt.where(Entity.attributes["year"].as_integer() >= year_from)
         if year_to:
             stmt = stmt.where(Entity.attributes["year"].as_integer() <= year_to)
+        if runtime_under is not None:
+            stored_runtime = Entity.attributes["runtime"].as_string()
+            runtime = case((stored_runtime.bool_op("~")("^[0-9]{1,4}$"), cast(stored_runtime, Integer)))
+            stmt = stmt.where(runtime > 0, runtime < runtime_under)
 
         # The total rides along as an uncorrelated scalar subquery (Postgres
         # evaluates it once), and the ranking comes from the join already

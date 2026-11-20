@@ -1,5 +1,7 @@
 import math
 from collections.abc import Sequence
+from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Text, case, func, literal_column, or_, select
@@ -14,9 +16,7 @@ router = APIRouter(tags=["search"])
 
 # Persian text is typed inconsistently: Arabic keyboards produce ي/ك instead
 # of Persian ی/ک, آ/أ/إ are often typed as plain ا, and the half-space (ZWNJ)
-# in e.g. "می‌خواهم" is often typed as a regular space or left out. Both the
-# query and the stored titles are folded through the same char-by-char map
-# so any of these variants still match.
+# can be typed as a regular space. Tolerant search also ignores missing spaces.
 _FOLD_FROM = "يىكةۀأإآ‌"
 _FOLD_TO = "ییکههااا "
 _FOLD_TABLE = str.maketrans(_FOLD_FROM, _FOLD_TO)
@@ -39,6 +39,10 @@ def _fold_sql(expr):
 
 def _title_fa_sql():
     return Entity.attributes.op("->>", return_type=Text)(_sql_literal("title_fa"))
+
+
+def _compact_sql(expr):
+    return func.replace(expr, _sql_literal(" "), _sql_literal(""), type_=Text)
 
 
 def _escape_like(s: str) -> str:
@@ -68,7 +72,8 @@ def rerank(rows: list[tuple[Entity, int, float]], limit: int) -> list[Entity]:
 
 
 async def find_entities_by_title(
-    db: AsyncSession, q: str, entity_type: str | Sequence[str] | None, limit: int
+    db: AsyncSession, q: str, entity_type: str | Sequence[str] | None, limit: int,
+    *, tolerant: bool = False,
 ) -> list[Entity]:
     """ILIKE on the entity's English title and its Persian title
     (attributes.title_fa). Matches are tiered -- exact title, then title or a
@@ -76,15 +81,16 @@ async def find_entities_by_title(
     tier the more prominent entity (ranking score / number of credits) wins,
     so "Nolan" finds Christopher Nolan before an obscure namesake. Shared by
     /search and the list add-item candidates (ListService.get_candidates)."""
-    term = _escape_like(" ".join(q.translate(_FOLD_TABLE).split()))
-    if not term:
+    normalized = " ".join(q.translate(_FOLD_TABLE).split())
+    if not normalized:
         return []
+    term = _escape_like(normalized)
 
     title = _fold_sql(Entity.title)
     title_fa = _fold_sql(_title_fa_sql())
 
     tier = case(
-        (or_(func.lower(title) == term.lower(), func.lower(title_fa) == term.lower()), 0),
+        (or_(func.lower(title) == normalized.lower(), func.lower(title_fa) == normalized.lower()), 0),
         (
             or_(
                 title.ilike(f"{term}%"), title_fa.ilike(f"{term}%"),
@@ -95,19 +101,37 @@ async def find_entities_by_title(
         else_=2,
     )
 
-    stmt = (
+    match = or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%"))
+    core = (
         # Slim columns only: attributes (overview, cast...) is large and the
         # candidate pool is 100+ rows; full entities load for the winners below.
         select(Entity.id, Entity.entity_type, Entity.title, tier.label("tier"), EntityRanking.computed_score)
         .outerjoin(EntityRanking, EntityRanking.entity_id == Entity.id)
-        .where(or_(title.ilike(f"%{term}%"), title_fa.ilike(f"%{term}%")))
     )
     if isinstance(entity_type, str):
-        stmt = stmt.where(Entity.entity_type == entity_type)
+        core = core.where(Entity.entity_type == entity_type)
     elif entity_type:
-        stmt = stmt.where(Entity.entity_type.in_(list(entity_type)))
-    stmt = stmt.order_by(tier, func.length(Entity.title)).limit(max(limit * CANDIDATE_FACTOR, MIN_CANDIDATES))
+        core = core.where(Entity.entity_type.in_(list(entity_type)))
+    candidate_limit = max(limit * CANDIDATE_FACTOR, MIN_CANDIDATES)
+    compact = normalized.replace(" ", "")
+    if tolerant and len(compact) >= 3:
+        compact_pattern = f"%{_escape_like(compact)}%"
+        match = or_(match, _compact_sql(title).ilike(compact_pattern), _compact_sql(title_fa).ilike(compact_pattern))
+    stmt = core.where(match).order_by(tier, func.length(Entity.title)).limit(candidate_limit)
     candidates = (await db.execute(stmt)).all()
+    if not candidates and tolerant and len(compact) >= 4:
+        # Postgres's indexed word-similarity operator finds a match within
+        # a longer title. Only use it after literal/spacing matches fail.
+        similarity = func.greatest(
+            func.word_similarity(normalized, title),
+            func.word_similarity(normalized, title_fa),
+        )
+        candidates = (await db.execute(
+            core.where(or_(title.bool_op("%>")(normalized), title_fa.bool_op("%>")(normalized)))
+            .order_by(similarity.desc(), func.length(Entity.title))
+            .limit(limit)
+        )).all()
+        return await _load_in_order(db, [candidate.id for candidate in candidates])
     if not candidates:
         return []
 
@@ -129,30 +153,29 @@ async def find_entities_by_title(
             len(c.title),
         ),
     )[:limit]
-    ids = [c.id for c in ranked]
+    return await _load_in_order(db, [c.id for c in ranked])
+
+
+async def _load_in_order(db: AsyncSession, ids: list[UUID]) -> list[Entity]:
+    if not ids:
+        return []
     by_id = {e.id: e for e in (await db.execute(select(Entity).where(Entity.id.in_(ids)))).scalars()}
     return [by_id[i] for i in ids if i in by_id]
 
 
 @router.get("/search")
 async def search(
-    q: str = Query(min_length=1),
+    q: str = Query(min_length=1, max_length=150),
     type: str | None = Query(None, alias="type"),
-    limit: int = Query(20, le=50),
+    limit: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_read_db),
+    scope: Literal["screen"] | None = None,
+    tolerant: bool = False,
 ):
-    """
-    MVP search: ILIKE on the entity's English title and its Persian title
-    (attributes.title_fa, see sync/normalizer.py's _persian_title), with
-    prefix matches ranked ahead of mid-word ones.
-    Post-MVP: replace with Postgres full-text search (tsvector) or a dedicated
-    search engine once catalog size and query volume justify it.
-
-    type is optional and scopes the search to one entity_type (e.g. adding
-    an item to a movie-only list) -- omitting it searches across every
-    entity_type, which is what the global site search box does.
-    """
-    entities = await find_entities_by_title(db, q, type, limit)
+    """Search Persian and original titles. Use scope=screen for film and TV,
+    or type for a single entity type. Tolerant mode also checks spacing and typos."""
+    entity_type = type or (("movie", "tv_series") if scope == "screen" else None)
+    entities = await find_entities_by_title(db, q, entity_type, limit, tolerant=tolerant)
 
     return envelope(
         data=[
@@ -162,6 +185,7 @@ async def search(
                 "title": e.title,
                 "title_fa": (e.attributes or {}).get("title_fa"),
                 "type": e.entity_type,
+                "year": (e.attributes or {}).get("year") if e.entity_type in ("movie", "tv_series") else None,
                 "image_url": _extract_media(e.attributes).image_url,
             }
             for e in entities

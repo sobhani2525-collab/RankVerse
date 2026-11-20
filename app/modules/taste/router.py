@@ -53,8 +53,11 @@ async def my_predicted_picks(
     time). Keeping it separate means the core profile load never pays for
     this heavier query, and the frontend can fetch/show it lazily.
     """
+    service = PredictedPicksService(db)
+    favorites = await service.favorite_signals(current_user.id)
+
     async def load():
-        picks = await PredictedPicksService(db).get_predicted_picks(current_user.id, limit=limit)
+        picks = await service.get_predicted_picks(current_user.id, limit=limit, favorites=favorites)
         # Plain dicts only: the cached value must not hold ORM objects.
         return [
             PredictedPickPublic(
@@ -74,9 +77,10 @@ async def my_predicted_picks(
         ]
 
     # The candidate query scores every unrated title in the user's genres, so
-    # a short per-user cache keeps repeat home/profile loads off the database.
+    # a short per-user cache avoids repeating it. Key by the live likes so a
+    # like or unlike changes the results even across workers.
     data = await cached(
-        ("predicted-picks-v2", current_user.id, limit),
+        ("predicted-picks-v4", current_user.id, limit, favorites),
         settings.cache_ttl_lists,
         load,
     )
