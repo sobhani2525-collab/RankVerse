@@ -19,6 +19,10 @@ const nextConfig = {
   poweredByHeader: false,
   // Self-contained server (.next/standalone) for the Docker image that runs on Liara.
   output: "standalone",
+  // Liara's writable disk can fill as ISR generates catalog pages and fetch entries.
+  // Keep the runtime incremental cache in Next's bounded, per-process memory cache.
+  cacheMaxMemorySize: 50 * 1024 * 1024,
+  experimental: { isrFlushToDisk: false },
   images: {
     // Every next/image src is a TMDb poster; the loader picks TMDb's own
     // pre-sized file per srcset width instead of going through /_next/image.
