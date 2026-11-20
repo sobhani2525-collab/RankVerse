@@ -64,8 +64,14 @@ class AdminListItemRow(BaseModel):
     entity_id: uuid.UUID
     entity_type: str
     title: str
+    title_fa: str | None = None
     slug: str
     added_by_username: str | None = None
+    note: str | None = None
+
+
+class AdminListItemNoteUpdate(BaseModel):
+    note: str | None = Field(max_length=500)
 
 
 class AdminItemsReorder(BaseModel):

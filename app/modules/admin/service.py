@@ -196,10 +196,36 @@ class AdminListService:
         return [
             AdminListItemRow(
                 id=i.id, position=i.position, entity_id=e.id, entity_type=e.entity_type,
-                title=e.title, slug=e.slug, added_by_username=u,
+                title=e.title, title_fa=(e.attributes or {}).get("title_fa"),
+                slug=e.slug, added_by_username=u, note=i.note,
             )
             for i, e, u in await self.repo.items(list_id)
         ]
+
+    async def update_item_note(
+        self, admin: AdminAccount, list_id: uuid.UUID, item_id: uuid.UUID, note: str | None,
+        request: Request | None = None,
+    ) -> str | None:
+        lst = await self.repo.get(list_id)
+        if lst is None or lst.is_watch_later:
+            raise NotFoundError("List not found")
+        if not lst.is_featured or lst.visibility != "public":
+            raise ValidationError("Only public featured lists can have editorial item notes")
+        item = await self.repo.get_item(list_id, item_id)
+        if item is None:
+            raise NotFoundError("Item not found in this list")
+        normalized = (note or "").strip() or None
+        if item.note != normalized:
+            before = item.note
+            item.note = normalized
+            lst.updated_at = datetime.now(timezone.utc)
+            await AuditLogService(self.db).record(
+                admin, "list.item_note_update", "list", list_id,
+                before={"item_id": str(item_id), "note": before},
+                after={"item_id": str(item_id), "note": normalized}, request=request,
+            )
+            await self.db.commit()
+        return normalized
 
     async def remove_item(
         self, admin: AdminAccount, list_id: uuid.UUID, item_id: uuid.UUID, request: Request | None = None

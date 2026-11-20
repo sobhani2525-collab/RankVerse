@@ -142,7 +142,7 @@ export default function ListNodeItem({
 
         {item.note && (
           <div className="flex flex-col items-start gap-1 border-t border-border-soft pt-3 text-start sm:border-0 sm:pt-1">
-            <span className="shrink-0 text-xs text-dim">چرا این‌جا</span>
+            <span className="shrink-0 text-xs text-dim">چرا در این فهرست است؟</span>
             <p className="whitespace-pre-line text-[13px] leading-[1.8] text-ink-dim sm:text-sm sm:leading-[1.8]">{item.note}</p>
           </div>
         )}

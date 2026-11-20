@@ -9,7 +9,7 @@ from app.core.redis import get_redis
 from app.core.schemas import envelope, Meta
 from app.modules.admin.dependencies import get_current_admin
 from app.modules.admin.models import AdminAccount
-from app.modules.admin.schemas import AdminFeaturedReorder, AdminItemsReorder, AdminListUpdate, AdminLogin, AdminPasswordChange, AdminPublic
+from app.modules.admin.schemas import AdminFeaturedReorder, AdminItemsReorder, AdminListItemNoteUpdate, AdminListUpdate, AdminLogin, AdminPasswordChange, AdminPublic
 from app.modules.admin.service import AdminAuthService, AdminListService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -124,6 +124,19 @@ async def admin_list_items(
 ):
     rows = await AdminListService(db).items(list_id)
     return envelope(data=[r.model_dump(mode="json") for r in rows])
+
+
+@router.patch("/lists/{list_id}/items/{item_id}/note")
+async def admin_update_list_item_note(
+    list_id: uuid.UUID,
+    item_id: uuid.UUID,
+    payload: AdminListItemNoteUpdate,
+    request: Request,
+    admin: AdminAccount = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    note = await AdminListService(db).update_item_note(admin, list_id, item_id, payload.note, request)
+    return envelope(data={"note": note})
 
 
 @router.delete("/lists/{list_id}/items/{item_id}")

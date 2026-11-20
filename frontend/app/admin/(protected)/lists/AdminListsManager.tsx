@@ -3,6 +3,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toFaDigits } from "@/lib/format-number";
 import { listHref } from "@/lib/list-url";
+import { displayTitle } from "@/lib/title";
 
 interface AdminListRow {
   id: string;
@@ -32,6 +33,8 @@ interface AdminItem {
   title: string;
   entity_type: string;
   added_by_username: string | null;
+  title_fa?: string | null;
+  note?: string | null;
 }
 
 const PAGE_SIZE = 30;
@@ -48,6 +51,76 @@ async function call<T>(path: string, init?: RequestInit): Promise<Envelope<T>> {
 }
 
 const field = "rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink focus:border-gold/50 focus:outline-none";
+
+function ItemNoteEditor({ listId, item }: { listId: string; item: AdminItem }) {
+  const [saved, setSaved] = useState(item.note ?? "");
+  const [draft, setDraft] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
+
+  async function save() {
+    setSaving(true);
+    setStatus("");
+    try {
+      const { data } = await call<{ note: string | null }>(`/${listId}/items/${item.id}/note`, {
+        method: "PATCH",
+        body: JSON.stringify({ note: draft }),
+      });
+      const next = data.note ?? "";
+      setSaved(next);
+      setDraft(next);
+      setStatus("ذخیره شد.");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "توضیح ذخیره نشد.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const title = displayTitle(item);
+  return (
+    <form onSubmit={(event) => { event.preventDefault(); void save(); }} className="rounded-lg border border-border p-3">
+      <label htmlFor={`note-${item.id}`} className="block font-bold text-ink">{title}</label>
+      <textarea
+        id={`note-${item.id}`}
+        value={draft}
+        onChange={(event) => { setDraft(event.target.value); setStatus(""); }}
+        placeholder="چرا در این فهرست است؟"
+        maxLength={500}
+        rows={2}
+        disabled={saving}
+        className={`${field} mt-2 block w-full`}
+      />
+      <div className="mt-2 flex items-center gap-3">
+        <button type="submit" disabled={saving || draft.trim() === saved} className="min-h-10 rounded-lg border border-gold/50 px-3 font-bold text-gold disabled:opacity-50">
+          {saving ? "در حال ذخیره…" : "ذخیرهٔ توضیح"}
+        </button>
+        <span role="status" className="text-sm text-ink-dim">{status}</span>
+      </div>
+    </form>
+  );
+}
+
+function FeaturedNotes({ listId }: { listId: string }) {
+  const [items, setItems] = useState<AdminItem[] | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    call<AdminItem[]>(`/${listId}/items`, { signal: controller.signal })
+      .then(({ data }) => { if (!controller.signal.aborted) setItems(data); })
+      .catch(() => { if (!controller.signal.aborted) setError("دریافت آثار فهرست ناموفق بود."); });
+    return () => controller.abort();
+  }, [listId]);
+
+  if (error) return <p role="alert" className="mt-3 text-sm text-ink">{error}</p>;
+  if (!items) return <p role="status" className="mt-3 text-sm text-muted">در حال دریافت آثار…</p>;
+  return (
+    <div className="mt-3 space-y-3">
+      <p className="text-sm text-muted">{items.length ? "این توضیح در صفحهٔ عمومی نمایش داده می‌شود. برای حذف توضیح، کادر را خالی و ذخیره کن." : "این فهرست هنوز اثری ندارد."}</p>
+      {items.map((item) => <ItemNoteEditor key={item.id} listId={listId} item={item} />)}
+    </div>
+  );
+}
 
 export function AdminListsManager() {
   const [rows, setRows] = useState<AdminListRow[]>([]);
@@ -66,6 +139,7 @@ export function AdminListsManager() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [items, setItems] = useState<AdminItem[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [notesListId, setNotesListId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -187,13 +261,19 @@ export function AdminListsManager() {
         ) : (
           <ol className="mt-3 space-y-2">
             {featured.map((f, i) => (
-              <li key={f.id} className="flex items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2 text-sm">
+              <li key={f.id} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-center gap-3">
                 <span className="num w-6 text-center font-bold text-gold">{toFaDigits(i + 1)}</span>
                 <span className="flex-1 truncate text-ink">{f.title}</span>
                 <span className="text-xs text-muted">{f.owner_username}</span>
+                <button type="button" aria-expanded={notesListId === f.id} onClick={() => setNotesListId(notesListId === f.id ? null : f.id)} className="min-h-10 rounded border border-border px-3 font-bold text-ink hover:border-gold/40">
+                  {notesListId === f.id ? "بستن ویرایش توضیحات" : "ویرایش توضیح فیلم‌ها"}
+                </button>
                 <button type="button" disabled={busyId !== null || i === 0} onClick={() => move(i, -1)} aria-label="بالا" className="rounded border border-border px-2 py-1 text-muted hover:text-gold disabled:opacity-30">↑</button>
                 <button type="button" disabled={busyId !== null || i === featured.length - 1} onClick={() => move(i, 1)} aria-label="پایین" className="rounded border border-border px-2 py-1 text-muted hover:text-gold disabled:opacity-30">↓</button>
                 <button type="button" disabled={busyId !== null} onClick={() => patch(f, { is_featured: false }, "از برگزیده‌ها برداشته شد")} className="rounded border border-border px-2 py-1 text-xs text-muted hover:border-gold/40 hover:text-gold disabled:opacity-30">برداشتن</button>
+                </div>
+                {notesListId === f.id && <FeaturedNotes listId={f.id} />}
               </li>
             ))}
           </ol>
