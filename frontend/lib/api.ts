@@ -544,10 +544,10 @@ export async function getListBySlug(slug: string, token?: string | null): Promis
   if (token) {
     return authFetch<ListDetail>(`/lists/${encodeListSlug(slug)}`, token);
   }
-  const res = await fetch(`${API_BASE}/lists/${encodeListSlug(slug)}`, { cache: "no-store" });
+  const res = await fetchWithTimeout(`/lists/${encodeListSlug(slug)}`, { cache: "no-store" });
   const json: Envelope<ListDetail> = await res.json();
   if (!res.ok || json.error) {
-    throw new Error(json.error?.message || "Failed to fetch list");
+    throw new ApiError(res.status, json.error?.message || "Failed to fetch list");
   }
   return json.data;
 }

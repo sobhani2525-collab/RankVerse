@@ -52,6 +52,7 @@ class MovieListItem(BaseModel):
     entity_type: str = "movie"
     poster_path: str | None = None
     year: int | None = None
+    runtime: int | None = None
     computed_score: float | None = None
     total_votes: int = 0
     media: MediaInfo = MediaInfo()

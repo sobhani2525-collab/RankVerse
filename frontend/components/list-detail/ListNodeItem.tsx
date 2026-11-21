@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { trackDiscovery } from "@/lib/discovery-analytics";
 import type { ListItem } from "@/lib/types";
 import { displayTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
@@ -71,7 +72,7 @@ export default function ListNodeItem({
       className={`overflow-hidden rounded-2xl border border-border-soft bg-surface p-4 transition-opacity duration-200 sm:flex sm:gap-6 sm:rounded-[18px] sm:p-[22px] ${removing ? "pointer-events-none opacity-40" : ""} ${className}`}
     >
       {href ? (
-        <Link href={href} aria-label={title} className="block sm:shrink-0">
+        <Link href={href} onClick={() => trackDiscovery("List item opened", { destination: href, placement: "poster" })} aria-label={title} className="block sm:shrink-0">
           {posterBox}
         </Link>
       ) : (
@@ -90,7 +91,7 @@ export default function ListNodeItem({
             )}
           </div>
           {href ? (
-            <Link href={href} className="text-lg font-extrabold leading-[1.5] text-ink transition hover:text-gold sm:text-[22px] sm:leading-[1.4]">
+            <Link href={href} onClick={() => trackDiscovery("List item opened", { destination: href, placement: "title" })} className="text-lg font-extrabold leading-[1.5] text-ink transition hover:text-gold sm:text-[22px] sm:leading-[1.4]">
               {title}
             </Link>
           ) : (

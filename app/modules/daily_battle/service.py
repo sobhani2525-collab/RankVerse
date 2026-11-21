@@ -383,6 +383,7 @@ class DailyBattleService:
         """A signed-in vote also counts as a regular battle vote. The day's vote
         is already committed, so a failure here (e.g. the 429 daily cap) must
         not lose it."""
+        battle_id = battle.id
         try:
             category = (
                 await self.db.execute(select(Entity.entity_type).where(Entity.id == battle.left_id))
@@ -395,8 +396,10 @@ class DailyBattleService:
                 ),
             )
         except Exception as exc:  # noqa: BLE001 -- deliberately swallowed, see docstring
-            logger.warning("daily battle %s: Elo update for user %s failed: %r", battle.id, user_id, exc)
+            logger.warning("daily battle %s: Elo update for user %s failed: %r", battle_id, user_id, exc)
             await self.db.rollback()
+            # Rollback expires ORM attributes even when expire_on_commit is disabled.
+            await self.db.refresh(battle)
 
     async def _enforce_guest_ip_limit(self, redis: Redis | None, ip: str | None, today: date) -> None:
         if redis is None or not ip:

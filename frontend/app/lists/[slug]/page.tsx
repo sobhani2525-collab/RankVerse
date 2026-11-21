@@ -11,7 +11,7 @@ import ListDNA from "@/components/list-detail/ListDNA";
 import ListManageArea from "@/components/list-detail/ListManageArea";
 import ListBattlePreview from "@/components/list-detail/ListBattlePreview";
 import { ListBattleProvider } from "@/components/list-detail/ListBattleContext";
-import { getListBySlug, getListComments } from "@/lib/api";
+import { getListBySlug, getListComments, isNotFoundError } from "@/lib/api";
 import { entityPosterUrl } from "@/lib/list-constellation";
 import { detailPathFor } from "@/lib/entity-routes";
 import { displayTitle } from "@/lib/title";
@@ -24,6 +24,10 @@ import type { ListComment, ListDetail } from "@/lib/types";
 const loadList = cache((slug: string) => getListBySlug(slug));
 
 const MAX_NAMES_IN_DESCRIPTION = 4;
+
+async function ListCommentsSection({ detail, comments }: { detail: ListDetail; comments: Promise<ListComment[]> }) {
+  return <ListComments slug={detail.slug} initialComments={await comments} ownerUsername={detail.owner_username} />;
+}
 
 function itemNoun(detail: ListDetail): string {
   const types = new Set(detail.items.map((i) => i.entity.entity_type));
@@ -159,19 +163,16 @@ export default async function ListDetailPage({
 
   // The list and its comments are independent API calls (each a slow round
   // trip), so start both at once; the backend resolves old slugs for comments too.
-  const [listResult, commentsResult] = await Promise.allSettled([
-    loadList(slug),
-    getListComments(slug),
-  ]);
-  if (listResult.status === "rejected") notFound();
-  const detail: ListDetail = listResult.value;
+  const comments = getListComments(slug).catch((): ListComment[] => []);
+  const detail = await loadList(slug).catch((error: unknown) => {
+    if (isNotFoundError(error)) notFound();
+    throw error;
+  });
 
   // An old slug (after a rename, or a pre-Persian Finglish one) resolves
   // server-side; send it to the canonical URL. Outside the try/catch on
   // purpose: permanentRedirect works by throwing.
   if (detail.slug !== slug) permanentRedirect(listHref(detail.slug));
-
-  const comments: ListComment[] = commentsResult.status === "fulfilled" ? commentsResult.value : [];
 
   return (
     <ListViewerProvider slug={detail.slug} initialDetail={detail}>
@@ -200,7 +201,9 @@ export default async function ListDetailPage({
             <Suspense fallback={null}>
               <RelatedLists slug={detail.slug} />
             </Suspense>
-            <ListComments slug={detail.slug} initialComments={comments} ownerUsername={detail.owner_username} />
+            <Suspense fallback={null}>
+              <ListCommentsSection detail={detail} comments={comments} />
+            </Suspense>
           </aside>
         </div>
 

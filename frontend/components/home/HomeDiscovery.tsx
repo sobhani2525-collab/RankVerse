@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import SearchBox from "@/components/SearchBox";
-import type { MovieListItem } from "@/lib/types";
+import { getRankingsPage } from "@/lib/api";
 import TonightChoices from "./TonightChoices";
 
 const shortcuts = [
@@ -11,7 +11,7 @@ const shortcuts = [
   ["سریال‌ها", "/rankings?type=tv_series"],
 ] as const;
 
-export default function HomeDiscovery({ movies }: { movies: Promise<MovieListItem[]> }) {
+export default function HomeDiscovery() {
   return (
     <section className="relative z-30 bg-[#0b0d1c]">
       <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 sm:pt-8">
@@ -37,7 +37,7 @@ export default function HomeDiscovery({ movies }: { movies: Promise<MovieListIte
           <div id="tonight" className="min-w-0 scroll-mt-24 rounded-2xl border border-border bg-bg/60 p-3 sm:p-4">
             <h2 className="font-display text-2xl leading-tight text-ink">پیشنهاد برای امشب</h2>
             <Suspense fallback={<p className="mt-2 text-sm text-muted" role="status">در حال دریافت پیشنهادها…</p>}>
-              <TonightRecommendations movies={movies} />
+              <TonightRecommendations />
             </Suspense>
           </div>
         </div>
@@ -46,14 +46,26 @@ export default function HomeDiscovery({ movies }: { movies: Promise<MovieListIte
   );
 }
 
-async function TonightRecommendations({ movies }: { movies: Promise<MovieListItem[]> }) {
-  const fallback = (await movies).slice(0, 3).map((movie) => ({
-    id: movie.id,
-    title: movie.title,
-    title_fa: movie.title_fa,
-    href: `/movies/${movie.slug}`,
-    poster: movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : movie.media?.image_url,
-    year: movie.year,
+async function TonightRecommendations() {
+  const themes = [
+    { label: "وقت کم دارم", reason: "فیلمی برای وقتی که کمتر از ۹۰ دقیقه وقت داری.", filters: { runtime_under: 90 } },
+    { label: "فیلم خانوادگی", reason: "انتخابی از ژانر خانوادگی برای تماشای جمعی.", filters: { genre: "family" } },
+    { label: "معمای درگیرکننده", reason: "انتخابی از ژانر معمایی برای دنبال‌کردن سرنخ‌ها.", filters: { genre: "mystery" } },
+  ];
+  const groups = await Promise.all(themes.map(async ({ label, reason, filters }) => {
+    const movies = await getRankingsPage("movie", { ...filters, page_size: 9 })
+      .then((page) => page.items, () => []);
+    return movies.map((movie) => ({
+      id: movie.id,
+      title: movie.title,
+      title_fa: movie.title_fa,
+      href: `/movies/${movie.slug}`,
+      poster: movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : movie.media?.image_url,
+      year: movie.year,
+      runtime: movie.runtime,
+      label,
+      reason,
+    }));
   }));
-  return <TonightChoices fallback={fallback} />;
+  return <TonightChoices fallback={[]} groups={groups} />;
 }

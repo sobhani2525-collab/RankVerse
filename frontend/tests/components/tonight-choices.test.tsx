@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -27,6 +27,18 @@ beforeEach(() => {
   auth.mockReset();
   getPicks.mockReset();
   favorites.mockReturnValue({ screenFavoritesRevision: 0 });
+});
+
+it("rotates three group picks without repeating a title", () => {
+  auth.mockReturnValue(visitor);
+  const choice = (id: string) => ({ id, title: id, href: `/movies/${id}` });
+  render(<HomePicksProvider><TonightChoices fallback={[]} groups={[
+    ["A", "D"].map(choice), ["A", "B", "E"].map(choice), ["C", "F"].map(choice),
+  ]} /></HomePicksProvider>);
+
+  for (const title of ["A", "B", "C"]) expect(screen.getByRole("link", { name: title })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "سه پیشنهاد دیگر" }));
+  for (const title of ["D", "E", "F"]) expect(screen.getByRole("link", { name: title })).toBeInTheDocument();
 });
 
 it("replaces the popular picks with the signed-in viewer's film and TV recommendations", async () => {

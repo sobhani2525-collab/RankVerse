@@ -47,6 +47,7 @@ def _extract_media(attributes: dict) -> MediaInfo:
 
 
 def _movie_list_item(entity) -> MovieListItem:
+    runtime = entity.attributes.get("runtime")
     return MovieListItem(
         id=entity.id,
         slug=entity.slug,
@@ -55,6 +56,7 @@ def _movie_list_item(entity) -> MovieListItem:
         entity_type=entity.entity_type,
         poster_path=entity.attributes.get("poster_path"),
         year=entity.attributes.get("year"),
+        runtime=runtime if type(runtime) is int else None,
         computed_score=entity.ranking.computed_score if entity.ranking else None,
         total_votes=entity.ranking.total_votes if entity.ranking else 0,
         media=_extract_media(entity.attributes),

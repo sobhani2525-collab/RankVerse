@@ -67,11 +67,10 @@ async function loadFeatured(): Promise<{ main: ListDetail | null; others: ListSu
 
 export default function HomePage() {
   const moviePage = getRankingsPage("movie", { page_size: MOVIE_WINDOW });
-  const suggestions = moviePage.then((page) => page.items, () => []);
   return (
     <main className="bg-[#0b0d1c]">
       <HomePicksProvider>
-        <HomeDiscovery movies={suggestions} />
+        <HomeDiscovery />
         <Suspense fallback={<p className="mx-auto max-w-7xl px-6 py-10 text-muted" role="status">در حال دریافت محتوای سینماگزین…</p>}>
           <HomeSections moviePage={moviePage} />
         </Suspense>

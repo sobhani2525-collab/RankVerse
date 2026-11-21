@@ -51,6 +51,7 @@ export interface MovieListItem {
   entity_type: string;
   poster_path: string | null;
   year: number | null;
+  runtime?: number | null;
   computed_score: number | null;
   total_votes: number;
   media: MediaInfo;
