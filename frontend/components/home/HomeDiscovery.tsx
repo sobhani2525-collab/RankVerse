@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import SearchBox from "@/components/SearchBox";
 import { GRAPH_SECTION_ID } from "@/lib/graph-focus";
 import { getRankingsPage } from "@/lib/api";
-import HeroStarfield from "./HeroStarfield";
 import TonightChoices from "./TonightChoices";
 
 const shortcuts = [
@@ -18,15 +17,7 @@ export default function HomeDiscovery() {
     <div className="relative z-30 bg-[#0b0d1c]">
       <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 sm:pt-8">
         <section aria-labelledby="home-discovery-title" className="relative isolate grid gap-6 rounded-3xl border border-violet-light/25 bg-[#101329] p-4 sm:p-7 lg:gap-7 lg:p-9">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit] bg-[radial-gradient(ellipse_at_18%_22%,#342667_0%,transparent_55%),radial-gradient(ellipse_at_bottom_right,#12313c,transparent_55%)]">
-            <HeroStarfield />
-            <div className="absolute -left-20 -top-8 h-52 w-[420px] -rotate-[24deg] rounded-[50%] border border-violet-light/25 sm:left-0">
-              <div className="absolute inset-5 rounded-[inherit] border border-teal/20" />
-              <div className="absolute inset-10 rounded-[inherit] border border-dashed border-violet-light/20" />
-              <span className="absolute bottom-2 left-[28%] size-2.5 rounded-full bg-gold shadow-[0_0_24px_5px_#ffbc57]" />
-              <span className="absolute right-[13%] top-[12%] size-2 rounded-full bg-teal shadow-[0_0_20px_4px_#4fb8a6]" />
-            </div>
-          </div>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-left-top bg-no-repeat bg-[length:100%_100%,auto_98%] bg-[image:linear-gradient(110deg,rgba(16,19,41,0.18),rgba(16,19,41,0.84)_70%),url('/cinema-galaxy.png')] lg:bg-[length:100%_100%,98%_auto]" />
           <div className="relative z-10 min-w-0">
             <h1 id="home-discovery-title" className="font-display text-3xl leading-tight text-ink sm:text-5xl">فیلم بعدی‌ات را پیدا کن</h1>
             <p className="mt-2 text-sm leading-relaxed text-ink-dim sm:text-base">اسم یک فیلم یا سریال را جست‌وجو کن، یا از پیشنهادهای امشب شروع کن.</p>
@@ -44,7 +35,7 @@ export default function HomeDiscovery() {
               ))}
             </nav>
           </div>
-          <div id="tonight" className="min-w-0 scroll-mt-24 rounded-2xl border border-violet-light/20 bg-[#0c1022]/90 p-3 sm:p-5">
+          <div id="tonight" className="min-w-0 scroll-mt-24 rounded-2xl border border-violet-light/25 bg-[#0c1022]/50 p-3 backdrop-blur-sm sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-x-4">
               <h2 className="font-display text-2xl leading-tight text-ink">پیشنهاد برای امشب</h2>
               <Link href={`#${GRAPH_SECTION_ID}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-bold text-teal hover:underline focus-visible:outline-gold">
