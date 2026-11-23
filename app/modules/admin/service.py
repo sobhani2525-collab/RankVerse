@@ -209,8 +209,8 @@ class AdminListService:
         lst = await self.repo.get(list_id)
         if lst is None or lst.is_watch_later:
             raise NotFoundError("List not found")
-        if not lst.is_featured or lst.visibility != "public":
-            raise ValidationError("Only public featured lists can have editorial item notes")
+        if lst.visibility != "public":
+            raise ValidationError("Only public lists can have editorial item notes")
         item = await self.repo.get_item(list_id, item_id)
         if item is None:
             raise NotFoundError("Item not found in this list")

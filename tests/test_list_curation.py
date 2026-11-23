@@ -144,16 +144,12 @@ async def test_admin_item_control(client, db_session, test_user, admin_headers):
     assert (await client.get(base)).status_code == 401
 
 
-async def test_admin_can_edit_and_clear_a_featured_item_note(client, db_session, test_user, admin_headers):
+async def test_admin_can_edit_and_clear_a_public_item_note(client, db_session, test_user, admin_headers):
     lst = await _make_list(db_session, test_user, "Featured Notes", 1)
     base = f"/api/v1/admin/lists/{lst.id}"
     items = (await client.get(f"{base}/items", headers=admin_headers)).json()["data"]
     path = f"{base}/items/{items[0]['id']}/note"
     assert (await client.patch(path, json={"note": "A note"})).status_code == 401
-    assert (await client.patch(path, headers=admin_headers, json={"note": "A note"})).status_code >= 400
-
-    featured = await client.patch(base, headers=admin_headers, json={"is_featured": True})
-    assert featured.status_code == 200
     saved = await client.patch(path, headers=admin_headers, json={"note": "  Why this film fits.  "})
     assert saved.status_code == 200
     assert saved.json()["data"]["note"] == "Why this film fits."

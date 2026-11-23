@@ -11,6 +11,7 @@ interface AdminListRow {
   slug: string;
   owner_username: string | null;
   entity_type: string | null;
+  visibility: string;
   item_count: number;
   like_count: number;
   comment_count: number;
@@ -101,7 +102,7 @@ function ItemNoteEditor({ listId, item }: { listId: string; item: AdminItem }) {
   );
 }
 
-function FeaturedNotes({ listId }: { listId: string }) {
+function ListItemNotes({ listId }: { listId: string }) {
   const [items, setItems] = useState<AdminItem[] | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -273,7 +274,7 @@ export function AdminListsManager() {
                 <button type="button" disabled={busyId !== null || i === featured.length - 1} onClick={() => move(i, 1)} aria-label="پایین" className="rounded border border-border px-2 py-1 text-muted hover:text-gold disabled:opacity-30">↓</button>
                 <button type="button" disabled={busyId !== null} onClick={() => patch(f, { is_featured: false }, "از برگزیده‌ها برداشته شد")} className="rounded border border-border px-2 py-1 text-xs text-muted hover:border-gold/40 hover:text-gold disabled:opacity-30">برداشتن</button>
                 </div>
-                {notesListId === f.id && <FeaturedNotes listId={f.id} />}
+                {notesListId === f.id && <ListItemNotes listId={f.id} />}
               </li>
             ))}
           </ol>
@@ -363,6 +364,16 @@ export function AdminListsManager() {
                       </button>
                     </td>
                   </tr>
+                  {row.visibility === "public" && !row.is_featured && (
+                    <tr className="border-b border-border/60 bg-bg/60">
+                      <td colSpan={10} className="px-4 py-2">
+                        <button type="button" aria-expanded={notesListId === row.id} onClick={() => setNotesListId(notesListId === row.id ? null : row.id)} className="min-h-10 rounded border border-border px-3 text-sm text-ink hover:border-gold/40">
+                          {notesListId === row.id ? "بستن ویرایش توضیحات" : "ویرایش توضیح آیتم‌ها"}
+                        </button>
+                        {notesListId === row.id && <ListItemNotes listId={row.id} />}
+                      </td>
+                    </tr>
+                  )}
                   {openId === row.id && (
                     <tr className="border-b border-border/60 bg-bg/60">
                       <td colSpan={10} className="px-4 py-3">
