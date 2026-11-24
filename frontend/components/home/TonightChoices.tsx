@@ -46,7 +46,7 @@ export default function TonightChoices({ fallback, groups }: { fallback: Choice[
   return (
     <>
       {choices.length > 0 && (
-        <ul className="mt-3 grid gap-3 md:grid-cols-3">
+        <ul className="mt-3 grid max-sm:divide-y max-sm:divide-violet-light/15 sm:gap-3 md:grid-cols-3">
           {choices.map((choice) => (
             <li key={choice.id} className="min-w-0">
               <TonightCard choice={choice} personalized={personalized.length > 0} />
@@ -78,7 +78,7 @@ function TonightCard({ choice, personalized }: { choice: Choice; personalized: b
       onClick={() => trackDiscovery("Tonight pick opened", { destination: href, placement: personalized ? "personalized" : "by-theme" })}
       aria-label={title}
       title={title}
-      className="group flex h-full min-w-0 items-center gap-3 rounded-2xl border border-violet-light/15 bg-gradient-to-l from-[#23203b] to-[#14182c] p-2.5 text-right transition hover:border-violet-light/60 focus-visible:outline-gold"
+      className="group flex h-full min-w-0 items-center gap-3 py-2.5 text-right transition sm:rounded-2xl sm:border sm:border-violet-light/15 sm:bg-gradient-to-l sm:from-[#23203b] sm:to-[#14182c] sm:p-2.5 sm:hover:border-violet-light/60 focus-visible:outline-gold"
     >
       <span className="relative aspect-[2/3] w-14 shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-violet-dim to-surface2 lg:w-16">
         {poster && <Image src={poster} alt="" fill sizes="(min-width: 1024px) 64px, 56px" className="object-cover" />}
@@ -93,7 +93,7 @@ function TonightCard({ choice, personalized }: { choice: Choice; personalized: b
         {choice.label && <span className="mt-1 block text-xs font-bold text-teal">{choice.label}</span>}
         {choice.reason && <span className="mt-1 block text-xs leading-relaxed text-ink-dim">{choice.reason}</span>}
       </span>
-      <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full border border-violet-light/25 text-violet-light group-hover:bg-violet-light group-hover:text-bg">←</span>
+      <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center text-violet-light sm:rounded-full sm:border sm:border-violet-light/25 sm:group-hover:bg-violet-light sm:group-hover:text-bg">←</span>
     </Link>
   );
 }

@@ -16,8 +16,8 @@ export default function HomeDiscovery() {
   return (
     <div className="relative z-30 bg-[#0b0d1c]">
       <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 sm:pt-8">
-        <section aria-labelledby="home-discovery-title" className="relative isolate grid gap-6 rounded-3xl border border-violet-light/25 bg-[#101329] p-4 sm:p-7 lg:gap-7 lg:p-9">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-left-top bg-no-repeat bg-[length:100%_100%,auto_98%] bg-[image:linear-gradient(110deg,rgba(16,19,41,0.18),rgba(16,19,41,0.84)_70%),url('/cinema-galaxy.png')] lg:bg-[length:100%_100%,98%_auto]" />
+        <section aria-labelledby="home-discovery-title" className="relative isolate grid gap-5 rounded-3xl border border-violet-light/25 bg-[#101329] px-3 py-4 sm:gap-6 sm:p-7 lg:gap-7 lg:p-9">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-left-top bg-no-repeat bg-[length:100%_100%,auto_98%] bg-[image:linear-gradient(110deg,rgba(16,19,41,0.18),rgba(16,19,41,0.84)_70%),url('/cinema-galaxy.png')] max-sm:blur-[4px] max-sm:[clip-path:inset(0_round_1.5rem)] lg:bg-[length:100%_100%,98%_auto]" />
           <div className="relative z-10 min-w-0">
             <h1 id="home-discovery-title" className="font-display text-3xl leading-tight text-ink sm:text-5xl">فیلم بعدی‌ات را پیدا کن</h1>
             <p className="mt-2 text-sm leading-relaxed text-ink-dim sm:text-base">اسم یک فیلم یا سریال را جست‌وجو کن، یا از پیشنهادهای امشب شروع کن.</p>
@@ -35,7 +35,7 @@ export default function HomeDiscovery() {
               ))}
             </nav>
           </div>
-          <div id="tonight" className="min-w-0 scroll-mt-24 rounded-2xl border border-violet-light/25 bg-[#0c1022]/50 p-3 backdrop-blur-sm sm:p-5">
+          <div id="tonight" className="min-w-0 scroll-mt-24 border-t border-violet-light/25 pt-3 sm:rounded-2xl sm:border sm:bg-[#0c1022]/50 sm:p-5 sm:backdrop-blur-sm">
             <div className="flex flex-wrap items-center justify-between gap-x-4">
               <h2 className="font-display text-2xl leading-tight text-ink">پیشنهاد برای امشب</h2>
               <Link href={`#${GRAPH_SECTION_ID}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-bold text-teal hover:underline focus-visible:outline-gold">
