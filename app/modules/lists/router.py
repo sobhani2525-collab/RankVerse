@@ -43,13 +43,16 @@ async def discover_lists(
     page_size: int = Query(20, ge=1, le=100),
     entity_type: str | None = None,
     tag: str | None = None,
+    tag_slug: str | None = None,
     sort: str = Query("newest", pattern="^(newest|popular)$"),
     quality_only: bool = True,
     q: str | None = Query(None, max_length=80, description="Search in list title/description"),
     db: AsyncSession = Depends(get_read_db),
 ):
     async def load():
-        items, total = await ListService(db).discover(page, page_size, entity_type, tag, sort, quality_only, q)
+        items, total = await ListService(db).discover(
+            page, page_size, entity_type, tag, sort, quality_only, q, tag_slug=tag_slug
+        )
         return envelope(
             data=[i.model_dump() for i in items],
             meta=Meta(page=page, page_size=page_size, total=total),
@@ -58,7 +61,9 @@ async def discover_lists(
     if q:  # free-text searches would only fill the cache with one-off keys
         return await load()
     return await cached(
-        ("lists-discover", page, page_size, entity_type, tag, sort, quality_only), settings.cache_ttl_discover, load
+        ("lists-discover", page, page_size, entity_type, tag, sort, quality_only, tag_slug),
+        settings.cache_ttl_discover,
+        load,
     )
 
 

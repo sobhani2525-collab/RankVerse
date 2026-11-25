@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ListDetail } from "@/lib/types";
 import { relativeTimeFa } from "@/lib/relative-time";
 import { isUpdatedToday, TAG_CHIP } from "@/lib/list-constellation";
+import { listTagHref } from "@/lib/list-tag-href";
 import { Chip } from "./ui";
 import ListHeroActions from "./ListHeroActions";
 
@@ -76,7 +77,12 @@ export default function ListHero({ detail }: { detail: ListDetail }) {
       {detail.tags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {detail.tags.map((tag) => (
-            <Chip key={tag} tone={TAG_CHIP}>
+            <Chip
+              key={tag}
+              href={tag.trim() ? listTagHref(tag) : undefined}
+              tone={TAG_CHIP}
+              className="hover:border-violet-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-light"
+            >
               #{tag}
             </Chip>
           ))}

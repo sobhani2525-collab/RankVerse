@@ -263,6 +263,8 @@ class ListRepository:
         sort_by: str = "newest",
         quality_only: bool = False,
         q: str | None = None,
+        *,
+        tag_slug: str | None = None,
     ) -> tuple[list[UserList], int]:
         # A window-function count rides along with the page query instead of
         # a separate round trip, and the owner (a single row per list) is
@@ -277,6 +279,16 @@ class ListRepository:
             stmt = stmt.where(UserList.entity_type == entity_type)
         if tag:
             stmt = stmt.where(UserList.tags.contains([tag]))
+        elif tag_slug:
+            tags = func.jsonb_array_elements_text(UserList.tags).table_valued("value")
+            # Keep the separator set in sync with listTagSlug in the frontend.
+            matching_tag = (
+                select(1)
+                .select_from(tags)
+                .where(func.regexp_replace(tags.c.value, "[ \t\r\n\u200c-]+", "-", "g") == tag_slug)
+                .correlate(UserList)
+            )
+            stmt = stmt.where(matching_tag.exists())
         if q:
             # Same Persian folding as the global search (ي/ك, آ/ا, half-space).
             from app.modules.search.router import _FOLD_TABLE, _escape_like, _fold_sql
