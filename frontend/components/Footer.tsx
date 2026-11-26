@@ -98,6 +98,7 @@ export default function Footer() {
             <Link href="/privacy" className="text-muted hover:text-gold">
               حریم خصوصی
             </Link>
+            <span id="analytics-settings-slot" className="contents" />
           </p>
           <p dir="rtl">
             اطلاعات فیلم‌ها از{" "}

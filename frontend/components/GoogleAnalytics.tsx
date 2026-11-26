@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { analyticsPath, campaignQuery, consentKey, syncAnalytics } from "@/lib/ga4";
@@ -47,11 +48,13 @@ export default function GoogleAnalytics() {
   if (!ready || !path || !analyticsPath(path)) return null;
 
   if (consent && !editing) {
-    return <div className="mx-auto max-w-7xl px-4 pb-4 text-center">
-      <button type="button" className="text-sm text-ink-dim underline" onClick={() => setEditing(true)}>
+    const slot = document.getElementById("analytics-settings-slot");
+    return slot ? createPortal(
+      <button type="button" className="text-muted hover:text-gold" onClick={() => setEditing(true)}>
         تنظیمات آمار بازدید
-      </button>
-    </div>;
+      </button>,
+      slot,
+    ) : null;
   }
 
   return (
