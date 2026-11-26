@@ -62,6 +62,14 @@ export default function Footer() {
             فیلم‌ها، سریال‌ها، هنرمندان و ژانرها را روی یک کهکشان ببین؛ امتیاز بده، در نبردها رأی بده، فهرست خودت را بساز و
             پیشنهادهایی بگیر که به سلیقه‌ات می‌خورد.
           </p>
+          <a
+            href="https://www.instagram.com/cinemagozin/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block text-sm font-bold text-muted transition hover:text-gold"
+          >
+            اینستاگرام سینماگُزین
+          </a>
         </div>
 
         {COLUMNS.map((col) => (
