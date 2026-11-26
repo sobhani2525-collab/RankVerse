@@ -66,8 +66,13 @@ export default function Footer() {
             href="https://www.instagram.com/cinemagozin/"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-block text-sm font-bold text-muted transition hover:text-gold"
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold text-muted transition hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
           >
+            <svg aria-hidden="true" className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="3" y="3" width="18" height="18" rx="5" />
+              <circle cx="12" cy="12" r="4" />
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+            </svg>
             اینستاگرام سینماگُزین
           </a>
         </div>
