@@ -44,6 +44,7 @@ class DailyBattleToday(BaseModel):
     right: DailyFilm
     theme: DailyTheme
     my_choice: Literal["left", "right"] | None
+    vote_recorded: bool | None = None
     # Hidden until the caller has voted (no bandwagon effect); enforced here.
     results: DailyResults | None
     seconds_until_next: int

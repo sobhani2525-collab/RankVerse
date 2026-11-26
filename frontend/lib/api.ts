@@ -1,4 +1,5 @@
 import { encodeListSlug } from "./list-url";
+import { trackAnalytics } from "./ga4";
 import { Envelope, MovieDetail, MovieListItem, PersonDetail, GenreDetail, TrackDetail, TvSeriesDetail, ListSummary, ListDetail, RelatedListSummary, ListComment, ListType, ListContributionMode, EntityMini, BattleEntity, NextBattleResponse, ThemedBattle, CastVoteResponse, VoteOutcome, TasteProfile, PredictedPick, SuggestedBattle, PublicUser, ListItem, ListCandidate, DailyBattleToday, DailySide } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
@@ -232,10 +233,12 @@ export async function registerUser(payload: {
   username: string;
   password: string;
 }) {
-  return postEnvelope<{ id: string; email: string; username: string }>(
+  const account = await postEnvelope<{ id: string; email: string; username: string }>(
     "/auth/register",
     payload
   );
+  trackAnalytics("sign_up", { method: "email" });
+  return account;
 }
 
 export async function loginUser(payload: { email: string; password: string }) {
@@ -246,9 +249,11 @@ export async function loginUser(payload: { email: string; password: string }) {
 }
 
 export async function loginWithGoogle(credential: string) {
-  return postEnvelope<{ access_token: string; refresh_token: string }>("/auth/google", {
+  const tokens = await postEnvelope<{ access_token: string; refresh_token: string; account_created?: boolean }>("/auth/google", {
     credential,
   });
+  if (tokens.account_created) trackAnalytics("sign_up", { method: "google" });
+  return tokens;
 }
 
 export async function getMe(token: string) {
@@ -636,7 +641,10 @@ export async function createList(
     visibility?: "public" | "private";
   }
 ): Promise<{ id: string; slug: string }> {
-  return authFetch(`/lists`, token, { method: "POST", body: payload });
+  const list = await authFetch<{ id: string; slug: string }>("/lists", token, { method: "POST", body: payload });
+  trackAnalytics("list_create");
+  if (payload.visibility !== "private") trackAnalytics("list_published");
+  return list;
 }
 
 export async function updateList(
@@ -688,7 +696,9 @@ export async function addListItem(
   slug: string,
   payload: { entity_id: string; note?: string }
 ): Promise<ListItem> {
-  return authFetch<ListItem>(`/lists/${encodeListSlug(slug)}/items`, token, { method: "POST", body: payload });
+  const item = await authFetch<ListItem>(`/lists/${encodeListSlug(slug)}/items`, token, { method: "POST", body: payload });
+  trackAnalytics("list_item_add");
+  return item;
 }
 
 /** Add-item form results: title matches for q, graph suggestions when q is empty. */
@@ -726,10 +736,12 @@ export async function voteListItem(
   itemId: string,
   isLike: boolean
 ): Promise<ListItemVoteResult> {
-  return authFetch(`/lists/${encodeListSlug(slug)}/items/${itemId}/like`, token, {
+  const vote = await authFetch<ListItemVoteResult>(`/lists/${encodeListSlug(slug)}/items/${itemId}/like`, token, {
     method: "POST",
     body: { is_like: isLike },
   });
+  if (vote.my_vote === isLike) trackAnalytics("list_item_vote");
+  return vote;
 }
 
 export async function removeListItemVote(
@@ -887,7 +899,9 @@ export async function castBattleVote(
       body?.detail || `CinemaGozin API error (${res.status}) on /battles/vote`
     );
   }
-  return res.json();
+  const vote: CastVoteResponse = await res.json();
+  if (payload.winner !== "skip") trackAnalytics("battle_vote", { surface: "arena" });
+  return vote;
 }
 
 /**
@@ -919,7 +933,9 @@ export async function castDailyVote(
     const body = await res.json().catch(() => null);
     throw new Error(typeof body?.detail === "string" ? body.detail : `CinemaGozin API error (${res.status}) on /daily-battle/vote`);
   }
-  return res.json();
+  const vote: DailyBattleToday = await res.json();
+  if (vote.vote_recorded === true) trackAnalytics("battle_vote", { surface: "daily" });
+  return vote;
 }
 
 function dailyHeaders(token: string | null, guestId: string | null): Record<string, string> {

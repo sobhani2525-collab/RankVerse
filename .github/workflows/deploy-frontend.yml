@@ -55,6 +55,8 @@ jobs:
       - name: Deploy
         env:
           LIARA_TOKEN: ${{ secrets.LIARA_API_TOKEN }}
+          GA_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-6NWFR3VKQP' }}
+          GA_CONTAINER_ID: ${{ vars.NEXT_PUBLIC_GA_CONTAINER_ID || 'GTM-WWQDDDL8' }}
         run: |
           if [ -z "$LIARA_TOKEN" ]; then
             echo "::error::Repository secret LIARA_API_TOKEN is not set"
@@ -67,6 +69,8 @@ jobs:
               --port=3000 \
               --path="frontend" \
               --api-token="$LIARA_TOKEN" \
+              --build-arg="NEXT_PUBLIC_GA_MEASUREMENT_ID=$GA_MEASUREMENT_ID" \
+              --build-arg="NEXT_PUBLIC_GA_CONTAINER_ID=$GA_CONTAINER_ID" \
               --no-app-logs; then
               exit 0
             fi

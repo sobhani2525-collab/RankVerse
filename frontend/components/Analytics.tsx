@@ -2,6 +2,8 @@
 
 import Script from "next/script";
 import { usePathname } from "next/navigation";
+import GoogleAnalytics from "./GoogleAnalytics";
+import { gaConfigured } from "@/lib/ga4";
 
 /**
  * Privacy-friendly, cookie-less page analytics (Umami or Plausible). Renders
@@ -20,6 +22,7 @@ const SITE_ID = process.env.NEXT_PUBLIC_ANALYTICS_SITE_ID;
 
 export default function Analytics() {
   const pathname = usePathname();
+  if (gaConfigured) return <GoogleAnalytics />;
   if (!SRC || !SITE_ID || (PROVIDER !== "umami" && PROVIDER !== "plausible")) return null;
   if (pathname?.startsWith("/admin")) return null;
 

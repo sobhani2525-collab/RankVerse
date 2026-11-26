@@ -1,7 +1,17 @@
+import { gaConfigured, trackAnalytics } from "./ga4";
+
 type DiscoveryEvent = "Tonight pick opened" | "List item opened";
 type DiscoveryProperties = { destination: string; placement: string };
 
 export function trackDiscovery(event: DiscoveryEvent, props: DiscoveryProperties) {
+  if (gaConfigured) {
+    if (event === "Tonight pick opened") {
+      trackAnalytics("movie_finder_start", { surface: "tonight" });
+    } else {
+      trackAnalytics("list_item_opened");
+    }
+    return;
+  }
   const browser = window as Window & {
     umami?: { track: (name: string, properties: DiscoveryProperties) => unknown };
     plausible?: (name: string, options: { props: DiscoveryProperties }) => unknown;

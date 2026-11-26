@@ -247,9 +247,11 @@ async def test_vote_twice_counts_once(client, db_session):
     await _movies(db_session, 12)
     body = await _today(client, _guest())
     payload = {"daily_battle_id": body["daily_battle_id"], "choice": "right"}
-    await client.post(f"{URL}/vote", headers=_guest(), json=payload)
+    first = await client.post(f"{URL}/vote", headers=_guest(), json=payload)
+    assert first.json()["vote_recorded"] is True
     again = await client.post(f"{URL}/vote", headers=_guest(), json={**payload, "choice": "left"})
     assert again.status_code == 200
+    assert again.json()["vote_recorded"] is False
     assert again.json()["my_choice"] == "right"
     assert again.json()["results"] == {"left_votes": 0, "right_votes": 1, "total": 1}
 

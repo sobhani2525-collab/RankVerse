@@ -60,7 +60,7 @@ class UserService:
             refresh_token=create_refresh_token(str(user.id), user.hashed_password),
         )
 
-    async def login_with_google(self, credential: str) -> TokenPair:
+    async def login_with_google(self, credential: str) -> tuple[TokenPair, bool]:
         """Sign in (or sign up) with a Google ID token. The token is checked by
         Google itself; an existing account with the same address is reused."""
         if not settings.google_client_id:
@@ -81,6 +81,7 @@ class UserService:
             raise UnauthorizedError("Invalid Google credential")
 
         user = await self.repo.get_by_email(email)
+        created = user is None
         if user is None:
             # Random password: the account has none to type; it can set one via "forgot password".
             user = await self.repo.create(
@@ -98,7 +99,7 @@ class UserService:
         return TokenPair(
             access_token=create_access_token(str(user.id), user.hashed_password),
             refresh_token=create_refresh_token(str(user.id), user.hashed_password),
-        )
+        ), created
 
     async def _free_username(self, base: str) -> str:
         base = re.sub(r"[^a-z0-9_.]", "", base.lower())[:40] or "user"

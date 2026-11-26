@@ -1,5 +1,7 @@
 "use client";
 
+import { trackAnalytics } from "@/lib/ga4";
+
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { distinctFa } from "@/lib/title";
 import Image from "next/image";
@@ -155,6 +157,8 @@ export default function WinnerStaysBattle({
   const challengerItem = items[Math.min(step, items.length - 1)];
 
   const pickAnim = useBattlePick<Side>();
+  const trackedStart = useRef(false);
+  const savedRun = useRef(true);
 
   function pick(winner: Side) {
     if (done || pickAnim.busy) return;
@@ -163,12 +167,21 @@ export default function WinnerStaysBattle({
     const save =
       savePick ??
       ((c: string, ch: string, w: Side) => castBattleVote(token ?? "", { category, left_item: c, right_item: ch, winner: w }));
+    let saved = true;
     const request = token
-      ? save(championItem.id, challengerItem.id, winner).catch((e) =>
-          setError(e instanceof Error ? e.message : "ثبت رأی ممکن نشد")
-        )
+      ? save(championItem.id, challengerItem.id, winner).catch((e) => {
+          saved = false;
+          savedRun.current = false;
+          setError(e instanceof Error ? e.message : "ثبت رأی ممکن نشد");
+        })
       : null;
     pickAnim.start(winner, request, () => {
+      const surface = savePick ? "pool" : "arena";
+      if (saved && !trackedStart.current) {
+        trackAnalytics("battle_start", { surface });
+        trackedStart.current = true;
+      }
+      if (savedRun.current && step === items.length - 1) trackAnalytics("battle_complete", { surface });
       if (winner === "left") {
         setStreak((n) => n + 1);
       } else {

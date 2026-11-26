@@ -1,4 +1,6 @@
 "use client";
+
+import { trackAnalytics } from "@/lib/ga4";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -191,6 +193,7 @@ export default function TournamentView({ slug }: { slug: string }) {
       setPendingMatch(match.id);
       try {
         setBattle(await tournamentApi.vote(token, slug, match.id, entityId));
+        if (match.my_vote !== entityId) trackAnalytics("battle_vote", { surface: "tournament" });
       } catch (err) {
         setBattle(before);
         setVoteError(err instanceof Error ? err.message : "ثبت رأی ناموفق بود");

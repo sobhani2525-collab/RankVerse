@@ -60,8 +60,8 @@ async def login(payload: UserLogin, request: Request, db: AsyncSession = Depends
 @router.post("/google")
 async def google_login(payload: GoogleLogin, request: Request, db: AsyncSession = Depends(get_db)):
     await enforce("login-ip", client_ip(request), LOGIN_IP_LIMIT, TEN_MINUTES)
-    tokens = await UserService(db).login_with_google(payload.credential)
-    return envelope(data=tokens.model_dump())
+    tokens, created = await UserService(db).login_with_google(payload.credential)
+    return envelope(data={**tokens.model_dump(), "account_created": created})
 
 
 @router.post("/refresh")

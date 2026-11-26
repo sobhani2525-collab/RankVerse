@@ -351,13 +351,16 @@ class DailyBattleService:
 
         # Already voted -> just report the current state, counting nothing
         # (and spending none of the guest's IP quota).
+        counted = False
         if await self._my_choice(battle.id, user_id, guest_id) is None:
             if user_id is None:
                 await self._enforce_guest_ip_limit(redis, ip, tehran.tehran_today(now))
             counted = await self._record_vote(battle, choice, user_id, guest_id)
             if counted and user_id is not None:
                 await self._feed_elo(battle, choice, user_id)
-        return await self.build_today(battle, user_id, guest_id, now)
+        today = await self.build_today(battle, user_id, guest_id, now)
+        today.vote_recorded = counted
+        return today
 
     async def _record_vote(self, battle: DailyBattle, choice: str, user_id, guest_id) -> bool:
         """Insert the vote and bump the counter in one transaction; False when

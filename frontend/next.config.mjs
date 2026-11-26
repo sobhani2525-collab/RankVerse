@@ -29,6 +29,15 @@ const nextConfig = {
     loader: "custom",
     loaderFile: "./lib/tmdb-image-loader.ts",
   },
+  async redirects() {
+    return [
+      {
+        source: "/ig",
+        destination: "/?utm_source=instagram&utm_medium=social&utm_campaign=bio",
+        permanent: false,
+      },
+    ];
+  },
   // /tmdb-img/* (same-origin posters) is app/tmdb-img/[...path]/route.ts.
   async headers() {
     return [

@@ -1,4 +1,6 @@
 "use client";
+
+import { trackAnalytics } from "@/lib/ga4";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -137,6 +139,7 @@ export default function DraftListEditor({ slug }: { slug: string }) {
     setPublishing(true);
     try {
       await updateList(t, detail.slug, { visibility: "public" });
+      trackAnalytics("list_published");
       // Stays "publishing" through the navigation, like the old create button.
       router.push(listHref(detail.slug));
     } catch (err) {

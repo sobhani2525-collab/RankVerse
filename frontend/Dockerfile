@@ -7,6 +7,8 @@ RUN npm ci
 FROM node:20-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
+ARG NEXT_PUBLIC_GA_CONTAINER_ID
 COPY --from=deps /app/node_modules ./node_modules
 # .env.production (committed) carries NEXT_PUBLIC_API_BASE_URL, which Next inlines at build time.
 COPY . .

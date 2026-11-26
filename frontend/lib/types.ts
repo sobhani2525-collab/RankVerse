@@ -574,6 +574,7 @@ export interface DailyBattleToday {
   right: DailyFilm;
   theme: { kind: "genre" | "decade" | "director" | "pair"; value: string };
   my_choice: DailySide | null;
+  vote_recorded?: boolean | null;
   /** null until the caller has voted (enforced by the server). */
   results: DailyResults | null;
   seconds_until_next: number;

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { searchEntities, SearchResult } from "@/lib/api";
+import { trackAnalytics } from "@/lib/ga4";
 import { entityTypeLabel } from "@/lib/constants";
 import { splitTitle } from "@/lib/title";
 import { toFaDigits } from "@/lib/format-number";
@@ -65,6 +66,7 @@ export default function SearchBox({ className = "min-w-0 flex-1", scope }: { cla
     setOpen(false);
     setQuery("");
     const basePath = ROUTE_BY_TYPE[result.type];
+    if (scope === "screen") trackAnalytics("movie_finder_start", { surface: "search" });
     router.push(`${basePath}/${result.slug}`);
   }
 

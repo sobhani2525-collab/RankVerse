@@ -1,4 +1,5 @@
 import { authFetchEnvelope } from "./api";
+import { trackAnalytics } from "./ga4";
 import { proxyTmdbUrl } from "./tmdb-image-url";
 import type { Envelope } from "./types";
 
@@ -156,16 +157,25 @@ export const tournamentApi = {
     return { items: json.data, total: json.meta?.total ?? null };
   },
   get: (slug: string, token: string | null) => call<TournamentDetail>(`/${slug}`, token),
-  create: (token: string, body: { title: string; description?: string; entity_type: TournamentEntityType; bracket_size: BracketSize }) =>
-    call<{ slug: string }>("", token, { method: "POST", body }),
+  create: async (token: string, body: { title: string; description?: string; entity_type: TournamentEntityType; bracket_size: BracketSize }) => {
+    const battle = await call<{ slug: string }>("", token, { method: "POST", body });
+    trackAnalytics("battle_created");
+    return battle;
+  },
   update: (token: string, slug: string, body: Partial<{ title: string; description: string; entity_type: TournamentEntityType; bracket_size: BracketSize }>) =>
     call<TournamentDetail>(`/${slug}`, token, { method: "PATCH", body }),
   setEntries: (token: string, slug: string, entityIds: string[]) =>
     call<TournamentDetail>(`/${slug}/entries`, token, { method: "PUT", body: { entity_ids: entityIds } }),
-  publish: (token: string, slug: string, body: { randomize?: boolean; round_duration_seconds?: number | null; visibility: "unlisted" | "public" }) =>
-    call<TournamentDetail>(`/${slug}/publish`, token, { method: "POST", body }),
-  pick: (token: string, slug: string, body: { champion_id: string; challenger_id: string; winner_id: string }) =>
-    call<{ recorded: boolean }>(`/${slug}/picks`, token, { method: "POST", body }),
+  publish: async (token: string, slug: string, body: { randomize?: boolean; round_duration_seconds?: number | null; visibility: "unlisted" | "public" }) => {
+    const battle = await call<TournamentDetail>(`/${slug}/publish`, token, { method: "POST", body });
+    trackAnalytics("battle_published");
+    return battle;
+  },
+  pick: async (token: string, slug: string, body: { champion_id: string; challenger_id: string; winner_id: string }) => {
+    const pick = await call<{ recorded: boolean }>(`/${slug}/picks`, token, { method: "POST", body });
+    if (pick.recorded) trackAnalytics("battle_vote", { surface: "pool" });
+    return pick;
+  },
   vote: (token: string, slug: string, matchId: string, entityId: string) =>
     call<TournamentDetail>(`/${slug}/matches/${matchId}/vote`, token, { method: "POST", body: { entity_id: entityId } }),
   follow: (token: string, slug: string, follow: boolean) =>
