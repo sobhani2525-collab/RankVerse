@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CardTitle from "@/components/entities/card-title";
 import { detailPathFor } from "@/lib/entity-routes";
 import { trackDiscovery } from "@/lib/discovery-analytics";
@@ -30,6 +30,13 @@ function buildRounds(groups: Choice[][]): Choice[][] {
 export default function TonightChoices({ fallback, groups }: { fallback: Choice[]; groups?: Choice[][] }) {
   const [round, setRound] = useState(0);
   const rounds = groups ? buildRounds(groups) : [];
+  const fullRoundCount = rounds.filter((choices) => choices.length === 3).length;
+
+  // Keep the first render consistent with the server, then vary the starting round per visit.
+  useEffect(() => {
+    setRound(fullRoundCount > 1 ? Math.floor(Math.random() * fullRoundCount) : 0);
+  }, [fullRoundCount]);
+
   const personalized = (useHomePicks() ?? []).flatMap(({ entity, year }) => {
     const href = detailPathFor(entity.entity_type, entity.slug);
     return href ? [{

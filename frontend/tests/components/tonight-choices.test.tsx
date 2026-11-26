@@ -29,16 +29,24 @@ beforeEach(() => {
   favorites.mockReturnValue({ screenFavoritesRevision: 0 });
 });
 
-it("rotates three group picks without repeating a title", () => {
+it.each([
+  { random: 0, initial: ["A", "B", "C"], next: ["D", "E", "F"] },
+  { random: 0.75, initial: ["D", "E", "F"], next: ["A", "B", "C"] },
+])("starts from a varied round and rotates three distinct picks ($random)", ({ random, initial, next }) => {
   auth.mockReturnValue(visitor);
   const choice = (id: string) => ({ id, title: id, href: `/movies/${id}` });
-  render(<HomePicksProvider><TonightChoices fallback={[]} groups={[
-    ["A", "D"].map(choice), ["A", "B", "E"].map(choice), ["C", "F"].map(choice),
-  ]} /></HomePicksProvider>);
+  const randomSpy = vi.spyOn(Math, "random").mockReturnValue(random);
+  try {
+    render(<HomePicksProvider><TonightChoices fallback={[]} groups={[
+      ["A", "D"].map(choice), ["A", "B", "E"].map(choice), ["C", "F"].map(choice),
+    ]} /></HomePicksProvider>);
+  } finally {
+    randomSpy.mockRestore();
+  }
 
-  for (const title of ["A", "B", "C"]) expect(screen.getByRole("link", { name: title })).toBeInTheDocument();
+  for (const title of initial) expect(screen.getByRole("link", { name: title })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "سه پیشنهاد دیگر" }));
-  for (const title of ["D", "E", "F"]) expect(screen.getByRole("link", { name: title })).toBeInTheDocument();
+  for (const title of next) expect(screen.getByRole("link", { name: title })).toBeInTheDocument();
 });
 
 it("replaces the popular picks with the signed-in viewer's film and TV recommendations", async () => {
