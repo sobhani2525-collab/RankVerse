@@ -5,6 +5,7 @@ import ListTicketGrid from "@/components/lists/list-ticket-grid";
 import { discoverListsPage, LISTS_CACHE_TAG, LISTS_PAGE_SIZE } from "@/lib/api";
 import { toFaDigits } from "@/lib/format-number";
 import { listTagHref, listTagPageNumber, listTagSlug } from "@/lib/list-tag-href";
+import { decodeListSlug } from "@/lib/list-url";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -12,7 +13,8 @@ type Props = {
 };
 
 function tagSlugFromSegment(segment: string): string {
-  return segment.startsWith("~") ? segment.slice(1) : segment;
+  const slug = decodeListSlug(segment);
+  return slug.startsWith("~") ? slug.slice(1) : slug;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
