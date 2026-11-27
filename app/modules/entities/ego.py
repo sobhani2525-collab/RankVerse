@@ -139,19 +139,27 @@ async def build_ego_graph(db: AsyncSession, slug: str) -> dict:
             wanted = {(w.id, p.id) for w in works for p in people}
             credit_pairs |= {(wid, person.id) for wid, person, _ in rows} & wanted
     elif center.entity_type == "genre":
+        # Rank narrow rows first. Fetch the full entity payloads only for the
+        # four selected works, even for genres with thousands of titles.
+        top_works = (
+            select(Entity.id, EntityRanking.computed_score)
+            .join(RelationshipEdge, RelationshipEdge.from_entity_id == Entity.id)
+            .join(EntityRanking, EntityRanking.entity_id == Entity.id)
+            .where(
+                RelationshipEdge.to_entity_id == center.id,
+                RelationshipEdge.relation_type == "has_genre",
+                Entity.entity_type.in_(WORK_TYPES),
+            )
+            .order_by(EntityRanking.computed_score.desc(), Entity.id)
+            .limit(MAX_GENRE_WORKS)
+            .subquery()
+        )
         top = (
             await db.execute(
                 select(Entity)
-                .join(RelationshipEdge, RelationshipEdge.from_entity_id == Entity.id)
-                .join(EntityRanking, EntityRanking.entity_id == Entity.id)
+                .join(top_works, top_works.c.id == Entity.id)
                 .options(joinedload(Entity.ranking))
-                .where(
-                    RelationshipEdge.to_entity_id == center.id,
-                    RelationshipEdge.relation_type == "has_genre",
-                    Entity.entity_type.in_(WORK_TYPES),
-                )
-                .order_by(EntityRanking.computed_score.desc(), Entity.id)
-                .limit(MAX_GENRE_WORKS)
+                .order_by(top_works.c.computed_score.desc(), Entity.id)
             )
         ).unique().scalars().all()
         works = list(top)

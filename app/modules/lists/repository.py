@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, func, case, update, delete, or_, exists, union, null, false
+from sqlalchemy import Row, select, func, case, update, delete, or_, exists, union, null, false
 from sqlalchemy.dialects.postgresql import array as sa_array
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -266,11 +266,8 @@ class ListRepository:
         *,
         tag_slug: str | None = None,
     ) -> tuple[list[UserList], int]:
-        # A window-function count rides along with the page query instead of
-        # a separate round trip, and the owner (a single row per list) is
-        # joined in rather than fetched with its own selectinload query --
-        # together that cuts this from 5 sequential DB round trips to 3,
-        # which matters when backend<->DB latency is high (see database.py).
+        # Fetch the page and its count together. Card items are fetched separately
+        # so discovery doesn't hydrate the full item and entity objects.
         stmt = select(UserList, func.count().over().label("total")).where(
             UserList.visibility == "public"
         )
@@ -324,12 +321,7 @@ class ListRepository:
             stmt = stmt.order_by(UserList.created_at.desc())
 
         stmt = (
-            stmt.options(
-                joinedload(UserList.owner),
-                # Only the first 5 items' entities become the poster preview
-                # (ListService._to_summary_with_preview).
-                selectinload(UserList.items).selectinload(UserListItem.entity),
-            )
+            stmt.options(joinedload(UserList.owner))
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -337,6 +329,37 @@ class ListRepository:
         rows = result.unique().all()
         total = rows[0].total if rows else 0
         return [row.UserList for row in rows], total
+
+    async def discovery_items(self, list_ids: list[uuid.UUID], preview_size: int) -> list[Row]:
+        if not list_ids:
+            return []
+        items = (
+            select(
+                UserListItem.list_id,
+                UserListItem.entity_id,
+                func.row_number().over(
+                    partition_by=UserListItem.list_id,
+                    order_by=UserListItem.position,
+                ).label("position"),
+            )
+            .where(UserListItem.list_id.in_(list_ids))
+            .subquery()
+        )
+        in_preview = items.c.position <= preview_size
+        stmt = (
+            select(
+                items.c.list_id,
+                Entity.id,
+                Entity.entity_type,
+                case((in_preview, Entity.slug)).label("slug"),
+                case((in_preview, Entity.title)).label("title"),
+                case((in_preview, Entity.attributes)).label("attributes"),
+            )
+            .select_from(items)
+            .join(Entity, Entity.id == items.c.entity_id)
+            .order_by(items.c.list_id, items.c.position)
+        )
+        return list((await self.db.execute(stmt)).all())
 
     async def featured(self, limit: int) -> list[UserList]:
         stmt = (

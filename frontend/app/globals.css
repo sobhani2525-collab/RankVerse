@@ -187,6 +187,33 @@
   stroke-dashoffset: 1;
 }
 
+.rv-recenter {
+  --rv-recenter-motion: 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.rv-recenter-star {
+  transition: transform var(--rv-recenter-motion), opacity 300ms ease;
+  animation: rv-recenter-appear 360ms var(--rv-star-delay) ease backwards;
+}
+.rv-recenter-hit {
+  transition: left var(--rv-recenter-motion), top var(--rv-recenter-motion);
+  animation: rv-recenter-enable 1ms var(--rv-star-delay) step-end backwards;
+}
+.rv-recenter-edges {
+  animation: rv-recenter-appear 320ms 420ms ease both;
+}
+.rv-recenter-edges .rv-draw {
+  animation: none;
+  stroke-dashoffset: 0;
+}
+@keyframes rv-recenter-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rv-recenter-enable {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+
 @keyframes rv-rise {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
@@ -234,6 +261,10 @@
   .btn-glow, .btn-glow:hover { transition: none; transform: none; }
   .rv-draw { animation: none; stroke-dashoffset: 0; }
   .rv-motion { transition: none !important; }
+  .rv-recenter-star, .rv-recenter-hit, .rv-recenter-edges, .rv-recenter-star circle {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* ---------------------------------------------------------------------

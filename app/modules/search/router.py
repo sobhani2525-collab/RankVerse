@@ -169,12 +169,15 @@ async def search(
     type: str | None = Query(None, alias="type"),
     limit: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_read_db),
-    scope: Literal["screen"] | None = None,
+    scope: Literal["screen", "galaxy"] | None = None,
     tolerant: bool = False,
 ):
-    """Search Persian and original titles. Use scope=screen for film and TV,
-    or type for a single entity type. Tolerant mode also checks spacing and typos."""
-    entity_type = type or (("movie", "tv_series") if scope == "screen" else None)
+    """Search Persian and original titles, with optional type or scope filters."""
+    scope_types = {
+        "screen": ("movie", "tv_series"),
+        "galaxy": ("movie", "tv_series", "person"),
+    }
+    entity_type = type or (scope_types[scope] if scope else None)
     entities = await find_entities_by_title(db, q, entity_type, limit, tolerant=tolerant)
 
     return envelope(

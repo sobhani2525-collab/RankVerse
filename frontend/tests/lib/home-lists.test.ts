@@ -5,9 +5,9 @@ import type { ListSummary } from "@/lib/types";
 const l = (slug: string) => ({ slug }) as ListSummary;
 
 describe("discoverQueryFor", () => {
-  it("maps tabs to sorts", () => {
-    expect(discoverQueryFor("fresh")?.sort).toBe("newest");
-    expect(discoverQueryFor("foryou")?.sort).toBe("popular");
+  it("uses a smaller popular pool for homepage recommendations", () => {
+    expect(discoverQueryFor("fresh")).toEqual({ sort: "newest", page_size: 20 });
+    expect(discoverQueryFor("foryou")).toEqual({ sort: "popular", page_size: 8 });
     expect(discoverQueryFor("picked")).toBeNull();
   });
 });

@@ -19,8 +19,8 @@ export default function HomeDiscovery() {
         <section aria-labelledby="home-discovery-title" className="relative isolate grid gap-5 rounded-3xl border border-violet-light/25 bg-[#101329] px-3 py-4 sm:gap-6 sm:p-7 lg:gap-7 lg:p-9">
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-left-top bg-no-repeat bg-[length:100%_100%,auto_98%] bg-[image:linear-gradient(110deg,rgba(16,19,41,0.18),rgba(16,19,41,0.84)_70%),url('/cinema-galaxy.png')] max-sm:blur-[4px] max-sm:[clip-path:inset(0_round_1.5rem)] lg:bg-[length:100%_100%,98%_auto]" />
           <div className="relative z-10 min-w-0">
-            <h1 id="home-discovery-title" className="font-display text-3xl leading-tight text-ink sm:text-5xl">فیلم بعدی‌ات را پیدا کن</h1>
-            <p className="mt-2 text-sm leading-relaxed text-ink-dim sm:text-base">اسم یک فیلم یا سریال را جست‌وجو کن، یا از پیشنهادهای امشب شروع کن.</p>
+            <h1 id="home-discovery-title" className="text-balance font-display text-3xl leading-tight text-ink sm:text-5xl">فیلم بعدی‌ات را همین‌جا پیدا کن</h1>
+            <p className="mt-2 text-sm leading-relaxed text-ink-dim sm:text-base">جستجو در میان هزاران فیلم و سریال، یا شروع از پیشنهادهای ویژه.</p>
             <div className="mt-5 flex flex-col gap-2 sm:max-w-2xl sm:flex-row">
               <SearchBox scope="screen" className="min-w-0 sm:flex-[1_1_14rem]" />
               <Link href="#tonight" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-l from-violet-light to-teal px-4 text-sm font-extrabold text-bg hover:brightness-110 focus-visible:outline-gold">

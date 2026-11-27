@@ -128,7 +128,7 @@ export default function EntityOverviewGraph({
             <EgoSky graph={graph} onSelect={explore} actionLabel="چرخاندن مدار دور آن" mobileTall bold fontScale={0.85} />
           </div>
           <SkyLegend compact />
-          <CenterCard center={centerNodeOf(graph)} tagline={false} className="mx-auto mt-4 flex max-w-[560px]" />
+          <CenterCard center={centerNodeOf(graph)} className="mx-auto mt-4 flex max-w-[560px]" />
         </div>
       </div>
     </div>

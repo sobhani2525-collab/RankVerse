@@ -11,10 +11,12 @@ export const LIST_TABS: { key: ListTab; label: string }[] = [
 /** Query for each tab; "picked" has its own endpoint (admin-featured lists), so it has no discover query. */
 export function discoverQueryFor(tab: ListTab): { sort: "newest" | "popular"; page_size: number } | null {
   if (tab === "picked") return null;
-  return { sort: tab === "fresh" ? "newest" : "popular", page_size: POOL_SIZE };
+  return tab === "fresh"
+    ? { sort: "newest", page_size: POOL_SIZE }
+    : { sort: "popular", page_size: 8 };
 }
 
-/** Each tab fetches a wider pool than it shows; the client samples from it so the cards vary per visit. */
+/** Pool size for fresh and featured lists. Popular recommendations use a smaller pool. */
 export const POOL_SIZE = 20;
 
 export function shuffle<T>(items: T[]): T[] {

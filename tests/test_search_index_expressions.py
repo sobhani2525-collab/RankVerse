@@ -14,13 +14,13 @@ from sqlalchemy import select
 from sqlalchemy.dialects import postgresql
 
 from app.modules.entities.models import Entity
-from app.modules.search.router import _FOLD_FROM, _FOLD_TO, _fold_sql, _title_fa_sql
+from app.modules.search.router import _FOLD_FROM, _FOLD_TO, _compact_sql, _fold_sql, _title_fa_sql
 
 _MIGRATION = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "b7e4d2a9c1f0_trigram_indexes_for_search.py"
 
 
-def _load_migration():
-    spec = importlib.util.spec_from_file_location("trigram_migration", _MIGRATION)
+def _load_migration(path=_MIGRATION):
+    spec = importlib.util.spec_from_file_location("trigram_migration", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -41,6 +41,18 @@ def test_query_expressions_match_the_index_expressions():
     migration = _load_migration()
     assert _render(_fold_sql(Entity.title)) == migration.TITLE_EXPR
     assert _render(_fold_sql(_title_fa_sql())) == migration.TITLE_FA_EXPR
+
+
+def test_compact_query_expressions_match_the_index_expressions():
+    migration = _load_migration(_MIGRATION.with_name("6d1e58b4a7c2_compact_search_indexes.py"))
+    queries = {
+        "ix_entities_title_compact_trgm": _compact_sql(_fold_sql(Entity.title)),
+        "ix_entities_title_fa_compact_trgm": _compact_sql(_fold_sql(_title_fa_sql())),
+    }
+    assert queries.keys() == migration.INDEXES.keys()
+    for name, query in queries.items():
+        expected = f"replace(translate({migration.INDEXES[name]}, '{_FOLD_FROM}', '{_FOLD_TO}'), ' ', '')"
+        assert _render(query) == expected
 
 
 def test_folded_expressions_carry_no_bind_parameters():

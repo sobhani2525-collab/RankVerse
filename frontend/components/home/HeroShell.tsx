@@ -9,37 +9,35 @@ import { nameOf, roleOf, TYPE_LABEL } from "@/components/graph/EgoSky";
 import { detailPathFor } from "@/lib/entity-routes";
 import { toFaDigits } from "@/lib/format-number";
 
-const FullscreenContext = createContext<{ fullscreen: boolean; toggle: () => void; setCenter: (n: EgoNode | null) => void }>({
+const FullscreenContext = createContext<{ fullscreen: boolean; toggle: () => void }>({
   fullscreen: false,
   toggle: () => {},
-  setCenter: () => {},
 });
 
 export const useHeroFullscreen = () => useContext(FullscreenContext);
 
 /** Lays out the hero's text beside the graph; full screen drops the text and lets the graph take the whole width. */
-export default function HeroShell({ text, graph }: { text: ReactNode; graph: ReactNode }) {
+export default function HeroShell({ text, graph, center }: { text: ReactNode; graph: ReactNode; center: EgoNode | null }) {
   const [fullscreen, setFullscreen] = useState(false);
-  const [center, setCenter] = useState<EgoNode | null>(null);
   return (
-    <FullscreenContext.Provider value={{ fullscreen, toggle: () => setFullscreen((v) => !v), setCenter }}>
+    <FullscreenContext.Provider value={{ fullscreen, toggle: () => setFullscreen((v) => !v) }}>
       <div
         id={GRAPH_SECTION_ID}
         className={
           fullscreen
             ? "relative mx-auto max-w-7xl px-6 pb-10 pt-10"
-            : "relative mx-auto grid max-w-7xl items-center gap-6 px-6 pb-10 pt-14 lg:min-h-[640px] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10 lg:py-16"
+            : "relative mx-auto grid max-w-7xl items-center gap-4 px-4 pb-6 pt-8 sm:gap-6 sm:px-6 sm:pb-10 sm:pt-12 lg:min-h-[640px] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10 lg:py-16"
         }
       >
         {!fullscreen && (
           <div className="relative z-10 flex flex-col gap-8">
             {text}
-            <CenterCard center={center} className="hidden lg:flex" />
+            <CenterCard center={center} className="hidden lg:flex" hideBattle />
           </div>
         )}
         <div className={fullscreen ? "relative mx-auto w-full max-w-[860px]" : "relative mx-auto w-full max-w-[560px]"}>
           {graph}
-          <CenterCard center={center} className="mt-4 flex lg:hidden" />
+          <CenterCard center={center} className="mt-4 flex lg:hidden" hideBattle />
         </div>
       </div>
     </FullscreenContext.Provider>
@@ -47,9 +45,14 @@ export default function HeroShell({ text, graph }: { text: ReactNode; graph: Rea
 }
 
 /** «مرکز کهکشان»: the poster, name and actions of whatever sits at the graph's centre. */
-export function CenterCard({ center, className = "", tagline = true }: { center: EgoNode | null; className?: string; tagline?: boolean }) {
+export function CenterCard({ center, className = "", hideBattle = false }: {
+  center: EgoNode | null;
+  className?: string;
+  hideBattle?: boolean;
+}) {
   if (!center) return null;
   const href = detailPathFor(center.entity_type, center.slug);
+  const ratingHref = center.entity_type === "movie" || center.entity_type === "tv_series" ? href : null;
   return (
     <div className={`flex-col gap-3 ${className}`}>
     <div className="flex items-center gap-4 rounded-3xl border border-[#2a2f5c] bg-[#141733] p-4">
@@ -73,21 +76,22 @@ export function CenterCard({ center, className = "", tagline = true }: { center:
           {roleOf(center) ?? TYPE_LABEL[center.entity_type]}
           {center.year ? ` · ${toFaDigits(center.year)}` : ""}
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {href && (center.entity_type === "movie" || center.entity_type === "tv_series") && (
-            <Link href={href} className="inline-flex min-h-11 items-center rounded-xl bg-[#a99bff]/20 px-4 text-sm font-bold text-[#c9c0ff] hover:bg-[#a99bff]/30">
-              ★ امتیاز بده
-            </Link>
-          )}
-          <Link href="/battles/new" className="inline-flex min-h-11 items-center rounded-xl bg-[#1d2147] px-4 text-sm font-bold text-ink hover:bg-[#262b5c]">
-            نبرد بساز
-          </Link>
-        </div>
+        {(ratingHref || !hideBattle) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ratingHref && (
+              <Link href={ratingHref} className="inline-flex min-h-11 items-center rounded-xl bg-[#a99bff]/20 px-4 text-sm font-bold text-[#c9c0ff] hover:bg-[#a99bff]/30">
+                ★ امتیاز بده
+              </Link>
+            )}
+            {!hideBattle && (
+              <Link href="/battles/new" className="inline-flex min-h-11 items-center rounded-xl bg-[#1d2147] px-4 text-sm font-bold text-ink hover:bg-[#262b5c]">
+                نبرد بساز
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </div>
-    {tagline && (    <p className="text-center text-sm text-[#c4c8e6]" aria-live="polite">
-        امروز کهکشانت را با محوریت <strong className="font-bold text-[#f5b94a]">{nameOf(center)}</strong> کشف کن
-      </p>)}
     </div>
   );
 }

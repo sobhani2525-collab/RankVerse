@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import ListTicketCard from "@/components/lists/list-ticket-card";
 import { listSummaryToTicketCard } from "@/lib/entity-card-adapters";
 import ScrollRow from "@/components/ScrollRow";
-import { discoverLists, getFeaturedLists } from "@/lib/api";
 import { entityPosterUrl } from "@/lib/list-constellation";
 import { listHref } from "@/lib/list-url";
 import { toFaDigits } from "@/lib/format-number";
-import { LIST_TABS, ListTab, POOL_SIZE, discoverQueryFor, shuffle, withoutFeatured } from "@/lib/home-lists";
+import { LIST_TABS, ListTab, shuffle, withoutFeatured } from "@/lib/home-lists";
 import type { ListDetail, ListSummary } from "@/lib/types";
 
 type Cache = Partial<Record<ListTab, ListSummary[]>>;
@@ -19,7 +18,11 @@ type Cache = Partial<Record<ListTab, ListSummary[]>>;
 export default function HomeLists({ featured, initialPicked }: { featured: ListDetail | null; initialPicked: ListSummary[] }) {
   const [tab, setTab] = useState<ListTab>("foryou");
   const [cache, setCache] = useState<Cache>({ picked: initialPicked });
-  const [failed, setFailed] = useState(false);
+  const [failedTab, setFailedTab] = useState<ListTab | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [nearLists, setNearLists] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const items = cache[tab];
 
   // The server-rendered «picked» cards are ISR-cached; reshuffle them per visit (client-only, after hydration).
   useEffect(() => {
@@ -27,23 +30,42 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
   }, []);
 
   useEffect(() => {
-    if (cache[tab]) return;
-    let cancelled = false;
-    setFailed(false);
-    const query = discoverQueryFor(tab);
-    (query ? discoverLists(query, 0) : getFeaturedLists(POOL_SIZE, 0))
-      .then((items) => !cancelled && setCache((c) => ({ ...c, [tab]: shuffle(items) })))
-      .catch(() => !cancelled && setFailed(true));
-    return () => {
-      cancelled = true;
-    };
-  }, [tab, cache]);
+    const section = sectionRef.current;
+    if (!section || typeof IntersectionObserver === "undefined") {
+      setNearLists(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setNearLists(true);
+      observer.disconnect();
+    }, { rootMargin: "400px 0px" });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
-  const items = cache[tab];
+  useEffect(() => {
+    if (!nearLists || items) return;
+    const controller = new AbortController();
+    setFailedTab(null);
+    fetch(`/api/home-lists?tab=${tab}`, { signal: controller.signal })
+      .then(async (response): Promise<ListSummary[]> => {
+        if (!response.ok) throw new Error(`Home lists request failed (${response.status})`);
+        return response.json();
+      })
+      .then((lists) => {
+        if (!controller.signal.aborted) setCache((c) => ({ ...c, [tab]: shuffle(lists) }));
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setFailedTab(tab);
+      });
+    return () => controller.abort();
+  }, [tab, items, attempt, nearLists]);
+
   const cards = items ? withoutFeatured(items, featured?.slug ?? null, 5) : null;
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-14" aria-label="فهرست‌ها">
+    <section ref={sectionRef} className="mx-auto max-w-7xl px-6 py-14" aria-label="فهرست‌ها">
       <h2 className="mb-6 text-2xl font-extrabold text-ink">فهرست‌ها</h2>
 
       {featured && featured.items.length > 0 && <FeaturedCard list={featured} />}
@@ -55,7 +77,10 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
             type="button"
             role="tab"
             aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => {
+              setNearLists(true);
+              setTab(t.key);
+            }}
             className={`min-h-11 shrink-0 rounded-full border px-5 text-sm font-semibold focus-visible:outline-gold ${
               tab === t.key ? "border-[#a99bff] bg-[#a99bff] text-[#0b0d1c]" : "border-[#2a2f5c] text-[#c4c8e6] hover:border-[#a99bff]"
             }`}
@@ -65,8 +90,18 @@ export default function HomeLists({ featured, initialPicked }: { featured: ListD
         ))}
       </div>
 
-      {failed ? (
-        <p role="alert" className="text-sm text-muted">دریافت فهرست‌ها ممکن نشد.</p>
+      {failedTab === tab ? (
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
+          <p role="alert">دریافت فهرست‌ها ممکن نشد.</p>
+          <button type="button" className="min-h-11 text-teal underline" onClick={() => setAttempt((value) => value + 1)}>
+            تلاش دوباره
+          </button>
+          {tab !== "picked" && !!cache.picked?.length && (
+            <button type="button" className="min-h-11 text-teal underline" onClick={() => setTab("picked")}>
+              مشاهدهٔ برگزیده‌ها
+            </button>
+          )}
+        </div>
       ) : cards === null ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
           {[0, 1, 2].map((i) => <div key={i} className="h-72 animate-pulse rounded-3xl bg-surface2/50" />)}

@@ -1,8 +1,5 @@
 import HeroConstellation from "./HeroConstellation";
-import { SkyLegend } from "@/components/graph/EgoSky";
-import HeroShell from "./HeroShell";
 import HeroStarfield from "./HeroStarfield";
-import { HomeTitle } from "@/lib/home-data";
 import type { EgoGraph } from "@/lib/api";
 import CountUp from "./CountUp";
 import Link from "next/link";
@@ -16,7 +13,6 @@ export default function HomeHero({
   battleTotal,
   artistTotal,
 }: {
-  titles: HomeTitle[];
   graphs: EgoGraph[];
   movieTotal: number | null;
   tvTotal: number | null;
@@ -43,41 +39,40 @@ export default function HomeHero({
         className="pointer-events-none absolute inset-0"
         style={{ background: "radial-gradient(55% 70% at 28% 45%, rgba(40,48,112,0.55), rgba(40,48,112,0) 70%)" }}
       />
-      <HeroShell
+      {stats.length > 0 && (
+        <div className="relative mx-auto max-w-7xl px-4 pt-4 sm:px-6 sm:pt-6">
+          <ul aria-label="آمار سینماگزین" className="grid divide-x divide-x-reverse divide-white/15 rounded-2xl border border-white/10 bg-white/[0.06] py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:py-3"
+            style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}
+          >
+            {stats.map(([label, value, icon, href]) => (
+              <li key={label} className="min-w-0">
+                <Link
+                  href={href}
+                  aria-label={`${label}؛ مشاهدهٔ همه`}
+                  className="group flex min-h-11 flex-col items-center rounded-xl px-1 py-1 text-center transition hover:bg-white/[0.08] focus-visible:outline-gold"
+                >
+                  <StatIcon name={icon} />
+                  <span className="num mt-1.5 text-sm font-extrabold text-ink sm:text-xl">
+                    <CountUp value={value} />
+                  </span>
+                  <span className="text-[11px] text-[#a3a8cc] transition group-hover:text-ink">{label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <HeroConstellation
+        graphs={graphs}
         text={
-          <div className="relative z-10">
-            <h2 className="font-display text-2xl font-extrabold leading-[1.3] text-ink sm:text-3xl">
-              فیلم‌های مرتبط را کشف کن
+          <div key="intro" className="relative z-10">
+            <h2 className="text-balance font-display text-2xl font-extrabold leading-[1.35] text-ink sm:text-3xl">
+              کهکشان سینما را کاوش کن
             </h2>
-            <p className="mt-6 max-w-md text-base leading-8 text-[#c4c8e6] sm:text-lg">
-              در کهکشان سینماگزین، روی یک فیلم یا هنرمند بزن تا ارتباط‌هایش را ببینی.
+            <p className="mt-3 max-w-md text-sm leading-7 text-[#c4c8e6] sm:mt-5 sm:text-lg sm:leading-8">
+              روی هر فیلم یا بازیگر کلیک کن تا ببینی چطور با سایر آثار و ژانرها در ارتباط است.
             </p>
-            {stats.length > 0 && (
-              <dl className="mt-6 grid grid-cols-5 divide-x divide-x-reverse divide-white/15 rounded-2xl border border-white/10 bg-white/[0.06] py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md">
-                {stats.map(([label, value, icon, href]) => (
-                  <div key={label} className="min-w-0">
-                    <Link
-                      href={href}
-                      aria-label={`${label}؛ مشاهدهٔ همه`}
-                      className="group flex min-h-11 flex-col items-center rounded-xl px-1 py-1 text-center transition hover:bg-white/[0.08] focus-visible:outline-gold"
-                    >
-                      <StatIcon name={icon} />
-                      <dd className="num mt-2 text-sm font-extrabold text-ink sm:text-xl">
-                        <CountUp value={value} />
-                      </dd>
-                      <dt className="text-[11px] text-[#a3a8cc] transition group-hover:text-ink">{label}</dt>
-                    </Link>
-                  </div>
-                ))}
-              </dl>
-            )}
           </div>
-        }
-        graph={
-          <>
-            <HeroConstellation graphs={graphs} />
-            <SkyLegend compact />
-          </>
         }
       />
     </section>

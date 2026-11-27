@@ -83,12 +83,19 @@ async function fetchWithAuthRetry(path: string, init: RequestInit): Promise<Resp
 // fetch cache key ignores `signal`, so this doesn't affect caching.
 const READ_TIMEOUT_MS = 8000;
 
+export class ApiTimeoutError extends Error {
+  constructor(path: string) {
+    super(`CinemaGozin API timeout (${READ_TIMEOUT_MS / 1000}s) on ${path}`);
+    this.name = "ApiTimeoutError";
+  }
+}
+
 async function fetchWithTimeout(path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(`${API_BASE}${path}`, { ...init, signal: AbortSignal.timeout(READ_TIMEOUT_MS) });
   } catch (err) {
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-      throw new Error(`CinemaGozin API timeout (${READ_TIMEOUT_MS / 1000}s) on ${path}`);
+      throw new ApiTimeoutError(path);
     }
     throw err;
   }
@@ -801,7 +808,7 @@ export interface SearchResult {
 export async function searchEntities(
   q: string,
   type?: string,
-  options?: { scope?: "screen"; signal?: AbortSignal },
+  options?: { scope?: "screen" | "galaxy"; signal?: AbortSignal },
 ): Promise<SearchResult[]> {
   if (!q.trim()) return [];
   const qs = new URLSearchParams({ q });

@@ -28,7 +28,6 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 // clusters; titles past DETAILED simply render without them.
 const DETAILED = 6;
 const DETAIL_CONCURRENCY = 3;
-const HERO_NODES = 12;
 const MOVIE_WINDOW = 24; // top 10 + "beyond the top 10"
 
 /** Fetches movie details in small sequential batches; if an entire batch fails the backend is struggling, so the rest are skipped. */
@@ -71,6 +70,9 @@ export default function HomePage() {
     <main className="bg-[#0b0d1c]">
       <HomePicksProvider>
         <HomeDiscovery />
+        <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-8 sm:px-6" role="status">در حال بارگذاری کهکشان…</div>}>
+          <HomeGalaxy moviePage={moviePage} />
+        </Suspense>
         <Suspense fallback={<p className="mx-auto max-w-7xl px-6 py-10 text-muted" role="status">در حال دریافت محتوای سینماگزین…</p>}>
           <HomeSections moviePage={moviePage} />
         </Suspense>
@@ -79,31 +81,40 @@ export default function HomePage() {
   );
 }
 
-async function HomeSections({ moviePage }: { moviePage: ReturnType<typeof getRankingsPage> }) {
-  // Independent reads, fetched together; each failure only hides its own
-  // section (movies failing shows the error state below). The movie
-  // details chain off the movie list alone, so they don't wait for the
-  // other two reads.
-  const [movieRes, tvRes, extrasRes, featuredListRes, heroPoolRes, listTotalRes, peopleRes, battleTotalRes] = await Promise.allSettled([
+async function HomeGalaxy({ moviePage }: { moviePage: ReturnType<typeof getRankingsPage> }) {
+  const [movies, tv, graphs, lists, people, battles] = await Promise.allSettled([
     moviePage,
     getRankingsPage("tv_series", { page_size: 10 }),
-    moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
-    // فهرست‌های برگزیدهٔ ادمین؛ اگر نبود، پرلایک‌ترین فهرست باکیفیت (فیلتر کیفیت پیش‌فرض بک‌اند).
-    loadFeatured(),
-    // Pre-indexed ego graphs for the hero; failure just means the hero
-    // fetches them itself in the browser.
     getHeroGraphs(),
     getListsTotal(),
     getPeoplePage({ page_size: 1 }),
     getBattlesTotal(),
   ]);
-  const listTotal = listTotalRes.status === "fulfilled" ? listTotalRes.value : null;
-  const battleTotal = battleTotalRes.status === "fulfilled" ? battleTotalRes.value : null;
-  const artistTotal = peopleRes.status === "fulfilled" ? peopleRes.value.total : null;
-  const heroGraphs = heroPoolRes.status === "fulfilled" ? heroPoolRes.value : [];
+  return (
+    <HomeHero
+      graphs={graphs.status === "fulfilled" ? graphs.value : []}
+      movieTotal={movies.status === "fulfilled" ? movies.value.total : null}
+      tvTotal={tv.status === "fulfilled" ? tv.value.total : null}
+      listTotal={lists.status === "fulfilled" ? lists.value : null}
+      artistTotal={people.status === "fulfilled" ? people.value.total : null}
+      battleTotal={battles.status === "fulfilled" ? battles.value : null}
+    />
+  );
+}
+
+async function HomeSections({ moviePage }: { moviePage: ReturnType<typeof getRankingsPage> }) {
+  // Independent reads, fetched together; each failure only hides its own
+  // section (movies failing shows the error state below). The movie
+  // details chain off the movie list alone, so they don't wait for the
+  // other two reads.
+  const [movieRes, extrasRes, featuredListRes] = await Promise.allSettled([
+    moviePage,
+    moviePage.then((page) => fetchDetails(page.items.slice(0, DETAILED).map((m) => m.slug))),
+    // فهرست‌های برگزیدهٔ ادمین؛ اگر نبود، پرلایک‌ترین فهرست باکیفیت (فیلتر کیفیت پیش‌فرض بک‌اند).
+    loadFeatured(),
+  ]);
 
   const movies: MovieListItem[] = movieRes.status === "fulfilled" ? movieRes.value.items : [];
-  const movieTotal = movieRes.status === "fulfilled" ? movieRes.value.total : null;
   if (movieRes.status === "rejected") rethrowOutsideBuild(movieRes.reason);
   const loadError =
     movieRes.status === "rejected"
@@ -111,7 +122,6 @@ async function HomeSections({ moviePage }: { moviePage: ReturnType<typeof getRan
         ? movieRes.reason.message
         : "خطا در دریافت اطلاعات"
       : null;
-  const tvTotal = tvRes.status === "fulfilled" ? tvRes.value.total : null;
   const featuredList = featuredListRes.status === "fulfilled" ? featuredListRes.value.main : null;
   const otherFeatured = featuredListRes.status === "fulfilled" ? featuredListRes.value.others : [];
 
@@ -125,7 +135,6 @@ async function HomeSections({ moviePage }: { moviePage: ReturnType<typeof getRan
   if (loadError || !leader) {
     return (
       <>
-        <HomeHero titles={[]} graphs={[]} movieTotal={null} tvTotal={tvTotal} />
         <TasteBand />
         <section className="mx-auto max-w-7xl px-6 py-14">
           {loadError ? (
@@ -145,7 +154,6 @@ async function HomeSections({ moviePage }: { moviePage: ReturnType<typeof getRan
 
   return (
     <>
-      <HomeHero titles={titles.slice(0, HERO_NODES)} graphs={heroGraphs} movieTotal={movieTotal} tvTotal={tvTotal} listTotal={listTotal} battleTotal={battleTotal} artistTotal={artistTotal} />
       <TasteBand />
       <section className="mx-auto max-w-7xl px-6 py-14" aria-label="نبردها">
         <h2 className="mb-6 text-2xl font-extrabold text-ink">نبردها</h2>

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+from collections import defaultdict
 from contextlib import asynccontextmanager
 
 from app.core.slug import persian_slugify
@@ -32,6 +33,7 @@ from app.modules.taste.compute import ContributionStatsComputer
 from app.modules.notifications import service as notifications
 
 logger = logging.getLogger(__name__)
+DISCOVERY_PREVIEW_SIZE = 5
 
 
 @asynccontextmanager
@@ -470,7 +472,10 @@ class ListService:
         lists, total = await self.repo.discover(
             page, page_size, entity_type, tag, sort_by, quality_only, q, tag_slug=tag_slug
         )
-        return [self._to_summary_with_preview(lst) for lst in lists], total
+        entities_by_list = defaultdict(list)
+        for entity in await self.repo.discovery_items([lst.id for lst in lists], DISCOVERY_PREVIEW_SIZE):
+            entities_by_list[entity.list_id].append(entity)
+        return [self._to_summary_with_preview(lst, entities_by_list[lst.id]) for lst in lists], total
 
     async def featured(self, limit: int) -> list[ListSummary]:
         return [self._to_summary_with_preview(lst) for lst in await self.repo.featured(limit)]
@@ -498,22 +503,22 @@ class ListService:
             for score, lst, item_count in scored[:limit]
         ]
 
-    def _to_summary_with_preview(self, lst: UserList) -> ListSummary:
-        """Like ListSummary.model_validate(lst), plus owner_username and a
-        5-item poster preview -- requires `owner` and `items.entity` to
-        already be eager-loaded (see ListRepository.discover)."""
+    def _to_summary_with_preview(self, lst: UserList, entities: list | None = None) -> ListSummary:
+        """Add the owner and poster preview using entities in list order."""
+        if entities is None:
+            entities = [item.entity for item in lst.items]
         summary = ListSummary.model_validate(lst)
         summary.owner_username = lst.owner.username if lst.owner else None
         summary.owner_avatar_key = lst.owner.avatar_key if lst.owner else None
         summary.owner_display_name = lst.owner.display_name if lst.owner else None
-        summary.preview_items = [_entity_mini(item.entity) for item in lst.items[:5]]
-        summary.item_count = len(lst.items)
-        if lst.items:
+        summary.preview_items = [_entity_mini(entity) for entity in entities[:DISCOVERY_PREVIEW_SIZE]]
+        summary.item_count = len(entities)
+        if entities:
             # The stored type can disagree with the contents (e.g. a "person" list
             # holding movies), so the label always follows the majority item type.
             counts: dict[str, int] = {}
-            for item in lst.items:
-                counts[item.entity.entity_type] = counts.get(item.entity.entity_type, 0) + 1
+            for entity in entities:
+                counts[entity.entity_type] = counts.get(entity.entity_type, 0) + 1
             summary.entity_type = max(counts, key=counts.__getitem__)
         return summary
 

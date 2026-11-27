@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { searchEntities, SearchResult } from "@/lib/api";
@@ -22,13 +22,18 @@ const ROUTE_BY_TYPE: Record<string, string> = {
   track: "/track",
 };
 
-export default function SearchBox({ className = "min-w-0 flex-1", scope }: { className?: string; scope?: "screen" }) {
+export default function SearchBox({ className = "min-w-0 flex-1", scope, onSelect }: {
+  className?: string;
+  scope?: "screen" | "galaxy";
+  onSelect?: (result: SearchResult) => void;
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputId = useId();
   const router = useRouter();
 
   useEffect(() => {
@@ -38,7 +43,9 @@ export default function SearchBox({ className = "min-w-0 flex-1", scope }: { cla
       try {
         const data = await searchEntities(query.trim(), undefined, { scope, signal: controller.signal });
         if (controller.signal.aborted) return;
-        setResults(data.filter((r) => r.type in ROUTE_BY_TYPE));
+        setResults(data.filter((r) => scope === "galaxy"
+          ? r.type === "movie" || r.type === "tv_series" || r.type === "person"
+          : r.type in ROUTE_BY_TYPE));
       } catch {
         if (!controller.signal.aborted) setFailed(true);
       } finally {
@@ -63,8 +70,15 @@ export default function SearchBox({ className = "min-w-0 flex-1", scope }: { cla
   }, []);
 
   function handleSelect(result: SearchResult) {
+    if (onSelect) {
+      containerRef.current?.querySelector("input")?.focus({ preventScroll: true });
+    }
     setOpen(false);
     setQuery("");
+    if (onSelect) {
+      onSelect(result);
+      return;
+    }
     const basePath = ROUTE_BY_TYPE[result.type];
     if (scope === "screen") trackAnalytics("movie_finder_start", { surface: "search" });
     router.push(`${basePath}/${result.slug}`);
@@ -83,7 +97,11 @@ export default function SearchBox({ className = "min-w-0 flex-1", scope }: { cla
         }
       }}
     >
+      {scope === "galaxy" && (
+        <label htmlFor={inputId} className="mb-2 block text-sm font-semibold text-[#c4c8e6]">جست‌وجو در کهکشان</label>
+      )}
       <input
+        id={inputId}
         type="search"
         // Form-autofill extensions inject attributes (fdprocessedid) before hydration.
         suppressHydrationWarning
@@ -107,8 +125,8 @@ export default function SearchBox({ className = "min-w-0 flex-1", scope }: { cla
           }
         }}
         onFocus={() => query.trim() && setOpen(true)}
-        aria-label={scope ? "جست‌وجوی فیلم و سریال" : "جست‌وجو در سینماگزین"}
-        placeholder={scope ? "نام فارسی یا انگلیسی فیلم و سریال" : "جست‌وجو در سینماگزین"}
+        aria-label={scope === "galaxy" ? "جست‌وجو در کهکشان سینماگزین" : scope ? "جست‌وجوی فیلم و سریال" : "جست‌وجو در سینماگزین"}
+        placeholder={scope === "galaxy" ? "نام فیلم، سریال یا هنرمند" : scope ? "نام فارسی یا انگلیسی فیلم و سریال" : "جست‌وجو در سینماگزین"}
         maxLength={150}
         autoComplete="off"
         className={`w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-ink placeholder:text-muted focus:border-gold focus:outline-none ${scope ? "min-h-12 text-base" : "text-sm"}`}

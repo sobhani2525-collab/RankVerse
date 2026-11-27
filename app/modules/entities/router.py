@@ -144,7 +144,10 @@ async def hero_pool():
 
 @router.get("/graph/ego/{slug}")
 async def get_ego_graph(slug: str, db: AsyncSession = Depends(get_read_db)):
-    return envelope(data=await build_ego_graph(db, slug))
+    async def load():
+        return envelope(data=await build_ego_graph(db, slug))
+
+    return await cached(("ego-graph", slug), settings.cache_ttl_hero_pool, load)
 
 
 @router.get("/genres/{slug}")
